@@ -51,7 +51,12 @@ const navSections = [
     label: "Dashboards",
     items: [
       { title: "Bundles", url: "/dashboard/bundles-compliance", icon: BarChart3 },
-      { title: "Vigilância", url: "/dashboard/infection-control", icon: Shield },
+      { title: "Vig. Processos", url: "/dashboard/infection-control", icon: Shield },
+      { title: "Higiene", url: "/hygiene/monitoring", icon: HandMetal },
+      { title: "Dispensers", url: "/dashboard/dispenser", icon: FlaskConical },
+      { title: "Estrutura CTI", url: "/dashboard/structure", icon: Building2 },
+      { title: "Precaução", url: "/precautions/monitoring", icon: Shield },
+      { title: "Antimicrobianos", url: "/antimicrobials/monitoring", icon: Pill },
     ],
   },
   {

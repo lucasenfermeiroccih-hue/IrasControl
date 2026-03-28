@@ -47,6 +47,13 @@ const App = () => (
             <Route path="/audits/dispenser/new" element={<AuditDispenserNew />} />
             <Route path="/audits/infrastructure/cti/new" element={<AuditCTINew />} />
             <Route path="/audits/antimicrobial-sensitivity/new" element={<AuditAntibiogramNew />} />
+            <Route path="/dashboard/bundles-compliance" element={<DashboardBundles />} />
+            <Route path="/dashboard/infection-control" element={<DashboardInfectionControl />} />
+            <Route path="/hygiene/monitoring" element={<DashboardHygiene />} />
+            <Route path="/dashboard/dispenser" element={<DashboardDispenser />} />
+            <Route path="/dashboard/structure" element={<DashboardStructure />} />
+            <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
+            <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
