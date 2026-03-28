@@ -55,6 +55,7 @@ const App = () => (
             <Route path="/dashboard/structure" element={<DashboardStructure />} />
             <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
             <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
+            <Route path="/reports" element={<Reports />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
