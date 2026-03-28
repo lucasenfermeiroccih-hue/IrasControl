@@ -8,6 +8,9 @@ import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import Pricing from "./pages/Pricing.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import AuditBundlesNew from "./pages/AuditBundlesNew.tsx";
+import AuditHandHygieneNew from "./pages/AuditHandHygieneNew.tsx";
+import AuditInfectionControlNew from "./pages/AuditInfectionControlNew.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -28,6 +31,9 @@ const App = () => (
           {/* Internal routes with sidebar layout */}
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
+            <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
+            <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
