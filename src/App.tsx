@@ -11,6 +11,9 @@ import Dashboard from "./pages/Dashboard.tsx";
 import AuditBundlesNew from "./pages/AuditBundlesNew.tsx";
 import AuditHandHygieneNew from "./pages/AuditHandHygieneNew.tsx";
 import AuditInfectionControlNew from "./pages/AuditInfectionControlNew.tsx";
+import AuditDispenserNew from "./pages/AuditDispenserNew.tsx";
+import AuditCTINew from "./pages/AuditCTINew.tsx";
+import AuditAntibiogramNew from "./pages/AuditAntibiogramNew.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -34,6 +37,9 @@ const App = () => (
             <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
             <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
             <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
+            <Route path="/audits/dispenser/new" element={<AuditDispenserNew />} />
+            <Route path="/audits/infrastructure/cti/new" element={<AuditCTINew />} />
+            <Route path="/audits/antimicrobial-sensitivity/new" element={<AuditAntibiogramNew />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
