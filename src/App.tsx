@@ -31,6 +31,9 @@ const App = () => (
           {/* Internal routes with sidebar layout */}
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
+            <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
+            <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
