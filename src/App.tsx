@@ -37,6 +37,9 @@ const App = () => (
             <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
             <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
             <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
+            <Route path="/audits/dispenser/new" element={<AuditDispenserNew />} />
+            <Route path="/audits/infrastructure/cti/new" element={<AuditCTINew />} />
+            <Route path="/audits/antimicrobial-sensitivity/new" element={<AuditAntibiogramNew />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
