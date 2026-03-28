@@ -15,6 +15,9 @@ import AuditDispenserNew from "./pages/AuditDispenserNew.tsx";
 import AuditCTINew from "./pages/AuditCTINew.tsx";
 import AuditAntibiogramNew from "./pages/AuditAntibiogramNew.tsx";
 import Reports from "./pages/Reports.tsx";
+import CasesInvestigation from "./pages/CasesInvestigation.tsx";
+import Alerts from "./pages/Alerts.tsx";
+import LaboratoryResults from "./pages/LaboratoryResults.tsx";
 import DashboardBundles from "./pages/DashboardBundles.tsx";
 import DashboardInfectionControl from "./pages/DashboardInfectionControl.tsx";
 import DashboardHygiene from "./pages/DashboardHygiene.tsx";
@@ -56,6 +59,9 @@ const App = () => (
             <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
             <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/cases/investigation" element={<CasesInvestigation />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/laboratory-results" element={<LaboratoryResults />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
