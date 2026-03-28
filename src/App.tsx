@@ -14,6 +14,7 @@ import AuditInfectionControlNew from "./pages/AuditInfectionControlNew.tsx";
 import AuditDispenserNew from "./pages/AuditDispenserNew.tsx";
 import AuditCTINew from "./pages/AuditCTINew.tsx";
 import AuditAntibiogramNew from "./pages/AuditAntibiogramNew.tsx";
+import Reports from "./pages/Reports.tsx";
 import DashboardBundles from "./pages/DashboardBundles.tsx";
 import DashboardInfectionControl from "./pages/DashboardInfectionControl.tsx";
 import DashboardHygiene from "./pages/DashboardHygiene.tsx";
