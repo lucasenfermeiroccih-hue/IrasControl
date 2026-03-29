@@ -27,6 +27,7 @@ import DashboardPrecautions from "./pages/DashboardPrecautions.tsx";
 import DashboardAntimicrobials from "./pages/DashboardAntimicrobials.tsx";
 import ReportsAnalytics from "./pages/ReportsAnalytics.tsx";
 import Forms from "./pages/Forms.tsx";
+import PatientsMonitoring from "./pages/PatientsMonitoring.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
