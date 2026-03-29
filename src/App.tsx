@@ -72,6 +72,10 @@ const App = () => (
             <Route path="/reports/analytics" element={<ReportsAnalytics />} />
             <Route path="/forms" element={<Forms />} />
             <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/crm" element={<CRM />} />
+            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/settings/profile" element={<UserProfile />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
