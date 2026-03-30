@@ -74,12 +74,13 @@ export default function DashboardBundles() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Adesão CVC</CardTitle></CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width={220} height={220}>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={cvcDonut} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, value }) => `${value}%`}>
+                <Pie data={cvcDonut} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" label={({ name, value }) => `${name}: ${value}%`} labelLine={false}>
                   {cvcDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
+                <Tooltip formatter={(value: number) => `${value}%`} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -88,12 +89,13 @@ export default function DashboardBundles() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Adesão SVD</CardTitle></CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width={220} height={220}>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={svdDonut} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, value }) => `${value}%`}>
+                <Pie data={svdDonut} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" label={({ name, value }) => `${name}: ${value}%`} labelLine={false}>
                   {svdDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
+                <Tooltip formatter={(value: number) => `${value}%`} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
