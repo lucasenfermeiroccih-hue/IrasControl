@@ -39,7 +39,7 @@ const records = [
 
 export default function DashboardHygiene() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
         <p className="text-sm text-muted-foreground">Indicadores de adesão aos 5 momentos da OMS</p>

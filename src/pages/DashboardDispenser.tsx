@@ -40,7 +40,7 @@ const issues = [
 
 export default function DashboardDispenser() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
         <p className="text-sm text-muted-foreground">Monitoramento de insumos e conformidade de dispensadores</p>

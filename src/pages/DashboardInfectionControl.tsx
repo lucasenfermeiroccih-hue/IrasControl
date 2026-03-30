@@ -40,7 +40,7 @@ const topFailures = [
 
 export default function DashboardInfectionControl() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard — Vigilância de Processos</h1>
         <p className="text-sm text-muted-foreground">Índice de conformidade por protocolo e ranking de falhas</p>

@@ -47,7 +47,7 @@ function getCellColor(value: number) {
 
 export default function DashboardAntimicrobials() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard — Antimicrobianos</h1>
         <p className="text-sm text-muted-foreground">Stewardship e consumo de antimicrobianos</p>

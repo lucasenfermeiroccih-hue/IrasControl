@@ -46,7 +46,7 @@ export default function AdminSettings() {
   const [orgCnes, setOrgCnes] = useState("2345678");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center gap-3">
         <Settings className="h-7 w-7 text-primary" />
         <div>

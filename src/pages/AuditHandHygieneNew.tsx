@@ -59,7 +59,7 @@ export default function AuditHandHygieneNew() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
@@ -104,7 +104,7 @@ export default function AuditHandHygieneNew() {
         <CardHeader>
           <CardTitle className="text-lg">Avaliação da Higienização</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 md:space-y-6">
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <Label className="text-base">Possui adornos?</Label>
