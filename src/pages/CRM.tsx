@@ -60,7 +60,7 @@ export default function CRM() {
   const pipelineValue = mockContacts.filter((c) => c.stage === "negociação").reduce((sum, c) => sum + parseInt(c.value.replace(/\D/g, "")), 0);
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="h-7 w-7 text-primary" />

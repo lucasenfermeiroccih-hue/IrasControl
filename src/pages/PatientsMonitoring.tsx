@@ -84,7 +84,7 @@ export default function PatientsMonitoring() {
   const withInfection = mockPatients.filter((p) => p.infection && p.status !== "alta").length;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Stethoscope className="h-7 w-7 text-primary" />
         <div>

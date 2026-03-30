@@ -20,7 +20,7 @@ export default function UserProfile() {
   const [council, setCouncil] = useState("CRM-SP 123456");
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
         <User className="h-7 w-7 text-primary" />
         <div>
