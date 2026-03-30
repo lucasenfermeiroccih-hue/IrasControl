@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Activity } from "lucide-react";
+import { ArrowLeft, Save, Activity, BarChart3, CheckCircle, XCircle } from "lucide-react";
 
 const sectors = ["UTI Adulto", "UTI Neonatal", "UTI Pediátrica", "Clínica Médica", "Clínica Cirúrgica", "Pronto Socorro"];
 const months = [
@@ -71,14 +71,20 @@ export default function AuditBundlesNew() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Auditoria de Bundles CVC/SVD</h1>
-          <p className="text-muted-foreground text-sm">Registro de conformidade de protocolos de cateter</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Auditoria de Bundles CVC/SVD</h1>
+            <p className="text-muted-foreground text-sm">Registro de conformidade de protocolos de cateter</p>
+          </div>
         </div>
+        <Button variant="outline" className="gap-2" onClick={() => navigate("/dashboard/bundles-compliance")}>
+          <BarChart3 className="h-4 w-4" />
+          <span className="hidden sm:inline">Ver Dashboard</span>
+        </Button>
       </div>
 
       {/* Identificação */}
@@ -190,6 +196,46 @@ export default function AuditBundlesNew() {
             value={form.observations}
             onChange={set("observations")}
           />
+        </CardContent>
+      </Card>
+
+      {/* Resumo dos Indicadores */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Resumo da Auditoria</CardTitle>
+          <CardDescription>Prévia dos indicadores antes do fechamento</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="text-center p-3 rounded-lg border">
+            <p className="text-xs text-muted-foreground">Adesão CVC</p>
+            <p className="text-2xl font-bold" style={{ color: cvcRate >= 80 ? "hsl(var(--success))" : cvcRate >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }}>
+              {cvcRate.toFixed(1)}%
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-lg border">
+            <p className="text-xs text-muted-foreground">Adesão SVD</p>
+            <p className="text-2xl font-bold" style={{ color: svdRate >= 80 ? "hsl(var(--success))" : svdRate >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }}>
+              {svdRate.toFixed(1)}%
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-lg border">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <CheckCircle className="h-4 w-4 text-success" />
+              <p className="text-xs text-muted-foreground">Conformes</p>
+            </div>
+            <p className="text-2xl font-bold text-success">
+              {Number(form.cvcCompleteBundles || 0) + Number(form.svdCompleteBundles || 0)}
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-lg border">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <XCircle className="h-4 w-4 text-destructive" />
+              <p className="text-xs text-muted-foreground">Inconformes</p>
+            </div>
+            <p className="text-2xl font-bold text-destructive">
+              {Number(form.cvcIncompleteBundles || 0) + Number(form.svdIncompleteBundles || 0)}
+            </p>
+          </div>
         </CardContent>
       </Card>
 
