@@ -6,9 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, UserPlus, Users, RefreshCw } from "lucide-react";
+import {
+  Loader2, UserPlus, Users, RefreshCw, MoreHorizontal,
+  Pencil, UserX, UserCheck, ShieldAlert,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -47,15 +61,24 @@ export default function HospitalUsers() {
   const [hospitalName, setHospitalName] = useState("");
   const [users, setUsers] = useState<HospitalUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    role: "",
-  });
+  // Create dialog
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ full_name: "", email: "", phone: "", role: "" });
+
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState<HospitalUser | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", role: "" });
+
+  // Deactivate/activate confirmation
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"deactivate" | "activate">("deactivate");
+  const [confirmTarget, setConfirmTarget] = useState<HospitalUser | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     loadHospitalAndUsers();
@@ -66,8 +89,8 @@ export default function HospitalUsers() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
 
-      // Get the hospital this user belongs to
       const { data: membership } = await supabase
         .from("hospital_users")
         .select("hospital_id")
@@ -83,7 +106,6 @@ export default function HospitalUsers() {
 
       setHospitalId(membership.hospital_id);
 
-      // Get hospital name
       const { data: hospital } = await supabase
         .from("hospitals")
         .select("name")
@@ -91,16 +113,14 @@ export default function HospitalUsers() {
         .single();
 
       if (hospital) setHospitalName(hospital.name);
-
       await fetchUsers(membership.hospital_id);
-    } catch (err) {
+    } catch {
       toast.error("Erro ao carregar dados");
     }
     setLoading(false);
   };
 
   const fetchUsers = async (hId: string) => {
-    // Get all users linked to this hospital with profiles and roles
     const { data, error } = await supabase
       .from("hospital_users")
       .select(`
@@ -115,39 +135,120 @@ export default function HospitalUsers() {
       console.error("Error fetching users:", error);
       return;
     }
-
     setUsers((data as unknown as HospitalUser[]) || []);
   };
 
+  // --- Create ---
   const handleCreateUser = async () => {
-    if (!form.email || !form.full_name || !form.role || !hospitalId) {
+    if (!createForm.email || !createForm.full_name || !createForm.role || !hospitalId) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
-
     setCreating(true);
-
     const { data, error } = await supabase.functions.invoke("create-hospital-user", {
       body: {
-        email: form.email,
-        full_name: form.full_name,
-        phone: form.phone || null,
+        email: createForm.email,
+        full_name: createForm.full_name,
+        phone: createForm.phone || null,
         hospital_id: hospitalId,
-        role: form.role,
+        role: createForm.role,
       },
     });
-
     setCreating(false);
-
     if (error || data?.error) {
       toast.error("Erro ao criar usuário: " + (data?.error || error?.message));
       return;
     }
-
-    toast.success("Usuário criado com sucesso! Um link de acesso foi enviado por e-mail.");
-    setForm({ full_name: "", email: "", phone: "", role: "" });
-    setDialogOpen(false);
+    toast.success("Usuário criado com sucesso!");
+    setCreateForm({ full_name: "", email: "", phone: "", role: "" });
+    setCreateOpen(false);
     await fetchUsers(hospitalId);
+  };
+
+  // --- Edit ---
+  const openEditDialog = (user: HospitalUser) => {
+    const mainRole = (user.user_roles || []).find(
+      (r) => r.role !== "super_admin" && r.role !== "hospital_admin"
+    );
+    setEditTarget(user);
+    setEditForm({
+      full_name: user.profiles?.full_name || "",
+      phone: user.profiles?.phone || "",
+      role: mainRole?.role || "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!editTarget || !hospitalId) return;
+    if (!editForm.full_name) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    setEditing(true);
+    const { data, error } = await supabase.functions.invoke("manage-hospital-user", {
+      body: {
+        action: "update",
+        user_id: editTarget.user_id,
+        hospital_id: hospitalId,
+        full_name: editForm.full_name,
+        phone: editForm.phone || null,
+        role: editForm.role || undefined,
+      },
+    });
+    setEditing(false);
+    if (error || data?.error) {
+      toast.error("Erro ao atualizar: " + (data?.error || error?.message));
+      return;
+    }
+    toast.success("Usuário atualizado!");
+    setEditOpen(false);
+    setEditTarget(null);
+    await fetchUsers(hospitalId);
+  };
+
+  // --- Deactivate / Activate ---
+  const openConfirmDialog = (user: HospitalUser, action: "deactivate" | "activate") => {
+    setConfirmTarget(user);
+    setConfirmAction(action);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmTarget || !hospitalId) return;
+    setActionLoading(true);
+    const { data, error } = await supabase.functions.invoke("manage-hospital-user", {
+      body: {
+        action: confirmAction,
+        user_id: confirmTarget.user_id,
+        hospital_id: hospitalId,
+      },
+    });
+    setActionLoading(false);
+    if (error || data?.error) {
+      toast.error("Erro: " + (data?.error || error?.message));
+      return;
+    }
+    toast.success(
+      confirmAction === "deactivate"
+        ? "Usuário desativado com sucesso"
+        : "Usuário reativado com sucesso"
+    );
+    setConfirmOpen(false);
+    setConfirmTarget(null);
+    await fetchUsers(hospitalId);
+  };
+
+  const getAssignableRole = (user: HospitalUser) => {
+    return (user.user_roles || []).find(
+      (r) => r.role !== "super_admin" && r.role !== "hospital_admin"
+    );
+  };
+
+  const isAdminRole = (user: HospitalUser) => {
+    return (user.user_roles || []).some(
+      (r) => r.role === "hospital_admin" || r.role === "super_admin"
+    );
   };
 
   if (loading) {
@@ -174,7 +275,9 @@ export default function HospitalUsers() {
           <Button variant="outline" size="sm" onClick={loadHospitalAndUsers}>
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+
+          {/* Create Dialog */}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <UserPlus className="h-4 w-4 mr-1" /> Novo Usuário
@@ -191,8 +294,8 @@ export default function HospitalUsers() {
                 <div className="space-y-2">
                   <Label>Nome Completo *</Label>
                   <Input
-                    value={form.full_name}
-                    onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                    value={createForm.full_name}
+                    onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
                     placeholder="Dr. Maria Silva"
                   />
                 </div>
@@ -200,39 +303,33 @@ export default function HospitalUsers() {
                   <Label>E-mail *</Label>
                   <Input
                     type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                     placeholder="maria@hospital.com"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Telefone</Label>
                   <Input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                     placeholder="(11) 99999-0000"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Perfil de Acesso *</Label>
-                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o perfil" />
-                    </SelectTrigger>
+                  <Select value={createForm.role} onValueChange={(v) => setCreateForm({ ...createForm, role: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
                     <SelectContent>
                       {ASSIGNABLE_ROLES.map((r) => (
-                        <SelectItem key={r.value} value={r.value}>
-                          {r.label}
-                        </SelectItem>
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancelar
-                </Button>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
                 <Button onClick={handleCreateUser} disabled={creating}>
                   {creating && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                   Criar Usuário
@@ -272,16 +369,25 @@ export default function HospitalUsers() {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((u) => {
                   const profile = u.profiles;
                   const roles = u.user_roles || [];
+                  const isSelf = u.user_id === currentUserId;
+                  const isAdmin = isAdminRole(u);
+
                   return (
                     <TableRow key={u.user_id}>
                       <TableCell className="font-medium">
                         {profile?.full_name || "—"}
+                        {isSelf && (
+                          <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                            Você
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {profile?.email || "—"}
@@ -309,6 +415,39 @@ export default function HospitalUsers() {
                           </Badge>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {!u.is_primary_admin && !isSelf && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {!isAdmin && (
+                                <DropdownMenuItem onClick={() => openEditDialog(u)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => openConfirmDialog(u, "deactivate")}
+                              >
+                                <UserX className="h-4 w-4 mr-2" />
+                                Desativar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openConfirmDialog(u, "activate")}
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Reativar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -317,6 +456,101 @@ export default function HospitalUsers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Altere as informações de{" "}
+              <span className="font-medium text-foreground">
+                {editTarget?.profiles?.full_name}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nome Completo *</Label>
+              <Input
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="(11) 99999-0000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Perfil de Acesso</Label>
+              <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <SelectTrigger><SelectValue placeholder="Manter atual" /></SelectTrigger>
+                <SelectContent>
+                  {ASSIGNABLE_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEditUser} disabled={editing}>
+              {editing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate / Activate Confirmation */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmAction === "deactivate" ? (
+                <><ShieldAlert className="h-5 w-5 text-destructive" /> Desativar Usuário</>
+              ) : (
+                <><UserCheck className="h-5 w-5 text-primary" /> Reativar Usuário</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "deactivate" ? (
+                <>
+                  Tem certeza que deseja desativar{" "}
+                  <span className="font-medium text-foreground">
+                    {confirmTarget?.profiles?.full_name}
+                  </span>
+                  ? O usuário não poderá mais acessar o sistema.
+                </>
+              ) : (
+                <>
+                  Deseja reativar o acesso de{" "}
+                  <span className="font-medium text-foreground">
+                    {confirmTarget?.profiles?.full_name}
+                  </span>
+                  ? O usuário poderá voltar a acessar o sistema.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              disabled={actionLoading}
+              className={confirmAction === "deactivate" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {confirmAction === "deactivate" ? "Desativar" : "Reativar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
