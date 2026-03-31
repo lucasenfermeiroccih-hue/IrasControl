@@ -14,16 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      hospital_users: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          is_primary_admin: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_primary_admin?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_primary_admin?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_users_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospitals: {
+        Row: {
+          bed_count: number | null
+          city: string | null
+          cnes: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          name: string
+          state: string | null
+          status: Database["public"]["Enums"]["hospital_status"]
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          bed_count?: number | null
+          city?: string | null
+          cnes?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          state?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"]
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          bed_count?: number | null
+          city?: string | null
+          cnes?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          state?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"]
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "super_admin"
+        | "hospital_admin"
+        | "nurse_ccih"
+        | "doctor"
+        | "lab_tech"
+        | "viewer"
+      hospital_status: "active" | "inactive" | "pending"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +287,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "super_admin",
+        "hospital_admin",
+        "nurse_ccih",
+        "doctor",
+        "lab_tech",
+        "viewer",
+      ],
+      hospital_status: ["active", "inactive", "pending"],
+    },
   },
 } as const
