@@ -78,6 +78,7 @@ const navSections = [
     label: "Admin",
     items: [
       { title: "Super Admin", url: "/super-admin", icon: Shield },
+      { title: "Usuários", url: "/admin/users", icon: Users },
       { title: "Configurações", url: "/admin/settings", icon: Settings },
       { title: "CRM", url: "/crm", icon: Users },
       { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },

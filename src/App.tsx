@@ -34,6 +34,7 @@ import CRM from "./pages/CRM.tsx";
 import Marketplace from "./pages/Marketplace.tsx";
 import UserProfile from "./pages/UserProfile.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
+import HospitalUsers from "./pages/HospitalUsers.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/forms" element={<Forms />} />
             <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/users" element={<HospitalUsers />} />
             <Route element={<RequireSuperAdmin />}>
               <Route path="/super-admin" element={<SuperAdmin />} />
             </Route>
