@@ -121,21 +121,41 @@ export default function HospitalUsers() {
   };
 
   const fetchUsers = async (hId: string) => {
-    const { data, error } = await supabase
+    // Get hospital members
+    const { data: members, error: membersError } = await supabase
       .from("hospital_users")
-      .select(`
-        user_id,
-        is_primary_admin,
-        profiles!inner(full_name, email, phone),
-        user_roles(role)
-      `)
+      .select("user_id, is_primary_admin")
       .eq("hospital_id", hId);
 
-    if (error) {
-      console.error("Error fetching users:", error);
+    if (membersError || !members || members.length === 0) {
+      if (membersError) console.error("Error fetching members:", membersError);
+      setUsers([]);
       return;
     }
-    setUsers((data as unknown as HospitalUser[]) || []);
+
+    const userIds = members.map((m) => m.user_id);
+
+    // Fetch profiles and roles for these users in parallel
+    const [{ data: profiles }, { data: roles }] = await Promise.all([
+      supabase.from("profiles").select("user_id, full_name, email, phone").in("user_id", userIds),
+      supabase.from("user_roles").select("user_id, role").in("user_id", userIds),
+    ]);
+
+    const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+    const rolesMap = new Map<string, { role: string }[]>();
+    (roles || []).forEach((r) => {
+      if (!rolesMap.has(r.user_id)) rolesMap.set(r.user_id, []);
+      rolesMap.get(r.user_id)!.push({ role: r.role });
+    });
+
+    const combined: HospitalUser[] = members.map((m) => ({
+      user_id: m.user_id,
+      is_primary_admin: m.is_primary_admin,
+      profiles: profileMap.get(m.user_id) || null,
+      user_roles: rolesMap.get(m.user_id) || null,
+    }));
+
+    setUsers(combined);
   };
 
   // --- Create ---
