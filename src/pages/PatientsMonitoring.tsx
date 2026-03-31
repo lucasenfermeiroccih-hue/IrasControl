@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Stethoscope, Search, Users, AlertTriangle, ShieldCheck, Clock, Activity, Thermometer, Pill, FileText, Plus, Pencil } from "lucide-react";
+import { Stethoscope, Search, Users, AlertTriangle, ShieldCheck, Clock, Activity, Thermometer, Pill, FileText, Plus, Pencil, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 type PatientStatus = "internado" | "isolamento" | "alta" | "óbito" | "transferido";
@@ -99,6 +99,16 @@ export default function PatientsMonitoring() {
   const criticalCount = patients.filter((p) => p.risk === "crítico" && p.status !== "alta").length;
   const isolationCount = patients.filter((p) => p.status === "isolamento").length;
   const withInfection = patients.filter((p) => p.infection && p.status !== "alta").length;
+
+  const dischargePatient = (patient: Patient) => {
+    setPatients((prev) =>
+      prev.map((p) =>
+        p.id === patient.id ? { ...p, status: "alta" as PatientStatus, risk: "baixo" as RiskLevel } : p
+      )
+    );
+    setSelectedPatient(null);
+    toast.success(`Paciente ${patient.name} recebeu alta com sucesso!`);
+  };
 
   const openNewForm = () => {
     setEditingPatient(null);
@@ -297,7 +307,12 @@ export default function PatientsMonitoring() {
                   <TableCell className="hidden lg:table-cell">
                     <span className={`text-sm font-medium ${p.daysHospitalized > 14 ? "text-destructive" : ""}`}>{p.daysHospitalized}d</span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex items-center justify-end gap-1">
+                    {(p.status === "internado" || p.status === "isolamento") && (
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" title="Dar Alta" onClick={(e) => { e.stopPropagation(); dischargePatient(p); }}>
+                        <LogOut className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedPatient(p); }}>Detalhes</Button>
                   </TableCell>
                 </TableRow>
