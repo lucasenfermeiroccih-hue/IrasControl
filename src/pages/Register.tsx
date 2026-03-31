@@ -9,8 +9,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Register() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -50,7 +50,8 @@ export default function Register() {
       return;
     }
 
-    setSuccess(true);
+    toast.success("Conta criada com sucesso!");
+    navigate("/dashboard");
   };
 
   if (success) {
