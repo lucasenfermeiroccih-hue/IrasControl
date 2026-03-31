@@ -100,6 +100,16 @@ export default function PatientsMonitoring() {
   const isolationCount = patients.filter((p) => p.status === "isolamento").length;
   const withInfection = patients.filter((p) => p.infection && p.status !== "alta").length;
 
+  const dischargePatient = (patient: Patient) => {
+    setPatients((prev) =>
+      prev.map((p) =>
+        p.id === patient.id ? { ...p, status: "alta" as PatientStatus, risk: "baixo" as RiskLevel } : p
+      )
+    );
+    setSelectedPatient(null);
+    toast.success(`Paciente ${patient.name} recebeu alta com sucesso!`);
+  };
+
   const openNewForm = () => {
     setEditingPatient(null);
     setForm(emptyForm);
