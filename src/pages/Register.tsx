@@ -333,7 +333,7 @@ export default function Register() {
         {step === "success" && (
           <>
             <CardContent className="text-center space-y-4 py-8">
-              <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto" />
+              <CheckCircle className="h-16 w-16 text-primary mx-auto" />
               <div>
                 <h2 className="text-xl font-bold">Hospital Cadastrado!</h2>
                 <p className="text-sm text-muted-foreground mt-1">
