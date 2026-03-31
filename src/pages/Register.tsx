@@ -54,30 +54,6 @@ export default function Register() {
     navigate("/dashboard");
   };
 
-  if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4">
-              <CheckCircle className="h-16 w-16 text-primary" />
-            </div>
-            <CardTitle className="text-xl">Verifique seu e-mail</CardTitle>
-            <CardDescription className="mt-2">
-              Enviamos um link de confirmação para <strong>{email}</strong>. 
-              Clique no link para ativar sua conta.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="justify-center">
-            <Link to="/login" className="text-sm text-primary hover:underline">
-              Voltar ao login
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-8">
       <Card className="w-full max-w-md">
