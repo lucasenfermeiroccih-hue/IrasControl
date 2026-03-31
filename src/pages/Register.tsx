@@ -120,7 +120,7 @@ export default function Register() {
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <div className="mx-auto mb-2">
-              <AlertTriangle className="h-12 w-12 text-amber-500" />
+              <AlertTriangle className="h-12 w-12 text-destructive" />
             </div>
             <CardTitle>Setup já realizado</CardTitle>
             <CardDescription>
