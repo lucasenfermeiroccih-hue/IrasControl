@@ -38,29 +38,41 @@ export default function Register() {
 
   // Auth check — only super_admin can access
   useEffect(() => {
+    let isActive = true;
+
     const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (!isActive) return;
+
+      if (authError || !user) {
+        await supabase.auth.signOut();
         toast.error("Você precisa estar autenticado como Super Admin");
-        navigate("/login");
+        navigate("/login", { replace: true });
         return;
       }
 
       const { data, error } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
+        _user_id: user.id,
         _role: "super_admin",
       });
 
-      if (!data || error) {
+      if (!isActive) return;
+
+      if (error || !data) {
         toast.error("Acesso restrito a Super Administradores");
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
         return;
       }
 
       setStep("hospital");
     };
 
-    checkAccess();
+    void checkAccess();
+
+    return () => {
+      isActive = false;
+    };
   }, [navigate]);
 
   const handleCreateHospital = async (e: React.FormEvent) => {
