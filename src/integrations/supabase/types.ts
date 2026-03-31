@@ -144,6 +144,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       has_any_super_admin: { Args: never; Returns: boolean }
       has_role: {
         Args: {
