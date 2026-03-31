@@ -75,6 +75,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "alerts_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "alerts_related_case_id_fkey"
             columns: ["related_case_id"]
             isOneToOne: false
@@ -186,6 +193,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "antimicrobial_prescriptions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "antimicrobial_prescriptions_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -286,6 +300,13 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "audits_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
         ]
       }
       case_notes: {
@@ -348,6 +369,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_users_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
             referencedColumns: ["id"]
           },
         ]
@@ -461,6 +489,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "infection_cases_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "infection_cases_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -518,6 +553,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_results_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
             referencedColumns: ["id"]
           },
           {
@@ -639,6 +681,13 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "patients_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
         ]
       }
       precautions: {
@@ -757,6 +806,13 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sectors_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -779,7 +835,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      hospitals_summary: {
+        Row: {
+          bed_count: number | null
+          city: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          state: string | null
+          status: Database["public"]["Enums"]["hospital_status"] | null
+          type: string | null
+        }
+        Insert: {
+          bed_count?: number | null
+          city?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"] | null
+          type?: string | null
+        }
+        Update: {
+          bed_count?: number | null
+          city?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"] | null
+          type?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
