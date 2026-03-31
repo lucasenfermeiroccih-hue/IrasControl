@@ -1,10 +1,75 @@
-import { Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, User } from "lucide-react";
+import { Bell, LogOut, Settings, User, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  hospital_admin: "Administrador",
+  nurse_ccih: "Enfermeiro(a) CCIH",
+  doctor: "Médico(a)",
+  lab_tech: "Técnico Lab.",
+  viewer: "Visualizador",
+};
 
 export function AppLayout() {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<{
+    full_name: string;
+    email: string;
+    avatar_url?: string | null;
+    roles: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [{ data: profileData }, { data: rolesData }] = await Promise.all([
+        supabase.from("profiles").select("full_name, email").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+      ]);
+
+      setProfile({
+        full_name: profileData?.full_name || user.email || "Usuário",
+        email: profileData?.email || user.email || "",
+        avatar_url: user.user_metadata?.avatar_url || null,
+        roles: (rolesData || []).map((r: { role: string }) => r.role),
+      });
+    };
+
+    load();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      load();
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logout realizado com sucesso");
+    navigate("/login", { replace: true });
+  };
+
+  const initials = profile?.full_name
+    ? profile.full_name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    : "U";
+
+  const primaryRole = profile?.roles?.[0];
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -17,10 +82,59 @@ export function AppLayout() {
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Dr. Maria Silva</span>
-              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 px-1.5">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline text-sm font-medium max-w-[140px] truncate">
+                      {profile?.full_name || "Carregando..."}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={profile?.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{profile?.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                        {primaryRole && (
+                          <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0">
+                            {ROLE_LABELS[primaryRole] || primaryRole}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => navigate("/settings/profile")}>
+                      <UserCircle className="h-4 w-4 mr-2" />
+                      Meu Perfil
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/admin/settings")}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configurações
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           <main className="flex-1 overflow-auto bg-background p-2 sm:p-3 md:p-6">
