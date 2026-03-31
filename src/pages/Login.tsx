@@ -141,8 +141,8 @@ export default function Login() {
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Entrando...</> : "Entrar"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Não tem conta?{" "}
-              <Link to="/register" className="text-primary hover:underline">Criar conta</Link>
+              Primeiro acesso?{" "}
+              <Link to="/register" className="text-primary hover:underline">Configurar sistema</Link>
             </p>
           </CardFooter>
         </form>
