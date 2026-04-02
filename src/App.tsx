@@ -35,6 +35,7 @@ import Marketplace from "./pages/Marketplace.tsx";
 import UserProfile from "./pages/UserProfile.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
 import HospitalUsers from "./pages/HospitalUsers.tsx";
+import IndicadoresNew from "./pages/IndicadoresNew.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import NotFound from "./pages/NotFound.tsx";
