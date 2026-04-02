@@ -24,10 +24,8 @@ export const mesesOptions = [
 ];
 
 export const setorOptions = [
-  "UTI Adulto", "UTI Pediátrica", "UTI Neonatal", "Centro Cirúrgico",
-  "Enfermaria", "Emergência", "Sala Vermelha", "Trauma",
-  "Enfermaria Pediátrica", "Emergência Pediátrica", "Clínica Médica",
-  "Clínica Cirúrgica", "Maternidade", "Hemodiálise",
+  "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto",
+  "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico",
 ];
 
 export const inputFields: IndicadorField[] = [
