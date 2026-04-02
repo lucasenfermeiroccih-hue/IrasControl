@@ -46,6 +46,7 @@ const navSections = [
       { title: "Antimicrobianos", url: "/antimicrobials/monitoring", icon: Pill },
       { title: "Higiene", url: "/hygiene/monitoring", icon: Activity },
       { title: "Indicadores", url: "/indicadores/new", icon: TrendingUp },
+      { title: "Indicadores ISC", url: "/indicadores-isc", icon: ClipboardCheck },
     ],
   },
   {

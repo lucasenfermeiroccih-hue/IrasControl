@@ -90,6 +90,7 @@ const App = () => (
             <Route path="/settings/profile" element={<UserProfile />} />
             <Route path="/indicadores/new" element={<IndicadoresNew />} />
             <Route path="/indicadores/dashboard" element={<IndicadoresDashboard />} />
+            <Route path="/indicadores-isc" element={<IndicadoresISC />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
