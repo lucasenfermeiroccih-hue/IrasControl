@@ -45,6 +45,7 @@ const navSections = [
       { title: "Pacientes", url: "/patients/monitoring", icon: Stethoscope },
       { title: "Antimicrobianos", url: "/antimicrobials/monitoring", icon: Pill },
       { title: "Higiene", url: "/hygiene/monitoring", icon: Activity },
+      { title: "Indicadores", url: "/indicadores/new", icon: TrendingUp },
     ],
   },
   {
