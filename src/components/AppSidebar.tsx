@@ -58,6 +58,7 @@ const navSections = [
       { title: "Estrutura CTI", url: "/dashboard/structure", icon: Building2 },
       { title: "Precaução", url: "/precautions/monitoring", icon: Shield },
       { title: "Antimicrobianos", url: "/antimicrobials/monitoring", icon: Pill },
+      { title: "Indicadores", url: "/indicadores/dashboard", icon: TrendingUp },
     ],
   },
   {
