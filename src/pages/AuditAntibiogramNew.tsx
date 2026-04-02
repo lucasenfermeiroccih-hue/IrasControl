@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,16 +10,27 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Plus, Trash2, AlertTriangle, ShieldAlert } from "lucide-react";
+import {
+  pathogenCategories,
+  pathogensByCategory,
+  getAllPathogens,
+  type PathogenCategory,
+} from "@/data/pathogens";
 
-const microorganisms = [
-  "Staphylococcus aureus", "Staphylococcus epidermidis", "Enterococcus faecalis",
-  "Enterococcus faecium", "Escherichia coli", "Klebsiella pneumoniae",
-  "Pseudomonas aeruginosa", "Acinetobacter baumannii", "Proteus mirabilis",
-  "Serratia marcescens", "Enterobacter cloacae", "Candida albicans",
-  "Candida auris", "Streptococcus pneumoniae",
+const biologicalSites = [
+  "Sangue (Hemocultura)", "Urina (Urocultura)", "Secreção traqueal",
+  "Líquor", "Ferida operatória", "Ponta de cateter", "Swab retal",
+  "Swab nasal", "Líquido peritoneal",
+  "Secreções", "Fragmento ósseo", "Abscesso",
+  "Outro",
 ];
 
-const biologicalSites = ["Sangue (Hemocultura)", "Urina (Urocultura)", "Secreção traqueal", "Líquor", "Ferida operatória", "Ponta de cateter", "Swab retal", "Swab nasal", "Líquido peritoneal", "Outro"];
+const sectors = [
+  "UTI Adulto", "UTI Neonatal", "UTI Pediátrica",
+  "Clínica Médica", "Clínica Cirúrgica", "Pronto Socorro",
+  "Emergência", "Sala Vermelha", "Trauma",
+  "Enfermaria pediátrica", "Emergência pediátrica",
+];
 
 const commonAntibiotics = [
   "Amicacina", "Ampicilina", "Aztreonam", "Cefepima", "Ceftazidima",
@@ -45,8 +56,8 @@ interface AntibioticResult {
 const criticalPhenotypes = [
   { id: "mrsa", label: "MRSA (S. aureus resistente à meticilina)", trigger: (org: string, results: AntibioticResult[]) => org.includes("Staphylococcus aureus") && results.some((r) => r.antibiotic === "Oxacilina" && r.sir === "R") },
   { id: "vre", label: "VRE (Enterococcus resistente à vancomicina)", trigger: (org: string, results: AntibioticResult[]) => org.includes("Enterococcus") && results.some((r) => r.antibiotic === "Vancomicina" && r.sir === "R") },
-  { id: "kpc", label: "KPC (Carbapenemase)", trigger: (org: string, results: AntibioticResult[]) => results.some((r) => ["Meropenem", "Imipenem", "Ertapenem"].includes(r.antibiotic) && r.sir === "R") },
-  { id: "esbl", label: "ESBL (Beta-lactamase de espectro estendido)", trigger: (org: string, results: AntibioticResult[]) => results.some((r) => ["Ceftazidima", "Ceftriaxona", "Cefepima"].includes(r.antibiotic) && r.sir === "R") && results.some((r) => ["Meropenem", "Imipenem"].includes(r.antibiotic) && r.sir === "S") },
+  { id: "kpc", label: "KPC (Carbapenemase)", trigger: (_org: string, results: AntibioticResult[]) => results.some((r) => ["Meropenem", "Imipenem", "Ertapenem"].includes(r.antibiotic) && r.sir === "R") },
+  { id: "esbl", label: "ESBL (Beta-lactamase de espectro estendido)", trigger: (_org: string, results: AntibioticResult[]) => results.some((r) => ["Ceftazidima", "Ceftriaxona", "Cefepima"].includes(r.antibiotic) && r.sir === "R") && results.some((r) => ["Meropenem", "Imipenem"].includes(r.antibiotic) && r.sir === "S") },
 ];
 
 const sirColor: Record<string, string> = {
@@ -70,6 +81,26 @@ export default function AuditAntibiogramNew() {
   const [site, setSite] = useState("");
   const [results, setResults] = useState<AntibioticResult[]>([]);
 
+  // Pathogen category/species selection
+  const [pathogenCategory, setPathogenCategory] = useState<PathogenCategory | "">("");
+  const [selectedPathogen, setSelectedPathogen] = useState("");
+
+  const pathogenOptions = useMemo(() => {
+    if (!pathogenCategory || pathogenCategory === "Todos") return getAllPathogens();
+    return pathogensByCategory[pathogenCategory] ?? [];
+  }, [pathogenCategory]);
+
+  const handleCategoryChange = (value: string) => {
+    setPathogenCategory(value as PathogenCategory);
+    setSelectedPathogen("");
+    setOrganism("");
+  };
+
+  const handlePathogenChange = (value: string) => {
+    setSelectedPathogen(value);
+    setOrganism(value);
+  };
+
   const addRow = useCallback(() => {
     setResults((p) => [...p, { id: newId(), antibiotic: "", method: "", value: "", sir: "" }]);
   }, []);
@@ -80,18 +111,15 @@ export default function AuditAntibiogramNew() {
     setResults((p) => p.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
   };
 
-  // Simplified auto-SIR based on value presence
   const autoSIR = (row: AntibioticResult): SIR => {
     if (!row.value || !row.method) return "";
     const val = Number(row.value);
     if (isNaN(val)) return "";
     if (row.method.startsWith("Disco")) {
-      // Simplified breakpoints for disco-diffusion (mm)
       if (val >= 21) return "S";
       if (val >= 16) return "I";
       return "R";
     } else {
-      // CIM (µg/mL) — lower is more sensitive
       if (val <= 2) return "S";
       if (val <= 8) return "I";
       return "R";
@@ -135,8 +163,6 @@ export default function AuditAntibiogramNew() {
     navigate("/dashboard");
   };
 
-  const sectors = ["UTI Adulto", "UTI Neonatal", "UTI Pediátrica", "Clínica Médica", "Clínica Cirúrgica", "Pronto Socorro", "Laboratório"];
-
   return (
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center gap-3">
@@ -177,17 +203,10 @@ export default function AuditAntibiogramNew() {
           <CardTitle className="text-lg">Dados Microbiológicos</CardTitle>
           <CardDescription>Identificação do microrganismo e sítio biológico</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Paciente (anonimizado)</Label>
             <Input placeholder="Código ou iniciais" value={patientId} onChange={(e) => setPatientId(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Microrganismo *</Label>
-            <Select value={organism} onValueChange={setOrganism}>
-              <SelectTrigger><SelectValue placeholder="Selecione a espécie" /></SelectTrigger>
-              <SelectContent>{microorganisms.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-            </Select>
           </div>
           <div className="space-y-2">
             <Label>Sítio Biológico *</Label>
@@ -195,6 +214,41 @@ export default function AuditAntibiogramNew() {
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>{biologicalSites.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
+          </div>
+        </CardContent>
+
+        <Separator className="mx-6" />
+
+        {/* Pathogen category → species selection */}
+        <CardContent className="pt-4 space-y-4">
+          <p className="text-sm font-medium text-muted-foreground">Seleção do Patógeno</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Categoria de Patógeno</Label>
+              <Select value={pathogenCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger><SelectValue placeholder="Selecionar Categoria de Patógeno" /></SelectTrigger>
+                <SelectContent>
+                  {pathogenCategories.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Microrganismo *</Label>
+              <Select
+                value={selectedPathogen}
+                onValueChange={handlePathogenChange}
+                disabled={!pathogenCategory}
+              >
+                <SelectTrigger><SelectValue placeholder={pathogenCategory ? "Selecione a espécie" : "Selecione a categoria primeiro"} /></SelectTrigger>
+                <SelectContent>
+                  {pathogenOptions.map((p) => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
