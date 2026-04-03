@@ -2,7 +2,7 @@ import {
   LayoutDashboard, ClipboardCheck, Activity, Shield, Bell,
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
-  BarChart3, FolderOpen, TrendingUp
+  BarChart3, FolderOpen, TrendingUp, Sparkles
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
