@@ -279,7 +279,7 @@ export default function DashboardAntibiogram() {
                 <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name.split(" ")[0]} ${(percent * 100).toFixed(0)}%`}>
                   {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
