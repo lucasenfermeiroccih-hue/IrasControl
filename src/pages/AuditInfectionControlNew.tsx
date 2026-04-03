@@ -13,7 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileText, BarChart3 } from "lucide-react";
 
-const sectors = ["UTI Adulto", "UTI Neonatal", "UTI Pediátrica", "Clínica Médica", "Clínica Cirúrgica", "Pronto Socorro"];
+const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)"];
 const shifts = ["Manhã", "Tarde", "Noite"];
 const auditors = ["Dr. Carlos Mendes", "Enf. Ana Paula", "Enf. Marcos Lima", "Dr. Fernanda Souza"];
 
