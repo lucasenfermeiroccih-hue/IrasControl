@@ -24,8 +24,6 @@ export default function DashboardDDD() {
   const [filtroUnidade, setFiltroUnidade] = useState("all");
   const [filtroAtm, setFiltroAtm] = useState("all");
 
-  const [aiOutput, setAiOutput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
 
   const anos = useMemo(() => [...new Set(allData.map(d => d.ano))].sort(), [allData]);
   const unidades = useMemo(() => [...new Set(allData.map(d => d.unidade))].sort(), [allData]);
