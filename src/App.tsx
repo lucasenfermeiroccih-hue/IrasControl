@@ -98,6 +98,7 @@ const App = () => (
             <Route path="/dashboard-isc" element={<DashboardISC />} />
             <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
             <Route path="/dashboard-ddd" element={<DashboardDDD />} />
+            <Route path="/dashboard/antimicrobial-sensitivity" element={<DashboardAntibiogram />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
