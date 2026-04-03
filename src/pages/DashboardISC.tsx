@@ -362,7 +362,7 @@ export default function DashboardISC() {
             <CardContent className="space-y-3">
               {insights.map((ins, i) => (
                 <div key={i} className={`flex items-start gap-3 rounded-lg border p-3 ${insightBg(ins.type)}`}>
-                  {ins.icon}
+                  {insightIconMap[ins.icon] || <Activity className="h-5 w-5" />}
                   <p className="text-sm">{ins.text}</p>
                 </div>
               ))}
