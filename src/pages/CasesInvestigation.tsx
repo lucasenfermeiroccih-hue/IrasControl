@@ -90,22 +90,49 @@ const CasesInvestigation = () => {
     pendentes: cases.filter((c) => c.status === "pendente").length,
   };
 
+  const openEditForm = (c: InvestigationCase) => {
+    setEditingCase(c);
+    setForm({
+      paciente: c.paciente,
+      prontuario: c.prontuario,
+      setor: c.setor,
+      evento: c.evento,
+      classificacao: c.classificacao,
+      dispositivos: [...c.dispositivos],
+      observacoes: c.observacoes,
+    });
+    setDetailCase(null);
+    setDialogOpen(true);
+  };
+
   const handleSave = () => {
     if (!form.paciente || !form.setor || !form.evento) {
       toast.error("Preencha paciente, setor e evento.");
       return;
     }
-    const newCase: InvestigationCase = {
-      id: `INV-${String(cases.length + 1).padStart(3, "0")}`,
-      ...form,
-      status: "aberto",
-      dataNotificacao: new Date().toISOString().split("T")[0],
-      checklist: defaultChecklist.map((item) => ({ item, checked: false })),
-    };
-    setCases([newCase, ...cases]);
+
+    if (editingCase) {
+      setCases(cases.map((c) =>
+        c.id === editingCase.id
+          ? { ...c, paciente: form.paciente, prontuario: form.prontuario, setor: form.setor, evento: form.evento, classificacao: form.classificacao, dispositivos: form.dispositivos, observacoes: form.observacoes }
+          : c
+      ));
+      toast.success("Caso atualizado com sucesso!");
+    } else {
+      const newCase: InvestigationCase = {
+        id: `INV-${String(cases.length + 1).padStart(3, "0")}`,
+        ...form,
+        status: "aberto",
+        dataNotificacao: new Date().toISOString().split("T")[0],
+        checklist: defaultChecklist.map((item) => ({ item, checked: false })),
+      };
+      setCases([newCase, ...cases]);
+      toast.success("Caso registrado com sucesso!");
+    }
+
     setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
+    setEditingCase(null);
     setDialogOpen(false);
-    toast.success("Caso registrado com sucesso!");
   };
 
   const toggleChecklist = (caseId: string, idx: number) => {
