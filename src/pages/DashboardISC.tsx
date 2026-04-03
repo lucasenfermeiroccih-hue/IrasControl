@@ -74,6 +74,16 @@ const statusColor = (rate: number) =>
     : rate <= 5 ? "text-yellow-600 bg-yellow-50 border-yellow-200"
     : "text-red-600 bg-red-50 border-red-200";
 
+const insightIconMap: Record<string, React.ReactNode> = {
+  award: <Award className="h-5 w-5" />,
+  alert: <AlertTriangle className="h-5 w-5" />,
+  activity: <Activity className="h-5 w-5" />,
+  phone: <Phone className="h-5 w-5" />,
+  stethoscope: <Stethoscope className="h-5 w-5" />,
+  "trending-down": <TrendingDown className="h-5 w-5" />,
+  "trending-up": <TrendingUp className="h-5 w-5" />,
+};
+
 const statusIcon = (rate: number) =>
   rate <= 2 ? <TrendingDown className="h-4 w-4" /> : rate <= 5 ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />;
 
