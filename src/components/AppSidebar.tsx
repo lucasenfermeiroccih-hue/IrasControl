@@ -73,7 +73,7 @@ const navSections = [
   {
     label: "Relatórios",
     items: [
-      { title: "Relatórios", url: "/reports", icon: FileText },
+      { title: "Monitoramento Microorganismos", url: "/reports", icon: FileText },
       { title: "Analytics", url: "/reports/analytics", icon: BarChart3 },
       { title: "Formulários", url: "/forms", icon: FolderOpen },
     ],
