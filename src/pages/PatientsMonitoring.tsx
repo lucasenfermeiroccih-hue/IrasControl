@@ -199,10 +199,16 @@ export default function PatientsMonitoring() {
             <p className="text-sm text-muted-foreground">Vigilância epidemiológica e acompanhamento de pacientes</p>
           </div>
         </div>
-        <Button onClick={openNewForm} className="gap-2">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Cadastrar Paciente</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => generateAiInsights()} disabled={aiLoading} className="gap-2">
+            {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            <span className="hidden sm:inline">Insights IA</span>
+          </Button>
+          <Button onClick={openNewForm} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Cadastrar Paciente</span>
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
