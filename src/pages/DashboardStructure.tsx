@@ -49,9 +49,18 @@ function getStatusBadge(status: string) {
 export default function DashboardStructure() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Vigilância de Estrutura (CTI)</h1>
-        <p className="text-sm text-muted-foreground">Conformidade de infraestrutura e recursos dos CTIs</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Vigilância de Estrutura (CTI)</h1>
+          <p className="text-sm text-muted-foreground">Conformidade de infraestrutura e recursos dos CTIs</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 Conformidade geral de 79.8% com 24 auditorias de CTI realizadas.",
+          "⚠️ CTI Neonatal com conformidade crítica — resíduos (65%) e limpeza (68%) abaixo do mínimo.",
+          "🔻 Gestão de resíduos é a categoria mais fraca (74%) em todas as unidades.",
+          "✅ CTI Pediátrico com melhor desempenho geral — medicações 90%, equipamentos 88%.",
+          "💡 Recomendação: plano de ação urgente para CTI Neonatal com foco em resíduos e limpeza.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -42,9 +42,18 @@ const sectorData = [
 export default function DashboardPrecautions() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Precaução e Isolamento</h1>
-        <p className="text-sm text-muted-foreground">Monitoramento de medidas de precaução e isolamento</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Precaução e Isolamento</h1>
+          <p className="text-sm text-muted-foreground">Monitoramento de medidas de precaução e isolamento</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 Conformidade geral de 84.7% com 18 pacientes em isolamento e 52 inspeções.",
+          "⚠️ 6 falhas de sinalização — transporte com precauções (68%) e coorte (72%) são os pontos mais frágeis.",
+          "🔻 Emergência com menor conformidade (75%) — priorizar orientação de equipe.",
+          "✅ UTI Adulto com 90% — modelo de referência para as demais unidades.",
+          "💡 Recomendação: checklist de transporte e coorte com validação dupla.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

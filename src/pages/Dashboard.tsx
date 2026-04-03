@@ -70,7 +70,13 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard Principal</h1>
           <p className="text-sm text-muted-foreground">Visão consolidada da situação epidemiológica</p>
         </div>
-        <Button className="gap-2"><Bot className="h-4 w-4" /> Assistente IA</Button>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 284 pacientes monitorados com 3 IRAS confirmadas — taxa de 1.06%.",
+          "⚠️ Cluster de KPC na UTI Adulto com 3 casos em 7 dias — acionar protocolo de surto.",
+          "🩸 CVC do leito 12B ultrapassa 14 dias — avaliar necessidade de permanência.",
+          "✅ Taxa de conformidade geral em 94.2%, acima da meta de 90%.",
+          "💡 Recomendação: intensificar vigilância na UTI Adulto e revisar dispositivos com >10 dias.",
+        ]} />
       </div>
 
       {/* KPIs */}
