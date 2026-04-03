@@ -67,6 +67,7 @@ const createInitialData = (): FormData => ({
   "Cirurgia Vascular": emptyClinicaData(),
   "Neurocirurgia": emptyClinicaData(),
   "Ortopedia": emptyClinicaData(),
+  "Cesariana": emptyClinicaData(),
 });
 
 const calcTaxa = (num: number, den: number) =>
