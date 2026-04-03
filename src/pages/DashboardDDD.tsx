@@ -372,28 +372,12 @@ export default function DashboardDDD() {
           </Card>
 
           {/* Agente IA */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Sparkles className="h-5 w-5 text-primary" /> Agente de IA
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Button onClick={generateReport} disabled={aiLoading} className="gap-2">
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                  Gerar Relatório
-                </Button>
-                <Button variant="outline" onClick={generateInsights} disabled={aiLoading} className="gap-2">
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Gerar Insights
-                </Button>
-              </div>
-              {aiOutput && (
-                <Textarea value={aiOutput} readOnly rows={16} className="font-mono text-xs" />
-              )}
-            </CardContent>
-          </Card>
+          <AIAssistenteDDD
+            filtered={filtered}
+            all={allData}
+            filtroMes={filtroMes}
+            filtroAno={filtroAno}
+          />
         </>
       )}
     </div>
