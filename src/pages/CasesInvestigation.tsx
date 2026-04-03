@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FileText, Search, AlertTriangle, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, FileText, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil } from "lucide-react";
 
 type CaseStatus = "aberto" | "em_investigacao" | "concluido" | "pendente";
 
@@ -71,6 +71,7 @@ const CasesInvestigation = () => {
   const [detailCase, setDetailCase] = useState<InvestigationCase | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [search, setSearch] = useState("");
+  const [editingCase, setEditingCase] = useState<InvestigationCase | null>(null);
 
   const [form, setForm] = useState({
     paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [] as string[], observacoes: "",
@@ -89,22 +90,49 @@ const CasesInvestigation = () => {
     pendentes: cases.filter((c) => c.status === "pendente").length,
   };
 
+  const openEditForm = (c: InvestigationCase) => {
+    setEditingCase(c);
+    setForm({
+      paciente: c.paciente,
+      prontuario: c.prontuario,
+      setor: c.setor,
+      evento: c.evento,
+      classificacao: c.classificacao,
+      dispositivos: [...c.dispositivos],
+      observacoes: c.observacoes,
+    });
+    setDetailCase(null);
+    setDialogOpen(true);
+  };
+
   const handleSave = () => {
     if (!form.paciente || !form.setor || !form.evento) {
       toast.error("Preencha paciente, setor e evento.");
       return;
     }
-    const newCase: InvestigationCase = {
-      id: `INV-${String(cases.length + 1).padStart(3, "0")}`,
-      ...form,
-      status: "aberto",
-      dataNotificacao: new Date().toISOString().split("T")[0],
-      checklist: defaultChecklist.map((item) => ({ item, checked: false })),
-    };
-    setCases([newCase, ...cases]);
+
+    if (editingCase) {
+      setCases(cases.map((c) =>
+        c.id === editingCase.id
+          ? { ...c, paciente: form.paciente, prontuario: form.prontuario, setor: form.setor, evento: form.evento, classificacao: form.classificacao, dispositivos: form.dispositivos, observacoes: form.observacoes }
+          : c
+      ));
+      toast.success("Caso atualizado com sucesso!");
+    } else {
+      const newCase: InvestigationCase = {
+        id: `INV-${String(cases.length + 1).padStart(3, "0")}`,
+        ...form,
+        status: "aberto",
+        dataNotificacao: new Date().toISOString().split("T")[0],
+        checklist: defaultChecklist.map((item) => ({ item, checked: false })),
+      };
+      setCases([newCase, ...cases]);
+      toast.success("Caso registrado com sucesso!");
+    }
+
     setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
+    setEditingCase(null);
     setDialogOpen(false);
-    toast.success("Caso registrado com sucesso!");
   };
 
   const toggleChecklist = (caseId: string, idx: number) => {
@@ -130,7 +158,7 @@ const CasesInvestigation = () => {
           <h1 className="text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
           <p className="text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Novo Caso</Button>
+        <Button onClick={() => { setEditingCase(null); setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" }); setDialogOpen(true); }}><Plus className="mr-2 h-4 w-4" />Novo Caso</Button>
       </div>
 
       {/* KPIs */}
@@ -186,7 +214,12 @@ const CasesInvestigation = () => {
                   <TableCell><Badge variant="outline" className="text-xs">{c.classificacao}</Badge></TableCell>
                   <TableCell><Badge variant={statusConfig[c.status].variant}>{statusConfig[c.status].label}</Badge></TableCell>
                   <TableCell className="text-sm">{c.dataNotificacao}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => setDetailCase(c)}><Eye className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditForm(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -197,7 +230,7 @@ const CasesInvestigation = () => {
       {/* New Case Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Novo Caso de Investigação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingCase ? `Editar ${editingCase.id}` : "Novo Caso de Investigação"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
@@ -233,7 +266,7 @@ const CasesInvestigation = () => {
             </div>
             <div><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button onClick={handleSave}>Registrar Caso</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => { setDialogOpen(false); setEditingCase(null); }}>Cancelar</Button><Button onClick={handleSave}>{editingCase ? "Salvar Alterações" : "Registrar Caso"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -242,7 +275,12 @@ const CasesInvestigation = () => {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           {detailCase && (
             <>
-              <DialogHeader><DialogTitle>{detailCase.id} — {detailCase.paciente}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="flex items-center justify-between">
+                <span>{detailCase.id} — {detailCase.paciente}</span>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => openEditForm(detailCase)}>
+                  <Pencil className="h-3.5 w-3.5" /> Editar
+                </Button>
+              </DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Prontuário:</span> {detailCase.prontuario}</div>
