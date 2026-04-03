@@ -13,7 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileText, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 
-const sectors = ["UTI Adulto", "UTI Neonatal", "UTI Pediátrica", "Centro Cirúrgico"];
+const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
 const responsibles = ["Enf. Ana Paula", "Enf. Marcos Lima", "Dr. Carlos Mendes", "Dr. Fernanda Souza"];
 
@@ -84,8 +84,8 @@ const statusOptions: { value: ResponseValue; label: string; icon: typeof CheckCi
 const statusBtnClass: Record<string, string> = {
   conforme: "bg-success text-success-foreground hover:bg-success/90",
   nao_conforme: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  na: "bg-muted/60 text-muted-foreground hover:bg-muted/80 border border-border",
-  nao_avaliado: "bg-muted/60 text-muted-foreground hover:bg-muted/80 border border-border",
+  na: "bg-gray-400 text-white hover:bg-gray-400/90",
+  nao_avaliado: "bg-gray-900 text-white hover:bg-gray-900/90",
 };
 
 export default function AuditCTINew() {
