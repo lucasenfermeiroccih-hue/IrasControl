@@ -275,7 +275,12 @@ const CasesInvestigation = () => {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           {detailCase && (
             <>
-              <DialogHeader><DialogTitle>{detailCase.id} — {detailCase.paciente}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="flex items-center justify-between">
+                <span>{detailCase.id} — {detailCase.paciente}</span>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => openEditForm(detailCase)}>
+                  <Pencil className="h-3.5 w-3.5" /> Editar
+                </Button>
+              </DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Prontuário:</span> {detailCase.prontuario}</div>
