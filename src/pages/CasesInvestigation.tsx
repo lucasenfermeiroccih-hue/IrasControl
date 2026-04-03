@@ -214,7 +214,12 @@ const CasesInvestigation = () => {
                   <TableCell><Badge variant="outline" className="text-xs">{c.classificacao}</Badge></TableCell>
                   <TableCell><Badge variant={statusConfig[c.status].variant}>{statusConfig[c.status].label}</Badge></TableCell>
                   <TableCell className="text-sm">{c.dataNotificacao}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => setDetailCase(c)}><Eye className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditForm(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
