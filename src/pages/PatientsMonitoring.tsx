@@ -91,6 +91,10 @@ export default function PatientsMonitoring() {
   const [showEvolucaoForm, setShowEvolucaoForm] = useState(false);
   const [evolucaoText, setEvolucaoText] = useState("");
   const [evolucoes, setEvolucoes] = useState<Record<string, { date: string; text: string }[]>>({});
+  const [addDeviceOpen, setAddDeviceOpen] = useState(false);
+  const [newDevice, setNewDevice] = useState("");
+  const [addAntibioticOpen, setAddAntibioticOpen] = useState(false);
+  const [newAntibiotic, setNewAntibiotic] = useState("");
 
   const filtered = patients.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.record.toLowerCase().includes(search.toLowerCase());
