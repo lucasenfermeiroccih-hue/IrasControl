@@ -101,6 +101,8 @@ const App = () => (
             <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
             <Route path="/dashboard-ddd" element={<DashboardDDD />} />
             <Route path="/dashboard/antimicrobial-sensitivity" element={<DashboardAntibiogram />} />
+            <Route path="/agentes" element={<AgentLibrary />} />
+            <Route path="/chat/:agentId" element={<AgentChat />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

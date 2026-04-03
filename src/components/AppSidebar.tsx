@@ -81,6 +81,12 @@ const navSections = [
     ],
   },
   {
+    label: "IA",
+    items: [
+      { title: "Biblioteca de Agentes", url: "/agentes", icon: Sparkles },
+    ],
+  },
+  {
     label: "Admin",
     items: [
       { title: "Super Admin", url: "/super-admin", icon: Shield },
