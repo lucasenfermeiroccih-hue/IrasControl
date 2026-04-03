@@ -24,14 +24,14 @@ const unidadesPacienteDia = [
   "Trauma Clínico",
 ];
 
+const DASH = "—";
+
 export default function IndicadoresDDD() {
-  // Identification
   const [profissional, setProfissional] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState("");
   const [mesVigilancia, setMesVigilancia] = useState("");
   const [anoVigilancia, setAnoVigilancia] = useState(new Date().getFullYear());
 
-  // Patient-day
   const [pacienteDia, setPacienteDia] = useState<Record<string, number>>(
     Object.fromEntries(unidadesPacienteDia.map(u => [u, 0]))
   );
@@ -44,7 +44,6 @@ export default function IndicadoresDDD() {
       (pacienteDia["UTI Pediátrica"] || 0);
   }, [pacienteDia]);
 
-  // Antimicrobials quantities
   const [quantidades, setQuantidades] = useState<Record<number, number>>(
     Object.fromEntries(antimicrobianosBase.map(a => [a.id, 0]))
   );
@@ -62,18 +61,22 @@ export default function IndicadoresDDD() {
   const tableData = useMemo(() => {
     return antimicrobianosBase.map(atm => {
       const qty = quantidades[atm.id] || 0;
-      const mgPerUnit = parseFloat(atm.apresentacao.match(/(\d+)/)?.[1] || "0");
-      const totalMg = qty * mgPerUnit;
+      const totalMg = qty * atm.mgPorUnidade;
       const totalG = totalMg / 1000;
-      const valorAB = atm.dddPadrao > 0 ? totalG / atm.dddPadrao : 0;
-      const indicador = compiladoUTIs > 0 ? (valorAB / compiladoUTIs) * 1000 : 0;
+
+      const canCalcAB = qty > 0 && atm.dddPadrao > 0;
+      const valorAB = canCalcAB ? totalG / atm.dddPadrao : null;
+
+      const canCalcIndicador = valorAB !== null && valorAB > 0 && compiladoUTIs > 0;
+      const indicador = canCalcIndicador ? (valorAB / compiladoUTIs) * 1000 : null;
+
       return {
         ...atm,
         qty,
-        totalMg: Math.round(totalMg * 100) / 100,
-        totalG: Math.round(totalG * 1000) / 1000,
-        valorAB: Math.round(valorAB * 100) / 100,
-        indicador: Math.round(indicador * 100) / 100,
+        totalMg,
+        totalG: Math.round(totalG * 100) / 100,
+        valorAB: valorAB !== null ? Math.round(valorAB * 100) / 100 : null,
+        indicador: indicador !== null ? Math.round(indicador * 100) / 100 : null,
       };
     });
   }, [quantidades, compiladoUTIs]);
@@ -156,7 +159,8 @@ export default function IndicadoresDDD() {
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Antimicrobiano</TableHead>
-                <TableHead className="min-w-[120px]">Apresentação</TableHead>
+                <TableHead className="min-w-[160px]">Apresentação</TableHead>
+                <TableHead className="min-w-[90px] text-center">mg/unid</TableHead>
                 <TableHead className="min-w-[100px] text-center">Qtd Unidades</TableHead>
                 <TableHead className="text-right">Total (mg)</TableHead>
                 <TableHead className="text-right">Total (g)</TableHead>
@@ -169,7 +173,8 @@ export default function IndicadoresDDD() {
               {tableData.map(row => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.nome}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.apresentacao}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">{row.apresentacao}</TableCell>
+                  <TableCell className="text-center font-mono text-sm">{row.mgPorUnidade}</TableCell>
                   <TableCell>
                     <Input
                       type="number"
@@ -179,12 +184,22 @@ export default function IndicadoresDDD() {
                       onChange={e => handleQtyChange(row.id, e.target.value)}
                     />
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.totalMg}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.totalG}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{row.qty > 0 ? row.totalMg : DASH}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{row.qty > 0 ? row.totalG.toFixed(2) : DASH}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{row.dddPadrao}</TableCell>
-                  <TableCell className="text-right font-mono text-sm font-semibold text-primary">{row.valorAB}</TableCell>
-                  <TableCell className={`text-right font-mono text-sm font-bold ${row.indicador > 50 ? "text-destructive" : row.indicador > 20 ? "text-yellow-600" : "text-emerald-600"}`}>
-                    {row.indicador}
+                  <TableCell className="text-right font-mono text-sm font-semibold text-primary">
+                    {row.valorAB !== null ? row.valorAB.toFixed(2) : DASH}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono text-sm font-bold ${
+                    row.indicador === null
+                      ? "text-muted-foreground"
+                      : row.indicador > 50
+                        ? "text-destructive"
+                        : row.indicador > 20
+                          ? "text-yellow-600"
+                          : "text-emerald-600"
+                  }`}>
+                    {row.indicador !== null ? row.indicador.toFixed(2) : DASH}
                   </TableCell>
                 </TableRow>
               ))}
