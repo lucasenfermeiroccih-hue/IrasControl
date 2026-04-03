@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { HandMetal, CheckCircle, AlertTriangle, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Taxa de Adesão", value: "78.5%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
