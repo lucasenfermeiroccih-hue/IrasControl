@@ -6,6 +6,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import { ShieldCheck, AlertTriangle, TrendingUp, ClipboardCheck } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Conformidade Geral", value: "86.4%", icon: ShieldCheck, color: "text-success", bg: "bg-success/10" },
