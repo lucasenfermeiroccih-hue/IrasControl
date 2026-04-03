@@ -85,7 +85,7 @@ const categories: CategoryDef[] = [
 const chipStyles: Record<string, string> = {
   conforme: "bg-success text-success-foreground hover:bg-success/90",
   nao_conforme: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  na: "bg-muted text-muted-foreground hover:bg-muted/80",
+  na: "bg-gray-400 text-white hover:bg-gray-400/90",
 };
 
 const chipLabels: Record<string, string> = {
