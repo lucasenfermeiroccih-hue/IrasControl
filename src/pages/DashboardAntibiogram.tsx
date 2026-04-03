@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
-  TrendingUp, Award, AlertTriangle, Beaker, Microscope,
+  TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
 } from "lucide-react";
 import { getAntibiogramasParaDashboard, type AntibiogramRecord } from "@/lib/antibiogram-storage";
 
