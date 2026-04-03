@@ -93,51 +93,6 @@ export default function DashboardDDD() {
     return sorted.slice(0, 5).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100, pct: Math.round((value / max) * 100) }));
   }, [filtered]);
 
-  const generateReport = () => {
-    setAiLoading(true);
-    setTimeout(() => {
-      const lines = [
-        `📊 RELATÓRIO DE CONSUMO DDD — ${filtroMes !== "all" ? filtroMes : "Todos os meses"} / ${filtroAno !== "all" ? filtroAno : "Todos os anos"}`,
-        `Registros salvos: ${registros.length} | Linhas de dados: ${allData.length}`,
-        "",
-        `Total de registros filtrados: ${filtered.length}`,
-        `Consumo total (indicador): ${totalConsumo}`,
-        `Antimicrobiano mais utilizado: ${atmMaisUsado}`,
-        `Unidade com maior consumo: ${unidadeMaiorConsumo}`,
-        `Média de consumo: ${avgConsumo}`,
-        "",
-        "📈 TENDÊNCIAS:",
-        `• O consumo de ${atmMaisUsado} representa a maior parcela, sugerindo revisão de protocolos de uso.`,
-        `• A unidade ${unidadeMaiorConsumo} apresenta consumo acima da média — avaliar necessidade de stewardship.`,
-        filtered.some(d => d.indicadorConsumo > 50) ? "⚠️ ALERTA: Há indicadores acima de 50, sugerindo consumo elevado." : "✅ Nenhum indicador crítico acima de 50 identificado.",
-        "",
-        "💡 RECOMENDAÇÕES:",
-        "• Implementar programa de stewardship nas unidades com maior consumo.",
-        "• Revisar protocolos de profilaxia cirúrgica.",
-        "• Monitorar tendência mensal para identificar sazonalidade.",
-      ];
-      setAiOutput(lines.join("\n"));
-      setAiLoading(false);
-    }, 1500);
-  };
-
-  const generateInsights = () => {
-    setAiLoading(true);
-    setTimeout(() => {
-      const insights = [
-        "🔍 INSIGHTS GERADOS PELA IA:",
-        "",
-        `1. O ${atmMaisUsado} é responsável pela maior parcela do consumo total.`,
-        `2. A ${unidadeMaiorConsumo} concentra o maior consumo.`,
-        `3. ${filtered.filter(d => d.indicadorConsumo > 40).length} registros apresentam indicador acima de 40.`,
-        `4. A média geral de consumo (${avgConsumo}) está ${avgConsumo > 30 ? "ACIMA" : "dentro"} dos parâmetros esperados.`,
-        "5. Recomenda-se comparar os dados atuais com benchmarks nacionais da ANVISA.",
-      ];
-      setAiOutput(insights.join("\n"));
-      setAiLoading(false);
-    }, 1200);
-  };
-
   const chartConfig = {
     value: { label: "Consumo", color: "hsl(var(--primary))" },
   };
