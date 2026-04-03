@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import {
   Users, AlertTriangle, ShieldAlert, CheckCircle, Activity,
   TrendingUp, TrendingDown, Bot, ArrowRight
