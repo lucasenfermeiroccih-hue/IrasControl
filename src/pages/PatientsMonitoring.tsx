@@ -87,6 +87,11 @@ export default function PatientsMonitoring() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  // Evolution state
+  const [showEvolucaoForm, setShowEvolucaoForm] = useState(false);
+  const [evolucaoText, setEvolucaoText] = useState("");
+  const [evolucoes, setEvolucoes] = useState<Record<string, { date: string; text: string }[]>>({});
+
   const filtered = patients.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.record.toLowerCase().includes(search.toLowerCase());
     const matchSector = sectorFilter === "Todos" || p.sector === sectorFilter;
