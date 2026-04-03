@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,14 +13,51 @@ import {
 } from "recharts";
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
-  TrendingDown, TrendingUp, Sparkles, FileText,
+  TrendingDown, TrendingUp, Sparkles, FileText, Inbox,
 } from "lucide-react";
-import { iscMockData, type ISCRecord } from "@/data/isc-mock-data";
+import { getISCRegistros, type ISCRegistro } from "@/lib/isc-storage";
 
-const meses = [
+const mesesNomes = [
+  "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const mesesFiltro = [
   "Todos", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+
+interface FlatRecord {
+  profissional: string;
+  mes: number;
+  ano: number;
+  clinica: string;
+  totalCirurgias: number;
+  contatosAtendidos: number;
+  reinternacoes: number;
+  iscConfirmada: number;
+  sitio: string;
+}
+
+function flattenRegistros(registros: ISCRegistro[]): FlatRecord[] {
+  const records: FlatRecord[] = [];
+  for (const reg of registros) {
+    for (const [clinica, dados] of Object.entries(reg.indicadores)) {
+      records.push({
+        profissional: reg.nomeProfissional,
+        mes: Number(reg.mes) || 0,
+        ano: Number(reg.ano) || 0,
+        clinica,
+        totalCirurgias: dados.totalCirurgias || 0,
+        contatosAtendidos: dados.contatosAtendidos || 0,
+        reinternacoes: dados.reinternacoes || 0,
+        iscConfirmada: dados.iscConfirmada || 0,
+        sitio: dados.sitio || "",
+      });
+    }
+  }
+  return records;
+}
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -40,23 +76,28 @@ const statusColor = (rate: number) =>
 const statusIcon = (rate: number) =>
   rate <= 2 ? <TrendingDown className="h-4 w-4" /> : rate <= 5 ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />;
 
-const profissionais = [...new Set(iscMockData.map((r) => r.profissional))];
-
 export default function DashboardISC() {
   const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState("2025");
+  const [anoFiltro, setAnoFiltro] = useState("Todos");
   const [profFiltro, setProfFiltro] = useState("Todos");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiReport, setAiReport] = useState("");
 
+  const allRecords = useMemo(() => flattenRegistros(getISCRegistros()), []);
+
+  const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
+  const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
+
   const filtered = useMemo(() => {
-    return iscMockData.filter((r) => {
-      if (anoFiltro !== "Todos" && r.ano !== Number(anoFiltro)) return false;
-      if (mesFiltro !== "Todos" && r.mes !== meses.indexOf(mesFiltro)) return false;
+    return allRecords.filter((r) => {
+      if (anoFiltro !== "Todos" && String(r.ano) !== anoFiltro) return false;
+      if (mesFiltro !== "Todos" && r.mes !== mesesFiltro.indexOf(mesFiltro)) return false;
       if (profFiltro !== "Todos" && r.profissional !== profFiltro) return false;
       return true;
     });
-  }, [mesFiltro, anoFiltro, profFiltro]);
+  }, [allRecords, mesFiltro, anoFiltro, profFiltro]);
+
+  const hasData = allRecords.length > 0;
 
   const kpis = useMemo(() => {
     const totalCirurgias = filtered.reduce((s, r) => s + r.totalCirurgias, 0);
@@ -97,7 +138,7 @@ export default function DashboardISC() {
   const pieData = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
-      if (r.iscConfirmada > 0) map[r.sitio] = (map[r.sitio] || 0) + r.iscConfirmada;
+      if (r.iscConfirmada > 0 && r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.iscConfirmada;
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filtered]);
@@ -109,6 +150,7 @@ export default function DashboardISC() {
   }, [filtered]);
 
   const insights = useMemo(() => {
+    if (!hasData || filtered.length === 0) return [];
     const msgs: { icon: React.ReactNode; text: string; type: "success" | "warning" | "danger" }[] = [];
     if (kpis.taxaISC <= 2) msgs.push({ icon: <Award className="h-5 w-5" />, text: `Taxa de ISC em ${kpis.taxaISC.toFixed(1)}% — Excelente desempenho! Meta atingida.`, type: "success" });
     else if (kpis.taxaISC > 5) msgs.push({ icon: <AlertTriangle className="h-5 w-5" />, text: `Taxa de ISC em ${kpis.taxaISC.toFixed(1)}% — Acima do limite aceitável. Investigar causas.`, type: "danger" });
@@ -121,9 +163,10 @@ export default function DashboardISC() {
     if (highest.name) msgs.push({ icon: <Stethoscope className="h-5 w-5" />, text: `${highest.name} concentra o maior volume cirúrgico (${highest.value} procedimentos no período).`, type: "success" });
 
     return msgs;
-  }, [kpis, barClinicaData]);
+  }, [hasData, filtered, kpis, barClinicaData]);
 
   const generateReport = () => {
+    if (!hasData) return;
     setAiReport(`📊 Relatório ISC — Período Selecionado
 
 Total de procedimentos: ${kpis.totalCirurgias}
@@ -141,6 +184,20 @@ ${aiPrompt ? `\nConsideração adicional sobre "${aiPrompt}": Esta análise deve
       : type === "warning" ? "bg-yellow-50 border-yellow-200 text-yellow-800"
       : "bg-red-50 border-red-200 text-red-800";
 
+  const EmptyState = () => (
+    <Card className="border-dashed">
+      <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <Inbox className="h-12 w-12 text-muted-foreground/50" />
+        <h3 className="text-lg font-semibold text-foreground">Nenhum dado encontrado</h3>
+        <p className="text-sm text-muted-foreground max-w-md">
+          {allRecords.length === 0
+            ? "Ainda não há registros salvos. Preencha o formulário em Indicadores ISC para começar a visualizar os dados aqui."
+            : "Nenhum registro corresponde aos filtros selecionados. Tente ajustar os filtros."}
+        </p>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div>
@@ -157,7 +214,7 @@ ${aiPrompt ? `\nConsideração adicional sobre "${aiPrompt}": Esta análise deve
               <Select value={mesFiltro} onValueChange={setMesFiltro}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {meses.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
+                  {mesesFiltro.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -167,8 +224,7 @@ ${aiPrompt ? `\nConsideração adicional sobre "${aiPrompt}": Esta análise deve
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todos">Todos</SelectItem>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2025">2025</SelectItem>
+                  {anos.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -186,147 +242,147 @@ ${aiPrompt ? `\nConsideração adicional sobre "${aiPrompt}": Esta análise deve
         </CardContent>
       </Card>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {[
-          { label: "Total Cirurgias", value: kpis.totalCirurgias, icon: <Stethoscope className="h-5 w-5 text-primary" /> },
-          { label: "Contatos Atendidos", value: kpis.totalContatos, icon: <Phone className="h-5 w-5 text-primary" /> },
-          { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
-          { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
-          { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
-          { label: "Taxa ISC", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true },
-        ].map((kpi) => (
-          <Card key={kpi.label} className={kpi.badge ? `border ${statusColor(kpis.taxaISC)}` : ""}>
-            <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-1">
-              {kpi.icon}
-              <p className="text-xs text-muted-foreground">{kpi.label}</p>
-              <p className="text-xl font-bold">{kpi.value}</p>
-              {kpi.badge && kpis.taxaISC <= 2 && (
-                <Badge variant="outline" className="text-green-600 border-green-300 text-[10px]">
-                  <Award className="h-3 w-3 mr-1" /> Meta atingida
-                </Badge>
+      {!hasData || filtered.length === 0 ? <EmptyState /> : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+            {[
+              { label: "Total Cirurgias", value: kpis.totalCirurgias, icon: <Stethoscope className="h-5 w-5 text-primary" /> },
+              { label: "Contatos Atendidos", value: kpis.totalContatos, icon: <Phone className="h-5 w-5 text-primary" /> },
+              { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
+              { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
+              { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
+              { label: "Taxa ISC", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true },
+            ].map((kpi) => (
+              <Card key={kpi.label} className={kpi.badge ? `border ${statusColor(kpis.taxaISC)}` : ""}>
+                <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-1">
+                  {kpi.icon}
+                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                  <p className="text-xl font-bold">{kpi.value}</p>
+                  {kpi.badge && kpis.taxaISC <= 2 && (
+                    <Badge variant="outline" className="text-green-600 border-green-300 text-[10px]">
+                      <Award className="h-3 w-3 mr-1" /> Meta atingida
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Cirurgias por Clínica</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barClinicaData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Cirurgias" radius={[4, 4, 0, 0]}>
+                      {barClinicaData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={lineData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis unit="%" />
+                    <Tooltip formatter={(v: number) => `${v}%`} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine>
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Clínica</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barReintData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Insights */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" /> Insights Inteligentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {insights.map((ins, i) => (
+                <div key={i} className={`flex items-start gap-3 rounded-lg border p-3 ${insightBg(ins.type)}`}>
+                  {ins.icon}
+                  <p className="text-sm">{ins.text}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* AI Agent */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" /> Agente de IA — Gerador de Relatório
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Ex: Analisar taxa de ISC em Neurocirurgia no último trimestre..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={generateReport} className="gap-2">
+                  <FileText className="h-4 w-4" /> Gerar Relatório
+                </Button>
+              </div>
+              {aiReport && (
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{aiReport}</pre>
+                </div>
               )}
             </CardContent>
           </Card>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Bar: cirurgias por clínica */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Cirurgias por Clínica</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barClinicaData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" name="Cirurgias" radius={[4, 4, 0, 0]}>
-                  {barClinicaData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Line: taxa ISC mensal */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={lineData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis unit="%" />
-                <Tooltip formatter={(v: number) => `${v}%`} />
-                <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Pie: distribuição sítio */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Bar: reinternações */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Clínica</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barReintData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Insights */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> Insights Inteligentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {insights.map((ins, i) => (
-            <div key={i} className={`flex items-start gap-3 rounded-lg border p-3 ${insightBg(ins.type)}`}>
-              {ins.icon}
-              <p className="text-sm">{ins.text}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* AI Agent */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" /> Agente de IA — Gerador de Relatório
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-3">
-            <Input
-              placeholder="Ex: Analisar taxa de ISC em Neurocirurgia no último trimestre..."
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={generateReport} className="gap-2">
-              <FileText className="h-4 w-4" /> Gerar Relatório
-            </Button>
-          </div>
-          {aiReport && (
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{aiReport}</pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 }
