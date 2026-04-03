@@ -2,7 +2,7 @@ import {
   LayoutDashboard, ClipboardCheck, Activity, Shield, Bell,
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
-  BarChart3, FolderOpen, TrendingUp
+  BarChart3, FolderOpen, TrendingUp, Sparkles
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -78,6 +78,12 @@ const navSections = [
       { title: "Monitoramento Microorganismos", url: "/reports", icon: FileText },
       { title: "Analytics", url: "/reports/analytics", icon: BarChart3 },
       { title: "Formulários", url: "/forms", icon: FolderOpen },
+    ],
+  },
+  {
+    label: "IA",
+    items: [
+      { title: "Biblioteca de Agentes", url: "/agentes", icon: Sparkles },
     ],
   },
   {

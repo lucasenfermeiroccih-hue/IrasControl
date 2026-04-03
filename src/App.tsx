@@ -42,6 +42,8 @@ import DashboardISC from "./pages/DashboardISC.tsx";
 import IndicadoresDDD from "./pages/IndicadoresDDD.tsx";
 import DashboardDDD from "./pages/DashboardDDD.tsx";
 import DashboardAntibiogram from "./pages/DashboardAntibiogram.tsx";
+import AgentLibrary from "./pages/AgentLibrary.tsx";
+import AgentChat from "./pages/AgentChat.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -99,6 +101,8 @@ const App = () => (
             <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
             <Route path="/dashboard-ddd" element={<DashboardDDD />} />
             <Route path="/dashboard/antimicrobial-sensitivity" element={<DashboardAntibiogram />} />
+            <Route path="/agentes" element={<AgentLibrary />} />
+            <Route path="/chat/:agentId" element={<AgentChat />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
