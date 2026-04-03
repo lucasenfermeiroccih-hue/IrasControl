@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import {
+  getLastISCRegistro,
+  saveISCRegistro,
+  generateISCId,
+  type ISCRegistro,
+} from "@/lib/isc-storage";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -68,12 +82,65 @@ const indicadorRows = [
   { key: "taxaISC", label: "Taxa de ISC (%)", type: "calculated" },
 ] as const;
 
+function registroToForm(reg: ISCRegistro): { nome: string; dataVigilancia: string; mes: string; ano: string; data: FormData } {
+  const data = createInitialData();
+  for (const c of clinicas) {
+    if (reg.indicadores[c]) {
+      data[c] = { ...emptyClinicaData(), ...reg.indicadores[c] };
+    }
+  }
+  return {
+    nome: reg.nomeProfissional,
+    dataVigilancia: reg.dataVigilancia,
+    mes: reg.mes,
+    ano: reg.ano,
+    data,
+  };
+}
+
 export default function IndicadoresISC() {
+  const [registroId, setRegistroId] = useState<string>(() => generateISCId());
   const [nome, setNome] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState("");
   const [mesVigilancia, setMesVigilancia] = useState("");
   const [anoVigilancia, setAnoVigilancia] = useState(new Date().getFullYear().toString());
   const [data, setData] = useState<FormData>(createInitialData);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [pendingRegistro, setPendingRegistro] = useState<ISCRegistro | null>(null);
+
+  // Check for last saved record on mount
+  useEffect(() => {
+    const last = getLastISCRegistro();
+    if (last) {
+      setPendingRegistro(last);
+      setShowResumeDialog(true);
+    }
+  }, []);
+
+  const loadRegistro = (reg: ISCRegistro) => {
+    const restored = registroToForm(reg);
+    setRegistroId(reg.id);
+    setNome(restored.nome);
+    setDataVigilancia(restored.dataVigilancia);
+    setMesVigilancia(restored.mes);
+    setAnoVigilancia(restored.ano);
+    setData(restored.data);
+  };
+
+  const handleResumeEdit = () => {
+    if (pendingRegistro) {
+      loadRegistro(pendingRegistro);
+      toast.info("Registro anterior carregado para edição.");
+    }
+    setShowResumeDialog(false);
+    setPendingRegistro(null);
+  };
+
+  const handleNewRecord = () => {
+    setRegistroId(generateISCId());
+    setShowResumeDialog(false);
+    setPendingRegistro(null);
+  };
 
   const updateField = (clinica: Clinica, field: keyof ClinicaData, value: number | string) => {
     setData((prev) => ({
@@ -98,10 +165,24 @@ export default function IndicadoresISC() {
       toast.error("Informe o nome do profissional.");
       return;
     }
-    toast.success("Dados salvos com sucesso! (mock)");
+
+    const registro: ISCRegistro = {
+      id: registroId,
+      nomeProfissional: nome.trim(),
+      dataVigilancia,
+      mes: mesVigilancia,
+      ano: anoVigilancia,
+      indicadores: { ...data },
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString(),
+    };
+
+    saveISCRegistro(registro);
+    toast.success("Dados salvos com sucesso!");
   };
 
   const handleLimpar = () => {
+    setRegistroId(generateISCId());
     setNome("");
     setDataVigilancia("");
     setMesVigilancia("");
@@ -161,6 +242,24 @@ export default function IndicadoresISC() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Resume dialog */}
+      <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registro anterior encontrado</DialogTitle>
+            <DialogDescription>
+              Existe um registro salvo por <strong>{pendingRegistro?.nomeProfissional}</strong>
+              {pendingRegistro?.mes && ` (${meses[Number(pendingRegistro.mes) - 1] || ""}/{pendingRegistro.ano})`}.
+              Deseja continuar editando ou criar um novo?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleNewRecord}>Novo Registro</Button>
+            <Button onClick={handleResumeEdit}>Continuar Edição</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Indicadores ISC</h1>
         <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Entrada de dados</p>
