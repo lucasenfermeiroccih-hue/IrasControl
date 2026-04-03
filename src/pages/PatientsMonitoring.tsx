@@ -63,8 +63,8 @@ const riskConfig: Record<RiskLevel, { label: string; color: string; value: numbe
   baixo: { label: "Baixo", color: "bg-emerald-500 text-white", value: 25 },
 };
 
-const sectors = ["Todos", "UTI Adulto", "UTI Neonatal", "Clínica Médica", "Cirúrgica", "Emergência"];
-const sectorOptions = ["UTI Adulto", "UTI Neonatal", "Clínica Médica", "Cirúrgica", "Emergência"];
+const sectors = ["Todos", "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)"];
+const sectorOptions = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)"];
 const statuses: PatientStatus[] = ["internado", "isolamento", "alta", "óbito", "transferido"];
 const riskLevels: RiskLevel[] = ["crítico", "alto", "moderado", "baixo"];
 
