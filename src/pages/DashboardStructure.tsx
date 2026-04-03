@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { Building2, CheckCircle, AlertTriangle, TrendingUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Conformidade Geral", value: "79.8%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
