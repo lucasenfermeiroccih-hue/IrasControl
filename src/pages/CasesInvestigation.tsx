@@ -158,7 +158,7 @@ const CasesInvestigation = () => {
           <h1 className="text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
           <p className="text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Novo Caso</Button>
+        <Button onClick={() => { setEditingCase(null); setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" }); setDialogOpen(true); }}><Plus className="mr-2 h-4 w-4" />Novo Caso</Button>
       </div>
 
       {/* KPIs */}
