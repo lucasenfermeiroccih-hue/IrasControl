@@ -16,6 +16,7 @@ import {
   TrendingDown, TrendingUp, Sparkles, FileText, Inbox,
 } from "lucide-react";
 import { getISCRegistros, type ISCRegistro } from "@/lib/isc-storage";
+import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
 
 const mesesNomes = [
   "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
