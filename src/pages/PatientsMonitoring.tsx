@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Stethoscope, Search, Users, AlertTriangle, ShieldCheck, Clock, Activity, Thermometer, Pill, FileText, Plus, Pencil, LogOut } from "lucide-react";
+import { Stethoscope, Search, Users, AlertTriangle, ShieldCheck, Clock, Activity, Thermometer, Pill, FileText, Plus, Pencil, LogOut, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type PatientStatus = "internado" | "isolamento" | "alta" | "óbito" | "transferido";
