@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FileText, Search, AlertTriangle, CheckCircle, Clock, Eye } from "lucide-react";
+import { Plus, FileText, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil } from "lucide-react";
 
 type CaseStatus = "aberto" | "em_investigacao" | "concluido" | "pendente";
 
