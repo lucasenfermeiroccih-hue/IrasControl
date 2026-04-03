@@ -63,6 +63,7 @@ const navSections = [
       { title: "Indicadores", url: "/indicadores/dashboard", icon: TrendingUp },
       { title: "Dashboard ISC", url: "/dashboard-isc", icon: BarChart3 },
       { title: "Dashboard DDD", url: "/dashboard-ddd", icon: Pill },
+      { title: "Antibiograma", url: "/dashboard/antimicrobial-sensitivity", icon: Microscope },
     ],
   },
   {
