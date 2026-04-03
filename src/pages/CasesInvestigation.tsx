@@ -230,7 +230,7 @@ const CasesInvestigation = () => {
       {/* New Case Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Novo Caso de Investigação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingCase ? `Editar ${editingCase.id}` : "Novo Caso de Investigação"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
