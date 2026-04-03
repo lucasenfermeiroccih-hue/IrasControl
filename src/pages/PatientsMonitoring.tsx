@@ -189,6 +189,40 @@ export default function PatientsMonitoring() {
     setFormOpen(false);
   };
 
+  const generateAiInsights = () => {
+    setAiLoading(true);
+    setAiInsights("");
+    setTimeout(() => {
+      const active = patients.filter((p) => p.status === "internado" || p.status === "isolamento");
+      const critical = active.filter((p) => p.risk === "crítico");
+      const withInf = active.filter((p) => !!p.infection);
+      const longStay = active.filter((p) => p.daysHospitalized > 14);
+      const withCVC = active.filter((p) => p.devices.some((d) => d.toLowerCase().includes("cvc")));
+      const withVM = active.filter((p) => p.devices.some((d) => d.toLowerCase().includes("vm") || d.toLowerCase().includes("tot")));
+      const multiAtb = active.filter((p) => p.antibiotics.length >= 2);
+      const febrile = active.filter((p) => p.temperature >= 38);
+
+      const lines: string[] = [];
+      lines.push(`📊 **Resumo Geral**: ${active.length} pacientes ativos, ${critical.length} em risco crítico, ${withInf.length} com infecção ativa.`);
+      
+      if (critical.length > 0) lines.push(`⚠️ **Atenção Crítica**: ${critical.map((p) => p.name).join(", ")} requerem vigilância intensificada.`);
+      if (febrile.length > 0) lines.push(`🌡️ **Pacientes Febris**: ${febrile.length} paciente(s) com temperatura ≥38°C — ${febrile.map((p) => `${p.name} (${p.temperature}°C)`).join(", ")}.`);
+      if (longStay.length > 0) lines.push(`🏥 **Internação Prolongada**: ${longStay.length} paciente(s) com >14 dias — risco aumentado de IRAS.`);
+      if (withCVC.length > 0) lines.push(`🩸 **CVC Ativo**: ${withCVC.length} paciente(s) com cateter venoso central — monitorar bundle de prevenção de IPCS.`);
+      if (withVM.length > 0) lines.push(`💨 **Ventilação Mecânica**: ${withVM.length} paciente(s) em VM — atenção ao bundle de PAV.`);
+      if (multiAtb.length > 0) lines.push(`💊 **Polifarmácia Antimicrobiana**: ${multiAtb.length} paciente(s) usando ≥2 antimicrobianos — avaliar descalonamento.`);
+      
+      const isolados = active.filter((p) => p.status === "isolamento");
+      if (isolados.length > 0) lines.push(`🔒 **Isolamento**: ${isolados.length} paciente(s) em precaução — garantir adesão aos EPIs.`);
+
+      lines.push(`✅ **Recomendação**: Priorizar ronda nos pacientes críticos e revisar necessidade de dispositivos invasivos em pacientes com >7 dias.`);
+      
+      setAiInsights(lines.join("\n\n"));
+      setAiLoading(false);
+      toast.success("Insights gerados com sucesso!");
+    }, 1500);
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
