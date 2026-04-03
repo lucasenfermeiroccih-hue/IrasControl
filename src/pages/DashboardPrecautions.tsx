@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
 import { Shield, CheckCircle, AlertTriangle, Eye } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Conformidade Geral", value: "84.7%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
