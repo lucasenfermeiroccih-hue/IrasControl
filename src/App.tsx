@@ -41,6 +41,7 @@ import IndicadoresISC from "./pages/IndicadoresISC.tsx";
 import DashboardISC from "./pages/DashboardISC.tsx";
 import IndicadoresDDD from "./pages/IndicadoresDDD.tsx";
 import DashboardDDD from "./pages/DashboardDDD.tsx";
+import DashboardAntibiogram from "./pages/DashboardAntibiogram.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import NotFound from "./pages/NotFound.tsx";
