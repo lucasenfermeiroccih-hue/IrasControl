@@ -2,15 +2,14 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Sparkles, FileText, TrendingUp, Pill, Building2, BarChart3, Loader2, AlertCircle } from "lucide-react";
+import { TrendingUp, Pill, Building2, BarChart3, AlertCircle } from "lucide-react";
 import { DDDRegistroMensal } from "@/data/antimicrobianos-ddd";
 import { listarRegistrosDDD, registrosSalvosParaDashboard } from "@/lib/ddd-storage";
+import AIAssistenteDDD from "@/components/AIAssistenteDDD";
 
 const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const COLORS = ["hsl(var(--primary))","hsl(var(--destructive))","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316"];
