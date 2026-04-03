@@ -95,6 +95,8 @@ const App = () => (
             <Route path="/indicadores/dashboard" element={<IndicadoresDashboard />} />
             <Route path="/indicadores-isc" element={<IndicadoresISC />} />
             <Route path="/dashboard-isc" element={<DashboardISC />} />
+            <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
+            <Route path="/dashboard-ddd" element={<DashboardDDD />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
