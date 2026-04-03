@@ -6,6 +6,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import { ShieldCheck, AlertTriangle, TrendingUp, ClipboardCheck } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Conformidade Geral", value: "86.4%", icon: ShieldCheck, color: "text-success", bg: "bg-success/10" },
@@ -41,9 +42,18 @@ const topFailures = [
 export default function DashboardInfectionControl() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Vigilância de Processos</h1>
-        <p className="text-sm text-muted-foreground">Índice de conformidade por protocolo e ranking de falhas</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Vigilância de Processos</h1>
+          <p className="text-sm text-muted-foreground">Índice de conformidade por protocolo e ranking de falhas</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 Conformidade geral de 86.4% com 67 auditorias no mês.",
+          "⚠️ 9 itens críticos identificados — cabeceira elevada e higienização do hub são os mais recorrentes.",
+          "🔻 Protocolo de CVC com menor conformidade (84%) — priorizar treinamento.",
+          "✅ Cateter Vesical com 91% de conformidade — destaque positivo.",
+          "💡 Recomendação: focar ações corretivas em CVC e Precaução/Isolamento.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

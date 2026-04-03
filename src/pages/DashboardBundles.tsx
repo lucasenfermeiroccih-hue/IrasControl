@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { CheckCircle, AlertTriangle, TrendingUp, Activity } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Taxa Adesão CVC", value: "87.3%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
@@ -50,9 +51,18 @@ function getStatusBadge(status: string) {
 export default function DashboardBundles() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
-        <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
+          <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 CVC com 87.3% e SVD com 91.5% de conformidade — tendência de melhoria.",
+          "⚠️ Emergência com taxa crítica (CVC 72%, SVD 80%) — setor prioritário.",
+          "🔻 18 não conformidades registradas — Clínica Médica em nível de atenção.",
+          "✅ UTI Adulto e Centro Cirúrgico com desempenho acima de 85% em ambos os bundles.",
+          "💡 Recomendação: reforçar checklist de bundles na Emergência com supervisão direta.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

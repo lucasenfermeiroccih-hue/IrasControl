@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { HandMetal, CheckCircle, AlertTriangle, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Taxa de Adesão", value: "78.5%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
@@ -40,9 +41,18 @@ const records = [
 export default function DashboardHygiene() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
-        <p className="text-sm text-muted-foreground">Indicadores de adesão aos 5 momentos da OMS</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
+          <p className="text-sm text-muted-foreground">Indicadores de adesão aos 5 momentos da OMS</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 Taxa de adesão geral de 78.5% com 312 observações no mês.",
+          "⚠️ 67 oportunidades perdidas — momentos 'Antes do Procedimento Asséptico' (68%) e 'Antes do Paciente' (72%) são os mais críticos.",
+          "👨‍⚕️ Médicos com menor adesão (72%) — considerar ações educativas direcionadas.",
+          "✅ Enfermeiros lideram com 85% de adesão — referência para boas práticas.",
+          "💡 Recomendação: implementar feedback em tempo real e campanhas focadas nos momentos 1 e 2.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

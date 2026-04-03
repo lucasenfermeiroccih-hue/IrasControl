@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import { FlaskConical, CheckCircle, AlertTriangle, MapPin } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "Conformidade Geral", value: "82.1%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
@@ -41,9 +42,18 @@ const issues = [
 export default function DashboardDispenser() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
-        <p className="text-sm text-muted-foreground">Monitoramento de insumos e conformidade de dispensadores</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
+          <p className="text-sm text-muted-foreground">Monitoramento de insumos e conformidade de dispensadores</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 Conformidade geral de 82.1% com 96 dispensers auditados em 12 setores.",
+          "⚠️ 8 dispensers vazios ou abaixo de 20% — principal não conformidade.",
+          "🔻 Emergência com menor conformidade (72%) — atenção ao reabastecimento.",
+          "✅ UTI Adulto com 90% — melhor desempenho entre os setores.",
+          "💡 Recomendação: implementar rotina de reposição a cada 4h na Emergência.",
+        ]} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

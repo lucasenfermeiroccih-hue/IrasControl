@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { Pill, TrendingDown, AlertTriangle, Activity } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const kpis = [
   { label: "DDD/1000 pac-dia", value: "842", icon: Pill, color: "text-primary", bg: "bg-primary/10" },
@@ -48,9 +49,18 @@ function getCellColor(value: number) {
 export default function DashboardAntimicrobials() {
   return (
     <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold">Dashboard — Antimicrobianos</h1>
-        <p className="text-xs md:text-sm text-muted-foreground">Stewardship e consumo de antimicrobianos</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard — Antimicrobianos</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Stewardship e consumo de antimicrobianos</p>
+        </div>
+        <DashboardAIInsights generateInsights={() => [
+          "📊 DDD/1000 pac-dia em 842 — tendência de queda desde janeiro (890→842).",
+          "⚠️ 7 alertas de stewardship ativos — Vancomicina leito 5B com >10 dias e Polimixina B de uso restrito.",
+          "💊 UTI Adulto com maior consumo de carbapenêmicos (85 DDD) — avaliar oportunidades de descalonamento.",
+          "✅ Taxa de desescalonamento em 64% — melhoria progressiva (+6pp em 6 meses).",
+          "💡 Recomendação: revisão de antimicrobianos com >7 dias e coleta de culturas antes de início empírico.",
+        ]} />
       </div>
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
