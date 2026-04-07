@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FileText, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil } from "lucide-react";
 
 type CaseStatus = "aberto" | "em_investigacao" | "concluido" | "pendente";
 
@@ -53,7 +53,7 @@ const defaultChecklist = [
 ];
 
 const initialCases: InvestigationCase[] = [
-  { id: "INV-001", paciente: "Maria S. Lima", prontuario: "P-10234", setor: "UTI Adulto", evento: "IPCS-CVC", classificacao: "IRAS confirmada", dispositivos: ["CVC"], status: "concluido", dataNotificacao: "2026-03-10", dataEncerramento: "2026-03-18", checklist: defaultChecklist.map((item, i) => ({ item, checked: true })), observacoes: "KPC isolada em hemocultura." },
+  { id: "INV-001", paciente: "Maria S. Lima", prontuario: "P-10234", setor: "UTI Adulto", evento: "IPCS-CVC", classificacao: "IRAS confirmada", dispositivos: ["CVC"], status: "concluido", dataNotificacao: "2026-03-10", dataEncerramento: "2026-03-18", checklist: defaultChecklist.map((item) => ({ item, checked: true })), observacoes: "KPC isolada em hemocultura." },
   { id: "INV-002", paciente: "João P. Santos", prontuario: "P-10890", setor: "UTI Neonatal", evento: "PAV", classificacao: "IRAS provável", dispositivos: ["VM", "TOT"], status: "em_investigacao", dataNotificacao: "2026-03-20", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 4 })), observacoes: "Aguardando resultado de cultura traqueal." },
   { id: "INV-003", paciente: "Ana C. Ferreira", prontuario: "P-11023", setor: "CC", evento: "ISC", classificacao: "Em investigação", dispositivos: ["Dreno"], status: "aberto", dataNotificacao: "2026-03-25", checklist: defaultChecklist.map((item) => ({ item, checked: false })), observacoes: "" },
   { id: "INV-004", paciente: "Carlos R. Oliveira", prontuario: "P-09876", setor: "Enfermaria A", evento: "ITU-SVD", classificacao: "IRAS confirmada", dispositivos: ["SVD"], status: "concluido", dataNotificacao: "2026-03-05", dataEncerramento: "2026-03-12", checklist: defaultChecklist.map((item) => ({ item, checked: true })), observacoes: "ESBL em urocultura. Cateter removido." },
@@ -90,46 +90,33 @@ const CasesInvestigation = () => {
     pendentes: cases.filter((c) => c.status === "pendente").length,
   };
 
+  const openNew = () => {
+    setEditingCase(null);
+    setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
+    setDialogOpen(true);
+  };
+
   const openEditForm = (c: InvestigationCase) => {
     setEditingCase(c);
-    setForm({
-      paciente: c.paciente,
-      prontuario: c.prontuario,
-      setor: c.setor,
-      evento: c.evento,
-      classificacao: c.classificacao,
-      dispositivos: [...c.dispositivos],
-      observacoes: c.observacoes,
-    });
+    setForm({ paciente: c.paciente, prontuario: c.prontuario, setor: c.setor, evento: c.evento, classificacao: c.classificacao, dispositivos: [...c.dispositivos], observacoes: c.observacoes });
     setDetailCase(null);
     setDialogOpen(true);
   };
 
   const handleSave = () => {
-    if (!form.paciente || !form.setor || !form.evento) {
-      toast.error("Preencha paciente, setor e evento.");
-      return;
-    }
-
+    if (!form.paciente || !form.setor || !form.evento) { toast.error("Preencha paciente, setor e evento."); return; }
     if (editingCase) {
-      setCases(cases.map((c) =>
-        c.id === editingCase.id
-          ? { ...c, paciente: form.paciente, prontuario: form.prontuario, setor: form.setor, evento: form.evento, classificacao: form.classificacao, dispositivos: form.dispositivos, observacoes: form.observacoes }
-          : c
-      ));
-      toast.success("Caso atualizado com sucesso!");
+      setCases(cases.map((c) => c.id === editingCase.id ? { ...c, ...form } : c));
+      toast.success("Caso atualizado!");
     } else {
       const newCase: InvestigationCase = {
-        id: `INV-${String(cases.length + 1).padStart(3, "0")}`,
-        ...form,
-        status: "aberto",
-        dataNotificacao: new Date().toISOString().split("T")[0],
+        id: `INV-${String(cases.length + 1).padStart(3, "0")}`, ...form,
+        status: "aberto", dataNotificacao: new Date().toISOString().split("T")[0],
         checklist: defaultChecklist.map((item) => ({ item, checked: false })),
       };
       setCases([newCase, ...cases]);
-      toast.success("Caso registrado com sucesso!");
+      toast.success("Caso registrado!");
     }
-
     setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
     setEditingCase(null);
     setDialogOpen(false);
@@ -148,35 +135,50 @@ const CasesInvestigation = () => {
     setCases(cases.map((c) => c.id === caseId ? {
       ...c, status: newStatus, dataEncerramento: newStatus === "concluido" ? new Date().toISOString().split("T")[0] : c.dataEncerramento,
     } : c));
-    toast.success(`Status atualizado para ${statusConfig[newStatus].label}`);
+    toast.success(`Status: ${statusConfig[newStatus].label}`);
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
-          <p className="text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
+          <h1 className="text-lg md:text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
         </div>
-        <Button onClick={() => { setEditingCase(null); setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" }); setDialogOpen(true); }}><Plus className="mr-2 h-4 w-4" />Novo Caso</Button>
+        <Button onClick={openNew} size="sm" className="gap-2 self-start sm:self-auto">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Caso</span><span className="sm:hidden">Novo</span>
+        </Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-2" /><p className="text-2xl font-bold">{kpis.abertos}</p><p className="text-sm text-muted-foreground">Abertos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Search className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.emInvestigacao}</p><p className="text-sm text-muted-foreground">Em Investigação</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><CheckCircle className="mx-auto h-8 w-8 text-green-600 mb-2" /><p className="text-2xl font-bold">{kpis.concluidos}</p><p className="text-sm text-muted-foreground">Concluídos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Clock className="mx-auto h-8 w-8 text-yellow-600 mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { icon: AlertTriangle, color: "text-destructive", value: kpis.abertos, label: "Abertos" },
+          { icon: Search, color: "text-primary", value: kpis.emInvestigacao, label: "Em Investigação" },
+          { icon: CheckCircle, color: "text-success", value: kpis.concluidos, label: "Concluídos" },
+          { icon: Clock, color: "text-warning", value: kpis.pendentes, label: "Pendentes" },
+        ].map((k) => (
+          <Card key={k.label}>
+            <CardContent className="flex items-center gap-3 p-3 md:pt-5 md:p-5">
+              <k.icon className={`h-6 w-6 md:h-8 md:w-8 ${k.color} shrink-0`} />
+              <div>
+                <p className="text-lg md:text-2xl font-bold">{k.value}</p>
+                <p className="text-[10px] md:text-sm text-muted-foreground">{k.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar paciente ou prontuário..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os Status</SelectItem>
             <SelectItem value="aberto">Aberto</SelectItem>
@@ -187,102 +189,152 @@ const CasesInvestigation = () => {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* Desktop Table */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Casos de Investigação ({filtered.length})</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Setor</TableHead>
-                <TableHead>Evento</TableHead>
-                <TableHead>Classificação</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-mono text-xs">{c.id}</TableCell>
-                  <TableCell><div className="font-medium">{c.paciente}</div><div className="text-xs text-muted-foreground">{c.prontuario}</div></TableCell>
-                  <TableCell>{c.setor}</TableCell>
-                  <TableCell>{c.evento}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs">{c.classificacao}</Badge></TableCell>
-                  <TableCell><Badge variant={statusConfig[c.status].variant}>{statusConfig[c.status].label}</Badge></TableCell>
-                  <TableCell className="text-sm">{c.dataNotificacao}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEditForm(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-4 w-4" /></Button>
-                    </div>
-                  </TableCell>
+        <CardHeader className="p-3 md:p-6 pb-2">
+          <CardTitle className="text-sm md:text-lg">Casos de Investigação ({filtered.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 md:p-6 md:pt-0">
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead>Evento</TableHead>
+                  <TableHead>Classificação</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-xs">{c.id}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{c.paciente}</div>
+                      <div className="text-xs text-muted-foreground">{c.prontuario}</div>
+                    </TableCell>
+                    <TableCell>{c.setor}</TableCell>
+                    <TableCell>{c.evento}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs">{c.classificacao}</Badge></TableCell>
+                    <TableCell><Badge variant={statusConfig[c.status].variant} className="text-xs">{statusConfig[c.status].label}</Badge></TableCell>
+                    <TableCell className="text-xs">{c.dataNotificacao}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditForm(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)}><Eye className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso encontrado</p>}
+            {filtered.map((c) => (
+              <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-sm">{c.paciente}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.id} · {c.prontuario}</p>
+                  </div>
+                  <Badge variant={statusConfig[c.status].variant} className="text-[10px] shrink-0">
+                    {statusConfig[c.status].label}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px]">{c.setor}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{c.evento}</Badge>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{c.dataNotificacao}</span>
+                </div>
+                {c.dispositivos.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {c.dispositivos.map(d => (
+                      <span key={d} className="text-[9px] bg-muted px-1.5 py-0.5 rounded">{d}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEditForm(c)}>
+                    <Pencil className="h-3 w-3" /> Editar
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => setDetailCase(c)}>
+                    <Eye className="h-3 w-3" /> Detalhes
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
-      {/* New Case Dialog */}
+      {/* New/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingCase ? `Editar ${editingCase.id}` : "Novo Caso de Investigação"}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
+          <DialogHeader><DialogTitle className="text-base">{editingCase ? `Editar ${editingCase.id}` : "Novo Caso"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
-              <div><Label>Prontuário</Label><Input value={form.prontuario} onChange={(e) => setForm({ ...form, prontuario: e.target.value })} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Prontuário</Label><Input value={form.prontuario} onChange={(e) => setForm({ ...form, prontuario: e.target.value })} /></div>
             </div>
-            <div><Label>Setor *</Label>
+            <div className="space-y-1"><Label className="text-xs">Setor *</Label>
               <Select value={form.setor} onValueChange={(v) => setForm({ ...form, setor: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>{setores.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Evento *</Label>
+            <div className="space-y-1"><Label className="text-xs">Evento *</Label>
               <Select value={form.evento} onValueChange={(v) => setForm({ ...form, evento: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>{eventos.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Classificação</Label>
+            <div className="space-y-1"><Label className="text-xs">Classificação</Label>
               <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Dispositivos</Label>
+            <div className="space-y-1"><Label className="text-xs">Dispositivos</Label>
               <div className="grid grid-cols-4 gap-2 mt-1">
                 {dispositivosList.map((d) => (
-                  <label key={d} className="flex items-center gap-1.5 text-sm">
+                  <label key={d} className="flex items-center gap-1.5 text-xs">
                     <Checkbox checked={form.dispositivos.includes(d)} onCheckedChange={(checked) => setForm({ ...form, dispositivos: checked ? [...form.dispositivos, d] : form.dispositivos.filter((x) => x !== d) })} />
                     {d}
                   </label>
                 ))}
               </div>
             </div>
-            <div><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
+            <div className="space-y-1"><Label className="text-xs">Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => { setDialogOpen(false); setEditingCase(null); }}>Cancelar</Button><Button onClick={handleSave}>{editingCase ? "Salvar Alterações" : "Registrar Caso"}</Button></DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingCase(null); }}>Cancelar</Button>
+            <Button onClick={handleSave}>{editingCase ? "Salvar" : "Registrar"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Detail Dialog */}
       <Dialog open={!!detailCase} onOpenChange={() => setDetailCase(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
           {detailCase && (
             <>
-              <DialogHeader><DialogTitle className="flex items-center justify-between">
-                <span>{detailCase.id} — {detailCase.paciente}</span>
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => openEditForm(detailCase)}>
-                  <Pencil className="h-3.5 w-3.5" /> Editar
-                </Button>
-              </DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle className="text-base flex items-center justify-between gap-2">
+                  <span className="truncate">{detailCase.id} — {detailCase.paciente}</span>
+                  <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0" onClick={() => openEditForm(detailCase)}>
+                    <Pencil className="h-3 w-3" /> Editar
+                  </Button>
+                </DialogTitle>
+              </DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Prontuário:</span> {detailCase.prontuario}</div>
                   <div><span className="text-muted-foreground">Setor:</span> {detailCase.setor}</div>
                   <div><span className="text-muted-foreground">Evento:</span> {detailCase.evento}</div>
@@ -290,25 +342,33 @@ const CasesInvestigation = () => {
                   <div><span className="text-muted-foreground">Dispositivos:</span> {detailCase.dispositivos.join(", ") || "—"}</div>
                   <div><span className="text-muted-foreground">Notificação:</span> {detailCase.dataNotificacao}</div>
                 </div>
-                {detailCase.observacoes && <div className="text-sm bg-muted/50 p-3 rounded-md">{detailCase.observacoes}</div>}
+                {detailCase.observacoes && <div className="text-xs bg-muted/50 p-3 rounded-md">{detailCase.observacoes}</div>}
 
                 <div>
-                  <h4 className="font-semibold mb-2">Checklist de Investigação</h4>
+                  <h4 className="font-semibold text-sm mb-2">Checklist de Investigação</h4>
                   <div className="space-y-2">
                     {detailCase.checklist.map((item, idx) => (
-                      <label key={idx} className="flex items-center gap-2 text-sm">
+                      <label key={idx} className="flex items-center gap-2 text-xs">
                         <Checkbox checked={item.checked} onCheckedChange={() => toggleChecklist(detailCase.id, idx)} />
                         <span className={item.checked ? "line-through text-muted-foreground" : ""}>{item.item}</span>
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">{detailCase.checklist.filter((c) => c.checked).length}/{detailCase.checklist.length} itens concluídos</p>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    {detailCase.checklist.filter((c) => c.checked).length}/{detailCase.checklist.length} itens concluídos
+                  </p>
                 </div>
 
-                <div className="flex gap-2">
-                  {detailCase.status !== "em_investigacao" && <Button size="sm" onClick={() => { handleStatusChange(detailCase.id, "em_investigacao"); setDetailCase(null); }}>Iniciar Investigação</Button>}
-                  {detailCase.status !== "concluido" && <Button size="sm" variant="secondary" onClick={() => { handleStatusChange(detailCase.id, "concluido"); setDetailCase(null); }}>Concluir</Button>}
-                  {detailCase.status !== "pendente" && <Button size="sm" variant="outline" onClick={() => { handleStatusChange(detailCase.id, "pendente"); setDetailCase(null); }}>Marcar Pendente</Button>}
+                <div className="flex flex-wrap gap-2">
+                  {detailCase.status !== "em_investigacao" && (
+                    <Button size="sm" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "em_investigacao"); setDetailCase(null); }}>Iniciar Investigação</Button>
+                  )}
+                  {detailCase.status !== "concluido" && (
+                    <Button size="sm" variant="secondary" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "concluido"); setDetailCase(null); }}>Concluir</Button>
+                  )}
+                  {detailCase.status !== "pendente" && (
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "pendente"); setDetailCase(null); }}>Pendente</Button>
+                  )}
                 </div>
               </div>
             </>
