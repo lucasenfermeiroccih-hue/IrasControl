@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { getAntibiogramasParaDashboard, type AntibiogramRecord } from "@/lib/antibiogram-storage";
 
-// ── Colors ──
 const CHART_COLORS = [
   "hsl(168,66%,34%)", "hsl(199,89%,48%)", "hsl(38,92%,50%)",
   "hsl(0,72%,51%)", "hsl(142,71%,35%)", "hsl(270,60%,50%)",
@@ -30,7 +29,6 @@ export default function DashboardAntibiogram() {
   const navigate = useNavigate();
   const allData = useMemo(() => getAntibiogramasParaDashboard(), []);
 
-  // ── Filters ──
   const [filtroSetor, setFiltroSetor] = useState("all");
   const [filtroSite, setFiltroSite] = useState("all");
   const [filtroOrg, setFiltroOrg] = useState("all");
@@ -45,7 +43,6 @@ export default function DashboardAntibiogram() {
     (filtroOrg === "all" || d.organism === filtroOrg)
   ), [allData, filtroSetor, filtroSite, filtroOrg]);
 
-  // ── KPIs ──
   const totalExams = filtered.length;
   const allResults = filtered.flatMap(d => d.results);
   const totalTests = allResults.length;
@@ -53,25 +50,21 @@ export default function DashboardAntibiogram() {
   const sensitiveCount = allResults.filter(r => r.sir === "S").length;
   const resistanceRate = totalTests > 0 ? Math.round((resistantCount / totalTests) * 1000) / 10 : 0;
   const sensitivityRate = totalTests > 0 ? Math.round((sensitiveCount / totalTests) * 1000) / 10 : 0;
-
   const phenotypeCount = filtered.filter(d => d.detectedPhenotypes.length > 0).length;
   const phenotypeRate = totalExams > 0 ? Math.round((phenotypeCount / totalExams) * 1000) / 10 : 0;
 
-  // ── Top organisms ──
   const orgCounts = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(d => { map[d.organism] = (map[d.organism] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
-  // ── Distribution by sector ──
   const sectorData = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(d => { map[d.sector] = (map[d.sector] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
-  // ── SIR by antibiotic ──
   const sirByAntibiotic = useMemo(() => {
     const map: Record<string, { S: number; I: number; R: number }> = {};
     allResults.forEach(r => {
@@ -84,30 +77,24 @@ export default function DashboardAntibiogram() {
       .slice(0, 12);
   }, [allResults]);
 
-  // ── Monthly trend ──
   const monthlyTrend = useMemo(() => {
     const map: Record<string, { total: number; R: number }> = {};
     filtered.forEach(d => {
       const month = d.collectionDate.slice(0, 7);
       if (!map[month]) map[month] = { total: 0, R: 0 };
-      d.results.forEach(r => {
-        map[month].total++;
-        if (r.sir === "R") map[month].R++;
-      });
+      d.results.forEach(r => { map[month].total++; if (r.sir === "R") map[month].R++; });
     });
     return Object.entries(map).sort().map(([month, v]) => ({
       month, taxaResistencia: Math.round((v.R / v.total) * 100), exames: v.total,
     }));
   }, [filtered]);
 
-  // ── Phenotype distribution ──
   const phenotypeDist = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(d => d.detectedPhenotypes.forEach(p => { map[p] = (map[p] || 0) + 1; }));
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
-  // ── Gamification: risk level ──
   const riskLevel = resistanceRate > 40 ? "critical" : resistanceRate > 25 ? "high" : resistanceRate > 15 ? "moderate" : "low";
   const riskConfig: Record<string, { label: string; color: string; icon: typeof ShieldAlert }> = {
     critical: { label: "Crítico", color: "bg-destructive text-destructive-foreground", icon: ShieldAlert },
@@ -118,23 +105,21 @@ export default function DashboardAntibiogram() {
   const risk = riskConfig[riskLevel];
   const RiskIcon = risk.icon;
 
-  // ── Badges ──
   const badges = useMemo(() => {
     const b: { label: string; variant: "destructive" | "default" | "secondary" | "outline" }[] = [];
     if (phenotypeCount > 5) b.push({ label: "⚠️ Surto potencial", variant: "destructive" });
     if (resistanceRate > 35) b.push({ label: "🔴 Resistência elevada", variant: "destructive" });
     if (sensitivityRate > 70) b.push({ label: "✅ Boa sensibilidade", variant: "default" });
-    if (totalExams > 50) b.push({ label: "📊 Volume alto de exames", variant: "secondary" });
+    if (totalExams > 50) b.push({ label: "📊 Volume alto", variant: "secondary" });
     if (phenotypeDist.some(p => p.name === "KPC" && p.value > 3)) b.push({ label: "🧬 Alerta KPC", variant: "destructive" });
     if (phenotypeDist.some(p => p.name === "MRSA" && p.value > 3)) b.push({ label: "🦠 Alerta MRSA", variant: "destructive" });
     return b;
   }, [phenotypeCount, resistanceRate, sensitivityRate, totalExams, phenotypeDist]);
 
-  // ── Insights ──
   const insights = useMemo(() => {
     const ins: string[] = [];
     if (orgCounts.length > 0) ins.push(`O microrganismo mais frequente é ${orgCounts[0].name} com ${orgCounts[0].value} isolados.`);
-    if (resistanceRate > 30) ins.push(`Taxa de resistência de ${resistanceRate}% está acima do limiar de 30%. Revisão de protocolos recomendada.`);
+    if (resistanceRate > 30) ins.push(`Taxa de resistência de ${resistanceRate}% está acima do limiar de 30%.`);
     if (phenotypeCount > 0) ins.push(`${phenotypeCount} exames (${phenotypeRate}%) apresentam fenótipos de resistência crítica.`);
     const topResist = sirByAntibiotic.filter(a => a.resistRate > 50);
     if (topResist.length > 0) ins.push(`Antibióticos com >50% de resistência: ${topResist.map(a => a.name).join(", ")}.`);
@@ -143,51 +128,50 @@ export default function DashboardAntibiogram() {
     return ins;
   }, [orgCounts, resistanceRate, phenotypeCount, phenotypeRate, sirByAntibiotic, sectorData]);
 
-  // ── Export stubs ──
   const handleExportPDF = () => toast({ title: "Exportar PDF", description: "Funcionalidade será implementada com integração backend." });
   const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Funcionalidade será implementada com integração backend." });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold font-heading">Dashboard Antibiograma</h1>
-            <p className="text-sm text-muted-foreground">Perfil de sensibilidade microbiana — visão consolidada</p>
+            <h1 className="text-lg md:text-2xl font-bold font-heading">Dashboard Antibiograma</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Perfil de sensibilidade microbiana</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
-            <FileText className="h-4 w-4" /> PDF
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5 text-xs">
+            <FileText className="h-3.5 w-3.5" /> PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5">
-            <FileSpreadsheet className="h-4 w-4" /> Excel
+          <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5 text-xs">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
           </Button>
         </div>
       </div>
 
       {/* Risk & Badges */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge className={`${risk.color} gap-1.5 text-sm py-1 px-3`}>
-          <RiskIcon className="h-4 w-4" /> Risco: {risk.label}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge className={`${risk.color} gap-1 text-xs py-0.5 px-2`}>
+          <RiskIcon className="h-3 w-3" /> Risco: {risk.label}
         </Badge>
         {badges.map((b, i) => (
-          <Badge key={i} variant={b.variant} className="text-xs">{b.label}</Badge>
+          <Badge key={i} variant={b.variant} className="text-[10px]">{b.label}</Badge>
         ))}
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Setor</label>
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Setor</label>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   {setores.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -195,9 +179,9 @@ export default function DashboardAntibiogram() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Material Biológico</label>
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Material Biológico</label>
               <Select value={filtroSite} onValueChange={setFiltroSite}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   {sites.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -205,9 +189,9 @@ export default function DashboardAntibiogram() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Microrganismo</label>
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Microrganismo</label>
               <Select value={filtroOrg} onValueChange={setFiltroOrg}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   {organismos.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -219,52 +203,52 @@ export default function DashboardAntibiogram() {
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Beaker className="h-4 w-4" /><span className="text-xs">Total de Exames</span>
+          <CardContent className="p-3 md:pt-4 md:pb-4">
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+              <Beaker className="h-3.5 w-3.5" /><span className="text-[10px] md:text-xs">Total Exames</span>
             </div>
-            <p className="text-2xl font-bold">{totalExams}</p>
+            <p className="text-lg md:text-2xl font-bold">{totalExams}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Microscope className="h-4 w-4" /><span className="text-xs">Testes Realizados</span>
+          <CardContent className="p-3 md:pt-4 md:pb-4">
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+              <Microscope className="h-3.5 w-3.5" /><span className="text-[10px] md:text-xs">Testes</span>
             </div>
-            <p className="text-2xl font-bold">{totalTests}</p>
+            <p className="text-lg md:text-2xl font-bold">{totalTests}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1" style={{ color: "hsl(0,72%,51%)" }}>
-              <Bug className="h-4 w-4" /><span className="text-xs">Taxa de Resistência</span>
+          <CardContent className="p-3 md:pt-4 md:pb-4">
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: "hsl(0,72%,51%)" }}>
+              <Bug className="h-3.5 w-3.5" /><span className="text-[10px] md:text-xs">Resistência</span>
             </div>
-            <p className="text-2xl font-bold">{resistanceRate}%</p>
+            <p className="text-lg md:text-2xl font-bold">{resistanceRate}%</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1" style={{ color: "hsl(38,92%,50%)" }}>
-              <ShieldAlert className="h-4 w-4" /><span className="text-xs">Fenótipos Críticos</span>
+          <CardContent className="p-3 md:pt-4 md:pb-4">
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: "hsl(38,92%,50%)" }}>
+              <ShieldAlert className="h-3.5 w-3.5" /><span className="text-[10px] md:text-xs">Fenótipos</span>
             </div>
-            <p className="text-2xl font-bold">{phenotypeCount}</p>
-            <p className="text-xs text-muted-foreground">{phenotypeRate}% dos exames</p>
+            <p className="text-lg md:text-2xl font-bold">{phenotypeCount}</p>
+            <p className="text-[10px] text-muted-foreground">{phenotypeRate}% dos exames</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row 1: Sector + Organisms */}
+      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-base">Distribuição por Setor</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={sectorData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis type="number" tick={{ fontSize: 10 }} />
+                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9 }} />
                 <Tooltip />
                 <Bar dataKey="value" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -272,31 +256,42 @@ export default function DashboardAntibiogram() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Microrganismos Mais Frequentes</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name.split(" ")[0]} ${(percent * 100).toFixed(0)}%`}>
-                  {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Microrganismos Mais Frequentes</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <div className="flex flex-col items-center gap-3">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2}>
+                    {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] md:text-xs w-full">
+                {orgCounts.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1.5 min-w-0">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="text-muted-foreground truncate">{d.name}</span>
+                    <span className="font-semibold ml-auto shrink-0">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Chart Row 2: SIR by antibiotic */}
+      {/* SIR by antibiotic */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Perfil de Sensibilidade por Antibiótico</CardTitle></CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={320}>
+        <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle></CardHeader>
+        <CardContent className="p-2 md:p-6 pt-2">
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={sirByAntibiotic}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={70} />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 8 }} angle={-35} textAnchor="end" height={60} />
+              <YAxis tick={{ fontSize: 10 }} width={30} />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
               <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
               <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
@@ -305,33 +300,33 @@ export default function DashboardAntibiogram() {
         </CardContent>
       </Card>
 
-      {/* Chart Row 3: Monthly trend + Phenotypes */}
+      {/* Monthly trend + Phenotypes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-base">Tendência Mensal de Resistência</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Tendência Mensal de Resistência</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis unit="%" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                <YAxis unit="%" tick={{ fontSize: 10 }} width={35} />
                 <Tooltip formatter={(v: number) => `${v}%`} />
-                <Line type="monotone" dataKey="taxaResistencia" name="Taxa de Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Fenótipos de Resistência</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Fenótipos de Resistência</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
             {phenotypeDist.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">Nenhum fenótipo detectado</p>
+              <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={phenotypeDist}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} width={25} />
                   <Tooltip />
                   <Bar dataKey="value" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -343,16 +338,15 @@ export default function DashboardAntibiogram() {
 
       {/* Insights */}
       <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" /> Insights Automáticos
+        <CardHeader className="p-3 md:p-6 pb-2">
+          <CardTitle className="text-sm md:text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" /> Insights Automáticos
           </CardTitle>
-          <CardDescription>Análise baseada nos dados filtrados</CardDescription>
         </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
+        <CardContent className="p-3 md:p-6 pt-0">
+          <ul className="space-y-1.5">
             {insights.map((ins, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
+              <li key={i} className="flex items-start gap-1.5 text-xs md:text-sm">
                 <span className="text-primary mt-0.5">•</span>
                 <span>{ins}</span>
               </li>
@@ -361,21 +355,18 @@ export default function DashboardAntibiogram() {
         </CardContent>
       </Card>
 
-      {/* ── Análise Temporal ── */}
       <TemporalAnalysis filtered={filtered} />
 
       <Separator />
 
-      {/* Detailed Table with own filters */}
       <DetailedTable data={filtered} />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════
-// Temporal Analysis Section
+// Temporal Analysis
 // ═══════════════════════════════════════════════════
-
 function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
   const topOrganisms = useMemo(() => {
     const map: Record<string, number> = {};
@@ -389,7 +380,6 @@ function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name]) => name);
   }, [filtered]);
 
-  // Monthly organism counts for line chart
   const orgMonthlyData = useMemo(() => {
     const months = [...new Set(filtered.map(d => d.collectionDate.slice(0, 7)))].sort().slice(-6);
     return months.map(month => {
@@ -401,13 +391,11 @@ function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
     });
   }, [filtered, topOrganisms]);
 
-  // Outbreak detection: compare last 2 months per organism+sector
   const outbreakAlerts = useMemo(() => {
     const months = [...new Set(filtered.map(d => d.collectionDate.slice(0, 7)))].sort();
     if (months.length < 2) return [];
     const last = months[months.length - 1];
     const prev = months[months.length - 2];
-
     const alerts: { organism: string; sector: string; prev: number; curr: number; change: number }[] = [];
     topOrganisms.forEach(org => {
       topSectors.forEach(sector => {
@@ -423,94 +411,112 @@ function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
     return alerts.sort((a, b) => b.change - a.change);
   }, [filtered, topOrganisms, topSectors]);
 
-  // Sector heatmap: sector × month
-  const sectorHeatmap = useMemo(() => {
-    const months = [...new Set(filtered.map(d => d.collectionDate.slice(0, 7)))].sort().slice(-6);
-    return topSectors.map(sector => {
-      const row: Record<string, string | number> = { sector };
-      months.forEach(m => {
-        row[m] = filtered.filter(d => d.collectionDate.startsWith(m) && d.sector === sector).length;
-      });
-      return { sector, months, data: row };
-    });
-  }, [filtered, topSectors]);
-
   const heatmapMonths = useMemo(() => [...new Set(filtered.map(d => d.collectionDate.slice(0, 7)))].sort().slice(-6), [filtered]);
+
+  const sectorHeatmap = useMemo(() => {
+    return topSectors.map(sector => {
+      const data: Record<string, string | number> = { sector };
+      heatmapMonths.forEach(m => {
+        data[m] = filtered.filter(d => d.collectionDate.startsWith(m) && d.sector === sector).length;
+      });
+      return { sector, data };
+    });
+  }, [filtered, topSectors, heatmapMonths]);
+
+  const heatCellColor = (val: number) =>
+    val >= 8 ? "bg-destructive/20 text-destructive font-bold" : val >= 4 ? "bg-warning/20 text-warning font-bold" : val > 0 ? "bg-success/10" : "";
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Clock className="h-5 w-5 text-primary" /> Análise Temporal
+      <CardHeader className="p-3 md:p-6 pb-2">
+        <CardTitle className="text-sm md:text-base flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" /> Análise Temporal
         </CardTitle>
-        <CardDescription>Comportamento dos microrganismos por setor ao longo do semestre</CardDescription>
+        <CardDescription className="text-xs">Comportamento dos microrganismos por setor ao longo do semestre</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Organism trend chart */}
+      <CardContent className="p-3 md:p-6 pt-0 space-y-5">
+        {/* Organism trend */}
         <div>
-          <p className="text-sm font-medium mb-3">Evolução dos Top 5 Microrganismos</p>
-          <ResponsiveContainer width="100%" height={280}>
+          <p className="text-xs md:text-sm font-medium mb-2">Evolução dos Top 5 Microrganismos</p>
+          <ResponsiveContainer width="100%" height={220}>
             <LineChart data={orgMonthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 10 }} width={25} />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
               {topOrganisms.map((org, i) => (
-                <Line key={org} type="monotone" dataKey={org} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
+                <Line key={org} type="monotone" dataKey={org} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 2 }} />
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Sector heatmap */}
+        {/* Sector heatmap — Desktop */}
         <div>
-          <p className="text-sm font-medium mb-3">Heatmap: Setor × Mês (isolados)</p>
-          <div className="overflow-x-auto">
-            <Table>
+          <p className="text-xs md:text-sm font-medium mb-2">Heatmap: Setor × Mês</p>
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[130px]">Setor</TableHead>
-                  {heatmapMonths.map(m => <TableHead key={m} className="text-center text-xs">{m}</TableHead>)}
+                  <TableHead className="min-w-[100px]">Setor</TableHead>
+                  {heatmapMonths.map(m => <TableHead key={m} className="text-center">{m}</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sectorHeatmap.map(row => (
                   <TableRow key={row.sector}>
-                    <TableCell className="text-xs font-medium">{row.sector}</TableCell>
+                    <TableCell className="font-medium">{row.sector}</TableCell>
                     {heatmapMonths.map(m => {
                       const val = (row.data[m] as number) || 0;
-                      const bg = val >= 8 ? "bg-destructive/20 text-destructive" : val >= 4 ? "bg-warning/20 text-warning" : val > 0 ? "bg-success/10" : "";
-                      return <TableCell key={m} className={`text-center text-xs font-medium ${bg}`}>{val || "—"}</TableCell>;
+                      return <TableCell key={m} className={`text-center ${heatCellColor(val)}`}>{val || "—"}</TableCell>;
                     })}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
+          {/* Heatmap — Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {sectorHeatmap.map(row => (
+              <div key={row.sector} className="border border-border rounded-lg p-2.5">
+                <p className="font-semibold text-xs mb-1.5">{row.sector}</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {heatmapMonths.map(m => {
+                    const val = (row.data[m] as number) || 0;
+                    return (
+                      <div key={m} className={`rounded px-1.5 py-1 text-center ${heatCellColor(val)}`}>
+                        <p className="text-[9px] text-muted-foreground">{m.slice(5)}</p>
+                        <p className="text-xs font-mono font-bold">{val || "—"}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Outbreak alerts */}
-        {outbreakAlerts.length > 0 && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
-            <p className="font-semibold text-destructive flex items-center gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4" /> Possíveis Surtos Detectados
+        {outbreakAlerts.length > 0 ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+            <p className="font-semibold text-destructive flex items-center gap-1.5 text-xs md:text-sm">
+              <AlertTriangle className="h-3.5 w-3.5" /> Possíveis Surtos Detectados
             </p>
             {outbreakAlerts.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 text-sm">
-                <TrendingUp className="h-4 w-4 text-destructive" />
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <TrendingUp className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
                 <span>
-                  <strong>{a.organism}</strong> em <strong>{a.sector}</strong>: {a.prev} → {a.curr} isolados
-                  <Badge variant="destructive" className="ml-2 text-[10px]">+{a.change}%</Badge>
+                  <strong>{a.organism}</strong> em <strong>{a.sector}</strong>: {a.prev}→{a.curr}
+                  <Badge variant="destructive" className="ml-1 text-[9px]">+{a.change}%</Badge>
                 </span>
               </div>
             ))}
           </div>
-        )}
-        {outbreakAlerts.length === 0 && (
-          <div className="rounded-lg border border-success/30 bg-success/5 p-4">
-            <p className="text-sm text-success flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" /> Nenhum padrão de surto detectado no período analisado.
+        ) : (
+          <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+            <p className="text-xs text-success flex items-center gap-1.5">
+              <TrendingDown className="h-3.5 w-3.5" /> Nenhum padrão de surto detectado.
             </p>
           </div>
         )}
@@ -520,9 +526,8 @@ function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
 }
 
 // ═══════════════════════════════════════════════════
-// Detailed Table with independent filters
+// Detailed Table
 // ═══════════════════════════════════════════════════
-
 function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
   const [tSetor, setTSetor] = useState("all");
   const [tSite, setTSite] = useState("all");
@@ -549,15 +554,15 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Exames Detalhados</CardTitle>
-        <CardDescription>{tableData.length} registros encontrados</CardDescription>
+      <CardHeader className="p-3 md:p-6 pb-2">
+        <CardTitle className="text-sm md:text-base">Exames Detalhados</CardTitle>
+        <CardDescription className="text-xs">{tableData.length} registros encontrados</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Table filters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <CardContent className="p-3 md:p-6 pt-0 space-y-3">
+        {/* Filters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Setor</label>
+            <label className="text-[10px] font-medium text-muted-foreground">Setor</label>
             <Select value={tSetor} onValueChange={setTSetor}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -567,7 +572,7 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Material</label>
+            <label className="text-[10px] font-medium text-muted-foreground">Material</label>
             <Select value={tSite} onValueChange={setTSite}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -577,7 +582,7 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Microrganismo</label>
+            <label className="text-[10px] font-medium text-muted-foreground">Microrganismo</label>
             <Select value={tOrg} onValueChange={setTOrg}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -587,21 +592,22 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Perfil SIR</label>
+            <label className="text-[10px] font-medium text-muted-foreground">Perfil SIR</label>
             <Select value={tSir} onValueChange={setTSir}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="S">Sensível (S)</SelectItem>
-                <SelectItem value="I">Intermediário (I)</SelectItem>
-                <SelectItem value="R">Resistente (R)</SelectItem>
+                <SelectItem value="S">Sensível</SelectItem>
+                <SelectItem value="I">Intermediário</SelectItem>
+                <SelectItem value="R">Resistente</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <Table>
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
+          <Table className="text-xs">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
@@ -609,7 +615,6 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
                 <TableHead>Setor</TableHead>
                 <TableHead>Material</TableHead>
                 <TableHead>Microrganismo</TableHead>
-                <TableHead className="text-center">Testes</TableHead>
                 <TableHead className="text-center">S</TableHead>
                 <TableHead className="text-center">I</TableHead>
                 <TableHead className="text-center">R</TableHead>
@@ -623,25 +628,52 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
                 const rr = d.results.filter(r => r.sir === "R").length;
                 return (
                   <TableRow key={d.id}>
-                    <TableCell className="text-xs whitespace-nowrap">{d.collectionDate}</TableCell>
-                    <TableCell className="text-xs">{d.sampleId}</TableCell>
-                    <TableCell className="text-xs">{d.sector}</TableCell>
-                    <TableCell className="text-xs">{d.site}</TableCell>
-                    <TableCell className="text-xs font-medium">{d.organism}</TableCell>
-                    <TableCell className="text-center text-xs">{d.results.length}</TableCell>
-                    <TableCell className="text-center"><Badge variant="outline" className="text-xs border-success text-success">{s}</Badge></TableCell>
-                    <TableCell className="text-center"><Badge variant="outline" className="text-xs border-warning text-warning">{ii}</Badge></TableCell>
-                    <TableCell className="text-center"><Badge variant="outline" className="text-xs border-destructive text-destructive">{rr}</Badge></TableCell>
+                    <TableCell className="whitespace-nowrap">{d.collectionDate}</TableCell>
+                    <TableCell>{d.sampleId}</TableCell>
+                    <TableCell>{d.sector}</TableCell>
+                    <TableCell>{d.site}</TableCell>
+                    <TableCell className="font-medium">{d.organism}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className="text-[10px] border-success text-success">{s}</Badge></TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className="text-[10px] border-warning text-warning">{ii}</Badge></TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className="text-[10px] border-destructive text-destructive">{rr}</Badge></TableCell>
                     <TableCell>
                       {d.detectedPhenotypes.length > 0
-                        ? d.detectedPhenotypes.map(p => <Badge key={p} variant="destructive" className="text-[10px] mr-1">{p}</Badge>)
-                        : <span className="text-xs text-muted-foreground">—</span>}
+                        ? d.detectedPhenotypes.map(p => <Badge key={p} variant="destructive" className="text-[9px] mr-0.5">{p}</Badge>)
+                        : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {tableData.slice(0, 30).map(d => {
+            const s = d.results.filter(r => r.sir === "S").length;
+            const ii = d.results.filter(r => r.sir === "I").length;
+            const rr = d.results.filter(r => r.sir === "R").length;
+            return (
+              <div key={d.id} className="border border-border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-xs">{d.organism}</p>
+                    <p className="text-[10px] text-muted-foreground">{d.sector} · {d.site}</p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{d.collectionDate}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] border-success text-success">S:{s}</Badge>
+                  <Badge variant="outline" className="text-[10px] border-warning text-warning">I:{ii}</Badge>
+                  <Badge variant="outline" className="text-[10px] border-destructive text-destructive">R:{rr}</Badge>
+                  {d.detectedPhenotypes.map(p => (
+                    <Badge key={p} variant="destructive" className="text-[9px]">{p}</Badge>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
