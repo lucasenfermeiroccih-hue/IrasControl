@@ -12,13 +12,19 @@ import {
   canAccessAgent,
   getOrCreateSession,
   addMessage,
-  getSessionMessages,
   clearSession,
   sendToAgent,
   PLAN_LABELS,
   PLAN_COLORS,
   type ChatMessage,
 } from "@/lib/agent-service";
+import {
+  getOrCreateDbSession,
+  saveDbMessage,
+  loadDbMessages,
+  clearDbSession,
+  type DbChatMessage,
+} from "@/lib/agent-chat-history";
 
 export default function AgentChat() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -28,6 +34,7 @@ export default function AgentChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState("");
+  const [dbSessionId, setDbSessionId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,9 +47,29 @@ export default function AgentChat() {
       navigate("/agentes", { replace: true });
       return;
     }
+
+    // Local session (fallback)
     const session = getOrCreateSession(agent.id);
     setSessionId(session.id);
     setMessages(session.messages);
+
+    // Try to load from Supabase
+    (async () => {
+      const dbSession = await getOrCreateDbSession(agent.id, agent.name);
+      if (dbSession) {
+        setDbSessionId(dbSession.id);
+        const dbMessages = await loadDbMessages(dbSession.id);
+        if (dbMessages.length > 0) {
+          const mapped: ChatMessage[] = dbMessages.map((m: DbChatMessage) => ({
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            createdAt: m.created_at,
+          }));
+          setMessages(mapped);
+        }
+      }
+    })();
   }, [agent, navigate]);
 
   useEffect(() => {
@@ -55,15 +82,26 @@ export default function AgentChat() {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
 
+    // Add user message locally
     const userMsg = addMessage(sessionId, "user", trimmed);
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
+    // Persist to Supabase
+    if (dbSessionId) {
+      saveDbMessage(dbSessionId, "user", trimmed);
+    }
+
     try {
       const output = await sendToAgent(agent.id, sessionId, trimmed);
       const assistantMsg = addMessage(sessionId, "assistant", output);
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // Persist assistant response to Supabase
+      if (dbSessionId) {
+        saveDbMessage(dbSessionId, "assistant", output);
+      }
     } catch {
       toast.error("Erro ao processar. Tente novamente.");
     } finally {
@@ -71,8 +109,13 @@ export default function AgentChat() {
     }
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     clearSession(agent.id);
+    if (dbSessionId) {
+      await clearDbSession(dbSessionId);
+      const dbSession = await getOrCreateDbSession(agent.id, agent.name);
+      if (dbSession) setDbSessionId(dbSession.id);
+    }
     const session = getOrCreateSession(agent.id);
     setSessionId(session.id);
     setMessages([]);
@@ -216,7 +259,7 @@ export default function AgentChat() {
   );
 }
 
-// Simple markdown renderer (no dependency needed)
+// Simple markdown renderer
 function SimpleMarkdown({ content }: { content: string }) {
   const lines = content.split("\n");
   return (
