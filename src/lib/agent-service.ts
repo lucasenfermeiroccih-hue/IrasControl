@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 // === Types ===
 
 export type AgentPlan = "free" | "pro" | "enterprise";
@@ -210,13 +212,71 @@ const MOCK_RESPONSES: Record<string, (input: string) => string> = {
     `## Suporte à Decisão Rápida\n\nSituação: *"${input.slice(0, 80)}"*\n\n### Análise Rápida\n🔴 **Prioridade: ALTA**\n\n### Decisão Recomendada\n1. Iniciar isolamento de contato **imediatamente**\n2. Coletar culturas de vigilância nos contactantes\n3. Acionar CCIH para investigação epidemiológica\n4. Notificar ao SCIH em até 24h\n\n⏱️ *Tempo estimado de resposta ideal: <2h após identificação.*`,
 };
 
-export async function sendToAgent(agentId: string, _sessionId: string, input: string): Promise<string> {
-  // Simulate network delay
-  await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2000));
+// === n8n webhook mapping ===
 
-  const mockFn = MOCK_RESPONSES[agentId];
-  if (mockFn) return mockFn(input);
-  return `Resposta do agente **${agentId}** para: "${input.slice(0, 50)}...".\n\n*Integração com n8n pendente.*`;
+const N8N_BASE_URL = "https://irascontrol.app.n8n.cloud/webhook";
+
+const AGENT_WEBHOOK_SLUGS: Record<string, string> = {
+  "trend-analyst": "analista_de_tendências",
+  "risk-detector": "detector_de_fatores_de_risco",
+  "report-generator": "gerador_de_relatórios_automatizados",
+  "outbreak-alert": "alerta_de_surtos",
+  "intervention-suggester": "sugestor_de_intervenções",
+  "dashboard-interpreter": "interpretador_de_dashboards",
+  "form-validator": "validador_de_formulários",
+  "anvisa-report": "agente_de_relatorios_tecnicos_anvisa_e_vigilância_de_isc",
+  "micro-report": "agente_de_relatórios_microbiológicos_integrados",
+  "quick-decision": "agente_de_tomada_de_decisao_rapida",
+};
+
+export async function sendToAgent(agentId: string, _sessionId: string, input: string): Promise<string> {
+  const slug = AGENT_WEBHOOK_SLUGS[agentId];
+
+  // Get user session for auth token
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Usuário não autenticado. Faça login para usar os agentes de IA.");
+  }
+
+  if (!slug) {
+    // No webhook mapped — use mock fallback
+    const mockFn = MOCK_RESPONSES[agentId];
+    if (mockFn) return mockFn(input);
+    return `Agente **${agentId}** sem integração configurada.`;
+  }
+
+  try {
+    const response = await fetch(`${N8N_BASE_URL}/${slug}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ input }),
+    });
+
+    if (!response.ok) {
+      console.error(`n8n webhook error: ${response.status} ${response.statusText}`);
+      throw new Error(`Erro do agente (${response.status})`);
+    }
+
+    const data = await response.text();
+
+    // Try to parse as JSON first, otherwise return raw text
+    try {
+      const json = JSON.parse(data);
+      return json.output || json.message || json.response || JSON.stringify(json, null, 2);
+    } catch {
+      return data;
+    }
+  } catch (error) {
+    console.error(`Falha ao chamar agente ${agentId}:`, error);
+    // Fallback to mock response
+    const mockFn = MOCK_RESPONSES[agentId];
+    if (mockFn) return mockFn(input) + "\n\n---\n⚠️ *Resposta simulada — falha na conexão com o servidor.*";
+    throw error;
+  }
 }
 
 // === Plan labels ===
