@@ -123,11 +123,16 @@ const CasesInvestigation = () => {
   };
 
   const toggleChecklist = (caseId: string, idx: number) => {
-    setCases(cases.map((c) => {
+    setCases((prev) => prev.map((c) => {
       if (c.id !== caseId) return c;
       const updated = [...c.checklist];
       updated[idx] = { ...updated[idx], checked: !updated[idx].checked };
-      return { ...c, checklist: updated };
+      const updatedCase = { ...c, checklist: updated };
+      // Keep detailCase in sync
+      if (detailCase?.id === caseId) {
+        setDetailCase(updatedCase);
+      }
+      return updatedCase;
     }));
   };
 
