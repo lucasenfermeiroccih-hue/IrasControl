@@ -45,6 +45,8 @@ const ROLE_COLORS: Record<string, string> = {
 const ASSIGNABLE_ROLES = [
   { value: "nurse_ccih", label: "Enfermeiro(a) CCIH" },
   { value: "doctor", label: "Médico(a)" },
+  { value: "doctor_scih", label: "Médico(a) SCIH" },
+  { value: "nurse_tech_scih", label: "Téc. de Enfermagem SCIH" },
   { value: "lab_tech", label: "Técnico de Laboratório" },
   { value: "viewer", label: "Visualizador" },
 ];
