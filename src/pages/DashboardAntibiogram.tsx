@@ -487,11 +487,75 @@ export default function DashboardAntibiogram() {
         </CardContent>
       </Card>
 
+      {/* AI Generated Insights */}
+      {aiInsights && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardHeader className="p-3 md:p-6 pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> Insights de IA
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setAiInsights(null)}>✕</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 md:p-6 pt-0">
+            <div className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{aiInsights}</div>
+          </CardContent>
+        </Card>
+      )}
+
       <TemporalAnalysis filtered={filtered} />
 
       <Separator />
 
       <DetailedTable data={filtered} />
+
+      {/* Report Dialog */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-primary" />
+              Agente de Relatórios Microbiológicos
+            </DialogTitle>
+            <DialogDescription>
+              Gere relatórios completos de antibiograma e perfil de sensibilidade com IA
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Período do Relatório</label>
+              <Select value={reportPeriod} onValueChange={setReportPeriod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ultimo-mes">Último mês</SelectItem>
+                  <SelectItem value="ultimos-3-meses">Últimos 3 meses</SelectItem>
+                  <SelectItem value="ultimos-6-meses">Últimos 6 meses</SelectItem>
+                  <SelectItem value="ultimo-ano">Último ano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button onClick={handleGenerateReport} disabled={reportLoading} className="w-full gap-2">
+              {reportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {reportLoading ? "Gerando relatório..." : "Gerar Relatório"}
+            </Button>
+
+            {reportResult && (
+              <div className="space-y-3">
+                <Separator />
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{reportResult}</div>
+                </div>
+                <Button variant="outline" onClick={handleExportReportPDF} className="w-full gap-2">
+                  <Download className="h-4 w-4" /> Exportar Relatório em PDF
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
