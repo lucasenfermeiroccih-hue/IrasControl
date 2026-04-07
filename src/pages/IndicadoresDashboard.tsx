@@ -55,7 +55,6 @@ const INFECTION_COLORS: Record<string, string> = {
 
 const PIE_COLORS = Object.values(INFECTION_COLORS);
 
-// ---------- component ----------
 export default function IndicadoresDashboard() {
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState("2026");
@@ -77,7 +76,6 @@ export default function IndicadoresDashboard() {
 
   const kpis = useMemo(() => calcKpis(filtered), [filtered]);
 
-  // previous period for comparison (simple: previous year or all if "Todos")
   const prevFiltered = useMemo(() => {
     if (anoFiltro === "Todos") return [];
     const prevAno = String(Number(anoFiltro) - 1);
@@ -91,7 +89,6 @@ export default function IndicadoresDashboard() {
 
   const prevKpis = useMemo(() => (prevFiltered.length ? calcKpis(prevFiltered) : null), [prevFiltered]);
 
-  // ------- chart data -------
   const mesesAbrev = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   const lineData = useMemo(() => {
@@ -139,7 +136,6 @@ export default function IndicadoresDashboard() {
 
   const pieData = useMemo(() => infectionBarData.filter((d) => d.value > 0), [infectionBarData]);
 
-  // ------- table data -------
   const tableData = useMemo(() => {
     const grouped: Record<string, IndicadorRegistro[]> = {};
     filtered.forEach((r) => {
@@ -153,17 +149,16 @@ export default function IndicadoresDashboard() {
     });
   }, [filtered]);
 
-  // ------- render helpers -------
-  function Variation({ current, previous, suffix = "" }: { current: number; previous?: number; suffix?: string }) {
-    if (previous === undefined || previous === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  function Variation({ current, previous }: { current: number; previous?: number }) {
+    if (previous === undefined || previous === 0) return <span className="text-[10px] text-muted-foreground">—</span>;
     const diff = Math.round((current - previous) * 100) / 100;
     const pct = Math.round(((current - previous) / previous) * 100);
-    if (diff === 0) return <span className="text-xs text-muted-foreground flex items-center gap-1"><Minus className="h-3 w-3" />0%</span>;
+    if (diff === 0) return <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Minus className="h-3 w-3" />0%</span>;
     const isUp = diff > 0;
     return (
-      <span className={`text-xs flex items-center gap-1 ${isUp ? "text-destructive" : "text-green-600"}`}>
+      <span className={`text-[10px] flex items-center gap-0.5 ${isUp ? "text-destructive" : "text-success"}`}>
         {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-        {isUp ? "+" : ""}{pct}%{suffix}
+        {isUp ? "+" : ""}{pct}%
       </span>
     );
   }
@@ -172,70 +167,73 @@ export default function IndicadoresDashboard() {
     { label: "Taxa de Infecção", value: kpis.taxaInfeccao, prev: prevKpis?.taxaInfeccao, unit: "‰" },
     { label: "Taxa de Saída", value: kpis.taxaSaidas, prev: prevKpis?.taxaSaidas, unit: "%" },
     { label: "Taxa de Letalidade", value: kpis.taxaLetalidade, prev: prevKpis?.taxaLetalidade, unit: "%" },
-    { label: "Tempo de Permanência", value: kpis.tempoPermanencia, prev: prevKpis?.tempoPermanencia, unit: " dias" },
+    { label: "Tempo Permanência", value: kpis.tempoPermanencia, prev: prevKpis?.tempoPermanencia, unit: " dias" },
     { label: "Paciente em Risco", value: kpis.pacienteEmRisco, prev: prevKpis?.pacienteEmRisco, unit: "%" },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Activity className="h-5 w-5 text-primary" />
+        <div className="h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Activity className="h-4 w-4 md:h-5 md:w-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground font-heading">Dashboard de Indicadores</h1>
-          <p className="text-sm text-muted-foreground">Análise comparativa dos indicadores epidemiológicos</p>
+          <h1 className="text-lg md:text-2xl font-bold text-foreground font-heading">Dashboard de Indicadores</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Análise comparativa dos indicadores epidemiológicos</p>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1.5 min-w-[140px]">
-              <label className="text-xs font-medium text-muted-foreground">Mês</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Mês</label>
               <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todos">Todos</SelectItem>
                   {mesesOptions.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 min-w-[100px]">
-              <label className="text-xs font-medium text-muted-foreground">Ano</label>
+            <div className="space-y-1">
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Ano</label>
               <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {anosDisponiveis.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 min-w-[160px]">
-              <label className="text-xs font-medium text-muted-foreground">Setor</label>
+            <div className="space-y-1">
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Setor</label>
               <Select value={setorFiltro} onValueChange={setSetorFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todos">Todos</SelectItem>
                   {setorOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setMesFiltro("Todos"); setAnoFiltro("2026"); setSetorFiltro("Todos"); }}>
-              <Filter className="h-3.5 w-3.5" /> Limpar Filtros
+            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => { setMesFiltro("Todos"); setAnoFiltro("2026"); setSetorFiltro("Todos"); }}>
+              <Filter className="h-3.5 w-3.5" /> Limpar
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpiCards.map((kpi) => (
           <Card key={kpi.label}>
-            <CardContent className="pt-4 pb-4 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-              <p className="text-2xl font-bold text-foreground">{kpi.value.toFixed(2)}<span className="text-sm font-normal text-muted-foreground ml-1">{kpi.unit}</span></p>
+            <CardContent className="p-3 md:pt-4 md:pb-4 space-y-0.5">
+              <p className="text-[10px] md:text-xs font-medium text-muted-foreground truncate">{kpi.label}</p>
+              <p className="text-lg md:text-2xl font-bold text-foreground">
+                {kpi.value.toFixed(2)}
+                <span className="text-[10px] md:text-sm font-normal text-muted-foreground ml-0.5">{kpi.unit}</span>
+              </p>
               <Variation current={kpi.value} previous={kpi.prev} />
             </CardContent>
           </Card>
@@ -245,13 +243,13 @@ export default function IndicadoresDashboard() {
       {/* Line charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Taxa de Infecção por Mês (‰)</CardTitle></CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Taxa de Infecção por Mês (‰)</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={lineData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={35} />
                 <Tooltip />
                 <Line type="monotone" dataKey="taxaInfeccao" name="Taxa Infecção" stroke="hsl(168 66% 34%)" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -259,13 +257,13 @@ export default function IndicadoresDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={lineData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={35} />
                 <Tooltip />
                 <Line type="monotone" dataKey="taxaLetalidade" name="Taxa Letalidade" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -277,13 +275,13 @@ export default function IndicadoresDashboard() {
       {/* Bar charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Infecções por Tipo</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Infecções por Tipo</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={infectionBarData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11 }} />
+                <XAxis type="number" tick={{ fontSize: 10 }} />
+                <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 9 }} />
                 <Tooltip />
                 <Bar dataKey="value" name="Infecções" radius={[0, 4, 4, 0]}>
                   {infectionBarData.map((entry) => (
@@ -296,15 +294,15 @@ export default function IndicadoresDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Dispositivos: Utilização vs Infecção</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Dispositivos: Utilização vs Infecção</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={deviceBarData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={30} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="utilização" name="Utilização" fill="hsl(199 89% 48%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="infecção" name="Infecção" fill="hsl(0 72% 51%)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -316,37 +314,47 @@ export default function IndicadoresDashboard() {
       {/* Pie + AI insight */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Distribuição dos Tipos de Infecção</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Distribuição dos Tipos de Infecção</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <div className="flex flex-col items-center gap-3">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs w-full">
+                {pieData.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span className="text-muted-foreground truncate">{d.name}</span>
+                    <span className="font-semibold ml-auto">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* AI placeholder */}
         <Card className="border-primary/20 bg-primary/[0.02]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
+          <CardHeader className="p-3 md:p-6 pb-2">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               Insights Inteligentes
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
+          <CardContent className="p-3 md:p-6 pt-0 space-y-3">
+            <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
               A taxa de infecção apresentou aumento de 12% em relação ao mês anterior, com maior impacto em infecções respiratórias. Recomenda-se atenção especial ao protocolo de higienização de mãos no setor de UTI Adulto e revisão dos bundles de prevenção de PAV.
             </p>
-            <Badge variant="outline" className="text-xs">Gerado por IA (mock)</Badge>
-            <div className="pt-2">
-              <Button variant="outline" className="gap-2">
-                <FileText className="h-4 w-4" /> Gerar Relatório com IA
+            <Badge variant="outline" className="text-[10px]">Gerado por IA (mock)</Badge>
+            <div className="pt-1">
+              <Button variant="outline" size="sm" className="gap-2 text-xs">
+                <FileText className="h-3.5 w-3.5" /> Gerar Relatório com IA
               </Button>
             </div>
           </CardContent>
@@ -355,11 +363,12 @@ export default function IndicadoresDashboard() {
 
       <Separator />
 
-      {/* Summary table */}
+      {/* Summary table — Desktop */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Tabela Resumo</CardTitle></CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardHeader className="p-3 md:p-6 pb-2"><CardTitle className="text-sm md:text-base">Tabela Resumo</CardTitle></CardHeader>
+        <CardContent className="p-0 md:p-6 md:pt-0">
+          {/* Desktop */}
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -373,7 +382,7 @@ export default function IndicadoresDashboard() {
               </TableHeader>
               <TableBody>
                 {tableData.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum registro encontrado para os filtros selecionados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum registro encontrado</TableCell></TableRow>
                 )}
                 {tableData.slice(0, 20).map((row, i) => (
                   <TableRow key={i}>
@@ -387,6 +396,34 @@ export default function IndicadoresDashboard() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+          {/* Mobile */}
+          <div className="md:hidden space-y-2 p-3">
+            {tableData.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-6">Nenhum registro encontrado</p>
+            )}
+            {tableData.slice(0, 20).map((row, i) => (
+              <div key={i} className="border border-border rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">{row.setor}</span>
+                  <Badge variant="secondary" className="text-[10px]">{row.mes}/{row.ano}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Infecção</p>
+                    <p className="text-sm font-bold font-mono">{row.taxaInfeccao.toFixed(2)}‰</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Letalidade</p>
+                    <p className="text-sm font-bold font-mono">{row.taxaLetalidade.toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Permanência</p>
+                    <p className="text-sm font-bold font-mono">{row.tempoPermanencia.toFixed(2)}d</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
