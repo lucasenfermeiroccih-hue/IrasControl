@@ -69,73 +69,58 @@ function getCellColor(value: number) {
   return "";
 }
 
+function getStatusBadge(status: string) {
+  const cls = status === "Desescalonado"
+    ? "bg-success/20 text-success border-success/30"
+    : status === "Suspenso"
+      ? "bg-muted text-muted-foreground"
+      : "bg-primary/20 text-primary border-primary/30";
+  return <Badge className={`text-[10px] ${cls}`}>{status}</Badge>;
+}
+
+const heatmapClasses = [
+  { key: "carbapenens", label: "Carbapenêmicos" },
+  { key: "vancomicina", label: "Vancomicina" },
+  { key: "polimixina", label: "Polimixina" },
+  { key: "cefalosporinas", label: "Cefalosporinas" },
+] as const;
+
 export default function DashboardAntimicrobials() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(initialPrescriptions);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Prescription | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const openNew = () => {
-    setEditingItem(null);
-    setForm(emptyForm);
-    setDialogOpen(true);
-  };
-
+  const openNew = () => { setEditingItem(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (p: Prescription) => {
     setEditingItem(p);
-    setForm({
-      patient: p.patient,
-      drug: p.drug,
-      dose: p.dose,
-      route: p.route,
-      days: String(p.days),
-      status: p.status,
-      alert: p.alert || "",
-    });
+    setForm({ patient: p.patient, drug: p.drug, dose: p.dose, route: p.route, days: String(p.days), status: p.status, alert: p.alert || "" });
     setDialogOpen(true);
   };
 
   const handleSave = () => {
-    if (!form.patient.trim() || !form.drug.trim()) {
-      toast.error("Paciente e antimicrobiano são obrigatórios.");
-      return;
-    }
+    if (!form.patient.trim() || !form.drug.trim()) { toast.error("Paciente e antimicrobiano são obrigatórios."); return; }
     if (editingItem) {
-      setPrescriptions((prev) =>
-        prev.map((p) =>
-          p.id === editingItem.id
-            ? { ...p, patient: form.patient, drug: form.drug, dose: form.dose, route: form.route, days: parseInt(form.days) || 1, status: form.status, alert: form.alert || null }
-            : p
-        )
-      );
+      setPrescriptions(prev => prev.map(p => p.id === editingItem.id ? { ...p, patient: form.patient, drug: form.drug, dose: form.dose, route: form.route, days: parseInt(form.days) || 1, status: form.status, alert: form.alert || null } : p));
       toast.success("Prescrição atualizada!");
     } else {
-      const newItem: Prescription = {
-        id: Date.now(),
-        patient: form.patient,
-        drug: form.drug,
-        dose: form.dose,
-        route: form.route,
-        days: parseInt(form.days) || 1,
-        status: form.status,
-        alert: form.alert || null,
-      };
-      setPrescriptions((prev) => [newItem, ...prev]);
+      setPrescriptions(prev => [{ id: Date.now(), patient: form.patient, drug: form.drug, dose: form.dose, route: form.route, days: parseInt(form.days) || 1, status: form.status, alert: form.alert || null }, ...prev]);
       toast.success("Prescrição adicionada!");
     }
     setDialogOpen(false);
   };
 
-  const setField = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setField = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Dashboard — Antimicrobianos</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Stewardship e consumo de antimicrobianos</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <DashboardAIInsights generateInsights={() => [
             "📊 DDD/1000 pac-dia em 842 — tendência de queda desde janeiro (890→842).",
             "⚠️ 7 alertas de stewardship ativos — Vancomicina leito 5B com >10 dias e Polimixina B de uso restrito.",
@@ -143,13 +128,14 @@ export default function DashboardAntimicrobials() {
             "✅ Taxa de desescalonamento em 64% — melhoria progressiva (+6pp em 6 meses).",
             "💡 Recomendação: revisão de antimicrobianos com >7 dias e coleta de culturas antes de início empírico.",
           ]} />
-          <Button onClick={openNew} className="gap-2">
+          <Button onClick={openNew} className="gap-2" size="sm">
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Adicionar Prescrição</span>
+            <span className="hidden sm:inline">Adicionar</span>
           </Button>
         </div>
       </div>
 
+      {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
           <Card key={k.label}>
@@ -158,7 +144,7 @@ export default function DashboardAntimicrobials() {
                 <k.icon className={`h-4 w-4 md:h-6 md:w-6 ${k.color}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">{k.label}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">{k.label}</p>
                 <p className="text-lg md:text-2xl font-bold">{k.value}</p>
               </div>
             </CardContent>
@@ -166,11 +152,12 @@ export default function DashboardAntimicrobials() {
         ))}
       </div>
 
+      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader className="p-3 md:p-6"><CardTitle className="text-sm md:text-base">Tendência DDD/1000 pac-dia</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-0">
-            <ResponsiveContainer width="100%" height={220}>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Tendência DDD/1000 pac-dia</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} />
@@ -184,9 +171,9 @@ export default function DashboardAntimicrobials() {
         </Card>
 
         <Card>
-          <CardHeader className="p-3 md:p-6"><CardTitle className="text-sm md:text-base">Taxa de Desescalonamento (%)</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-0">
-            <ResponsiveContainer width="100%" height={220}>
+          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Taxa de Desescalonamento (%)</CardTitle></CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} />
@@ -199,24 +186,26 @@ export default function DashboardAntimicrobials() {
         </Card>
       </div>
 
+      {/* Heatmap — Desktop table */}
       <Card>
-        <CardHeader className="p-3 md:p-6"><CardTitle className="text-sm md:text-base">Mapa de Calor — DDD por Setor e Classe</CardTitle></CardHeader>
+        <CardHeader className="p-3 md:p-6 pb-2"><CardTitle className="text-sm md:text-base">Mapa de Calor — DDD por Setor e Classe</CardTitle></CardHeader>
         <CardContent className="p-0 md:p-6 md:pt-0">
-          <div className="overflow-x-auto">
-            <Table className="text-xs md:text-sm">
+          {/* Desktop */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Setor</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Carbapenêm.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Vanco.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Polimix.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Cefalos.</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-center">Carbapenêm.</TableHead>
+                  <TableHead className="text-center">Vanco.</TableHead>
+                  <TableHead className="text-center">Polimix.</TableHead>
+                  <TableHead className="text-center">Cefalos.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sectorHeatmap.map((r) => (
                   <TableRow key={r.setor}>
-                    <TableCell className="font-medium whitespace-nowrap">{r.setor}</TableCell>
+                    <TableCell className="font-medium">{r.setor}</TableCell>
                     <TableCell className={`text-center ${getCellColor(r.carbapenens)}`}>{r.carbapenens}</TableCell>
                     <TableCell className={`text-center ${getCellColor(r.vancomicina)}`}>{r.vancomicina}</TableCell>
                     <TableCell className={`text-center ${getCellColor(r.polimixina)}`}>{r.polimixina}</TableCell>
@@ -226,30 +215,48 @@ export default function DashboardAntimicrobials() {
               </TableBody>
             </Table>
           </div>
+          {/* Mobile */}
+          <div className="md:hidden space-y-3 p-3">
+            {sectorHeatmap.map((r) => (
+              <div key={r.setor} className="border border-border rounded-lg p-3">
+                <p className="font-semibold text-sm mb-2">{r.setor}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {heatmapClasses.map(({ key, label }) => (
+                    <div key={key} className={`rounded-md px-2 py-1.5 text-center ${getCellColor(r[key])}`}>
+                      <p className="text-[10px] text-muted-foreground">{label}</p>
+                      <p className="text-sm font-mono font-bold">{r[key]}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
+      {/* Prescriptions */}
       <Card>
-        <CardHeader className="p-3 md:p-6">
+        <CardHeader className="p-3 md:p-6 pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm md:text-base">Prescrições Ativas</CardTitle>
             <Button size="sm" variant="outline" onClick={openNew} className="gap-1 h-7 text-xs">
-              <Plus className="h-3 w-3" /> Nova Prescrição
+              <Plus className="h-3 w-3" /> Nova
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0 md:p-6 md:pt-0">
-          <div className="overflow-x-auto">
-            <Table className="text-xs md:text-sm">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Paciente</TableHead>
-                  <TableHead className="whitespace-nowrap">Antimicrobiano</TableHead>
-                  <TableHead className="whitespace-nowrap hidden sm:table-cell">Dose</TableHead>
-                  <TableHead className="text-center hidden sm:table-cell">Via</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Antimicrobiano</TableHead>
+                  <TableHead>Dose</TableHead>
+                  <TableHead className="text-center">Via</TableHead>
                   <TableHead className="text-center">Dias</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="whitespace-nowrap">Alerta</TableHead>
+                  <TableHead>Alerta</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -258,23 +265,19 @@ export default function DashboardAntimicrobials() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium whitespace-nowrap">{p.patient}</TableCell>
                     <TableCell className="whitespace-nowrap">{p.drug}</TableCell>
-                    <TableCell className="whitespace-nowrap hidden sm:table-cell">{p.dose}</TableCell>
-                    <TableCell className="text-center hidden sm:table-cell">{p.route}</TableCell>
+                    <TableCell>{p.dose}</TableCell>
+                    <TableCell className="text-center">{p.route}</TableCell>
                     <TableCell className="text-center">{p.days}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={`text-[10px] ${p.status === "Desescalonado" ? "bg-success/20 text-success border-success/30" : p.status === "Suspenso" ? "bg-muted text-muted-foreground" : "bg-primary/20 text-primary border-primary/30"}`}>
-                        {p.status}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="text-center">{getStatusBadge(p.status)}</TableCell>
                     <TableCell>
                       {p.alert ? (
-                        <span className="flex items-center gap-1 text-[10px] text-warning whitespace-nowrap">
+                        <span className="flex items-center gap-1 text-xs text-warning whitespace-nowrap">
                           <AlertTriangle className="h-3 w-3 shrink-0" /> {p.alert}
                         </span>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)} title="Editar">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
@@ -283,12 +286,38 @@ export default function DashboardAntimicrobials() {
               </TableBody>
             </Table>
           </div>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3 p-3">
+            {prescriptions.map((p) => (
+              <div key={p.id} className="border border-border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-sm">{p.patient}</p>
+                    <p className="text-xs text-muted-foreground">{p.drug} — {p.dose}</p>
+                  </div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => openEdit(p)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {getStatusBadge(p.status)}
+                  <span className="text-xs text-muted-foreground">{p.route} · {p.days} dias</span>
+                </div>
+                {p.alert && (
+                  <div className="flex items-center gap-1.5 text-xs text-warning bg-warning/10 rounded-md px-2 py-1.5">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    {p.alert}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar Prescrição" : "Nova Prescrição"}</DialogTitle>
           </DialogHeader>
@@ -332,9 +361,9 @@ export default function DashboardAntimicrobials() {
               <Input placeholder="Ex: Solicitar reavaliação" value={form.alert} onChange={(e) => setField("alert", e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editingItem ? "Salvar Alterações" : "Adicionar"}</Button>
+            <Button onClick={handleSave}>{editingItem ? "Salvar" : "Adicionar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
