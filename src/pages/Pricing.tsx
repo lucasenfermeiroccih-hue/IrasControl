@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useId } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle, Shield, ArrowLeft, Sparkles, Tag, Building2, Crown } from "lucide-react";
+import { CheckCircle, Shield, ArrowLeft, Sparkles, Tag, Building2, Crown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Plan {
@@ -111,29 +112,46 @@ const VALID_COUPONS: Record<string, number> = {
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const couponInputId = useId();
   const [coupon, setCoupon] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
-  const handleApplyCoupon = () => {
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const handleApplyCoupon = async () => {
+    setCouponError("");
     if (!coupon.trim()) {
-      toast.error("Digite um cupom válido.");
+      setCouponError("Digite um cupom.");
       return;
     }
+    setCouponLoading(true);
+    await delay(1200);
     const discount = VALID_COUPONS[coupon.trim().toUpperCase()];
     if (discount) {
       setCouponApplied(true);
       setDiscountPercent(discount);
-      toast.success(`Cupom aplicado! Desconto de ${discount}% ativado.`);
+      setCouponError("");
+      toast.success(`Cupom aplicado com sucesso (-${discount}%)`);
     } else {
       setCouponApplied(false);
       setDiscountPercent(0);
+      setCouponError("Cupom inválido.");
       toast.error("Cupom inválido ou expirado.");
     }
+    setCouponLoading(false);
   };
 
-  const handlePlanClick = (plan: Plan) => {
+  const handlePlanClick = async (plan: Plan) => {
+    setLoadingPlan(plan.name);
+    await delay(1500);
+    setLoadingPlan(null);
+
     if (plan.name === "Teste Gratuito") {
       toast.info("Você está iniciando seu teste gratuito de 30 dias.");
       navigate("/register");
@@ -146,9 +164,12 @@ export default function Pricing() {
     setSelectedPlan(plan);
   };
 
-  const handleConfirmPlan = () => {
+  const handleConfirmPlan = async () => {
     if (!selectedPlan) return;
-    toast.success(`Plano ${selectedPlan.name} selecionado!`);
+    setConfirmLoading(true);
+    await delay(1500);
+    setConfirmLoading(false);
+    toast.success(`Plano ${selectedPlan.name} selecionado com sucesso!`);
     setSelectedPlan(null);
     navigate("/register", { state: { plan: selectedPlan.name } });
   };
@@ -162,7 +183,6 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
       <nav className="border-b">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -179,26 +199,26 @@ export default function Pricing() {
         </div>
       </nav>
 
-      <div className="container py-16">
-        {/* Header */}
+      <div className="container py-10 sm:py-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Planos e Preços</h1>
-          <p className="mt-3 text-lg text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Planos e Preços</h1>
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
             Escolha o plano ideal para o porte da sua instituição. Comece com um teste gratuito de 30 dias.
           </p>
         </div>
 
         {/* Plans Grid */}
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-6 sm:mt-14 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => {
             const Icon = plan.icon;
             const hasDiscount = couponApplied && plan.price.startsWith("R$");
+            const isLoading = loadingPlan === plan.name;
             return (
               <Card
                 key={plan.name}
-                className={`relative flex flex-col transition-shadow ${
+                className={`relative flex flex-col transition-all duration-200 hover:shadow-md ${
                   plan.highlight
-                    ? "border-primary shadow-lg ring-2 ring-primary/20 scale-[1.02]"
+                    ? "border-primary shadow-lg ring-2 ring-primary/20 sm:scale-[1.02]"
                     : plan.enterprise
                     ? "border-dashed border-muted-foreground/30"
                     : ""
@@ -251,9 +271,11 @@ export default function Pricing() {
                   <Button
                     className="mt-8 w-full"
                     variant={plan.highlight ? "default" : plan.enterprise ? "outline" : "secondary"}
+                    disabled={isLoading}
+                    aria-label={plan.cta}
                     onClick={() => handlePlanClick(plan)}
                   >
-                    {plan.cta}
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : plan.cta}
                   </Button>
                 </CardContent>
               </Card>
@@ -262,34 +284,55 @@ export default function Pricing() {
         </div>
 
         {/* Coupon */}
-        <div className="mx-auto mt-16 max-w-md text-center">
-          <h2 className="text-lg font-semibold">Possui cupom de desconto?</h2>
+        <div className="mx-auto mt-12 max-w-md text-center sm:mt-16">
+          <Label htmlFor={couponInputId} className="text-lg font-semibold">
+            Possui cupom de desconto?
+          </Label>
           <div className="mt-3 flex gap-2">
             <Input
+              id={couponInputId}
               placeholder="Digite seu cupom"
               value={coupon}
+              aria-label="Cupom de desconto"
               onChange={(e) => {
                 setCoupon(e.target.value);
                 if (couponApplied) {
                   setCouponApplied(false);
                   setDiscountPercent(0);
                 }
+                if (couponError) setCouponError("");
               }}
-              className={couponApplied ? "border-primary" : ""}
+              className={`transition-colors ${
+                couponApplied
+                  ? "border-primary focus-visible:ring-primary"
+                  : couponError
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+              }`}
             />
-            <Button onClick={handleApplyCoupon} variant="outline" className="shrink-0 gap-1.5">
-              <Tag className="h-4 w-4" /> Aplicar
+            <Button
+              onClick={handleApplyCoupon}
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              disabled={couponLoading}
+              aria-label="Aplicar cupom de desconto"
+            >
+              {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+              Aplicar
             </Button>
           </div>
           {couponApplied && (
             <p className="mt-2 text-sm font-medium text-primary">
-              ✓ Cupom aplicado — {discountPercent}% de desconto
+              ✓ Cupom aplicado com sucesso (-{discountPercent}%)
             </p>
+          )}
+          {couponError && (
+            <p className="mt-2 text-sm font-medium text-destructive">{couponError}</p>
           )}
         </div>
 
         {/* Comparison summary */}
-        <div className="mx-auto mt-20 max-w-3xl">
+        <div className="mx-auto mt-16 max-w-3xl sm:mt-20">
           <h2 className="text-center text-2xl font-bold">Comparação Rápida</h2>
           <div className="mt-6 overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
@@ -315,7 +358,7 @@ export default function Pricing() {
                   ["SLA dedicado", false, false, false, true],
                   ["Usuários", "Ilimitado", "8", "15", "Ilimitado"],
                 ].map(([feature, ...values], i) => (
-                  <tr key={i} className="hover:bg-muted/30">
+                  <tr key={i} className="transition-colors hover:bg-muted/30">
                     <td className="px-4 py-2.5 font-medium">{feature as string}</td>
                     {(values as (boolean | string)[]).map((v, j) => (
                       <td key={j} className="px-4 py-2.5 text-center">
@@ -340,10 +383,10 @@ export default function Pricing() {
 
       {/* Confirmation Modal */}
       <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
-        <DialogContent>
+        <DialogContent aria-describedby="plan-modal-desc">
           <DialogHeader>
             <DialogTitle>Confirmar assinatura — {selectedPlan?.name}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="plan-modal-desc">
               Revise os benefícios do plano antes de continuar.
             </DialogDescription>
           </DialogHeader>
@@ -364,8 +407,12 @@ export default function Pricing() {
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setSelectedPlan(null)}>Cancelar</Button>
-            <Button onClick={handleConfirmPlan}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setSelectedPlan(null)} disabled={confirmLoading} aria-label="Cancelar seleção de plano">
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmPlan} disabled={confirmLoading} aria-label="Confirmar assinatura do plano">
+              {confirmLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Processando...</> : "Confirmar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
