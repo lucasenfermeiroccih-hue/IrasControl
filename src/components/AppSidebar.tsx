@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navSections = [
+const publicSections = [
   {
     label: "Geral",
     items: [
@@ -87,24 +89,50 @@ const navSections = [
       { title: "Biblioteca de Agentes", url: "/agentes", icon: Sparkles },
     ],
   },
-  {
-    label: "Admin",
-    items: [
-      { title: "Super Admin", url: "/super-admin", icon: Shield },
-      { title: "Usuários", url: "/admin/users", icon: Users },
-      { title: "Configurações", url: "/admin/settings", icon: Settings },
-      { title: "CRM", url: "/crm", icon: Users },
-      { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
-      { title: "Planos", url: "/planos", icon: Tag },
-      { title: "Perfil", url: "/settings/profile", icon: Users },
-    ],
-  },
 ];
+
+const adminSection = {
+  label: "Admin",
+  items: [
+    { title: "Super Admin", url: "/super-admin", icon: Shield },
+    { title: "Usuários", url: "/admin/users", icon: Users },
+    { title: "Configurações", url: "/admin/settings", icon: Settings },
+    { title: "CRM", url: "/crm", icon: Users },
+    { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
+    { title: "Planos", url: "/planos", icon: Tag },
+    { title: "Perfil", url: "/settings/profile", icon: Users },
+  ],
+};
+
+const userOnlySection = {
+  label: "Conta",
+  items: [
+    { title: "Perfil", url: "/settings/profile", icon: Users },
+  ],
+};
 
 export function AppSidebar() {
   const { state, isMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "super_admin" }),
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "hospital_admin" }),
+      ]);
+      setIsAdmin(!!isSuperAdmin || !!isHospitalAdmin);
+    };
+    check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const sections = [...publicSections, isAdmin ? adminSection : userOnlySection];
 
   return (
     <Sidebar collapsible="icon">
@@ -115,7 +143,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {navSections.map((section) => (
+        {sections.map((section) => (
           <SidebarGroup key={section.label}>
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>
