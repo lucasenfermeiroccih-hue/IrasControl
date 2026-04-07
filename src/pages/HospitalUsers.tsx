@@ -72,7 +72,7 @@ export default function HospitalUsers() {
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTarget, setEditTarget] = useState<HospitalUser | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: "", phone: "", role: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", phone: "", role: "", password: "" });
 
   // Deactivate/activate confirmation
   const [confirmOpen, setConfirmOpen] = useState(false);
