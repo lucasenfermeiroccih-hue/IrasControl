@@ -161,6 +161,7 @@ export default function AuditAntibiogramNew() {
     }
     toast({ title: "Antibiograma registrado!", description: `${results.length} antimicrobianos processados. ${detectedPhenotypes.length > 0 ? "⚠️ Fenótipos de resistência detectados!" : ""}` });
     setCollectionDate("");
+    setSampleId("");
     setSector("");
     setPatientId("");
     setOrganism("");
