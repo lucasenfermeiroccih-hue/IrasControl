@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       return json({ error: "Forbidden: hospital_admin or super_admin required" }, 403);
     }
 
-    const { action, user_id, hospital_id, full_name, phone, role } = await req.json();
+    const { action, user_id, hospital_id, full_name, phone, role, email, password } = await req.json();
 
     if (!action || !user_id || !hospital_id) {
       return json({ error: "Missing required fields: action, user_id, hospital_id" }, 400);
@@ -108,6 +108,18 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Update email in profiles table if provided
+      if (email) {
+        const { error: emailProfileError } = await adminClient
+          .from("profiles")
+          .update({ email })
+          .eq("user_id", user_id);
+
+        if (emailProfileError) {
+          return json({ error: `Failed to update email in profile: ${emailProfileError.message}` }, 500);
+        }
+      }
+
       // Update role if provided
       if (role) {
         if (!isSuperAdmin && !(ALLOWED_ROLES as readonly string[]).includes(role)) {
@@ -139,20 +151,30 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update user metadata in auth
-      if (full_name) {
-        await adminClient.auth.admin.updateUserById(user_id, {
-          user_metadata: { full_name },
-        });
+      // Update user in auth (email, password, metadata)
+      const authUpdates: Record<string, unknown> = {};
+      if (full_name) authUpdates.user_metadata = { full_name };
+      if (email) authUpdates.email = email;
+      if (password) {
+        if (password.length < 6) {
+          return json({ error: "A senha deve ter no mínimo 6 caracteres" }, 400);
+        }
+        authUpdates.password = password;
+      }
+
+      if (Object.keys(authUpdates).length > 0) {
+        const { error: authError } = await adminClient.auth.admin.updateUserById(user_id, authUpdates);
+        if (authError) {
+          return json({ error: `Failed to update auth user: ${authError.message}` }, 500);
+        }
       }
 
       return json({ success: true, action: "updated" });
     }
 
     if (action === "deactivate") {
-      // Ban the user in Supabase Auth
       const { error: banError } = await adminClient.auth.admin.updateUserById(user_id, {
-        ban_duration: "876000h", // ~100 years
+        ban_duration: "876000h",
       });
 
       if (banError) {
@@ -163,7 +185,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "activate") {
-      // Unban the user
       const { error: unbanError } = await adminClient.auth.admin.updateUserById(user_id, {
         ban_duration: "none",
       });
