@@ -139,6 +139,8 @@ export default function DashboardAntimicrobials() {
         </div>
       </div>
 
+      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
+
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
