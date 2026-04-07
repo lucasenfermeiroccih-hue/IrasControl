@@ -248,13 +248,26 @@ export async function sendToAgent(agentId: string, _sessionId: string, input: st
   }
 
   try {
+    // Fetch relevant Supabase data as context for the agent
+    let contextData = null;
+    try {
+      contextData = await fetchAgentContext(agentId);
+    } catch (ctxError) {
+      console.warn("Falha ao buscar contexto do Supabase:", ctxError);
+    }
+
+    const payload: Record<string, unknown> = { input };
+    if (contextData) {
+      payload.context = contextData;
+    }
+
     const response = await fetch(`${N8N_BASE_URL}/${slug}`, {
       method: "POST",
       headers: {
         "Authorization": `bearer ${session.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
