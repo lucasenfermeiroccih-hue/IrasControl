@@ -107,9 +107,27 @@ const Reports = () => {
   });
 
   // Filters
-  const [filterMicro, setFilterMicro] = useState<string>("all");
+  const [filterMicros, setFilterMicros] = useState<string[]>([]);
   const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>();
   const [filterDateTo, setFilterDateTo] = useState<Date | undefined>();
+  const [filterMes, setFilterMes] = useState<string>("all");
+  const [filterAno, setFilterAno] = useState<string>("all");
+  const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
+
+  const MESES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  ];
+  const currentYear = new Date().getFullYear();
+  const ANOS = [String(currentYear), String(currentYear - 1), String(currentYear - 2)];
+
+  const toggleMicro = (m: string) => {
+    setFilterMicros((prev) => prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]);
+  };
+  const toggleAllMicros = () => {
+    setFilterMicros((prev) => prev.length === MICROORGANISMOS.length ? [] : [...MICROORGANISMOS]);
+  };
 
   // AI
   const [aiLoading, setAiLoading] = useState(false);
