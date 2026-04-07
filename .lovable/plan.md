@@ -1,56 +1,44 @@
 
 
-# Fase 5 — Investigação, Alertas e Resultados Laboratoriais
+# Plan: Connect AI Agents to Real n8n Webhooks
 
-## Status atual
-- Fases 1, 3, 4 e Reports: concluídas
-- Faltam: Fase 2 (monitoramento pacientes), Fase 5 (investigação/alertas/lab), Fase 6 (analytics/forms), Fase 7 (admin/settings/CRM/marketplace)
+## Overview
+Replace mock responses in `sendToAgent` with real HTTP calls to n8n webhook endpoints, authenticated with the logged-in user's Supabase access token.
 
-A próxima fase lógica é a **Fase 5**, que inclui 3 telas novas já referenciadas na sidebar.
+## Security Note
+The n8n webhook URLs are public endpoints that validate the user's JWT server-side. The Supabase access token is obtained from the client session — no secrets are exposed.
 
----
+## Changes (single file: `src/lib/agent-service.ts`)
 
-## Telas a implementar
+### 1. Add webhook URL mapping
+Map each agent ID to its n8n webhook slug:
 
-### 1. Notificação e Investigação CCIH (`/cases/investigation`)
-- Formulário/lista de casos de investigação
-- KPIs: casos abertos, em investigação, concluídos, pendentes
-- Tabela de casos com status visual (badges coloridos)
-- Dialog para novo caso com: paciente, setor, evento, classificação, dispositivos, critérios diagnósticos
-- Checklist de investigação e conclusão/encerramento
-- Dados mock (~10 casos)
+| Agent ID | Webhook slug |
+|---|---|
+| trend-analyst | analista_de_tendências |
+| risk-detector | detector_de_fatores_de_risco |
+| report-generator | gerador_de_relatórios_automatizados |
+| outbreak-alert | alerta_de_surtos |
+| intervention-suggester | sugestor_de_intervenções |
+| dashboard-interpreter | interpretador_de_dashboards |
+| form-validator | validador_de_formulários |
+| anvisa-report | agente_de_relatorios_tecnicos_anvisa_e_vigilância_de_isc |
+| micro-report | agente_de_relatórios_microbiológicos_integrados |
+| quick-decision | agente_de_tomada_de_decisao_rapida |
 
-### 2. Alertas Críticos (`/alerts`)
-- Filtros: prioridade (crítico/alto/médio/baixo), tipo, setor
-- KPIs: total alertas, críticos ativos, resolvidos hoje
-- Lista de alertas com badge de prioridade, ícone por tipo, ações sugeridas
-- Detalhes em accordion ou dialog
-- Botão "Resolver" / "Escalar"
-- Dados mock (~15 alertas)
+Base URL: `https://irascontrol.app.n8n.cloud/webhook/`
 
-### 3. Resultados Laboratoriais (`/laboratory-results`)
-- Filtros: busca por prontuário, microorganismo, período
-- KPIs: total exames, pendentes, com resistência crítica
-- Tabela de resultados com perfil de resistência (badges SIR)
-- Dialog de detalhes com antibiograma
-- Botão importar dados (mock)
-- Dados mock (~20 resultados)
+### 2. Rewrite `sendToAgent` function
+- Import `supabase` client to get the current session's access token via `supabase.auth.getSession()`
+- Make a `fetch POST` to the corresponding webhook URL with:
+  - Header: `Authorization: bearer <access_token>`
+  - Header: `Content-Type: application/json`
+  - Body: `{ "input": "<user input>" }`
+- Parse the response and return the output text
+- If user is not authenticated, throw an error
+- Keep mock responses as fallback if the API call fails (graceful degradation)
 
----
-
-## Arquivos a criar/editar
-
-| Ação | Arquivo |
-|------|---------|
-| Criar | `src/pages/CasesInvestigation.tsx` |
-| Criar | `src/pages/Alerts.tsx` |
-| Criar | `src/pages/LaboratoryResults.tsx` |
-| Editar | `src/App.tsx` — adicionar 3 rotas |
-
-A sidebar já tem os links corretos para `/cases/investigation`, `/alerts` e `/laboratory-results`.
-
-## Componentes utilizados
-- Shadcn: Card, Badge, Table, Dialog, Select, Calendar/Popover, Accordion, Progress, Tabs
-- Recharts para gráficos onde aplicável
-- Dados 100% mock, sem backend
+### 3. No other files change
+- `AgentChat.tsx` already calls `sendToAgent` and displays the result
+- No UI changes needed
 
