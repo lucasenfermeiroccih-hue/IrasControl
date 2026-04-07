@@ -32,6 +32,8 @@ export default function DashboardAntibiogram() {
   const [filtroSetor, setFiltroSetor] = useState("all");
   const [filtroSite, setFiltroSite] = useState("all");
   const [filtroOrg, setFiltroOrg] = useState("all");
+  const [filtroMes, setFiltroMes] = useState("all");
+  const [filtroAno, setFiltroAno] = useState("all");
 
   const setores = useMemo(() => [...new Set(allData.map(d => d.sector))].sort(), [allData]);
   const sites = useMemo(() => [...new Set(allData.map(d => d.site))].sort(), [allData]);
@@ -40,8 +42,12 @@ export default function DashboardAntibiogram() {
   const filtered = useMemo(() => allData.filter(d =>
     (filtroSetor === "all" || d.sector === filtroSetor) &&
     (filtroSite === "all" || d.site === filtroSite) &&
-    (filtroOrg === "all" || d.organism === filtroOrg)
-  ), [allData, filtroSetor, filtroSite, filtroOrg]);
+    (filtroOrg === "all" || d.organism === filtroOrg) &&
+    (filtroMes === "all" || d.date?.substring(5, 7) === filtroMes) &&
+    (filtroAno === "all" || d.date?.substring(0, 4) === filtroAno)
+  ), [allData, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno]);
+
+  const anosDisp = useMemo(() => [...new Set(allData.map(d => d.date?.substring(0, 4)).filter(Boolean))].sort(), [allData]);
 
   const totalExams = filtered.length;
   const allResults = filtered.flatMap(d => d.results);
@@ -167,7 +173,29 @@ export default function DashboardAntibiogram() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Mês</label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => (
+                    <SelectItem key={m} value={m}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][i]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Ano</label>
+              <Select value={filtroAno} onValueChange={setFiltroAno}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {anosDisp.map(a => <SelectItem key={a} value={a!}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Setor</label>
               <Select value={filtroSetor} onValueChange={setFiltroSetor}>

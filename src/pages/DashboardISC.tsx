@@ -91,6 +91,7 @@ export default function DashboardISC() {
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState("Todos");
   const [profFiltro, setProfFiltro] = useState("Todos");
+  const [setorFiltro, setSetorFiltro] = useState("Todos");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiReport, setAiReport] = useState("");
 
@@ -98,15 +99,17 @@ export default function DashboardISC() {
 
   const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
   const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
+  const clinicas = useMemo(() => [...new Set(allRecords.map((r) => r.clinica))].sort(), [allRecords]);
 
   const filtered = useMemo(() => {
     return allRecords.filter((r) => {
       if (anoFiltro !== "Todos" && String(r.ano) !== anoFiltro) return false;
       if (mesFiltro !== "Todos" && r.mes !== mesesFiltro.indexOf(mesFiltro)) return false;
       if (profFiltro !== "Todos" && r.profissional !== profFiltro) return false;
+      if (setorFiltro !== "Todos" && r.clinica !== setorFiltro) return false;
       return true;
     });
-  }, [allRecords, mesFiltro, anoFiltro, profFiltro]);
+  }, [allRecords, mesFiltro, anoFiltro, profFiltro, setorFiltro]);
 
   const hasData = allRecords.length > 0;
 
@@ -222,7 +225,7 @@ export default function DashboardISC() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Mês</Label>
               <Select value={mesFiltro} onValueChange={setMesFiltro}>
@@ -239,6 +242,16 @@ export default function DashboardISC() {
                 <SelectContent>
                   <SelectItem value="Todos">Todos</SelectItem>
                   {anos.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setor / Clínica</Label>
+              <Select value={setorFiltro} onValueChange={setSetorFiltro}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {clinicas.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
