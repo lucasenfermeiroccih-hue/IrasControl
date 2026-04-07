@@ -197,8 +197,10 @@ export default function HospitalUsers() {
     setEditTarget(user);
     setEditForm({
       full_name: user.profiles?.full_name || "",
+      email: user.profiles?.email || "",
       phone: user.profiles?.phone || "",
       role: mainRole?.role || "",
+      password: "",
     });
     setEditOpen(true);
   };
