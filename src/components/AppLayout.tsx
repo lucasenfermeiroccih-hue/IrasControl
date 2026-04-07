@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, LogOut, Settings, User, UserCircle } from "lucide-react";
+import { Bell, LogOut, Settings, User, UserCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -24,6 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const { user: authUser, isReady } = useAuthReady();
   const [profile, setProfile] = useState<{
     full_name: string;
     email: string;
@@ -32,31 +34,38 @@ export function AppLayout() {
   } | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    if (isReady && !authUser) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (!authUser) return;
 
+    const load = async () => {
       const [{ data: profileData }, { data: rolesData }] = await Promise.all([
-        supabase.from("profiles").select("full_name, email").eq("user_id", user.id).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase.from("profiles").select("full_name, email").eq("user_id", authUser.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", authUser.id),
       ]);
 
       setProfile({
-        full_name: profileData?.full_name || user.email || "Usuário",
-        email: profileData?.email || user.email || "",
-        avatar_url: user.user_metadata?.avatar_url || null,
+        full_name: profileData?.full_name || authUser.email || "Usuário",
+        email: profileData?.email || authUser.email || "",
+        avatar_url: authUser.user_metadata?.avatar_url || null,
         roles: (rolesData || []).map((r: { role: string }) => r.role),
       });
     };
 
     load();
+  }, [authUser, isReady, navigate]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      load();
-    });
+  if (!isReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-    return () => subscription.unsubscribe();
-  }, []);
+  if (!authUser) return null;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
