@@ -137,8 +137,91 @@ export default function DashboardAntibiogram() {
     return ins;
   }, [orgCounts, resistanceRate, phenotypeCount, phenotypeRate, sirByAntibiotic, sectorData]);
 
+  // AI state
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportPeriod, setReportPeriod] = useState("ultimo-mes");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportResult, setReportResult] = useState<string | null>(null);
+
   const handleExportPDF = () => toast({ title: "Exportar PDF", description: "Funcionalidade será implementada com integração backend." });
   const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Funcionalidade será implementada com integração backend." });
+
+  const handleAIInsights = async () => {
+    setAiInsightsLoading(true);
+    try {
+      const summaryData = {
+        totalExames: totalExams,
+        totalTestes: totalTests,
+        taxaResistencia: resistanceRate,
+        taxaSensibilidade: sensitivityRate,
+        fenotipos: phenotypeCount,
+        topOrganismos: orgCounts.slice(0, 5).map(o => `${o.name}: ${o.value}`),
+        antibioticosComMaiorResistencia: sirByAntibiotic.filter(a => a.resistRate > 30).map(a => `${a.name}: ${a.resistRate}%`),
+        setores: sectorData.map(s => `${s.name}: ${s.value}`),
+      };
+      const prompt = `Analise os dados de antibiograma e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
+      const result = await sendToAgent("micro-report", "dashboard-insights", prompt);
+      setAiInsights(result);
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message || "Falha ao gerar insights de IA.", variant: "destructive" });
+    } finally {
+      setAiInsightsLoading(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    setReportLoading(true);
+    setReportResult(null);
+    try {
+      const periodLabels: Record<string, string> = {
+        "ultimo-mes": "último mês",
+        "ultimos-3-meses": "últimos 3 meses",
+        "ultimos-6-meses": "últimos 6 meses",
+        "ultimo-ano": "último ano",
+      };
+      const summaryData = {
+        periodo: periodLabels[reportPeriod] || reportPeriod,
+        totalExames: totalExams,
+        totalTestes: totalTests,
+        taxaResistencia: resistanceRate,
+        taxaSensibilidade: sensitivityRate,
+        fenotipos: phenotypeCount,
+        taxaFenotipo: phenotypeRate,
+        topOrganismos: orgCounts.map(o => `${o.name}: ${o.value} isolados`),
+        perfilSIR: sirByAntibiotic.map(a => `${a.name}: S=${a.S} I=${a.I} R=${a.R} (${a.resistRate}% resistência)`),
+        setores: sectorData.map(s => `${s.name}: ${s.value} exames`),
+        tendenciaMensal: monthlyTrend.map(t => `${t.month}: ${t.taxaResistencia}% resistência (${t.exames} testes)`),
+        fenotiposDetectados: phenotypeDist.map(p => `${p.name}: ${p.value}`),
+        filtros: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
+      };
+      const prompt = `Gere um relatório completo de antibiograma e perfil de sensibilidade microbiológica para o período: ${periodLabels[reportPeriod]}. Inclua: resumo executivo, análise de resistência por antibiótico, distribuição de microrganismos, fenótipos de resistência detectados, tendências temporais, alertas de surto, e recomendações clínicas. Dados:\n\n${JSON.stringify(summaryData, null, 2)}`;
+      const result = await sendToAgent("micro-report", "dashboard-report", prompt);
+      setReportResult(result);
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message || "Falha ao gerar relatório.", variant: "destructive" });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleExportReportPDF = () => {
+    if (!reportResult) return;
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html><head><title>Relatório Microbiológico</title>
+        <style>body{font-family:Arial,sans-serif;padding:40px;line-height:1.6;max-width:800px;margin:0 auto}
+        h1,h2,h3{color:#1a5c4c}table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f0fdf4}
+        @media print{body{padding:20px}}</style></head>
+        <body>${reportResult.replace(/\n/g, "<br/>").replace(/#{3}\s(.+)/g, "<h3>$1</h3>").replace(/#{2}\s(.+)/g, "<h2>$1</h2>").replace(/#{1}\s(.+)/g, "<h1>$1</h1>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>")}</body></html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
