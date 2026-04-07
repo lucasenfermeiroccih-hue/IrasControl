@@ -251,7 +251,7 @@ export async function sendToAgent(agentId: string, _sessionId: string, input: st
     // Fetch relevant Supabase data as context for the agent
     let contextData = null;
     try {
-      contextData = await fetchAgentContext(agentId);
+      contextData = await fetchAgentContext(agentId, input);
     } catch (ctxError) {
       console.warn("Falha ao buscar contexto do Supabase:", ctxError);
     }
