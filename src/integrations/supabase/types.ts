@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "agent_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_chat_sessions: {
+        Row: {
+          agent_id: string
+          agent_name: string
+          created_at: string
+          hospital_id: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          agent_name: string
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string
+          created_at?: string
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_chat_sessions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_chat_sessions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           acknowledged_at: string | null
@@ -341,6 +421,119 @@ export type Database = {
           },
         ]
       }
+      ddd_record_lines: {
+        Row: {
+          antimicrobiano_id: number
+          apresentacao: string
+          created_at: string
+          ddd_padrao: number
+          ddd_record_id: string
+          id: string
+          indicador: number | null
+          mg_por_unidade: number
+          nome: string
+          quantidade: number
+          total_g: number
+          total_mg: number
+          valor_ab: number | null
+        }
+        Insert: {
+          antimicrobiano_id: number
+          apresentacao: string
+          created_at?: string
+          ddd_padrao?: number
+          ddd_record_id: string
+          id?: string
+          indicador?: number | null
+          mg_por_unidade?: number
+          nome: string
+          quantidade?: number
+          total_g?: number
+          total_mg?: number
+          valor_ab?: number | null
+        }
+        Update: {
+          antimicrobiano_id?: number
+          apresentacao?: string
+          created_at?: string
+          ddd_padrao?: number
+          ddd_record_id?: string
+          id?: string
+          indicador?: number | null
+          mg_por_unidade?: number
+          nome?: string
+          quantidade?: number
+          total_g?: number
+          total_mg?: number
+          valor_ab?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddd_record_lines_ddd_record_id_fkey"
+            columns: ["ddd_record_id"]
+            isOneToOne: false
+            referencedRelation: "ddd_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ddd_records: {
+        Row: {
+          ano_vigilancia: number
+          compilado_utis: number
+          created_at: string
+          data_vigilancia: string
+          hospital_id: string
+          id: string
+          mes_vigilancia: string
+          paciente_dia: Json
+          profissional: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano_vigilancia: number
+          compilado_utis?: number
+          created_at?: string
+          data_vigilancia: string
+          hospital_id: string
+          id?: string
+          mes_vigilancia: string
+          paciente_dia?: Json
+          profissional: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano_vigilancia?: number
+          compilado_utis?: number
+          created_at?: string
+          data_vigilancia?: string
+          hospital_id?: string
+          id?: string
+          mes_vigilancia?: string
+          paciente_dia?: Json
+          profissional?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddd_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddd_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_users: {
         Row: {
           created_at: string
@@ -500,6 +693,101 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      isc_record_indicators: {
+        Row: {
+          contatos_atendidos: number
+          created_at: string
+          id: string
+          isc_confirmada: number
+          isc_record_id: string
+          procedimento: string
+          reinternacoes: number
+          sitio: string | null
+          total_cirurgias: number
+        }
+        Insert: {
+          contatos_atendidos?: number
+          created_at?: string
+          id?: string
+          isc_confirmada?: number
+          isc_record_id: string
+          procedimento: string
+          reinternacoes?: number
+          sitio?: string | null
+          total_cirurgias?: number
+        }
+        Update: {
+          contatos_atendidos?: number
+          created_at?: string
+          id?: string
+          isc_confirmada?: number
+          isc_record_id?: string
+          procedimento?: string
+          reinternacoes?: number
+          sitio?: string | null
+          total_cirurgias?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "isc_record_indicators_isc_record_id_fkey"
+            columns: ["isc_record_id"]
+            isOneToOne: false
+            referencedRelation: "isc_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      isc_records: {
+        Row: {
+          ano: string
+          created_at: string
+          data_vigilancia: string
+          hospital_id: string
+          id: string
+          mes: string
+          nome_profissional: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          created_at?: string
+          data_vigilancia: string
+          hospital_id: string
+          id?: string
+          mes: string
+          nome_profissional: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          created_at?: string
+          data_vigilancia?: string
+          hospital_id?: string
+          id?: string
+          mes?: string
+          nome_profissional?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "isc_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "isc_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
             referencedColumns: ["id"]
           },
         ]

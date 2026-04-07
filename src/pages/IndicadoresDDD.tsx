@@ -115,7 +115,7 @@ export default function IndicadoresDDD() {
     });
 
     setRegistrosSalvos(listarRegistrosDDD());
-    toast.success("Registro salvo com sucesso no armazenamento local!");
+    toast.success("Registro salvo com sucesso!");
   };
 
   const handleDelete = (id: string) => {
@@ -141,8 +141,9 @@ export default function IndicadoresDDD() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Indicadores DDD</h1>
           <p className="text-sm text-muted-foreground">Cálculo de consumo de antimicrobianos — DDD (OMS 2020)</p>
@@ -150,10 +151,7 @@ export default function IndicadoresDDD() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowHistory(!showHistory)} className="gap-2">
             <History className="h-4 w-4" />
-            Histórico ({registrosSalvos.length})
-          </Button>
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" /> Salvar
+            <span className="hidden sm:inline">Histórico</span> ({registrosSalvos.length})
           </Button>
         </div>
       </div>
@@ -166,37 +164,39 @@ export default function IndicadoresDDD() {
             {registrosSalvos.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum registro salvo ainda.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Profissional</TableHead>
-                    <TableHead>Mês/Ano</TableHead>
-                    <TableHead>Data Vigilância</TableHead>
-                    <TableHead>Compilado UTIs</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registrosSalvos.map(reg => (
-                    <TableRow key={reg.id}>
-                      <TableCell className="font-medium">{reg.profissional}</TableCell>
-                      <TableCell><Badge variant="secondary">{reg.mesVigilancia}/{reg.anoVigilancia}</Badge></TableCell>
-                      <TableCell>{reg.dataVigilancia}</TableCell>
-                      <TableCell className="font-mono">{reg.compiladoUTIs}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(reg.criadoEm).toLocaleString("pt-BR")}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => handleLoadRecord(reg)}>Carregar</Button>
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(reg.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Profissional</TableHead>
+                      <TableHead>Mês/Ano</TableHead>
+                      <TableHead>Data Vigilância</TableHead>
+                      <TableHead>Compilado UTIs</TableHead>
+                      <TableHead>Criado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {registrosSalvos.map(reg => (
+                      <TableRow key={reg.id}>
+                        <TableCell className="font-medium">{reg.profissional}</TableCell>
+                        <TableCell><Badge variant="secondary">{reg.mesVigilancia}/{reg.anoVigilancia}</Badge></TableCell>
+                        <TableCell>{reg.dataVigilancia}</TableCell>
+                        <TableCell className="font-mono">{reg.compiladoUTIs}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{new Date(reg.criadoEm).toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => handleLoadRecord(reg)}>Carregar</Button>
+                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(reg.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -234,7 +234,7 @@ export default function IndicadoresDDD() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Paciente-dia por Unidade</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
             {unidadesPacienteDia.map(u => (
               <div key={u} className="space-y-1.5">
                 <Label className="text-xs">{u}</Label>
@@ -255,17 +255,17 @@ export default function IndicadoresDDD() {
       {/* Tabela Antimicrobianos */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Antimicrobianos</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-auto -mx-2 px-2">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[200px]">Antimicrobiano</TableHead>
-                <TableHead className="min-w-[160px]">Apresentação</TableHead>
-                <TableHead className="min-w-[90px] text-center">mg/unid</TableHead>
-                <TableHead className="min-w-[100px] text-center">Qtd Unidades</TableHead>
+                <TableHead className="min-w-[180px]">Antimicrobiano</TableHead>
+                <TableHead className="min-w-[140px]">Apresentação</TableHead>
+                <TableHead className="min-w-[80px] text-center">mg/unid</TableHead>
+                <TableHead className="min-w-[90px] text-center">Qtd Unidades</TableHead>
                 <TableHead className="text-right">Total (mg)</TableHead>
                 <TableHead className="text-right">Total (g)</TableHead>
-                <TableHead className="text-right">DDD Padrão (g)</TableHead>
+                <TableHead className="text-right">DDD (g)</TableHead>
                 <TableHead className="text-right font-semibold text-primary">A/B</TableHead>
                 <TableHead className="text-right font-semibold text-primary">Indicador</TableHead>
               </TableRow>
@@ -273,25 +273,25 @@ export default function IndicadoresDDD() {
             <TableBody>
               {tableData.map(row => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.nome}</TableCell>
+                  <TableCell className="font-medium text-sm">{row.nome}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">{row.apresentacao}</TableCell>
-                  <TableCell className="text-center font-mono text-sm">{row.mgPorUnidade}</TableCell>
+                  <TableCell className="text-center font-mono text-xs">{row.mgPorUnidade}</TableCell>
                   <TableCell>
                     <Input
                       type="number"
                       min={0}
-                      className="h-8 w-20 text-center"
+                      className="h-8 w-20 text-center mx-auto"
                       value={row.qty || ""}
                       onChange={e => handleQtyChange(row.id, e.target.value)}
                     />
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.qty > 0 ? row.totalMg : DASH}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.qty > 0 ? row.totalG.toFixed(2) : DASH}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.dddPadrao}</TableCell>
-                  <TableCell className="text-right font-mono text-sm font-semibold text-primary">
+                  <TableCell className="text-right font-mono text-xs">{row.qty > 0 ? row.totalMg : DASH}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{row.qty > 0 ? row.totalG.toFixed(2) : DASH}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{row.dddPadrao}</TableCell>
+                  <TableCell className="text-right font-mono text-xs font-semibold text-primary">
                     {row.valorAB !== null ? row.valorAB.toFixed(2) : DASH}
                   </TableCell>
-                  <TableCell className={`text-right font-mono text-sm font-bold ${
+                  <TableCell className={`text-right font-mono text-xs font-bold ${
                     row.indicador === null
                       ? "text-muted-foreground"
                       : row.indicador > 50
@@ -308,6 +308,13 @@ export default function IndicadoresDDD() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Botão Salvar fixo no final */}
+      <div className="sticky bottom-4 z-10 flex justify-end">
+        <Button onClick={handleSave} size="lg" className="gap-2 shadow-lg">
+          <Save className="h-5 w-5" /> Salvar Registro
+        </Button>
+      </div>
     </div>
   );
 }
