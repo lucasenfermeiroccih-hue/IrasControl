@@ -236,7 +236,25 @@ export default function DashboardAntibiogram() {
             <p className="text-xs md:text-sm text-muted-foreground">Perfil de sensibilidade microbiana</p>
           </div>
         </div>
-        <div className="flex gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAIInsights}
+            disabled={aiInsightsLoading}
+            className="gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
+          >
+            {aiInsightsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-primary" />}
+            Insights IA
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReportDialogOpen(true)}
+            className="gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
+          >
+            <Bot className="h-3.5 w-3.5 text-primary" /> Relatório IA
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5 text-xs">
             <FileText className="h-3.5 w-3.5" /> PDF
           </Button>
