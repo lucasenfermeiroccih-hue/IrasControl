@@ -1,13 +1,34 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CheckCircle, Shield, ArrowLeft, Sparkles, Tag, Building2, Crown } from "lucide-react";
 import { toast } from "sonner";
 
-const plans = [
+interface Plan {
+  name: string;
+  subtitle: string;
+  price: string;
+  period: string;
+  icon: React.ElementType;
+  beds: string;
+  features: string[];
+  cta: string;
+  highlight: boolean;
+  enterprise: boolean;
+}
+
+const plans: Plan[] = [
   {
     name: "Teste Gratuito",
     subtitle: "30 dias",
@@ -83,22 +104,60 @@ const plans = [
   },
 ];
 
+const VALID_COUPONS: Record<string, number> = {
+  DESCONTO10: 10,
+  IRAS2025: 15,
+};
+
 export default function Pricing() {
+  const navigate = useNavigate();
   const [coupon, setCoupon] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   const handleApplyCoupon = () => {
     if (!coupon.trim()) {
       toast.error("Digite um cupom válido.");
       return;
     }
-    if (coupon.trim().toUpperCase() === "IRAS2025") {
+    const discount = VALID_COUPONS[coupon.trim().toUpperCase()];
+    if (discount) {
       setCouponApplied(true);
-      toast.success("Cupom aplicado! Desconto de 15% ativado.");
+      setDiscountPercent(discount);
+      toast.success(`Cupom aplicado! Desconto de ${discount}% ativado.`);
     } else {
       setCouponApplied(false);
+      setDiscountPercent(0);
       toast.error("Cupom inválido ou expirado.");
     }
+  };
+
+  const handlePlanClick = (plan: Plan) => {
+    if (plan.name === "Teste Gratuito") {
+      toast.info("Você está iniciando seu teste gratuito de 30 dias.");
+      navigate("/register");
+      return;
+    }
+    if (plan.enterprise) {
+      navigate("/register", { state: { message: "Interesse no plano Enterprise" } });
+      return;
+    }
+    setSelectedPlan(plan);
+  };
+
+  const handleConfirmPlan = () => {
+    if (!selectedPlan) return;
+    toast.success(`Plano ${selectedPlan.name} selecionado!`);
+    setSelectedPlan(null);
+    navigate("/register", { state: { plan: selectedPlan.name } });
+  };
+
+  const formatDisplayPrice = (price: string) => {
+    if (!couponApplied || !price.startsWith("R$")) return price;
+    const numeric = parseInt(price.replace(/\D/g, ""), 10);
+    const discounted = Math.round(numeric * (1 - discountPercent / 100));
+    return `R$ ${discounted.toLocaleString("pt-BR")}`;
   };
 
   return (
@@ -133,6 +192,7 @@ export default function Pricing() {
         <div className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => {
             const Icon = plan.icon;
+            const hasDiscount = couponApplied && plan.price.startsWith("R$");
             return (
               <Card
                 key={plan.name}
@@ -164,12 +224,20 @@ export default function Pricing() {
 
                   <p className="mt-1 text-sm text-muted-foreground">{plan.beds}</p>
 
-                  <p className="mt-4 text-3xl font-extrabold">
-                    {plan.price}
-                    {plan.period && (
-                      <span className="text-base font-normal text-muted-foreground">{plan.period}</span>
+                  <div className="mt-4">
+                    {hasDiscount && (
+                      <p className="text-sm text-muted-foreground line-through">{plan.price}</p>
                     )}
-                  </p>
+                    <p className="text-3xl font-extrabold">
+                      {formatDisplayPrice(plan.price)}
+                      {plan.period && (
+                        <span className="text-base font-normal text-muted-foreground">{plan.period}</span>
+                      )}
+                    </p>
+                    {hasDiscount && (
+                      <Badge variant="secondary" className="mt-1 text-xs">-{discountPercent}%</Badge>
+                    )}
+                  </div>
 
                   <ul className="mt-6 flex-1 space-y-3">
                     {plan.features.map((f) => (
@@ -183,9 +251,9 @@ export default function Pricing() {
                   <Button
                     className="mt-8 w-full"
                     variant={plan.highlight ? "default" : plan.enterprise ? "outline" : "secondary"}
-                    asChild
+                    onClick={() => handlePlanClick(plan)}
                   >
-                    <Link to="/register">{plan.cta}</Link>
+                    {plan.cta}
                   </Button>
                 </CardContent>
               </Card>
@@ -202,7 +270,10 @@ export default function Pricing() {
               value={coupon}
               onChange={(e) => {
                 setCoupon(e.target.value);
-                if (couponApplied) setCouponApplied(false);
+                if (couponApplied) {
+                  setCouponApplied(false);
+                  setDiscountPercent(0);
+                }
               }}
               className={couponApplied ? "border-primary" : ""}
             />
@@ -212,7 +283,7 @@ export default function Pricing() {
           </div>
           {couponApplied && (
             <p className="mt-2 text-sm font-medium text-primary">
-              ✓ Cupom IRAS2025 aplicado — 15% de desconto
+              ✓ Cupom aplicado — {discountPercent}% de desconto
             </p>
           )}
         </div>
@@ -266,6 +337,38 @@ export default function Pricing() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar assinatura — {selectedPlan?.name}</DialogTitle>
+            <DialogDescription>
+              Revise os benefícios do plano antes de continuar.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPlan && (
+            <div className="space-y-2 py-2">
+              <p className="text-2xl font-bold">
+                {formatDisplayPrice(selectedPlan.price)}
+                <span className="text-base font-normal text-muted-foreground">{selectedPlan.period}</span>
+              </p>
+              <ul className="space-y-2">
+                {selectedPlan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSelectedPlan(null)}>Cancelar</Button>
+            <Button onClick={handleConfirmPlan}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
