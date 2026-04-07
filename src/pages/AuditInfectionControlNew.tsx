@@ -145,7 +145,14 @@ export default function AuditInfectionControlNew() {
       return;
     }
     toast({ title: "Auditoria concluída!", description: `Taxa de conformidade: ${stats.rate.toFixed(1)}%` });
-    navigate("/dashboard/infection-control");
+    setAuditDate("");
+    setSector("");
+    setShift("");
+    setBed("");
+    setAuditor("");
+    setResponses({});
+    setObservations({});
+    window.scrollTo(0, 0);
   };
 
   return (

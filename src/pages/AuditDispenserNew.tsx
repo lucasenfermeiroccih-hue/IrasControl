@@ -87,7 +87,14 @@ export default function AuditDispenserNew() {
       return;
     }
     toast({ title: "Auditoria concluída!", description: `Taxa de conformidade: ${stats.rate.toFixed(1)}%` });
-    navigate("/dashboard");
+    setAuditorName("");
+    setSector("");
+    setDispenserId("");
+    setPreparationType("");
+    setResponses({});
+    setJustifications({});
+    setGeneralObservations("");
+    window.scrollTo(0, 0);
   };
 
   return (

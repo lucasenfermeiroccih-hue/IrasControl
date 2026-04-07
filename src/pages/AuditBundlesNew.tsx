@@ -66,7 +66,13 @@ export default function AuditBundlesNew() {
       return;
     }
     toast({ title: "Auditoria salva!", description: "Os dados foram registrados com sucesso." });
-    navigate("/dashboard");
+    setForm({
+      employeeName: "", auditDate: "", surveillanceMonth: "", sector: "",
+      cvcPatients: "", cvcBundlesOpen: "", cvcIncompleteBundles: "", cvcCompleteBundles: "",
+      svdPatients: "", svdBundlesOpen: "", svdCompleteBundles: "", svdIncompleteBundles: "",
+      observations: "",
+    });
+    window.scrollTo(0, 0);
   };
 
   return (

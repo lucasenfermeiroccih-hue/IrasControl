@@ -102,6 +102,13 @@ export default function IndicadoresDDD() {
     salvarRegistroDDD({ profissional, dataVigilancia, mesVigilancia, anoVigilancia, pacienteDia, compiladoUTIs, linhas });
     setRegistrosSalvos(listarRegistrosDDD());
     toast.success("Registro salvo com sucesso!");
+    setProfissional("");
+    setDataVigilancia("");
+    setMesVigilancia("");
+    setAnoVigilancia(new Date().getFullYear());
+    setPacienteDia(Object.fromEntries(unidadesPacienteDia.map(u => [u, 0])));
+    setQuantidades(Object.fromEntries(antimicrobianosBase.map(a => [a.id, 0])));
+    window.scrollTo(0, 0);
   };
 
   const handleDelete = (id: string) => {

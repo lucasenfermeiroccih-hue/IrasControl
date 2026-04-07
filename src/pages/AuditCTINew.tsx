@@ -133,7 +133,13 @@ export default function AuditCTINew() {
       return;
     }
     toast({ title: "Auditoria finalizada!", description: `Taxa de conformidade: ${stats.rate.toFixed(1)}%` });
-    navigate("/dashboard");
+    setAuditDate("");
+    setShift("");
+    setSector("");
+    setResponsible("");
+    setResponses({});
+    setObservations({});
+    window.scrollTo(0, 0);
   };
 
   return (

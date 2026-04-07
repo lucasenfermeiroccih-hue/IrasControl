@@ -47,6 +47,7 @@ export default function IndicadoresNew() {
 
   const handleSave = () => {
     toast.success("Indicadores salvos com sucesso (mock)");
+    window.scrollTo(0, 0);
   };
 
   const formatValue = (v: number | null) => (v === null ? "—" : v.toFixed(2));
