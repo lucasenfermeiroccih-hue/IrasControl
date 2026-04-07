@@ -62,6 +62,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/planos" element={<Pricing />} />
           
           {/* Internal routes with sidebar layout */}
           <Route element={<AppLayout />}>
