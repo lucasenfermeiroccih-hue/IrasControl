@@ -1178,6 +1178,10 @@ export type Database = {
         | "doctor"
         | "lab_tech"
         | "viewer"
+        | "doctor_scih"
+        | "nurse_tech_scih"
+        | "biologist"
+        | "administrative"
       audit_item_status:
         | "compliant"
         | "non_compliant"
@@ -1336,6 +1340,10 @@ export const Constants = {
         "doctor",
         "lab_tech",
         "viewer",
+        "doctor_scih",
+        "nurse_tech_scih",
+        "biologist",
+        "administrative",
       ],
       audit_item_status: [
         "compliant",
