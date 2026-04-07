@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 import {
   Users, AlertTriangle, ShieldAlert, CheckCircle, Activity,
   TrendingUp, TrendingDown, Bot, ArrowRight
@@ -63,6 +65,9 @@ const alerts = [
 ];
 
 export default function Dashboard() {
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -78,6 +83,8 @@ export default function Dashboard() {
           "💡 Recomendação: intensificar vigilância na UTI Adulto e revisar dispositivos com >10 dias.",
         ]} />
       </div>
+
+      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

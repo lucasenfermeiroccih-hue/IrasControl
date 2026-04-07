@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DashboardFilters from "@/components/DashboardFilters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,9 @@ export default function DashboardAntimicrobials() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Prescription | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   const openNew = () => { setEditingItem(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (p: Prescription) => {
@@ -134,6 +138,8 @@ export default function DashboardAntimicrobials() {
           </Button>
         </div>
       </div>
+
+      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">

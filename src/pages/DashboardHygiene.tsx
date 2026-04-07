@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -7,6 +8,7 @@ import {
 import { HandMetal, CheckCircle, AlertTriangle, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 
 const kpis = [
   { label: "Taxa de Adesão", value: "78.5%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
@@ -39,6 +41,9 @@ const records = [
 ];
 
 export default function DashboardHygiene() {
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -54,6 +59,8 @@ export default function DashboardHygiene() {
           "💡 Recomendação: implementar feedback em tempo real e campanhas focadas nos momentos 1 e 2.",
         ]} />
       </div>
+
+      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
