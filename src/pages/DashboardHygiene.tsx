@@ -89,15 +89,26 @@ export default function DashboardHygiene() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Adesão por Categoria Profissional</CardTitle></CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width={280} height={280}>
-              <PieChart>
-                <Pie data={categoryData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}%`}>
-                  {categoryData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <div className="flex flex-col items-center gap-4">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={3}>
+                    {categoryData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => `${v}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                {categoryData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="text-muted-foreground">{d.name}</span>
+                    <span className="font-semibold ml-auto">{d.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
