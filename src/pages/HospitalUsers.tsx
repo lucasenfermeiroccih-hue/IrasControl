@@ -48,6 +48,8 @@ const ASSIGNABLE_ROLES = [
   { value: "doctor_scih", label: "Médico(a) SCIH" },
   { value: "nurse_tech_scih", label: "Téc. de Enfermagem SCIH" },
   { value: "lab_tech", label: "Técnico de Laboratório" },
+  { value: "biologist", label: "Bióloga" },
+  { value: "administrative", label: "Administrativo" },
   { value: "viewer", label: "Visualizador" },
 ];
 
