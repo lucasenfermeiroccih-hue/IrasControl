@@ -56,7 +56,9 @@ Deno.serve(async (req) => {
       return json({ error: `Erro ao criar hospital: ${hospitalError.message}` }, 500);
     }
 
-    // 2. Create user
+    // 2. Create user (or reuse existing)
+    let userId: string;
+
     const { data: newUser, error: userError } = await adminClient.auth.admin.createUser({
       email: admin_email,
       password: admin_password,
@@ -65,19 +67,33 @@ Deno.serve(async (req) => {
     });
 
     if (userError) {
-      await adminClient.from("hospitals").delete().eq("id", hospital.id);
-      return json({ error: `Erro ao criar usuário: ${userError.message}` }, 400);
+      if (userError.message.includes("already been registered")) {
+        // User exists — look up by email and reuse
+        const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+        if (listError) {
+          await adminClient.from("hospitals").delete().eq("id", hospital.id);
+          return json({ error: `Erro ao buscar usuário existente: ${listError.message}` }, 500);
+        }
+        const existing = listData.users.find((u: any) => u.email === admin_email);
+        if (!existing) {
+          await adminClient.from("hospitals").delete().eq("id", hospital.id);
+          return json({ error: "Usuário não encontrado após verificação" }, 500);
+        }
+        userId = existing.id;
+      } else {
+        await adminClient.from("hospitals").delete().eq("id", hospital.id);
+        return json({ error: `Erro ao criar usuário: ${userError.message}` }, 400);
+      }
+    } else {
+      userId = newUser.user.id;
     }
 
-    const userId = newUser.user.id;
-
-    // 3. Assign hospital_admin role
+    // 3. Assign hospital_admin role (skip if already has it)
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .insert({ user_id: userId, role: "hospital_admin" });
+      .upsert({ user_id: userId, role: "hospital_admin" }, { onConflict: "user_id,role" });
 
     if (roleError) {
-      await adminClient.auth.admin.deleteUser(userId);
       await adminClient.from("hospitals").delete().eq("id", hospital.id);
       return json({ error: `Erro ao atribuir role: ${roleError.message}` }, 500);
     }
