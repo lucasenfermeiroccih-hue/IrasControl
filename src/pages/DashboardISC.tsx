@@ -15,8 +15,9 @@ import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
   TrendingDown, TrendingUp, Sparkles, FileText, Inbox,
 } from "lucide-react";
-import { getISCRegistros, type ISCRegistro } from "@/lib/isc-storage";
+import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
+import { Loader2 } from "lucide-react";
 
 const mesesNomes = [
   "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -88,14 +89,13 @@ const statusIcon = (rate: number) =>
   rate <= 2 ? <TrendingDown className="h-4 w-4" /> : rate <= 5 ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />;
 
 export default function DashboardISC() {
+  const { records: allRecords, loading: dataLoading } = useISCDashboard();
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState("Todos");
   const [profFiltro, setProfFiltro] = useState("Todos");
   const [setorFiltro, setSetorFiltro] = useState("Todos");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiReport, setAiReport] = useState("");
-
-  const allRecords = useMemo(() => flattenRegistros(getISCRegistros()), []);
 
   const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
   const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
@@ -112,6 +112,14 @@ export default function DashboardISC() {
   }, [allRecords, mesFiltro, anoFiltro, profFiltro, setorFiltro]);
 
   const hasData = allRecords.length > 0;
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const kpis = useMemo(() => {
     const totalCirurgias = filtered.reduce((s, r) => s + r.totalCirurgias, 0);
