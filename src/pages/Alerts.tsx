@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { exportPdf } from "@/lib/pdf-export";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { Bell, AlertTriangle, ShieldAlert, CheckCircle, ArrowUpRight, Loader2, Download } from "lucide-react";
 

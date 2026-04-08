@@ -29,7 +29,18 @@ export default function ReportsAnalytics() {
   };
 
   const handleExport = () => {
-    toast.success("Exportação iniciada — relatório será gerado em PDF.");
+    if (!hospitalId) return;
+    exportPdf({
+      type: "analytics",
+      hospitalId,
+      data: {
+        kpis: analytics.kpis,
+        monthlyTrend: analytics.monthlyTrend,
+        infectionBySector: analytics.infectionBySector,
+        resistanceProfile: analytics.resistanceProfile,
+      },
+      filenamePrefix: "analytics",
+    });
   };
 
   const { kpis: kpiData, monthlyTrend, infectionBySector, complianceRadar, resistanceProfile, deviceDistribution } = analytics;
