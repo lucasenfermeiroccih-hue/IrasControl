@@ -223,6 +223,14 @@ export default function DashboardAntibiogram() {
     }
   };
 
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
       {/* Header */}
