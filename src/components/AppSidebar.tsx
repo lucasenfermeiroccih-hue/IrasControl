@@ -116,17 +116,29 @@ export function AppSidebar() {
   const { state, isMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hospitalName, setHospitalName] = useState("");
+  const [multiHospital, setMultiHospital] = useState(false);
 
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }] = await Promise.all([
+      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }, { data: memberships }] = await Promise.all([
         supabase.rpc("has_role", { _user_id: session.user.id, _role: "super_admin" }),
         supabase.rpc("has_role", { _user_id: session.user.id, _role: "hospital_admin" }),
+        supabase.from("hospital_users").select("hospital_id").eq("user_id", session.user.id),
       ]);
       setIsAdmin(!!isSuperAdmin || !!isHospitalAdmin);
+      setMultiHospital((memberships || []).length > 1);
+
+      // Load current hospital name
+      const selectedId = localStorage.getItem("selected_hospital_id");
+      if (selectedId) {
+        const { data: hosp } = await supabase.from("hospitals").select("name").eq("id", selectedId).maybeSingle();
+        if (hosp) setHospitalName(hosp.name);
+      }
     };
     check();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
