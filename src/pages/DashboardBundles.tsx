@@ -1,13 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { CheckCircle, AlertTriangle, TrendingUp, Activity, Loader2 } from "lucide-react";
+import { CheckCircle, AlertTriangle, TrendingUp, Activity, Loader2, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 
 function getStatusBadge(status: string) {
   if (status === "Crítico") return <Badge variant="destructive">{status}</Badge>;
@@ -16,7 +19,20 @@ function getStatusBadge(status: string) {
 }
 
 export default function DashboardBundles() {
+  const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("bundles");
+
+  const handleExportPdf = () => {
+    if (!hospitalId) return;
+    exportPdf({
+      type: "audits", hospitalId,
+      data: {
+        kpis: { avgCompliance: stats.avgCompliance, totalAudits: stats.totalAudits, nonCompliant: stats.nonCompliantItems },
+        audits: stats.sectorData.map(s => ({ type: "Bundles", sector: s.name, date: "", compliance: s.compliance, compliant: s.audits - s.nonCompliant, total: s.audits })),
+      },
+      filenamePrefix: "bundles",
+    });
+  };
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -40,7 +56,9 @@ export default function DashboardBundles() {
           <h1 className="text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
           <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
         </div>
-        <DashboardAIInsights generateInsights={() => {
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <DashboardAIInsights generateInsights={() => {
           const ins: string[] = [];
           ins.push(`📊 Conformidade geral de ${stats.avgCompliance}% com ${stats.totalAudits} auditorias.`);
           if (stats.nonCompliantItems > 0) ins.push(`⚠️ ${stats.nonCompliantItems} itens não conformes identificados.`);
@@ -50,6 +68,7 @@ export default function DashboardBundles() {
           ins.push("💡 Recomendação: reforçar checklist de bundles nos setores com menor conformidade.");
           return ins;
         }} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
