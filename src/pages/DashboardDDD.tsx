@@ -6,17 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendingUp, Pill, Building2, BarChart3, AlertCircle } from "lucide-react";
-import { DDDRegistroMensal } from "@/data/antimicrobianos-ddd";
-import { listarRegistrosDDD, registrosSalvosParaDashboard } from "@/lib/ddd-storage";
+import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2 } from "lucide-react";
+import { useDDDDashboard } from "@/hooks/useDDDDashboard";
 import AIAssistenteDDD from "@/components/AIAssistenteDDD";
 
 const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const COLORS = ["hsl(var(--primary))","hsl(var(--destructive))","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316"];
 
 export default function DashboardDDD() {
-  const registros = useMemo(() => listarRegistrosDDD(), []);
-  const allData: DDDRegistroMensal[] = useMemo(() => registrosSalvosParaDashboard(registros), [registros]);
+  const { data: allData, loading: dataLoading } = useDDDDashboard();
   const isEmpty = allData.length === 0;
 
   const [filtroMes, setFiltroMes] = useState("all");
@@ -106,10 +104,16 @@ export default function DashboardDDD() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+    {dataLoading ? (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ) : (
+    <>
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard DDD</h1>
         <p className="text-sm text-muted-foreground">
-          Visualização do consumo de antimicrobianos — {registros.length} registro(s) salvo(s)
+          Visualização do consumo de antimicrobianos — {allData.length} registro(s)
         </p>
       </div>
 
@@ -335,6 +339,8 @@ export default function DashboardDDD() {
           />
         </>
       )}
+    </>
+    )}
     </div>
   );
 }

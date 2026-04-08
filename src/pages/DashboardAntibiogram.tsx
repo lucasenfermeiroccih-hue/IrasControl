@@ -17,7 +17,7 @@ import {
   TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
   Sparkles, Bot, Loader2, Download,
 } from "lucide-react";
-import { getAntibiogramasParaDashboard, type AntibiogramRecord } from "@/lib/antibiogram-storage";
+import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { sendToAgent } from "@/lib/agent-service";
 
 const CHART_COLORS = [
@@ -30,7 +30,7 @@ const SIR_COLORS: Record<string, string> = { S: "hsl(142,71%,35%)", I: "hsl(38,9
 
 export default function DashboardAntibiogram() {
   const navigate = useNavigate();
-  const allData = useMemo(() => getAntibiogramasParaDashboard(), []);
+  const { data: allData, loading: dataLoading } = useAntibiogramDashboard();
 
   const [filtroSetor, setFiltroSetor] = useState("all");
   const [filtroSite, setFiltroSite] = useState("all");
@@ -50,7 +50,7 @@ export default function DashboardAntibiogram() {
     (filtroAno === "all" || d.collectionDate?.substring(0, 4) === filtroAno)
   ), [allData, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno]);
 
-  const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter(Boolean))].sort(), [allData]);
+  const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter((v): v is string => !!v))].sort(), [allData]);
 
   const totalExams = filtered.length;
   const allResults = filtered.flatMap(d => d.results);
@@ -222,6 +222,14 @@ export default function DashboardAntibiogram() {
       printWindow.print();
     }
   };
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
@@ -563,7 +571,7 @@ export default function DashboardAntibiogram() {
 // ═══════════════════════════════════════════════════
 // Temporal Analysis
 // ═══════════════════════════════════════════════════
-function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
+function TemporalAnalysis({ filtered }: { filtered: AntibiogramDashRecord[] }) {
   const topOrganisms = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(d => { map[d.organism] = (map[d.organism] || 0) + 1; });
@@ -724,7 +732,7 @@ function TemporalAnalysis({ filtered }: { filtered: AntibiogramRecord[] }) {
 // ═══════════════════════════════════════════════════
 // Detailed Table
 // ═══════════════════════════════════════════════════
-function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
+function DetailedTable({ data }: { data: AntibiogramDashRecord[] }) {
   const [tSetor, setTSetor] = useState("all");
   const [tSite, setTSite] = useState("all");
   const [tOrg, setTOrg] = useState("all");
@@ -741,7 +749,7 @@ function DetailedTable({ data }: { data: AntibiogramRecord[] }) {
       if (tOrg !== "all" && d.organism !== tOrg) return false;
       if (tSir !== "all") {
         const dominant = d.results.reduce((acc, r) => { acc[r.sir] = (acc[r.sir] || 0) + 1; return acc; }, {} as Record<string, number>);
-        const max = Object.entries(dominant).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const max = Object.entries(dominant).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
         if (max !== tSir) return false;
       }
       return true;

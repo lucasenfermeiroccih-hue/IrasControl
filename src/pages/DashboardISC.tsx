@@ -13,9 +13,9 @@ import {
 } from "recharts";
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
-  TrendingDown, TrendingUp, Sparkles, FileText, Inbox,
+  TrendingDown, TrendingUp, Sparkles, FileText, Inbox, Loader2,
 } from "lucide-react";
-import { getISCRegistros, type ISCRegistro } from "@/lib/isc-storage";
+import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
 
 const mesesNomes = [
@@ -28,37 +28,6 @@ const mesesFiltro = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-interface FlatRecord {
-  profissional: string;
-  mes: number;
-  ano: number;
-  clinica: string;
-  totalCirurgias: number;
-  contatosAtendidos: number;
-  reinternacoes: number;
-  iscConfirmada: number;
-  sitio: string;
-}
-
-function flattenRegistros(registros: ISCRegistro[]): FlatRecord[] {
-  const records: FlatRecord[] = [];
-  for (const reg of registros) {
-    for (const [clinica, dados] of Object.entries(reg.indicadores)) {
-      records.push({
-        profissional: reg.nomeProfissional,
-        mes: Number(reg.mes) || 0,
-        ano: Number(reg.ano) || 0,
-        clinica,
-        totalCirurgias: dados.totalCirurgias || 0,
-        contatosAtendidos: dados.contatosAtendidos || 0,
-        reinternacoes: dados.reinternacoes || 0,
-        iscConfirmada: dados.iscConfirmada || 0,
-        sitio: dados.sitio || "",
-      });
-    }
-  }
-  return records;
-}
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -88,14 +57,13 @@ const statusIcon = (rate: number) =>
   rate <= 2 ? <TrendingDown className="h-4 w-4" /> : rate <= 5 ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />;
 
 export default function DashboardISC() {
+  const { records: allRecords, loading: dataLoading } = useISCDashboard();
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState("Todos");
   const [profFiltro, setProfFiltro] = useState("Todos");
   const [setorFiltro, setSetorFiltro] = useState("Todos");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiReport, setAiReport] = useState("");
-
-  const allRecords = useMemo(() => flattenRegistros(getISCRegistros()), []);
 
   const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
   const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
@@ -214,6 +182,14 @@ export default function DashboardISC() {
       </CardContent>
     </Card>
   );
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
