@@ -81,14 +81,6 @@ export default function DashboardISC() {
 
   const hasData = allRecords.length > 0;
 
-  if (dataLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const kpis = useMemo(() => {
     const totalCirurgias = filtered.reduce((s, r) => s + r.totalCirurgias, 0);
     const totalContatos = filtered.reduce((s, r) => s + r.contatosAtendidos, 0);
