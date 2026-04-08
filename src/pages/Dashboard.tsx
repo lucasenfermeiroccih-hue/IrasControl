@@ -1,73 +1,157 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 import {
   Users, AlertTriangle, ShieldAlert, CheckCircle, Activity,
-  TrendingUp, TrendingDown, Bot, ArrowRight
+  TrendingUp, TrendingDown, Bot, ArrowRight, Loader2, Download
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from "recharts";
-
-const kpis = [
-  { label: "Pacientes Monitorados", value: "284", icon: Users, trend: "+12", color: "text-info", bg: "bg-info/10" },
-  { label: "Casos Suspeitos", value: "12", icon: AlertTriangle, trend: "-3", color: "text-warning", bg: "bg-warning/10" },
-  { label: "IRAS Confirmadas", value: "3", icon: ShieldAlert, trend: "+1", color: "text-destructive", bg: "bg-destructive/10" },
-  { label: "Taxa de Conformidade", value: "94.2%", icon: CheckCircle, trend: "+2.1%", color: "text-success", bg: "bg-success/10" },
-];
-
-const irasData = [
-  { setor: "UTI Adulto", taxa: 8.2 },
-  { setor: "UTI Neo", taxa: 5.1 },
-  { setor: "Clínica Médica", taxa: 2.4 },
-  { setor: "Cirúrgica", taxa: 3.8 },
-  { setor: "Emergência", taxa: 1.9 },
-];
-
-const deviceData = [
-  { month: "Jan", cvc: 45, svd: 32, vm: 28 },
-  { month: "Fev", cvc: 42, svd: 35, vm: 25 },
-  { month: "Mar", cvc: 48, svd: 30, vm: 31 },
-  { month: "Abr", cvc: 40, svd: 28, vm: 22 },
-  { month: "Mai", cvc: 52, svd: 38, vm: 29 },
-  { month: "Jun", cvc: 46, svd: 33, vm: 27 },
-];
-
-const riskMap = [
-  { setor: "UTI Adulto", risco: "Alto", casos: 5, cor: "destructive" },
-  { setor: "UTI Neonatal", risco: "Médio", casos: 2, cor: "warning" },
-  { setor: "Clínica Médica", risco: "Baixo", casos: 1, cor: "success" },
-  { setor: "Centro Cirúrgico", risco: "Médio", casos: 3, cor: "warning" },
-  { setor: "Emergência", risco: "Baixo", casos: 0, cor: "success" },
-];
-
-const topMicro = [
-  { name: "S. aureus (MRSA)", count: 8 },
-  { name: "K. pneumoniae (KPC)", count: 6 },
-  { name: "E. coli (ESBL)", count: 5 },
-  { name: "P. aeruginosa", count: 4 },
-  { name: "A. baumannii", count: 3 },
-];
-
-const pieData = [
-  { name: "Conforme", value: 85, color: "hsl(142, 71%, 35%)" },
-  { name: "Não Conforme", value: 15, color: "hsl(0, 72%, 51%)" },
-];
-
-const alerts = [
-  { type: "Surto", msg: "Cluster de KPC na UTI Adulto — 3 casos em 7 dias", severity: "destructive" as const },
-  { type: "Dispositivo", msg: "CVC paciente leito 12B — tempo > 14 dias", severity: "warning" as const },
-  { type: "Cultura", msg: "Hemocultura positiva leito 8A — MRSA", severity: "destructive" as const },
-];
+import { toast } from "sonner";
 
 export default function Dashboard() {
+  const { hospitalId, loading: ctxLoading } = useHospitalContext();
   const [mes, setMes] = useState("all");
   const [ano, setAno] = useState("all");
   const [setor, setSetor] = useState("all");
+
+  // Real data states
+  const [patients, setPatients] = useState<any[]>([]);
+  const [cases, setCases] = useState<any[]>([]);
+  const [audits, setAudits] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [labResults, setLabResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hospitalId) return;
+    const fetchAll = async () => {
+      setLoading(true);
+      const [pRes, cRes, aRes, alRes, lRes] = await Promise.all([
+        supabase.from("patients").select("*").eq("hospital_id", hospitalId),
+        supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId),
+        supabase.from("audits").select("*").eq("hospital_id", hospitalId),
+        supabase.from("alerts").select("*").eq("hospital_id", hospitalId).eq("status", "active"),
+        supabase.from("lab_results").select("*, antibiogram_results(*)").eq("hospital_id", hospitalId),
+      ]);
+      setPatients(pRes.data || []);
+      setCases(cRes.data || []);
+      setAudits(aRes.data || []);
+      setAlerts(alRes.data || []);
+      setLabResults(lRes.data || []);
+      setLoading(false);
+    };
+    fetchAll();
+  }, [hospitalId]);
+
+  // Computed KPIs
+  const activePatients = patients.filter(p => p.status === "active");
+  const suspectCases = cases.filter(c => ["open", "investigating"].includes(c.status));
+  const confirmedCases = cases.filter(c => c.status === "confirmed");
+  const complianceRate = useMemo(() => {
+    if (audits.length === 0) return 0;
+    const totalCompliant = audits.reduce((sum, a) => sum + (a.compliant_items || 0), 0);
+    const totalItems = audits.reduce((sum, a) => sum + (a.total_items || 0), 0);
+    return totalItems > 0 ? ((totalCompliant / totalItems) * 100).toFixed(1) : "0";
+  }, [audits]);
+
+  // IRAS by sector
+  const irasBySector = useMemo(() => {
+    const map: Record<string, { total: number; confirmed: number }> = {};
+    cases.forEach(c => {
+      const sector = c.infection_site || "Outros";
+      if (!map[sector]) map[sector] = { total: 0, confirmed: 0 };
+      map[sector].total++;
+      if (c.status === "confirmed") map[sector].confirmed++;
+    });
+    return Object.entries(map).map(([setor, d]) => ({
+      setor,
+      taxa: d.total > 0 ? Number(((d.confirmed / Math.max(activePatients.length, 1)) * 100).toFixed(1)) : 0,
+    })).sort((a, b) => b.taxa - a.taxa).slice(0, 6);
+  }, [cases, activePatients]);
+
+  // Top organisms from lab
+  const topMicro = useMemo(() => {
+    const map: Record<string, number> = {};
+    labResults.forEach(r => {
+      if (r.organism) {
+        map[r.organism] = (map[r.organism] || 0) + 1;
+      }
+    });
+    return Object.entries(map)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [labResults]);
+
+  const maxMicro = topMicro.length > 0 ? topMicro[0].count : 1;
+
+  // Compliance pie
+  const pieData = useMemo(() => {
+    const rate = Number(complianceRate);
+    return [
+      { name: "Conforme", value: rate, color: "hsl(142, 71%, 35%)" },
+      { name: "Não Conforme", value: 100 - rate, color: "hsl(0, 72%, 51%)" },
+    ];
+  }, [complianceRate]);
+
+  const handleExportPDF = async () => {
+    toast.info("Gerando PDF do dashboard...");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        body: {
+          type: "dashboard",
+          hospitalId,
+          data: {
+            totalPatients: activePatients.length,
+            suspectCases: suspectCases.length,
+            confirmedCases: confirmedCases.length,
+            complianceRate,
+            irasBySector,
+            topMicro,
+            activeAlerts: alerts.length,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.pdf) {
+        const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `dashboard-${new Date().toISOString().split("T")[0]}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("PDF exportado com sucesso!");
+      }
+    } catch {
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    }
+  };
+
+  if (ctxLoading || loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const kpis = [
+    { label: "Pacientes Monitorados", value: String(activePatients.length), icon: Users, trend: "", color: "text-info", bg: "bg-info/10" },
+    { label: "Casos Suspeitos", value: String(suspectCases.length), icon: AlertTriangle, trend: "", color: "text-warning", bg: "bg-warning/10" },
+    { label: "IRAS Confirmadas", value: String(confirmedCases.length), icon: ShieldAlert, trend: "", color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Taxa de Conformidade", value: `${complianceRate}%`, icon: CheckCircle, trend: "", color: "text-success", bg: "bg-success/10" },
+  ];
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -75,13 +159,19 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard Principal</h1>
           <p className="text-sm text-muted-foreground">Visão consolidada da situação epidemiológica</p>
         </div>
-        <DashboardAIInsights generateInsights={() => [
-          "📊 284 pacientes monitorados com 3 IRAS confirmadas — taxa de 1.06%.",
-          "⚠️ Cluster de KPC na UTI Adulto com 3 casos em 7 dias — acionar protocolo de surto.",
-          "🩸 CVC do leito 12B ultrapassa 14 dias — avaliar necessidade de permanência.",
-          "✅ Taxa de conformidade geral em 94.2%, acima da meta de 90%.",
-          "💡 Recomendação: intensificar vigilância na UTI Adulto e revisar dispositivos com >10 dias.",
-        ]} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+            <Download className="h-4 w-4 mr-1" /> PDF
+          </Button>
+          <DashboardAIInsights generateInsights={() => {
+            const insights: string[] = [];
+            insights.push(`📊 ${activePatients.length} pacientes monitorados com ${confirmedCases.length} IRAS confirmadas.`);
+            if (alerts.length > 0) insights.push(`⚠️ ${alerts.length} alerta(s) ativo(s) requerem atenção.`);
+            insights.push(`✅ Taxa de conformidade geral em ${complianceRate}%.`);
+            if (topMicro.length > 0) insights.push(`🦠 Principal patógeno: ${topMicro[0].name} (${topMicro[0].count} isolados).`);
+            return insights;
+          }} />
+        </div>
       </div>
 
       <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
@@ -96,12 +186,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{kpi.label}</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold">{kpi.value}</p>
-                  <span className={`text-xs font-medium ${kpi.trend.startsWith("+") && kpi.label !== "IRAS Confirmadas" ? "text-success" : kpi.trend.startsWith("-") ? "text-success" : "text-destructive"}`}>
-                    {kpi.trend}
-                  </span>
-                </div>
+                <p className="text-2xl font-bold">{kpi.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -113,68 +198,55 @@ export default function Dashboard() {
         <Card>
           <CardHeader><CardTitle className="text-base">Taxa de IRAS por Setor (%)</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={irasData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="setor" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="taxa" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {irasBySector.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={irasBySector}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="setor" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="taxa" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-10">Nenhum dado disponível. Cadastre casos para visualizar.</p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Dispositivos Invasivos */}
+        {/* Conformidade */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Uso de Dispositivos Invasivos</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Conformidade Geral</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={deviceData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="cvc" stroke="hsl(168, 66%, 34%)" name="CVC" strokeWidth={2} />
-                <Line type="monotone" dataKey="svd" stroke="hsl(199, 89%, 48%)" name="SVD" strokeWidth={2} />
-                <Line type="monotone" dataKey="vm" stroke="hsl(38, 92%, 50%)" name="VM" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {audits.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}%`}>
+                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-10">Nenhuma auditoria registrada ainda.</p>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Mapa de Risco */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Mapa de Risco por Setor</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {riskMap.map((s) => (
-              <div key={s.setor} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <p className="text-sm font-medium">{s.setor}</p>
-                  <p className="text-xs text-muted-foreground">{s.casos} caso(s) ativo(s)</p>
-                </div>
-                <Badge variant={s.cor === "destructive" ? "destructive" : s.cor === "warning" ? "secondary" : "outline"}>
-                  {s.risco}
-                </Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
         {/* Alertas */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Alertas Ativos</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Alertas Ativos ({alerts.length})</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {alerts.map((a, i) => (
-              <div key={i} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+            {alerts.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum alerta ativo</p>}
+            {alerts.slice(0, 5).map((a) => (
+              <div key={a.id} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <Badge variant="destructive" className="text-xs">{a.type}</Badge>
+                  <Badge variant="destructive" className="text-xs">{a.severity}</Badge>
                 </div>
-                <p className="mt-1.5 text-sm">{a.msg}</p>
+                <p className="mt-1.5 text-sm">{a.title}</p>
               </div>
             ))}
           </CardContent>
@@ -184,6 +256,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader><CardTitle className="text-base">Top Microrganismos</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            {topMicro.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum resultado laboratorial</p>}
             {topMicro.map((m, i) => (
               <div key={m.name} className="flex items-center gap-3">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
@@ -192,10 +265,29 @@ export default function Dashboard() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">{m.name}</p>
                   <div className="mt-1 h-1.5 rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${(m.count / 8) * 100}%` }} />
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(m.count / maxMicro) * 100}%` }} />
                   </div>
                 </div>
                 <span className="text-sm font-bold">{m.count}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Resumo Auditorias */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Resumo de Auditorias</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {audits.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma auditoria registrada</p>}
+            {audits.slice(0, 5).map((a) => (
+              <div key={a.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium capitalize">{a.audit_type?.replace("_", " ")}</p>
+                  <p className="text-xs text-muted-foreground">{a.sector || "Geral"} · {a.audit_date}</p>
+                </div>
+                <Badge variant={Number(a.compliance_rate) >= 80 ? "secondary" : "destructive"}>
+                  {a.compliance_rate ? `${a.compliance_rate}%` : "N/A"}
+                </Badge>
               </div>
             ))}
           </CardContent>
