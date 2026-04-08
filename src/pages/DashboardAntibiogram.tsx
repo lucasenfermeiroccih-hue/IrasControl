@@ -17,7 +17,7 @@ import {
   TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
   Sparkles, Bot, Loader2, Download,
 } from "lucide-react";
-import { getAntibiogramasParaDashboard, type AntibiogramRecord } from "@/lib/antibiogram-storage";
+import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { sendToAgent } from "@/lib/agent-service";
 
 const CHART_COLORS = [
