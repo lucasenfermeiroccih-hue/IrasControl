@@ -51,7 +51,7 @@ export default function IndicadoresNew() {
     if (!mesVigilancia || !setor) { toast.error("Selecione mês e setor"); return; }
     
     setSaving(true);
-    const { error } = await supabase.from("indicadores_records").insert({
+    const { error } = await (supabase.from("indicadores_records" as any).insert as any)({
       hospital_id: hospitalId,
       user_id: userId,
       profissional: nome,
