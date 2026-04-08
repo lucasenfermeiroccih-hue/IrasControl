@@ -2,133 +2,533 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// ─── Minimal raw-PDF builder with multi-page, tables & colours ───
+
+const PAGE_W = 595;
+const PAGE_H = 842;
+const MARGIN = 40;
+const USABLE_W = PAGE_W - 2 * MARGIN;
+const LINE_H = 14;
+const FONT_SIZE = 9;
+const HEADER_FONT = 11;
+const TITLE_FONT = 16;
+
+type RGB = [number, number, number];
+const BLACK: RGB = [0, 0, 0];
+const WHITE: RGB = [1, 1, 1];
+const TEAL: RGB = [0.086, 0.627, 0.522]; // #16a085
+const LIGHT_GRAY: RGB = [0.95, 0.95, 0.95];
+const GRAY: RGB = [0.4, 0.4, 0.4];
+const RED: RGB = [0.84, 0.18, 0.18];
+const ORANGE: RGB = [0.9, 0.6, 0.1];
+
+function sanitize(s: string): string {
+  return (s || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/[^\x20-\x7E]/g, (c) => {
+      // Map common Portuguese chars
+      const map: Record<string, string> = {};
+      // Portuguese accented chars
+      const pairs = "á:a,à:a,â:a,ã:a,é:e,ê:e,í:i,ó:o,ô:o,õ:o,ú:u,ü:u,ç:c,Á:A,À:A,Â:A,Ã:A,É:E,Ê:E,Í:I,Ó:O,Ô:O,Õ:O,Ú:U,Ü:U,Ç:C";
+      pairs.split(",").forEach(p => { const [k, v] = p.split(":"); map[k] = v; });
+      // Special punctuation
+      ["\u2013", "\u2014"].forEach(c => map[c] = "-");
+      ["\u2018", "\u2019"].forEach(c => map[c] = "'");
+      ["\u201C", "\u201D"].forEach(c => map[c] = '"');
+      return map[c] || "?";
+    });
 }
 
-function generatePdfHtml(type: string, data: any, hospitalName: string): string {
-  const date = new Date().toLocaleDateString("pt-BR");
-  const header = `
-    <div style="text-align:center;margin-bottom:24px;border-bottom:2px solid #16a085;padding-bottom:16px;">
-      <h1 style="color:#16a085;margin:0;font-size:22px;">IRASControl</h1>
-      <p style="color:#666;margin:4px 0;font-size:12px;">${escapeHtml(hospitalName)}</p>
-      <p style="color:#999;margin:0;font-size:11px;">Gerado em ${date}</p>
-    </div>
-  `;
+class PdfBuilder {
+  private objects: string[] = [];
+  private pages: { contentObjIdx: number }[] = [];
+  private currentStream = "";
+  private curY = PAGE_H - MARGIN;
+  private fontObjNum = 0;
+  private fontBoldObjNum = 0;
+  private pageIds: number[] = [];
+  private date: string;
+  private hospitalName: string;
+  private reportTitle: string;
 
-  if (type === "dashboard") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório do Dashboard</h2>
-      <table>
-        <tr><th>Indicador</th><th>Valor</th></tr>
-        <tr><td>Pacientes Monitorados</td><td>${d.totalPatients}</td></tr>
-        <tr><td>Casos Suspeitos</td><td>${d.suspectCases}</td></tr>
-        <tr><td>IRAS Confirmadas</td><td>${d.confirmedCases}</td></tr>
-        <tr><td>Taxa de Conformidade</td><td>${d.complianceRate}%</td></tr>
-        <tr><td>Alertas Ativos</td><td>${d.activeAlerts}</td></tr>
-      </table>
-      ${d.irasBySector?.length > 0 ? `
-        <h3 style="font-size:14px;margin-top:24px;">IRAS por Setor</h3>
-        <table>
-          <tr><th>Setor</th><th>Taxa (%)</th></tr>
-          ${d.irasBySector.map((s: any) => `<tr><td>${escapeHtml(s.setor)}</td><td>${s.taxa}</td></tr>`).join("")}
-        </table>
-      ` : ""}
-      ${d.topMicro?.length > 0 ? `
-        <h3 style="font-size:14px;margin-top:24px;">Top Microrganismos</h3>
-        <table>
-          <tr><th>Organismo</th><th>Isolados</th></tr>
-          ${d.topMicro.map((m: any) => `<tr><td>${escapeHtml(m.name)}</td><td>${m.count}</td></tr>`).join("")}
-        </table>
-      ` : ""}
-    </body></html>`;
+  constructor(hospitalName: string, reportTitle: string) {
+    this.hospitalName = sanitize(hospitalName);
+    this.reportTitle = sanitize(reportTitle);
+    this.date = new Date().toLocaleDateString("pt-BR");
+    this.startPage();
   }
 
-  if (type === "cases") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório de Casos de Investigação</h2>
-      <table>
-        <tr><th>Indicador</th><th>Valor</th></tr>
-        <tr><td>Abertos</td><td>${d.kpis?.abertos || 0}</td></tr>
-        <tr><td>Em Investigação</td><td>${d.kpis?.emInvestigacao || 0}</td></tr>
-        <tr><td>Confirmados</td><td>${d.kpis?.confirmados || 0}</td></tr>
-        <tr><td>Encerrados</td><td>${d.kpis?.encerrados || 0}</td></tr>
-      </table>
-      <h3 style="font-size:14px;margin-top:24px;">Lista de Casos</h3>
-      <table>
-        <tr><th>ID</th><th>Paciente</th><th>Setor</th><th>Evento</th><th>Status</th><th>Data</th></tr>
-        ${(d.cases || []).map((c: any) => `<tr><td>${escapeHtml(c.id)}</td><td>${escapeHtml(c.paciente)}</td><td>${escapeHtml(c.setor)}</td><td>${escapeHtml(c.evento)}</td><td>${escapeHtml(c.status)}</td><td>${escapeHtml(c.data)}</td></tr>`).join("")}
-      </table>
-    </body></html>`;
+  private addObj(content: string): number {
+    this.objects.push(content);
+    return this.objects.length; // 1-based obj number
   }
 
-  if (type === "microorganisms") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório de Microorganismos</h2>
-      <p>Total de registros: <strong>${d.total}</strong></p>
-      ${d.distribution?.length > 0 ? `
-        <h3 style="font-size:14px;margin-top:24px;">Distribuição</h3>
-        <table>
-          <tr><th>Organismo</th><th>Total</th></tr>
-          ${d.distribution.map((item: any) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.total}</td></tr>`).join("")}
-        </table>
-      ` : ""}
-      <h3 style="font-size:14px;margin-top:24px;">Registros</h3>
-      <table>
-        <tr><th>Data</th><th>Prontuário</th><th>Setor</th><th>Tipo</th><th>Microorganismo</th></tr>
-        ${(d.records || []).slice(0, 100).map((r: any) => `<tr><td>${escapeHtml(r.data)}</td><td>${escapeHtml(r.prontuario)}</td><td>${escapeHtml(r.setor)}</td><td>${escapeHtml(r.tipo)}</td><td>${escapeHtml(r.microorganismo)}</td></tr>`).join("")}
-      </table>
-    </body></html>`;
+  private setColor(rgb: RGB) {
+    this.currentStream += `${rgb[0]} ${rgb[1]} ${rgb[2]} rg\n`;
+  }
+  private setStrokeColor(rgb: RGB) {
+    this.currentStream += `${rgb[0]} ${rgb[1]} ${rgb[2]} RG\n`;
   }
 
-  if (type === "patients") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório de Pacientes</h2>
-      <p>Total: <strong>${d.total}</strong></p>
-      <table>
-        <tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Status</th><th>Admissão</th></tr>
-        ${(d.patients || []).map((p: any) => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.record)}</td><td>${escapeHtml(p.sector)}</td><td>${escapeHtml(p.bed)}</td><td>${escapeHtml(p.status)}</td><td>${escapeHtml(p.admission)}</td></tr>`).join("")}
-      </table>
-    </body></html>`;
+  private drawRect(x: number, y: number, w: number, h: number, fill: RGB | null, stroke: RGB | null) {
+    if (fill) {
+      this.setColor(fill);
+      this.currentStream += `${x} ${y} ${w} ${h} re f\n`;
+    }
+    if (stroke) {
+      this.setStrokeColor(stroke);
+      this.currentStream += `0.5 w\n${x} ${y} ${w} ${h} re S\n`;
+    }
   }
 
-  if (type === "alerts") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório de Alertas</h2>
-      <table>
-        <tr><th>Título</th><th>Severidade</th><th>Status</th><th>Data</th></tr>
-        ${(d.alerts || []).map((a: any) => `<tr><td>${escapeHtml(a.title)}</td><td>${escapeHtml(a.severity)}</td><td>${escapeHtml(a.status)}</td><td>${escapeHtml(a.date)}</td></tr>`).join("")}
-      </table>
-    </body></html>`;
+  private drawLine(x1: number, y1: number, x2: number, y2: number, color: RGB = TEAL) {
+    this.setStrokeColor(color);
+    this.currentStream += `1 w\n${x1} ${y1} m ${x2} ${y2} l S\n`;
   }
 
-  if (type === "audits") {
-    const d = data;
-    return `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;font-size:13px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f5f5f5;font-size:12px;}</style></head><body>
-      ${header}
-      <h2 style="font-size:16px;">Relatório de Auditorias</h2>
-      <table>
-        <tr><th>Tipo</th><th>Setor</th><th>Data</th><th>Conformidade</th><th>Itens</th></tr>
-        ${(d.audits || []).map((a: any) => `<tr><td>${escapeHtml(a.type)}</td><td>${escapeHtml(a.sector)}</td><td>${escapeHtml(a.date)}</td><td>${a.compliance}%</td><td>${a.compliant}/${a.total}</td></tr>`).join("")}
-      </table>
-    </body></html>`;
+  private drawText(text: string, x: number, y: number, size: number, color: RGB = BLACK, bold = false) {
+    const fontRef = bold ? "/F2" : "/F1";
+    this.setColor(color);
+    this.currentStream += `BT\n${fontRef} ${size} Tf\n${x} ${y} Td\n(${sanitize(text)}) Tj\nET\n`;
   }
 
-  return `<html><body>${header}<p>Tipo de relatório não reconhecido: ${escapeHtml(type)}</p></body></html>`;
+  private checkPageBreak(needed: number) {
+    if (this.curY - needed < MARGIN + 30) {
+      this.finishPage();
+      this.startPage();
+    }
+  }
+
+  private startPage() {
+    this.currentStream = "";
+    this.curY = PAGE_H - MARGIN;
+    this.drawHeader();
+  }
+
+  private drawHeader() {
+    // Teal bar at top
+    this.drawRect(0, PAGE_H - 28, PAGE_W, 28, TEAL, null);
+    this.drawText("IRASControl", MARGIN, PAGE_H - 20, 12, WHITE, true);
+    this.drawText(this.hospitalName, PAGE_W - MARGIN - this.hospitalName.length * 5, PAGE_H - 20, 9, WHITE);
+    
+    // Report title
+    this.curY = PAGE_H - 55;
+    this.drawText(this.reportTitle, MARGIN, this.curY, TITLE_FONT, TEAL, true);
+    this.curY -= 16;
+    this.drawText("Gerado em " + this.date, MARGIN, this.curY, 8, GRAY);
+    this.drawLine(MARGIN, this.curY - 6, PAGE_W - MARGIN, this.curY - 6, TEAL);
+    this.curY -= 22;
+  }
+
+  private drawFooter() {
+    const pageNum = this.pages.length + 1;
+    this.drawText(`Pagina ${pageNum}`, PAGE_W / 2 - 20, 20, 8, GRAY);
+    this.drawLine(MARGIN, 35, PAGE_W - MARGIN, 35, LIGHT_GRAY as RGB);
+  }
+
+  private finishPage() {
+    this.drawFooter();
+    const streamBytes = new TextEncoder().encode(this.currentStream);
+    const streamObjNum = this.addObj(
+      `<< /Length ${streamBytes.length} >>\nstream\n${this.currentStream}\nendstream`
+    );
+    this.pages.push({ contentObjIdx: streamObjNum });
+  }
+
+  // ─── Public API ───
+
+  addTitle(text: string) {
+    this.checkPageBreak(30);
+    this.curY -= 8;
+    this.drawText(text, MARGIN, this.curY, 13, TEAL, true);
+    this.curY -= 20;
+  }
+
+  addSubtitle(text: string) {
+    this.checkPageBreak(24);
+    this.curY -= 4;
+    this.drawText(text, MARGIN, this.curY, HEADER_FONT, BLACK, true);
+    this.curY -= 16;
+  }
+
+  addText(text: string, color: RGB = BLACK) {
+    this.checkPageBreak(LINE_H);
+    this.drawText(text, MARGIN, this.curY, FONT_SIZE, color);
+    this.curY -= LINE_H;
+  }
+
+  addSpacer(h = 10) {
+    this.curY -= h;
+  }
+
+  addKPIRow(kpis: { label: string; value: string }[]) {
+    this.checkPageBreak(50);
+    const boxW = USABLE_W / kpis.length;
+    const boxH = 40;
+    const y = this.curY - boxH;
+
+    kpis.forEach((kpi, i) => {
+      const x = MARGIN + i * boxW;
+      this.drawRect(x + 2, y, boxW - 4, boxH, LIGHT_GRAY, null);
+      this.drawText(kpi.value, x + 8, y + 22, 14, TEAL, true);
+      this.drawText(kpi.label, x + 8, y + 8, 7, GRAY);
+    });
+
+    this.curY = y - 8;
+  }
+
+  addTable(headers: string[], rows: string[][], colWidths?: number[]) {
+    const cols = headers.length;
+    const widths = colWidths || headers.map(() => USABLE_W / cols);
+    const rowH = 16;
+
+    // Header row
+    this.checkPageBreak(rowH * 2);
+    let x = MARGIN;
+    this.drawRect(MARGIN, this.curY - rowH, USABLE_W, rowH, TEAL, null);
+    headers.forEach((h, i) => {
+      this.drawText(h, x + 4, this.curY - rowH + 4, 8, WHITE, true);
+      x += widths[i];
+    });
+    this.curY -= rowH;
+
+    // Data rows
+    rows.forEach((row, ri) => {
+      this.checkPageBreak(rowH);
+      const bg = ri % 2 === 0 ? null : LIGHT_GRAY;
+      if (bg) this.drawRect(MARGIN, this.curY - rowH, USABLE_W, rowH, bg, null);
+
+      // Row border
+      this.setStrokeColor([0.85, 0.85, 0.85]);
+      this.currentStream += `0.3 w\n${MARGIN} ${this.curY - rowH} m ${MARGIN + USABLE_W} ${this.curY - rowH} l S\n`;
+
+      x = MARGIN;
+      row.forEach((cell, ci) => {
+        const maxChars = Math.floor(widths[ci] / 4.5);
+        const truncated = cell.length > maxChars ? cell.substring(0, maxChars - 2) + ".." : cell;
+        this.drawText(truncated, x + 4, this.curY - rowH + 4, 8, BLACK);
+        x += widths[ci];
+      });
+      this.curY -= rowH;
+    });
+
+    this.curY -= 6;
+  }
+
+  build(): Uint8Array {
+    this.finishPage();
+
+    // Build font objects
+    this.fontObjNum = this.addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+    this.fontBoldObjNum = this.addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+    // Build page objects
+    const pageObjNums: number[] = [];
+    for (const page of this.pages) {
+      const pageObjNum = this.addObj("PAGE_PLACEHOLDER");
+      pageObjNums.push(pageObjNum);
+    }
+
+    // Pages object
+    const pagesObjNum = this.addObj(
+      `<< /Type /Pages /Kids [${pageObjNums.map((n) => `${n} 0 R`).join(" ")}] /Count ${this.pages.length} >>`
+    );
+
+    // Fill in page objects
+    this.pages.forEach((page, i) => {
+      this.objects[pageObjNums[i] - 1] =
+        `<< /Type /Page /Parent ${pagesObjNum} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] ` +
+        `/Contents ${page.contentObjIdx} 0 R ` +
+        `/Resources << /Font << /F1 ${this.fontObjNum} 0 R /F2 ${this.fontBoldObjNum} 0 R >> >> >>`;
+    });
+
+    // Catalog
+    const catalogObjNum = this.addObj(`<< /Type /Catalog /Pages ${pagesObjNum} 0 R >>`);
+
+    // Assemble PDF
+    const encoder = new TextEncoder();
+    let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+    const offsets: number[] = [0]; // 0-indexed placeholder for obj 0
+
+    for (let i = 0; i < this.objects.length; i++) {
+      offsets.push(pdf.length);
+      pdf += `${i + 1} 0 obj\n${this.objects[i]}\nendobj\n`;
+    }
+
+    const xrefOffset = pdf.length;
+    const totalObjs = this.objects.length + 1;
+    pdf += "xref\n";
+    pdf += `0 ${totalObjs}\n`;
+    pdf += "0000000000 65535 f \n";
+    for (let i = 1; i < totalObjs; i++) {
+      pdf += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+    }
+
+    pdf += "trailer\n";
+    pdf += `<< /Size ${totalObjs} /Root ${catalogObjNum} 0 R >>\n`;
+    pdf += "startxref\n";
+    pdf += `${xrefOffset}\n`;
+    pdf += "%%EOF";
+
+    return encoder.encode(pdf);
+  }
+
+  toBase64(): string {
+    const bytes = this.build();
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
 }
+
+// ─── Report generators ───
+
+function buildDashboardPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio do Dashboard");
+
+  pdf.addKPIRow([
+    { label: "Pacientes Monitorados", value: String(data.totalPatients || 0) },
+    { label: "Casos Suspeitos", value: String(data.suspectCases || 0) },
+    { label: "IRAS Confirmadas", value: String(data.confirmedCases || 0) },
+    { label: "Conformidade", value: `${data.complianceRate || 0}%` },
+  ]);
+
+  if (data.activeAlerts) {
+    pdf.addText(`Alertas Ativos: ${data.activeAlerts}`);
+    pdf.addSpacer();
+  }
+
+  if (data.irasBySector?.length > 0) {
+    pdf.addSubtitle("IRAS por Setor");
+    pdf.addTable(
+      ["Setor", "Taxa (%)"],
+      data.irasBySector.map((s: any) => [s.setor || "", String(s.taxa || 0)]),
+      [USABLE_W * 0.65, USABLE_W * 0.35]
+    );
+  }
+
+  if (data.topMicro?.length > 0) {
+    pdf.addSubtitle("Top Microrganismos");
+    pdf.addTable(
+      ["Organismo", "Isolados"],
+      data.topMicro.map((m: any) => [m.name || "", String(m.count || 0)]),
+      [USABLE_W * 0.7, USABLE_W * 0.3]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildCasesPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Casos de Investigacao");
+
+  pdf.addKPIRow([
+    { label: "Abertos", value: String(data.kpis?.abertos || 0) },
+    { label: "Em Investigacao", value: String(data.kpis?.emInvestigacao || 0) },
+    { label: "Confirmados", value: String(data.kpis?.confirmados || 0) },
+    { label: "Encerrados", value: String(data.kpis?.encerrados || 0) },
+  ]);
+
+  if (data.cases?.length > 0) {
+    pdf.addSubtitle("Lista de Casos");
+    pdf.addTable(
+      ["Numero", "Paciente", "Setor", "Evento", "Status", "Data"],
+      data.cases.map((c: any) => [c.id || "", c.paciente || "", c.setor || "", c.evento || "", c.status || "", c.data || ""]),
+      [70, 100, 80, 80, 70, 60]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildAlertsPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Alertas");
+
+  if (data.alerts?.length > 0) {
+    pdf.addTable(
+      ["Titulo", "Severidade", "Status", "Data"],
+      data.alerts.map((a: any) => [a.title || "", a.severity || "", a.status || "", a.date || ""]),
+      [USABLE_W * 0.4, USABLE_W * 0.2, USABLE_W * 0.2, USABLE_W * 0.2]
+    );
+  } else {
+    pdf.addText("Nenhum alerta encontrado no periodo.");
+  }
+
+  return pdf.toBase64();
+}
+
+function buildPatientsPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Pacientes");
+  pdf.addText(`Total de pacientes: ${data.total || 0}`);
+  pdf.addSpacer();
+
+  if (data.patients?.length > 0) {
+    pdf.addTable(
+      ["Paciente", "Prontuario", "Setor", "Leito", "Status", "Admissao"],
+      data.patients.map((p: any) => [p.name || "", p.record || "", p.sector || "", p.bed || "", p.status || "", p.admission || ""]),
+      [100, 70, 70, 50, 70, 70]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildAuditsPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Auditorias");
+
+  if (data.kpis) {
+    pdf.addKPIRow([
+      { label: "Conformidade Media", value: `${data.kpis.avgCompliance || 0}%` },
+      { label: "Total Auditorias", value: String(data.kpis.totalAudits || 0) },
+      { label: "Nao Conformidades", value: String(data.kpis.nonCompliant || 0) },
+    ]);
+  }
+
+  if (data.audits?.length > 0) {
+    pdf.addSubtitle("Detalhamento");
+    pdf.addTable(
+      ["Tipo", "Setor", "Data", "Conformidade", "Itens"],
+      data.audits.map((a: any) => [
+        a.type || "", a.sector || "", a.date || "",
+        `${a.compliance || 0}%`, `${a.compliant || 0}/${a.total || 0}`,
+      ]),
+      [90, 100, 80, 80, 65]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildMicroorganismsPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Microorganismos");
+  pdf.addText(`Total de registros: ${data.total || 0}`);
+  pdf.addSpacer();
+
+  if (data.distribution?.length > 0) {
+    pdf.addSubtitle("Distribuicao");
+    pdf.addTable(
+      ["Organismo", "Total"],
+      data.distribution.map((d: any) => [d.name || "", String(d.total || 0)]),
+      [USABLE_W * 0.7, USABLE_W * 0.3]
+    );
+  }
+
+  if (data.records?.length > 0) {
+    pdf.addSubtitle("Registros");
+    pdf.addTable(
+      ["Data", "Prontuario", "Setor", "Tipo", "Microorganismo"],
+      data.records.slice(0, 100).map((r: any) => [r.data || "", r.prontuario || "", r.setor || "", r.tipo || "", r.microorganismo || ""]),
+      [70, 80, 80, 80, 110]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildAnalyticsPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio Analitico Avancado");
+
+  if (data.kpis) {
+    pdf.addKPIRow([
+      { label: "Total IRAS", value: String(data.kpis.totalCases || 0) },
+      { label: "Confirmadas", value: String(data.kpis.confirmedCases || 0) },
+      { label: "Conformidade Media", value: `${data.kpis.avgCompliance || 0}%` },
+      { label: "Alertas Abertos", value: String(data.kpis.criticalAlerts || 0) },
+    ]);
+  }
+
+  if (data.monthlyTrend?.length > 0) {
+    pdf.addSubtitle("Evolucao Mensal");
+    pdf.addTable(
+      ["Mes", "Casos IRAS", "Meta"],
+      data.monthlyTrend.map((m: any) => [m.mes || "", String(m.iras || 0), String(m.meta || 0)]),
+      [USABLE_W * 0.4, USABLE_W * 0.3, USABLE_W * 0.3]
+    );
+  }
+
+  if (data.infectionBySector?.length > 0) {
+    pdf.addSubtitle("Casos por Sitio de Infeccao");
+    pdf.addTable(
+      ["Setor / Sitio", "Casos"],
+      data.infectionBySector.map((s: any) => [s.setor || "", String(s.casos || 0)]),
+      [USABLE_W * 0.7, USABLE_W * 0.3]
+    );
+  }
+
+  if (data.resistanceProfile?.length > 0) {
+    pdf.addSubtitle("Perfil de Resistencia");
+    pdf.addTable(
+      ["Organismo", "Isolados Resistentes"],
+      data.resistanceProfile.map((r: any) => [r.organismo || "", String(r.count || 0)]),
+      [USABLE_W * 0.65, USABLE_W * 0.35]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildDDDPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Consumo de Antimicrobianos (DDD)");
+
+  if (data.kpis) {
+    pdf.addKPIRow([
+      { label: "Total DDD", value: String(data.kpis.totalDDD || 0) },
+      { label: "Registros", value: String(data.kpis.totalRecords || 0) },
+      { label: "Antimicrobianos", value: String(data.kpis.uniqueDrugs || 0) },
+    ]);
+  }
+
+  if (data.lines?.length > 0) {
+    pdf.addSubtitle("Detalhamento por Antimicrobiano");
+    pdf.addTable(
+      ["Antimicrobiano", "Apresentacao", "Qtde", "Total (g)", "DDD"],
+      data.lines.slice(0, 80).map((l: any) => [
+        l.nome || "", l.apresentacao || "", String(l.quantidade || 0),
+        String(l.total_g || 0), String(l.indicador || 0),
+      ]),
+      [130, 100, 50, 65, 65]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+function buildISCPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Infeccao de Sitio Cirurgico (ISC)");
+
+  if (data.kpis) {
+    pdf.addKPIRow([
+      { label: "Total Cirurgias", value: String(data.kpis.totalSurgeries || 0) },
+      { label: "ISC Confirmadas", value: String(data.kpis.totalISC || 0) },
+      { label: "Taxa ISC", value: `${data.kpis.iscRate || 0}%` },
+    ]);
+  }
+
+  if (data.indicators?.length > 0) {
+    pdf.addSubtitle("Indicadores por Procedimento");
+    pdf.addTable(
+      ["Procedimento", "Cirurgias", "ISC", "Taxa (%)"],
+      data.indicators.map((ind: any) => [
+        ind.procedimento || "", String(ind.total_cirurgias || 0),
+        String(ind.isc_confirmada || 0),
+        ind.total_cirurgias > 0 ? ((ind.isc_confirmada / ind.total_cirurgias) * 100).toFixed(1) : "0",
+      ]),
+      [USABLE_W * 0.4, USABLE_W * 0.2, USABLE_W * 0.2, USABLE_W * 0.2]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
+// ─── Main handler ───
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -145,7 +545,7 @@ Deno.serve(async (req) => {
     const { type, hospitalId, data } = await req.json();
 
     if (!type || !data) {
-      return json({ error: "type e data são obrigatórios" }, 400);
+      return json({ error: "type e data sao obrigatorios" }, 400);
     }
 
     // Get hospital name
@@ -162,184 +562,26 @@ Deno.serve(async (req) => {
       if (hospital) hospitalName = hospital.name;
     }
 
-    const html = generatePdfHtml(type, data, hospitalName);
+    const generators: Record<string, (d: any, h: string) => string> = {
+      dashboard: buildDashboardPdf,
+      cases: buildCasesPdf,
+      alerts: buildAlertsPdf,
+      patients: buildPatientsPdf,
+      audits: buildAuditsPdf,
+      microorganisms: buildMicroorganismsPdf,
+      analytics: buildAnalyticsPdf,
+      ddd: buildDDDPdf,
+      isc: buildISCPdf,
+    };
 
-    // Convert HTML to a simple printable page and return as base64
-    // Since we don't have a PDF renderer in edge functions, we return HTML
-    // that the client can print to PDF, or we encode it as a simple PDF-like format
-    
-    // For now, generate a minimal PDF with the HTML content embedded
-    // Using a simple text-based PDF generation
-    const pdfContent = generateMinimalPdf(html, type, hospitalName, data);
+    const generator = generators[type];
+    if (!generator) {
+      return json({ error: `Tipo de relatorio nao suportado: ${type}` }, 400);
+    }
 
-    return json({ pdf: pdfContent, html });
+    const pdfBase64 = generator(data, hospitalName);
+    return json({ pdf: pdfBase64 });
   } catch (err: any) {
     return json({ error: err.message }, 500);
   }
 });
-
-function generateMinimalPdf(html: string, type: string, hospitalName: string, data: any): string {
-  // Generate a simple PDF using raw PDF syntax
-  const date = new Date().toLocaleDateString("pt-BR");
-  
-  // Build text content for PDF
-  let textLines: string[] = [];
-  textLines.push("IRASControl - " + hospitalName);
-  textLines.push("Gerado em " + date);
-  textLines.push("");
-  
-  if (type === "dashboard") {
-    textLines.push("RELATORIO DO DASHBOARD");
-    textLines.push("");
-    textLines.push("Pacientes Monitorados: " + data.totalPatients);
-    textLines.push("Casos Suspeitos: " + data.suspectCases);
-    textLines.push("IRAS Confirmadas: " + data.confirmedCases);
-    textLines.push("Taxa de Conformidade: " + data.complianceRate + "%");
-    textLines.push("Alertas Ativos: " + data.activeAlerts);
-    if (data.irasBySector?.length > 0) {
-      textLines.push("");
-      textLines.push("IRAS POR SETOR:");
-      data.irasBySector.forEach((s: any) => textLines.push("  " + s.setor + ": " + s.taxa + "%"));
-    }
-    if (data.topMicro?.length > 0) {
-      textLines.push("");
-      textLines.push("TOP MICRORGANISMOS:");
-      data.topMicro.forEach((m: any) => textLines.push("  " + m.name + ": " + m.count + " isolados"));
-    }
-  } else if (type === "cases") {
-    textLines.push("RELATORIO DE CASOS DE INVESTIGACAO");
-    textLines.push("");
-    textLines.push("Abertos: " + (data.kpis?.abertos || 0));
-    textLines.push("Em Investigacao: " + (data.kpis?.emInvestigacao || 0));
-    textLines.push("Confirmados: " + (data.kpis?.confirmados || 0));
-    textLines.push("Encerrados: " + (data.kpis?.encerrados || 0));
-    textLines.push("");
-    (data.cases || []).forEach((c: any) => {
-      textLines.push(c.id + " | " + c.paciente + " | " + c.setor + " | " + c.evento + " | " + c.status + " | " + c.data);
-    });
-  } else if (type === "microorganisms") {
-    textLines.push("RELATORIO DE MICROORGANISMOS");
-    textLines.push("Total: " + data.total);
-    textLines.push("");
-    if (data.distribution?.length > 0) {
-      textLines.push("DISTRIBUICAO:");
-      data.distribution.forEach((d: any) => textLines.push("  " + d.name + ": " + d.total));
-    }
-    textLines.push("");
-    (data.records || []).slice(0, 50).forEach((r: any) => {
-      textLines.push(r.data + " | " + r.prontuario + " | " + r.setor + " | " + r.tipo + " | " + r.microorganismo);
-    });
-  } else if (type === "patients") {
-    textLines.push("RELATORIO DE PACIENTES");
-    textLines.push("Total: " + data.total);
-    textLines.push("");
-    (data.patients || []).forEach((p: any) => {
-      textLines.push(p.name + " | " + p.record + " | " + p.sector + " | " + p.bed + " | " + p.status);
-    });
-  } else if (type === "alerts") {
-    textLines.push("RELATORIO DE ALERTAS");
-    textLines.push("");
-    (data.alerts || []).forEach((a: any) => {
-      textLines.push(a.title + " | " + a.severity + " | " + a.status + " | " + a.date);
-    });
-  } else if (type === "audits") {
-    textLines.push("RELATORIO DE AUDITORIAS");
-    textLines.push("");
-    (data.audits || []).forEach((a: any) => {
-      textLines.push(a.type + " | " + a.sector + " | " + a.date + " | " + a.compliance + "% | " + a.compliant + "/" + a.total);
-    });
-  }
-
-  // Build a minimal valid PDF
-  const content = textLines.join("\n");
-  const encoder = new TextEncoder();
-  const contentBytes = encoder.encode(content);
-  
-  // PDF structure
-  const objects: string[] = [];
-  
-  // Object 1: Catalog
-  objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj");
-  
-  // Object 2: Pages
-  objects.push("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj");
-  
-  // Object 4: Font
-  objects.push("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj");
-  
-  // Build page content with text operations
-  let streamContent = "BT\n/F1 10 Tf\n";
-  let y = 780;
-  const maxWidth = 80; // chars per line approx
-  
-  for (const line of textLines) {
-    if (y < 40) break; // page overflow protection
-    // Escape PDF special chars
-    const escaped = line
-      .replace(/\\/g, "\\\\")
-      .replace(/\(/g, "\\(")
-      .replace(/\)/g, "\\)")
-      // Remove non-ASCII for basic PDF compatibility
-      .replace(/[^\x20-\x7E]/g, "?");
-    
-    if (escaped.length > maxWidth) {
-      // Word wrap
-      let remaining = escaped;
-      while (remaining.length > 0 && y >= 40) {
-        const chunk = remaining.substring(0, maxWidth);
-        remaining = remaining.substring(maxWidth);
-        streamContent += `1 0 0 1 40 ${y} Tm\n(${chunk}) Tj\n`;
-        y -= 14;
-      }
-    } else {
-      streamContent += `1 0 0 1 40 ${y} Tm\n(${escaped}) Tj\n`;
-      y -= 14;
-    }
-  }
-  streamContent += "ET";
-  
-  // Object 5: Stream
-  const streamBytes = encoder.encode(streamContent);
-  objects.push(`5 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n${streamContent}\nendstream\nendobj`);
-  
-  // Object 3: Page
-  objects.push("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >>\nendobj");
-  
-  // Build final PDF
-  let pdf = "%PDF-1.4\n";
-  const offsets: number[] = [];
-  
-  // Sort objects by number
-  const sorted = [objects[0], objects[1], objects[4], objects[3], objects[2]]; // 1,2,4,3,5 → sort by obj num
-  const objOrder = [
-    { num: 1, content: objects[0] },
-    { num: 2, content: objects[1] },
-    { num: 3, content: objects[4] },
-    { num: 4, content: objects[2] },
-    { num: 5, content: objects[3] },
-  ];
-  
-  for (const obj of objOrder) {
-    offsets[obj.num] = pdf.length;
-    pdf += obj.content + "\n";
-  }
-  
-  const xrefOffset = pdf.length;
-  pdf += "xref\n";
-  pdf += `0 ${objOrder.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-  for (let i = 1; i <= objOrder.length; i++) {
-    pdf += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
-  }
-  
-  pdf += "trailer\n";
-  pdf += `<< /Size ${objOrder.length + 1} /Root 1 0 R >>\n`;
-  pdf += "startxref\n";
-  pdf += xrefOffset + "\n";
-  pdf += "%%EOF";
-  
-  // Convert to base64
-  const pdfBytes = encoder.encode(pdf);
-  const binary = Array.from(pdfBytes).map(b => String.fromCharCode(b)).join("");
-  return btoa(binary);
-}

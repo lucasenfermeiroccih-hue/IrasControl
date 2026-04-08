@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { exportPdf } from "@/lib/pdf-export";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { Bell, AlertTriangle, ShieldAlert, CheckCircle, ArrowUpRight, Loader2, Download } from "lucide-react";
 
@@ -51,25 +52,21 @@ const Alerts = () => {
     fetchAlerts();
   };
 
-  const handleExportPDF = async () => {
-    toast.info("Gerando PDF...");
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-pdf", {
-        body: {
-          type: "alerts", hospitalId,
-          data: { alerts: alerts.map(a => ({ title: a.title, severity: a.severity, status: a.status, date: a.created_at?.split("T")[0] || "" })) },
-        },
-      });
-      if (error) throw error;
-      if (data?.pdf) {
-        const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-        const blob = new Blob([byteArray], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `alertas-${new Date().toISOString().split("T")[0]}.pdf`; a.click();
-        URL.revokeObjectURL(url);
-        toast.success("PDF exportado!");
-      }
-    } catch { toast.error("Erro ao gerar PDF"); }
+  const handleExportPDF = () => {
+    if (!hospitalId) return;
+    exportPdf({
+      type: "alerts",
+      hospitalId,
+      data: {
+        alerts: alerts.map(a => ({
+          title: a.title,
+          severity: a.severity,
+          status: a.status,
+          date: a.created_at?.split("T")[0] || "",
+        })),
+      },
+      filenamePrefix: "alertas",
+    });
   };
 
   if (ctxLoading || loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;

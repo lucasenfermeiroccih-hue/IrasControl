@@ -12,12 +12,15 @@ import {
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Target, Brain, Download, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 
 const COLORS = ["hsl(168,66%,34%)", "hsl(210,80%,55%)", "hsl(45,93%,47%)", "hsl(0,84%,60%)", "hsl(280,60%,55%)", "hsl(150,60%,40%)"];
 
 export default function ReportsAnalytics() {
   const [periodo, setPeriodo] = useState("trimestre");
   const [generating, setGenerating] = useState(false);
+  const { hospitalId } = useHospitalContext();
   const { analytics, loading } = useReportsAnalytics(periodo);
 
   const handleGenerateReport = () => {
@@ -29,7 +32,18 @@ export default function ReportsAnalytics() {
   };
 
   const handleExport = () => {
-    toast.success("Exportação iniciada — relatório será gerado em PDF.");
+    if (!hospitalId) return;
+    exportPdf({
+      type: "analytics",
+      hospitalId,
+      data: {
+        kpis: analytics.kpis,
+        monthlyTrend: analytics.monthlyTrend,
+        infectionBySector: analytics.infectionBySector,
+        resistanceProfile: analytics.resistanceProfile,
+      },
+      filenamePrefix: "analytics",
+    });
   };
 
   const { kpis: kpiData, monthlyTrend, infectionBySector, complianceRadar, resistanceProfile, deviceDistribution } = analytics;
