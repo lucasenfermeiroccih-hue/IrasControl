@@ -32,7 +32,7 @@ export default function Login() {
     }
 
     toast.success("Login realizado com sucesso!");
-    navigate("/dashboard");
+    navigate("/select-hospital");
   };
 
   const handleResetPassword = async () => {
