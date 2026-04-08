@@ -2,12 +2,13 @@ import {
   LayoutDashboard, ClipboardCheck, Activity, Shield, Bell,
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
-  BarChart3, FolderOpen, TrendingUp, Sparkles, Tag
+  BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -115,17 +116,29 @@ export function AppSidebar() {
   const { state, isMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hospitalName, setHospitalName] = useState("");
+  const [multiHospital, setMultiHospital] = useState(false);
 
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }] = await Promise.all([
+      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }, { data: memberships }] = await Promise.all([
         supabase.rpc("has_role", { _user_id: session.user.id, _role: "super_admin" }),
         supabase.rpc("has_role", { _user_id: session.user.id, _role: "hospital_admin" }),
+        supabase.from("hospital_users").select("hospital_id").eq("user_id", session.user.id),
       ]);
       setIsAdmin(!!isSuperAdmin || !!isHospitalAdmin);
+      setMultiHospital((memberships || []).length > 1);
+
+      // Load current hospital name
+      const selectedId = localStorage.getItem("selected_hospital_id");
+      if (selectedId) {
+        const { data: hosp } = await supabase.from("hospitals").select("name").eq("id", selectedId).maybeSingle();
+        if (hosp) setHospitalName(hosp.name);
+      }
     };
     check();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
@@ -163,7 +176,25 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-3 space-y-2">
+        {multiHospital && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-xs border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent"
+            onClick={() => {
+              localStorage.removeItem("selected_hospital_id");
+              navigate("/select-hospital");
+            }}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+            {!collapsed && (
+              <span className="truncate">
+                {hospitalName ? `Trocar (${hospitalName})` : "Trocar Hospital"}
+              </span>
+            )}
+          </Button>
+        )}
         {!collapsed && (
           <p className="text-xs text-sidebar-foreground/50">© 2026 IRASControl</p>
         )}
