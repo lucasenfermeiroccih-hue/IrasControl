@@ -1,46 +1,13 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
-import { Building2, CheckCircle, AlertTriangle, TrendingUp } from "lucide-react";
+import { Building2, CheckCircle, AlertTriangle, TrendingUp, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
-import DashboardFilters from "@/components/DashboardFilters";
-
-const kpis = [
-  { label: "Conformidade Geral", value: "79.8%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-  { label: "Auditorias CTI", value: "24", icon: Building2, color: "text-primary", bg: "bg-primary/10" },
-  { label: "Itens Críticos", value: "14", icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-  { label: "Melhoria Mensal", value: "+2.5%", icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
-];
-
-const categoryData = [
-  { category: "Medicações", conformity: 82 },
-  { category: "Limpeza", conformity: 78 },
-  { category: "Equipamentos", conformity: 85 },
-  { category: "Resíduos", conformity: 74 },
-];
-
-const radarData = [
-  { subject: "Medicações", A: 82 },
-  { subject: "Limpeza", A: 78 },
-  { subject: "Equipamentos", A: 85 },
-  { subject: "Resíduos", A: 74 },
-  { subject: "Sinalização", A: 80 },
-  { subject: "Acesso", A: 88 },
-];
-
-const sectorTable = [
-  { setor: "CTI 1", medicacoes: 85, limpeza: 80, equipamentos: 88, residuos: 76, status: "Adequado" },
-  { setor: "CTI 2", medicacoes: 78, limpeza: 72, equipamentos: 82, residuos: 68, status: "Atenção" },
-  { setor: "CTI 3", medicacoes: 82, limpeza: 82, equipamentos: 86, residuos: 80, status: "Adequado" },
-  { setor: "CTI Pediátrico", medicacoes: 90, limpeza: 85, equipamentos: 88, residuos: 82, status: "Adequado" },
-  { setor: "CTI Neonatal", medicacoes: 72, limpeza: 68, equipamentos: 75, residuos: 65, status: "Crítico" },
-];
+import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 
 function getStatusBadge(status: string) {
   if (status === "Crítico") return <Badge variant="destructive">{status}</Badge>;
@@ -49,9 +16,19 @@ function getStatusBadge(status: string) {
 }
 
 export default function DashboardStructure() {
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const { stats, loading } = useAuditDashboard("cti_infrastructure");
+
+  if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  const kpis = [
+    { label: "Conformidade Geral", value: `${stats.avgCompliance}%`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+    { label: "Auditorias CTI", value: String(stats.totalAudits), icon: Building2, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Itens Críticos", value: String(stats.nonCompliantItems), icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Melhoria Período", value: `${stats.improvement >= 0 ? "+" : ""}${stats.improvement}%`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
+  ];
+
+  const radarData = stats.categoryData.map(c => ({ subject: c.name, A: c.compliance }));
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -59,29 +36,21 @@ export default function DashboardStructure() {
           <h1 className="text-2xl font-bold">Dashboard — Vigilância de Estrutura (CTI)</h1>
           <p className="text-sm text-muted-foreground">Conformidade de infraestrutura e recursos dos CTIs</p>
         </div>
-        <DashboardAIInsights generateInsights={() => [
-          "📊 Conformidade geral de 79.8% com 24 auditorias de CTI realizadas.",
-          "⚠️ CTI Neonatal com conformidade crítica — resíduos (65%) e limpeza (68%) abaixo do mínimo.",
-          "🔻 Gestão de resíduos é a categoria mais fraca (74%) em todas as unidades.",
-          "✅ CTI Pediátrico com melhor desempenho geral — medicações 90%, equipamentos 88%.",
-          "💡 Recomendação: plano de ação urgente para CTI Neonatal com foco em resíduos e limpeza.",
-        ]} />
+        <DashboardAIInsights generateInsights={() => {
+          const ins: string[] = [];
+          ins.push(`📊 Conformidade geral de ${stats.avgCompliance}% com ${stats.totalAudits} auditorias de CTI.`);
+          if (stats.nonCompliantItems > 0) ins.push(`⚠️ ${stats.nonCompliantItems} itens não conformes.`);
+          ins.push("💡 Recomendação: plano de ação para os setores com menor conformidade.");
+          return ins;
+        }} />
       </div>
-
-      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor}
-        sectors={["CTI 1", "CTI 2", "CTI 3", "CTI Pediátrico", "CTI Neonatal"]} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
           <Card key={k.label}>
             <CardContent className="flex items-center gap-4 pt-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${k.bg}`}>
-                <k.icon className={`h-6 w-6 ${k.color}`} />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{k.label}</p>
-                <p className="text-2xl font-bold">{k.value}</p>
-              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${k.bg}`}><k.icon className={`h-6 w-6 ${k.color}`} /></div>
+              <div><p className="text-sm text-muted-foreground">{k.label}</p><p className="text-2xl font-bold">{k.value}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -92,61 +61,67 @@ export default function DashboardStructure() {
           <CardHeader><CardTitle className="text-base">Conformidade por Categoria</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={categoryData}>
+              <BarChart data={stats.categoryData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="category" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="conformity" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="compliance" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Radar de Infraestrutura</CardTitle></CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={280}>
-              <RadarChart data={radarData}>
-                <PolarGrid className="stroke-border" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
-                <Radar dataKey="A" stroke="hsl(168, 66%, 34%)" fill="hsl(168, 66%, 34%)" fillOpacity={0.3} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {radarData.length > 2 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">Radar de Infraestrutura</CardTitle></CardHeader>
+            <CardContent className="flex justify-center">
+              <ResponsiveContainer width="100%" height={280}>
+                <RadarChart data={radarData}>
+                  <PolarGrid className="stroke-border" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
+                  <Radar dataKey="A" stroke="hsl(168, 66%, 34%)" fill="hsl(168, 66%, 34%)" fillOpacity={0.3} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Detalhamento por CTI</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Setor</TableHead>
-                <TableHead className="text-center">Medicações</TableHead>
-                <TableHead className="text-center">Limpeza</TableHead>
-                <TableHead className="text-center">Equipamentos</TableHead>
-                <TableHead className="text-center">Resíduos</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sectorTable.map((r) => (
-                <TableRow key={r.setor}>
-                  <TableCell className="font-medium">{r.setor}</TableCell>
-                  <TableCell className="text-center">{r.medicacoes}%</TableCell>
-                  <TableCell className="text-center">{r.limpeza}%</TableCell>
-                  <TableCell className="text-center">{r.equipamentos}%</TableCell>
-                  <TableCell className="text-center">{r.residuos}%</TableCell>
-                  <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+      {stats.sectorData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Detalhamento por CTI</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-center">Conformidade (%)</TableHead>
+                  <TableHead className="text-center">Auditorias</TableHead>
+                  <TableHead className="text-center">Não Conformes</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {stats.sectorData.map((r) => (
+                  <TableRow key={r.name}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell className="text-center">{r.compliance}%</TableCell>
+                    <TableCell className="text-center">{r.audits}</TableCell>
+                    <TableCell className="text-center">{r.nonCompliant}</TableCell>
+                    <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.totalAudits === 0 && (
+        <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground"><p className="text-sm">Nenhuma auditoria de estrutura CTI registrada.</p></CardContent></Card>
+      )}
     </div>
   );
 }

@@ -421,6 +421,75 @@ export type Database = {
           },
         ]
       }
+      crm_contacts: {
+        Row: {
+          company: string
+          created_at: string
+          created_by: string | null
+          email: string
+          hospital_id: string
+          id: string
+          last_contact_at: string | null
+          name: string
+          notes: string | null
+          phone: string
+          role: string
+          score: number
+          stage: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          company?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          hospital_id: string
+          id?: string
+          last_contact_at?: string | null
+          name: string
+          notes?: string | null
+          phone?: string
+          role?: string
+          score?: number
+          stage?: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          hospital_id?: string
+          id?: string
+          last_contact_at?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string
+          role?: string
+          score?: number
+          stage?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contacts_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contacts_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ddd_record_lines: {
         Row: {
           antimicrobiano_id: number
@@ -617,6 +686,66 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      indicadores_records: {
+        Row: {
+          ano_vigilancia: number
+          calculated: Json
+          created_at: string
+          data_vigilancia: string
+          hospital_id: string
+          id: string
+          inputs: Json
+          mes_vigilancia: string
+          profissional: string
+          setor: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano_vigilancia?: number
+          calculated?: Json
+          created_at?: string
+          data_vigilancia?: string
+          hospital_id: string
+          id?: string
+          inputs?: Json
+          mes_vigilancia?: string
+          profissional?: string
+          setor?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano_vigilancia?: number
+          calculated?: Json
+          created_at?: string
+          data_vigilancia?: string
+          hospital_id?: string
+          id?: string
+          inputs?: Json
+          mes_vigilancia?: string
+          profissional?: string
+          setor?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicadores_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "indicadores_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       infection_cases: {
         Row: {
