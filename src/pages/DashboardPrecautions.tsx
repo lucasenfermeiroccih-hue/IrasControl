@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   PieChart, Pie, Cell, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
-import { Shield, CheckCircle, AlertTriangle, Eye, Loader2 } from "lucide-react";
+import { Shield, CheckCircle, AlertTriangle, Eye, Loader2, Download } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 
 const TYPE_COLORS: Record<string, string> = {
   "Contato": "hsl(168, 66%, 34%)",
@@ -83,13 +85,29 @@ export default function DashboardPrecautions() {
           <h1 className="text-2xl font-bold">Dashboard — Precaução e Isolamento</h1>
           <p className="text-sm text-muted-foreground">Monitoramento de medidas de precaução e isolamento</p>
         </div>
-        <DashboardAIInsights generateInsights={() => {
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => {
+            if (!hospitalId) return;
+            exportPdf({
+              type: "patients", hospitalId,
+              data: {
+                total: activePrecautions.length,
+                patients: activePrecautions.map(p => ({
+                  name: p.patient_id, record: p.precaution_type, sector: p.sector,
+                  bed: "", status: p.is_active ? "Ativo" : "Inativo", admission: p.start_date?.split("T")[0] || "",
+                })),
+              },
+              filenamePrefix: "precaucoes",
+            });
+          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <DashboardAIInsights generateInsights={() => {
           const ins: string[] = [];
           ins.push(`📊 ${activePrecautions.length} precauções ativas em ${sectorData.length} setores.`);
           if (typeDonut.length > 0) ins.push(`🔬 Tipo mais frequente: ${typeDonut[0].name} (${typeDonut[0].value} pacientes).`);
           ins.push("💡 Recomendação: revisar sinalização e checklist de transporte.");
           return ins;
         }} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

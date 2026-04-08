@@ -11,12 +11,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar
 } from "recharts";
-import { Pill, TrendingDown, AlertTriangle, Activity, Plus, Pencil, Loader2 } from "lucide-react";
+import { Pill, TrendingDown, AlertTriangle, Activity, Plus, Pencil, Loader2, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 
 const statusOptions = ["Em uso", "Desescalonado", "Suspenso", "Concluído"];
 const routeOptions = ["EV", "VO", "IM", "SC"];
@@ -114,6 +115,20 @@ export default function DashboardAntimicrobials() {
           <p className="text-xs md:text-sm text-muted-foreground">Stewardship e consumo de antimicrobianos</p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button variant="outline" size="sm" onClick={() => {
+            if (!hospitalId) return;
+            exportPdf({
+              type: "audits", hospitalId,
+              data: {
+                kpis: { avgCompliance: 0, totalAudits: prescriptions.length, nonCompliant: prescriptions.filter(p => !p.is_active).length },
+                audits: prescriptions.map(p => ({
+                  type: p.drug_name, sector: p.patients?.full_name || "", date: p.start_date?.split("T")[0] || "",
+                  compliance: p.is_active ? 100 : 0, compliant: p.is_active ? 1 : 0, total: 1,
+                })),
+              },
+              filenamePrefix: "antimicrobianos",
+            });
+          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
           <DashboardAIInsights generateInsights={() => [
             `📊 ${activePrescriptions.length} prescrições ativas de ${prescriptions.length} totais.`,
             `💊 ${prescriptions.filter(p => !p.is_active).length} prescrições suspensas/desescalonadas.`,

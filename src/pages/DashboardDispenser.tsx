@@ -1,14 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import { FlaskConical, CheckCircle, AlertTriangle, MapPin, Loader2 } from "lucide-react";
+import { FlaskConical, CheckCircle, AlertTriangle, MapPin, Loader2, Download } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 
 export default function DashboardDispenser() {
+  const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("dispenser");
+
+  const handleExportPdf = () => {
+    if (!hospitalId) return;
+    exportPdf({
+      type: "audits", hospitalId,
+      data: {
+        kpis: { avgCompliance: stats.avgCompliance, totalAudits: stats.totalAudits, nonCompliant: stats.nonCompliantItems },
+        audits: stats.sectorData.map(s => ({ type: "Dispensers", sector: s.name, date: "", compliance: s.compliance, compliant: s.audits - s.nonCompliant, total: s.audits })),
+      },
+      filenamePrefix: "dispensers",
+    });
+  };
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -26,13 +42,16 @@ export default function DashboardDispenser() {
           <h1 className="text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
           <p className="text-sm text-muted-foreground">Monitoramento de insumos e conformidade de dispensadores</p>
         </div>
-        <DashboardAIInsights generateInsights={() => {
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <DashboardAIInsights generateInsights={() => {
           const ins: string[] = [];
           ins.push(`📊 Conformidade geral de ${stats.avgCompliance}% com ${stats.totalAudits} dispensers auditados.`);
           if (stats.topFailures.length > 0) ins.push(`⚠️ Principal problema: "${stats.topFailures[0].item}" (${stats.topFailures[0].count}x).`);
           ins.push("💡 Recomendação: implementar rotina de reposição periódica.");
           return ins;
         }} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -13,9 +13,11 @@ import {
 } from "recharts";
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
-  TrendingDown, TrendingUp, Sparkles, FileText, Inbox, Loader2,
+  TrendingDown, TrendingUp, Sparkles, FileText, Inbox, Loader2, Download,
 } from "lucide-react";
 import { useISCDashboard } from "@/hooks/useISCDashboard";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
 
 const mesesNomes = [
@@ -57,6 +59,7 @@ const statusIcon = (rate: number) =>
   rate <= 2 ? <TrendingDown className="h-4 w-4" /> : rate <= 5 ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />;
 
 export default function DashboardISC() {
+  const { hospitalId } = useHospitalContext();
   const { records: allRecords, loading: dataLoading } = useISCDashboard();
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState("Todos");
@@ -193,9 +196,22 @@ export default function DashboardISC() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard ISC</h1>
-        <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Visão analítica</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard ISC</h1>
+          <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Visão analítica</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => {
+          if (!hospitalId) return;
+          exportPdf({
+            type: "isc", hospitalId,
+            data: {
+              kpis: { totalSurgeries: kpis.totalCirurgias, totalISC: kpis.totalISC, iscRate: kpis.taxaISC.toFixed(1) },
+              indicators: filtered.map(r => ({ procedimento: r.clinica, total_cirurgias: r.totalCirurgias, isc_confirmada: r.iscConfirmada })),
+            },
+            filenamePrefix: "isc",
+          });
+        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
       </div>
 
       {/* Filters */}

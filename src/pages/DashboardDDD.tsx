@@ -6,14 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2 } from "lucide-react";
+import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useDDDDashboard } from "@/hooks/useDDDDashboard";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 import AIAssistenteDDD from "@/components/AIAssistenteDDD";
 
 const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const COLORS = ["hsl(var(--primary))","hsl(var(--destructive))","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316"];
 
 export default function DashboardDDD() {
+  const { hospitalId } = useHospitalContext();
   const { data: allData, loading: dataLoading } = useDDDDashboard();
   const isEmpty = allData.length === 0;
 
@@ -110,11 +114,24 @@ export default function DashboardDDD() {
       </div>
     ) : (
     <>
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard DDD</h1>
-        <p className="text-sm text-muted-foreground">
-          Visualização do consumo de antimicrobianos — {allData.length} registro(s)
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard DDD</h1>
+          <p className="text-sm text-muted-foreground">
+            Visualização do consumo de antimicrobianos — {allData.length} registro(s)
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => {
+          if (!hospitalId) return;
+          exportPdf({
+            type: "ddd", hospitalId,
+            data: {
+              kpis: { totalDDD: totalConsumo, totalRecords: filtered.length, uniqueDrugs: antimicrobianos.length },
+              lines: filtered.slice(0, 80).map(d => ({ nome: d.antimicrobiano, apresentacao: d.unidade, quantidade: 0, total_g: d.totalG, indicador: d.indicadorConsumo })),
+            },
+            filenamePrefix: "ddd",
+          });
+        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
       </div>
 
       {isEmpty && (
