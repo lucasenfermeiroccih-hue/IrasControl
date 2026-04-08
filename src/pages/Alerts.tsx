@@ -1,168 +1,138 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Bell, AlertTriangle, ShieldAlert, CheckCircle, ArrowUpRight, Microscope, Pill, Activity, ThermometerSun } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { Bell, AlertTriangle, ShieldAlert, CheckCircle, ArrowUpRight, Loader2, Download } from "lucide-react";
 
-type Priority = "critico" | "alto" | "medio" | "baixo";
-type AlertType = "resistencia" | "surto" | "indicador" | "dispositivo" | "cultura";
-
-interface Alert {
-  id: string;
-  titulo: string;
-  descricao: string;
-  prioridade: Priority;
-  tipo: AlertType;
-  setor: string;
-  dataHora: string;
-  acaoSugerida: string;
-  resolvido: boolean;
-}
-
-const priorityConfig: Record<Priority, { label: string; color: string; variant: "destructive" | "default" | "secondary" | "outline" }> = {
-  critico: { label: "Crítico", color: "text-red-600", variant: "destructive" },
-  alto: { label: "Alto", color: "text-orange-600", variant: "default" },
-  medio: { label: "Médio", color: "text-yellow-600", variant: "secondary" },
-  baixo: { label: "Baixo", color: "text-blue-600", variant: "outline" },
+const severityConfig: Record<string, { label: string; variant: "destructive" | "default" | "secondary" | "outline" }> = {
+  critical: { label: "Crítico", variant: "destructive" },
+  high: { label: "Alto", variant: "default" },
+  medium: { label: "Médio", variant: "secondary" },
+  low: { label: "Baixo", variant: "outline" },
 };
-
-const typeIcons: Record<AlertType, typeof Bell> = {
-  resistencia: Microscope,
-  surto: ShieldAlert,
-  indicador: Activity,
-  dispositivo: ThermometerSun,
-  cultura: Pill,
-};
-
-const typeLabels: Record<AlertType, string> = {
-  resistencia: "Resistência", surto: "Surto", indicador: "Indicador", dispositivo: "Dispositivo", cultura: "Cultura",
-};
-
-const initialAlerts: Alert[] = [
-  { id: "ALT-001", titulo: "KPC detectada em hemocultura", descricao: "Paciente P-10234 da UTI Adulto com KPC em hemocultura coletada em 26/03. Sensível apenas a polimixina e tigeciclina.", prioridade: "critico", tipo: "resistencia", setor: "UTI Adulto", dataHora: "2026-03-28 08:30", acaoSugerida: "Acionar precauções de contato imediatas. Notificar CCIH. Revisar esquema antimicrobiano.", resolvido: false },
-  { id: "ALT-002", titulo: "Surto Acinetobacter — 3 casos em 48h", descricao: "Três pacientes dos leitos 5, 6 e 8 da UTI Adulto com culturas positivas para Acinetobacter baumannii MR nas últimas 48 horas.", prioridade: "critico", tipo: "surto", setor: "UTI Adulto", dataHora: "2026-03-28 07:15", acaoSugerida: "Investigar fonte comum. Reforçar limpeza terminal. Coletar culturas ambientais.", resolvido: false },
-  { id: "ALT-003", titulo: "Taxa IPCS-CVC acima da meta", descricao: "A densidade de incidência de IPCS-CVC na UTI Adulto atingiu 6.2/1000 CVC-dia, acima da meta de 5.0.", prioridade: "alto", tipo: "indicador", setor: "UTI Adulto", dataHora: "2026-03-27 18:00", acaoSugerida: "Revisar adesão ao bundle CVC. Intensificar auditorias. Discutir em reunião CCIH.", resolvido: false },
-  { id: "ALT-004", titulo: "Adesão higiene mãos < 50%", descricao: "A adesão à higiene das mãos no Pronto Socorro caiu para 42% na última semana.", prioridade: "alto", tipo: "indicador", setor: "Pronto Socorro", dataHora: "2026-03-27 14:30", acaoSugerida: "Reforçar treinamento. Verificar dispensers. Feedback individual.", resolvido: false },
-  { id: "ALT-005", titulo: "CVC > 14 dias sem reavaliação", descricao: "Paciente P-10890 da UTI Neonatal com CVC há 16 dias sem registro de reavaliação de necessidade.", prioridade: "alto", tipo: "dispositivo", setor: "UTI Neonatal", dataHora: "2026-03-27 10:00", acaoSugerida: "Solicitar reavaliação médica de necessidade do CVC.", resolvido: false },
-  { id: "ALT-006", titulo: "VRE em urocultura", descricao: "Paciente P-11023 da Enfermaria A com VRE isolado em urocultura.", prioridade: "medio", tipo: "resistencia", setor: "Enfermaria A", dataHora: "2026-03-27 09:45", acaoSugerida: "Instalar precauções de contato. Notificar CCIH.", resolvido: false },
-  { id: "ALT-007", titulo: "Dispenser álcool vazio — UTI Ped.", descricao: "Dois dispensers de álcool gel na UTI Pediátrica estão vazios há mais de 4 horas.", prioridade: "medio", tipo: "dispositivo", setor: "UTI Pediátrica", dataHora: "2026-03-28 06:00", acaoSugerida: "Solicitar reposição imediata ao setor de suprimentos.", resolvido: true },
-  { id: "ALT-008", titulo: "MRSA em swab admissional", descricao: "Paciente P-11345 admitido no PS com MRSA em swab nasal.", prioridade: "medio", tipo: "cultura", setor: "Pronto Socorro", dataHora: "2026-03-26 20:00", acaoSugerida: "Instalar precauções de contato. Avaliar descolonização.", resolvido: false },
-  { id: "ALT-009", titulo: "Taxa PAV acima do percentil 75", descricao: "Densidade de PAV na UTI Adulto em 8.1/1000 VM-dia, acima do percentil 75 NHSN.", prioridade: "alto", tipo: "indicador", setor: "UTI Adulto", dataHora: "2026-03-26 18:00", acaoSugerida: "Auditar bundle PAV. Verificar elevação de cabeceira e pausa de sedação.", resolvido: false },
-  { id: "ALT-010", titulo: "Candida auris — caso suspeito", descricao: "Paciente P-11200 com cultura de ponta de CVC positiva para Candida sp. em identificação.", prioridade: "critico", tipo: "resistencia", setor: "UTI Adulto", dataHora: "2026-03-26 15:30", acaoSugerida: "Aguardar identificação. Preparar isolamento preventivo. Notificar vigilância.", resolvido: false },
-  { id: "ALT-011", titulo: "SVD > 7 dias — Enfermaria B", descricao: "3 pacientes na Enfermaria B com SVD há mais de 7 dias sem reavaliação.", prioridade: "medio", tipo: "dispositivo", setor: "Enfermaria B", dataHora: "2026-03-26 12:00", acaoSugerida: "Solicitar reavaliação de indicação de SVD.", resolvido: true },
-  { id: "ALT-012", titulo: "Hemoculturas pendentes > 48h", descricao: "5 hemoculturas coletadas na UTI Neonatal há mais de 48h sem resultado liberado.", prioridade: "baixo", tipo: "cultura", setor: "UTI Neonatal", dataHora: "2026-03-26 10:00", acaoSugerida: "Contatar laboratório para agilizar liberação.", resolvido: false },
-  { id: "ALT-013", titulo: "ESBL em cultura de secreção", descricao: "Paciente P-10567 com E. coli ESBL em cultura de secreção de ferida operatória.", prioridade: "medio", tipo: "resistencia", setor: "CC", dataHora: "2026-03-25 16:00", acaoSugerida: "Ajustar antibioticoterapia. Precauções de contato.", resolvido: true },
-  { id: "ALT-014", titulo: "Limpeza terminal atrasada", descricao: "Leito 12 da UTI Adulto após alta de paciente com KPC não passou por limpeza terminal.", prioridade: "alto", tipo: "dispositivo", setor: "UTI Adulto", dataHora: "2026-03-25 14:00", acaoSugerida: "Não admitir novo paciente até limpeza terminal concluída.", resolvido: true },
-  { id: "ALT-015", titulo: "Consumo carbapenêmicos +30%", descricao: "O consumo de carbapenêmicos na UTI Adulto aumentou 30% no último mês em relação à média trimestral.", prioridade: "baixo", tipo: "indicador", setor: "UTI Adulto", dataHora: "2026-03-25 09:00", acaoSugerida: "Revisar prescrições. Discutir stewardship com farmácia clínica.", resolvido: false },
-];
 
 const Alerts = () => {
-  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-  const [filterPriority, setFilterPriority] = useState("todos");
-  const [filterType, setFilterType] = useState("todos");
-  const [filterSetor, setFilterSetor] = useState("todos");
-  const [detail, setDetail] = useState<Alert | null>(null);
+  const { hospitalId, loading: ctxLoading } = useHospitalContext();
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterSeverity, setFilterSeverity] = useState("todos");
+  const [filterStatus, setFilterStatus] = useState("todos");
+  const [detail, setDetail] = useState<any | null>(null);
 
-  const filtered = alerts.filter((a) => {
-    if (filterPriority !== "todos" && a.prioridade !== filterPriority) return false;
-    if (filterType !== "todos" && a.tipo !== filterType) return false;
-    if (filterSetor !== "todos" && a.setor !== filterSetor) return false;
+  const fetchAlerts = async () => {
+    if (!hospitalId) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("alerts")
+      .select("*")
+      .eq("hospital_id", hospitalId)
+      .order("created_at", { ascending: false });
+    setAlerts(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { if (hospitalId) fetchAlerts(); }, [hospitalId]);
+
+  const filtered = alerts.filter(a => {
+    if (filterSeverity !== "todos" && a.severity !== filterSeverity) return false;
+    if (filterStatus !== "todos" && a.status !== filterStatus) return false;
     return true;
   });
 
-  const setores = [...new Set(alerts.map((a) => a.setor))];
+  const handleResolve = async (id: string) => {
+    await supabase.from("alerts").update({ status: "resolved" as const, resolved_at: new Date().toISOString() }).eq("id", id);
+    toast.success("Alerta resolvido!");
+    setDetail(null);
+    fetchAlerts();
+  };
+
+  const handleExportPDF = async () => {
+    toast.info("Gerando PDF...");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        body: {
+          type: "alerts", hospitalId,
+          data: { alerts: alerts.map(a => ({ title: a.title, severity: a.severity, status: a.status, date: a.created_at?.split("T")[0] || "" })) },
+        },
+      });
+      if (error) throw error;
+      if (data?.pdf) {
+        const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `alertas-${new Date().toISOString().split("T")[0]}.pdf`; a.click();
+        URL.revokeObjectURL(url);
+        toast.success("PDF exportado!");
+      }
+    } catch { toast.error("Erro ao gerar PDF"); }
+  };
+
+  if (ctxLoading || loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
 
   const kpis = {
     total: alerts.length,
-    criticosAtivos: alerts.filter((a) => a.prioridade === "critico" && !a.resolvido).length,
-    resolvidosHoje: alerts.filter((a) => a.resolvido && a.dataHora.startsWith("2026-03-28")).length,
-    pendentes: alerts.filter((a) => !a.resolvido).length,
-  };
-
-  const handleResolve = (id: string) => {
-    setAlerts(alerts.map((a) => a.id === id ? { ...a, resolvido: true } : a));
-    toast.success("Alerta resolvido!");
-    setDetail(null);
-  };
-
-  const handleEscalate = (id: string) => {
-    toast.info("Alerta escalado para coordenação CCIH.");
-    setDetail(null);
+    criticos: alerts.filter(a => a.severity === "critical" && a.status === "active").length,
+    resolvidos: alerts.filter(a => a.status === "resolved").length,
+    pendentes: alerts.filter(a => a.status === "active").length,
   };
 
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Alertas Críticos</h1>
-          <p className="text-muted-foreground">Central de alertas e notificações do sistema</p>
-        </div>
+        <div><h1 className="text-2xl font-bold">Alertas</h1><p className="text-muted-foreground">Central de alertas e notificações</p></div>
+        <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6 text-center"><Bell className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total Alertas</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-2" /><p className="text-2xl font-bold">{kpis.criticosAtivos}</p><p className="text-sm text-muted-foreground">Críticos Ativos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><CheckCircle className="mx-auto h-8 w-8 text-green-600 mb-2" /><p className="text-2xl font-bold">{kpis.resolvidosHoje}</p><p className="text-sm text-muted-foreground">Resolvidos Hoje</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><ShieldAlert className="mx-auto h-8 w-8 text-yellow-600 mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Bell className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-2" /><p className="text-2xl font-bold">{kpis.criticos}</p><p className="text-sm text-muted-foreground">Críticos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><CheckCircle className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-2xl font-bold">{kpis.resolvidos}</p><p className="text-sm text-muted-foreground">Resolvidos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><ShieldAlert className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
+        <Select value={filterSeverity} onValueChange={setFilterSeverity}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Prioridade</SelectItem>
-            <SelectItem value="critico">Crítico</SelectItem>
-            <SelectItem value="alto">Alto</SelectItem>
-            <SelectItem value="medio">Médio</SelectItem>
-            <SelectItem value="baixo">Baixo</SelectItem>
+            <SelectItem value="todos">Severidade</SelectItem>
+            <SelectItem value="critical">Crítico</SelectItem>
+            <SelectItem value="high">Alto</SelectItem>
+            <SelectItem value="medium">Médio</SelectItem>
+            <SelectItem value="low">Baixo</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Tipo</SelectItem>
-            <SelectItem value="resistencia">Resistência</SelectItem>
-            <SelectItem value="surto">Surto</SelectItem>
-            <SelectItem value="indicador">Indicador</SelectItem>
-            <SelectItem value="dispositivo">Dispositivo</SelectItem>
-            <SelectItem value="cultura">Cultura</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterSetor} onValueChange={setFilterSetor}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Setor</SelectItem>
-            {setores.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            <SelectItem value="todos">Status</SelectItem>
+            <SelectItem value="active">Ativo</SelectItem>
+            <SelectItem value="acknowledged">Reconhecido</SelectItem>
+            <SelectItem value="resolved">Resolvido</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Alert List */}
       <div className="space-y-3">
-        {filtered.map((alert) => {
-          const Icon = typeIcons[alert.tipo];
-          const pc = priorityConfig[alert.prioridade];
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhum alerta encontrado.</p>}
+        {filtered.map(alert => {
+          const sc = severityConfig[alert.severity] || severityConfig.medium;
           return (
-            <Card key={alert.id} className={`cursor-pointer transition-colors hover:bg-muted/30 ${alert.resolvido ? "opacity-60" : ""}`} onClick={() => setDetail(alert)}>
+            <Card key={alert.id} className={`cursor-pointer hover:bg-muted/30 ${alert.status === "resolved" ? "opacity-60" : ""}`} onClick={() => setDetail(alert)}>
               <CardContent className="flex items-start gap-4 py-4">
-                <div className={`mt-0.5 ${pc.color}`}><Icon className="h-5 w-5" /></div>
+                <AlertTriangle className={`h-5 w-5 mt-0.5 ${alert.severity === "critical" ? "text-destructive" : "text-warning"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant={pc.variant} className="text-xs">{pc.label}</Badge>
-                    <Badge variant="outline" className="text-xs">{typeLabels[alert.tipo]}</Badge>
-                    <span className="text-xs text-muted-foreground ml-auto">{alert.dataHora}</span>
+                    <Badge variant={sc.variant} className="text-xs">{sc.label}</Badge>
+                    <Badge variant="outline" className="text-xs">{alert.status}</Badge>
+                    <span className="text-xs text-muted-foreground ml-auto">{alert.created_at?.split("T")[0]}</span>
                   </div>
-                  <h3 className={`font-semibold text-sm ${alert.resolvido ? "line-through" : ""}`}>{alert.titulo}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{alert.descricao}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className="text-xs">{alert.setor}</Badge>
-                    {alert.resolvido && <Badge variant="secondary" className="text-xs">Resolvido</Badge>}
-                  </div>
+                  <h3 className={`font-semibold text-sm ${alert.status === "resolved" ? "line-through" : ""}`}>{alert.title}</h3>
+                  {alert.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{alert.description}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -170,23 +140,20 @@ const Alerts = () => {
         })}
       </div>
 
-      {/* Detail Dialog */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent className="max-w-lg">
           {detail && (
             <>
-              <DialogHeader><DialogTitle className="flex items-center gap-2"><Badge variant={priorityConfig[detail.prioridade].variant}>{priorityConfig[detail.prioridade].label}</Badge>{detail.titulo}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{detail.title}</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="flex gap-2 text-xs"><Badge variant="outline">{typeLabels[detail.tipo]}</Badge><Badge variant="outline">{detail.setor}</Badge><span className="text-muted-foreground ml-auto">{detail.dataHora}</span></div>
-                <p className="text-sm">{detail.descricao}</p>
-                <div className="bg-muted/50 p-3 rounded-md">
-                  <h4 className="text-sm font-semibold mb-1">Ação Sugerida</h4>
-                  <p className="text-sm text-muted-foreground">{detail.acaoSugerida}</p>
+                <div className="flex gap-2 text-xs">
+                  <Badge variant={severityConfig[detail.severity]?.variant || "outline"}>{severityConfig[detail.severity]?.label || detail.severity}</Badge>
+                  <Badge variant="outline">{detail.status}</Badge>
                 </div>
-                {!detail.resolvido && (
+                {detail.description && <p className="text-sm">{detail.description}</p>}
+                {detail.status === "active" && (
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleResolve(detail.id)}><CheckCircle className="mr-1 h-4 w-4" />Resolver</Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEscalate(detail.id)}><ArrowUpRight className="mr-1 h-4 w-4" />Escalar</Button>
                   </div>
                 )}
               </div>
