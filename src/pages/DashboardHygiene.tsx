@@ -1,49 +1,27 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell
 } from "recharts";
-import { HandMetal, CheckCircle, AlertTriangle, Users } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { HandMetal, CheckCircle, AlertTriangle, Users, Loader2 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
-import DashboardFilters from "@/components/DashboardFilters";
+import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 
-const kpis = [
-  { label: "Taxa de Adesão", value: "78.5%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-  { label: "Observações Mês", value: "312", icon: HandMetal, color: "text-primary", bg: "bg-primary/10" },
-  { label: "Oportunidades Perdidas", value: "67", icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
-  { label: "Profissionais Avaliados", value: "84", icon: Users, color: "text-info", bg: "bg-info/10" },
-];
-
-const momentsData = [
-  { moment: "Antes do Paciente", conformity: 72 },
-  { moment: "Antes Proc. Asséptico", conformity: 68 },
-  { moment: "Após Risco Fluido", conformity: 85 },
-  { moment: "Após Paciente", conformity: 82 },
-  { moment: "Após Ambiente", conformity: 76 },
-];
-
-const categoryData = [
-  { name: "Médicos", value: 72, color: "hsl(168, 66%, 34%)" },
-  { name: "Enfermeiros", value: 85, color: "hsl(199, 89%, 48%)" },
-  { name: "Técnicos", value: 78, color: "hsl(38, 92%, 50%)" },
-  { name: "Fisioterapeutas", value: 81, color: "hsl(280, 65%, 60%)" },
-];
-
-const records = [
-  { id: 1, professional: "Dr. Carlos Silva", date: "2026-03-25", moment: "Antes do Paciente", technique: "Álcool Gel", status: "Conforme" },
-  { id: 2, professional: "Enf. Maria Santos", date: "2026-03-25", moment: "Após Paciente", technique: "Água e Sabão", status: "Conforme" },
-  { id: 3, professional: "Téc. João Oliveira", date: "2026-03-24", moment: "Antes Proc. Asséptico", technique: "Não realizado", status: "Não Conforme" },
-  { id: 4, professional: "Dra. Ana Costa", date: "2026-03-24", moment: "Após Risco Fluido", technique: "Álcool Gel", status: "Conforme" },
-  { id: 5, professional: "Fisio. Pedro Lima", date: "2026-03-23", moment: "Após Ambiente", technique: "Não realizado", status: "Não Conforme" },
-];
+const COLORS = ["hsl(168, 66%, 34%)", "hsl(199, 89%, 48%)", "hsl(38, 92%, 50%)", "hsl(280, 65%, 60%)", "hsl(0, 72%, 51%)"];
 
 export default function DashboardHygiene() {
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const { stats, loading } = useAuditDashboard("hand_hygiene");
+
+  if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  const kpis = [
+    { label: "Taxa de Adesão", value: `${stats.avgCompliance}%`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+    { label: "Observações Mês", value: String(stats.totalAudits), icon: HandMetal, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Não Conformidades", value: String(stats.nonCompliantItems), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
+    { label: "Setores Avaliados", value: String(stats.sectorData.length), icon: Users, color: "text-info", bg: "bg-info/10" },
+  ];
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -51,16 +29,15 @@ export default function DashboardHygiene() {
           <h1 className="text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
           <p className="text-sm text-muted-foreground">Indicadores de adesão aos 5 momentos da OMS</p>
         </div>
-        <DashboardAIInsights generateInsights={() => [
-          "📊 Taxa de adesão geral de 78.5% com 312 observações no mês.",
-          "⚠️ 67 oportunidades perdidas — momentos 'Antes do Procedimento Asséptico' (68%) e 'Antes do Paciente' (72%) são os mais críticos.",
-          "👨‍⚕️ Médicos com menor adesão (72%) — considerar ações educativas direcionadas.",
-          "✅ Enfermeiros lideram com 85% de adesão — referência para boas práticas.",
-          "💡 Recomendação: implementar feedback em tempo real e campanhas focadas nos momentos 1 e 2.",
-        ]} />
+        <DashboardAIInsights generateInsights={() => {
+          const ins: string[] = [];
+          ins.push(`📊 Taxa de adesão geral de ${stats.avgCompliance}% com ${stats.totalAudits} observações.`);
+          if (stats.nonCompliantItems > 0) ins.push(`⚠️ ${stats.nonCompliantItems} oportunidades perdidas.`);
+          if (stats.topFailures.length > 0) ins.push(`🔻 Item mais crítico: "${stats.topFailures[0].item}".`);
+          ins.push("💡 Recomendação: feedback em tempo real e campanhas focadas nos momentos mais frágeis.");
+          return ins;
+        }} />
       </div>
-
-      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
@@ -80,38 +57,38 @@ export default function DashboardHygiene() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Adesão por Momento OMS (%)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Conformidade por Categoria (%)</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={momentsData}>
+              <BarChart data={stats.categoryData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="moment" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="conformity" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="compliance" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Adesão por Categoria Profissional</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Conformidade por Setor</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={3}>
-                    {categoryData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  <Pie data={stats.sectorData.map(s => ({ name: s.name, value: s.compliance }))} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={3}>
+                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip formatter={(v: number) => `${v}%`} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {categoryData.map((d) => (
+                {stats.sectorData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     <span className="text-muted-foreground">{d.name}</span>
-                    <span className="font-semibold ml-auto">{d.value}%</span>
+                    <span className="font-semibold ml-auto">{d.compliance}%</span>
                   </div>
                 ))}
               </div>
@@ -120,37 +97,26 @@ export default function DashboardHygiene() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Últimos Registros</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Profissional</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Momento</TableHead>
-                <TableHead>Técnica</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {records.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.professional}</TableCell>
-                  <TableCell>{r.date}</TableCell>
-                  <TableCell>{r.moment}</TableCell>
-                  <TableCell>{r.technique}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge className={r.status === "Conforme" ? "bg-success/20 text-success border-success/30" : "bg-destructive/20 text-destructive border-destructive/30"}>
-                      {r.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {stats.topFailures.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Principais Não Conformidades</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {stats.topFailures.map((f, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">{i + 1}</span>
+                  <span className="text-sm font-medium">{f.item}</span>
+                </div>
+                <span className="text-sm font-bold text-destructive">{f.count}x</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.totalAudits === 0 && (
+        <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground"><p className="text-sm">Nenhuma auditoria de higienização registrada.</p></CardContent></Card>
+      )}
     </div>
   );
 }

@@ -1,48 +1,13 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { CheckCircle, AlertTriangle, TrendingUp, Activity } from "lucide-react";
+import { CheckCircle, AlertTriangle, TrendingUp, Activity, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
-import DashboardFilters from "@/components/DashboardFilters";
-
-const kpis = [
-  { label: "Taxa Adesão CVC", value: "87.3%", icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-  { label: "Taxa Adesão SVD", value: "91.5%", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-  { label: "Auditorias Realizadas", value: "142", icon: Activity, color: "text-info", bg: "bg-info/10" },
-  { label: "Não Conformidades", value: "18", icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-];
-
-const cvcDonut = [
-  { name: "Conforme", value: 87, color: "hsl(var(--success))" },
-  { name: "Não Conforme", value: 13, color: "hsl(var(--destructive))" },
-];
-
-const svdDonut = [
-  { name: "Conforme", value: 92, color: "hsl(var(--success))" },
-  { name: "Não Conforme", value: 8, color: "hsl(var(--destructive))" },
-];
-
-const monthlyData = [
-  { month: "Jan", cvc: 82, svd: 88 },
-  { month: "Fev", cvc: 85, svd: 89 },
-  { month: "Mar", cvc: 84, svd: 91 },
-  { month: "Abr", cvc: 88, svd: 90 },
-  { month: "Mai", cvc: 87, svd: 93 },
-  { month: "Jun", cvc: 89, svd: 92 },
-];
-
-const detailTable = [
-  { setor: "UTI Adulto", cvcRate: 92, svdRate: 95, audits: 28, status: "Adequado" },
-  { setor: "UTI Neonatal", cvcRate: 88, svdRate: 91, audits: 22, status: "Adequado" },
-  { setor: "Clínica Médica", cvcRate: 78, svdRate: 85, audits: 35, status: "Atenção" },
-  { setor: "Centro Cirúrgico", cvcRate: 85, svdRate: 89, audits: 30, status: "Adequado" },
-  { setor: "Emergência", cvcRate: 72, svdRate: 80, audits: 27, status: "Crítico" },
-];
+import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 
 function getStatusBadge(status: string) {
   if (status === "Crítico") return <Badge variant="destructive">{status}</Badge>;
@@ -51,9 +16,23 @@ function getStatusBadge(status: string) {
 }
 
 export default function DashboardBundles() {
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const { stats, loading } = useAuditDashboard("bundles");
+
+  if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  const kpis = [
+    { label: "Conformidade Geral", value: `${stats.avgCompliance}%`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+    { label: "Auditorias Realizadas", value: String(stats.totalAudits), icon: Activity, color: "text-info", bg: "bg-info/10" },
+    { label: "Não Conformidades", value: String(stats.nonCompliantItems), icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Melhoria Período", value: `${stats.improvement >= 0 ? "+" : ""}${stats.improvement}%`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
+  ];
+
+  const conformeCount = Math.round(stats.avgCompliance);
+  const donutData = [
+    { name: "Conforme", value: conformeCount, color: "hsl(var(--success))" },
+    { name: "Não Conforme", value: 100 - conformeCount, color: "hsl(var(--destructive))" },
+  ];
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
@@ -61,16 +40,17 @@ export default function DashboardBundles() {
           <h1 className="text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
           <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
         </div>
-        <DashboardAIInsights generateInsights={() => [
-          "📊 CVC com 87.3% e SVD com 91.5% de conformidade — tendência de melhoria.",
-          "⚠️ Emergência com taxa crítica (CVC 72%, SVD 80%) — setor prioritário.",
-          "🔻 18 não conformidades registradas — Clínica Médica em nível de atenção.",
-          "✅ UTI Adulto e Centro Cirúrgico com desempenho acima de 85% em ambos os bundles.",
-          "💡 Recomendação: reforçar checklist de bundles na Emergência com supervisão direta.",
-        ]} />
+        <DashboardAIInsights generateInsights={() => {
+          const ins: string[] = [];
+          ins.push(`📊 Conformidade geral de ${stats.avgCompliance}% com ${stats.totalAudits} auditorias.`);
+          if (stats.nonCompliantItems > 0) ins.push(`⚠️ ${stats.nonCompliantItems} itens não conformes identificados.`);
+          if (stats.topFailures.length > 0) ins.push(`🔻 Principal falha: "${stats.topFailures[0].item}" (${stats.topFailures[0].count}x).`);
+          const bestSector = stats.sectorData.sort((a, b) => b.compliance - a.compliance)[0];
+          if (bestSector) ins.push(`✅ Melhor setor: ${bestSector.name} com ${bestSector.compliance}%.`);
+          ins.push("💡 Recomendação: reforçar checklist de bundles nos setores com menor conformidade.");
+          return ins;
+        }} />
       </div>
-
-      <DashboardFilters mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
@@ -90,12 +70,12 @@ export default function DashboardBundles() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Adesão CVC</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Conformidade Geral</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={cvcDonut} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" label={({ name, value }) => `${name}: ${value}%`} labelLine={false}>
-                  {cvcDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" label={({ name, value }) => `${name}: ${value}%`} labelLine={false}>
+                  {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip formatter={(value: number) => `${value}%`} />
                 <Legend />
@@ -105,65 +85,58 @@ export default function DashboardBundles() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Adesão SVD</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Evolução Mensal (%)</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={svdDonut} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" label={({ name, value }) => `${name}: ${value}%`} labelLine={false}>
-                  {svdDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip formatter={(value: number) => `${value}%`} />
-                <Legend />
-              </PieChart>
+              <BarChart data={stats.monthlyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="compliance" name="Conformidade %" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Evolução Mensal de Adesão (%)</CardTitle></CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis domain={[60, 100]} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="cvc" name="CVC" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="svd" name="SVD" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Detalhamento por Setor</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Setor</TableHead>
-                <TableHead className="text-center">CVC (%)</TableHead>
-                <TableHead className="text-center">SVD (%)</TableHead>
-                <TableHead className="text-center">Auditorias</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detailTable.map((r) => (
-                <TableRow key={r.setor}>
-                  <TableCell className="font-medium">{r.setor}</TableCell>
-                  <TableCell className="text-center">{r.cvcRate}%</TableCell>
-                  <TableCell className="text-center">{r.svdRate}%</TableCell>
-                  <TableCell className="text-center">{r.audits}</TableCell>
-                  <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+      {stats.sectorData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Detalhamento por Setor</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-center">Conformidade (%)</TableHead>
+                  <TableHead className="text-center">Auditorias</TableHead>
+                  <TableHead className="text-center">Não Conformes</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {stats.sectorData.map((r) => (
+                  <TableRow key={r.name}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell className="text-center">{r.compliance}%</TableCell>
+                    <TableCell className="text-center">{r.audits}</TableCell>
+                    <TableCell className="text-center">{r.nonCompliant}</TableCell>
+                    <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.totalAudits === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <p className="text-sm">Nenhuma auditoria de bundles registrada. Crie uma nova auditoria para ver os dados aqui.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
