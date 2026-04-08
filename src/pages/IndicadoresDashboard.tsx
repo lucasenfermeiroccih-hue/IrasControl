@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Activity, TrendingUp, TrendingDown, Minus, Brain, FileText, Filter,
+  Activity, TrendingUp, TrendingDown, Minus, Brain, FileText, Filter, Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
 import { mesesOptions, setorOptions } from "@/data/indicadores-config";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { exportPdf } from "@/lib/pdf-export";
 import { Loader2 } from "lucide-react";
 
 function safeDiv(n: number, d: number, mult: number) {
@@ -104,14 +106,29 @@ export default function IndicadoresDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Activity className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Activity className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg md:text-2xl font-bold text-foreground font-heading">Dashboard de Indicadores</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Análise dos indicadores epidemiológicos</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg md:text-2xl font-bold text-foreground font-heading">Dashboard de Indicadores</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">Análise dos indicadores epidemiológicos</p>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => {
+          if (!hospitalId) return;
+          exportPdf({
+            type: "analytics", hospitalId,
+            data: {
+              kpis: { totalCases: filtered.length, confirmedCases: 0, avgCompliance: 0, criticalAlerts: 0 },
+              monthlyTrend: lineData?.map((d: any) => ({ mes: d.mes, iras: d.taxaInfeccao, meta: 0 })) || [],
+              infectionBySector: tableData?.map((d: any) => ({ setor: d.setor, casos: d.taxaInfeccao })) || [],
+              resistanceProfile: [],
+            },
+            filenamePrefix: "indicadores",
+          });
+        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
       </div>
 
       <Card>
