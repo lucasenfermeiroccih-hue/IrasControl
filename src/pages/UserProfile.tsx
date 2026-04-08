@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,104 +10,169 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Lock, Bell, Clock, Shield, LogOut, Camera, Loader2 } from "lucide-react";
+import { User, Lock, Bell, Shield, LogOut, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Admin",
+  hospital_admin: "Administrador",
+  nurse_ccih: "Enfermeiro(a) CCIH",
+  doctor: "Médico(a)",
+  doctor_scih: "Médico(a) SCIH",
+  nurse_tech_scih: "Téc. Enfermagem SCIH",
+  lab_tech: "Técnico Lab.",
+  biologist: "Biólogo(a)",
+  administrative: "Administrativo",
+  viewer: "Visualizador",
+};
+
 export default function UserProfile() {
-  const [name, setName] = useState("Dr. Carlos Mendes");
-  const [email] = useState("carlos.mendes@hospital.com");
-  const [phone, setPhone] = useState("(11) 99876-5432");
-  const [specialty, setSpecialty] = useState("Infectologia");
-  const [council, setCouncil] = useState("CRM-SP 123456");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [roles, setRoles] = useState<string[]>([]);
+  const [hospitalName, setHospitalName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Password
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
   useEffect(() => {
-    const loadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email, phone")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profile) {
-        setName(profile.full_name || "");
-        setPhone(profile.phone || "");
-      }
-
-      // Check for existing avatar
-      const { data: files } = await supabase.storage
-        .from("avatars")
-        .list(user.id, { limit: 1, sortBy: { column: "created_at", order: "desc" } });
-
-      if (files && files.length > 0) {
-        const { data: urlData } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(`${user.id}/${files[0].name}`);
-        setAvatarUrl(urlData.publicUrl);
-      }
-    };
     loadProfile();
   }, []);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/login"); return; }
+
+    // Parallel: profile, roles, hospital membership
+    const [{ data: profile }, { data: userRoles }, { data: membership }] = await Promise.all([
+      supabase.from("profiles").select("full_name, email, phone").eq("user_id", user.id).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", user.id),
+      supabase.from("hospital_users").select("hospital_id, hospitals(name)").eq("user_id", user.id).limit(1).maybeSingle(),
+    ]);
+
+    if (profile) {
+      setName(profile.full_name || "");
+      setEmail(profile.email || user.email || "");
+      setPhone(profile.phone || "");
+    } else {
+      setEmail(user.email || "");
+    }
+
+    setRoles((userRoles || []).map((r: any) => r.role));
+
+    if (membership) {
+      const hosp = (membership as any).hospitals;
+      if (hosp) setHospitalName(hosp.name);
+    }
+
+    // Avatar
+    const { data: files } = await supabase.storage
+      .from("avatars")
+      .list(user.id, { limit: 1, sortBy: { column: "created_at", order: "desc" } });
+
+    if (files && files.length > 0) {
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(`${user.id}/${files[0].name}`);
+      setAvatarUrl(urlData.publicUrl);
+    }
+
+    setLoading(false);
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: name, phone: phone || null })
+      .eq("user_id", user.id);
+
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+    } else {
+      toast.success("Dados atualizados com sucesso!");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("A nova senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setChangingPassword(false);
+    if (error) {
+      toast.error("Erro ao alterar senha: " + error.message);
+    } else {
+      toast.success("Senha alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
-      toast.error("Formato inválido. Use JPG, PNG ou WebP.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 2MB.");
-      return;
-    }
+    if (!validTypes.includes(file.type)) { toast.error("Formato inválido. Use JPG, PNG ou WebP."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("A imagem deve ter no máximo 2MB."); return; }
 
     setUploadingAvatar(true);
-
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("Usuário não autenticado");
-      setUploadingAvatar(false);
-      return;
-    }
+    if (!user) { toast.error("Usuário não autenticado"); setUploadingAvatar(false); return; }
 
     const ext = file.name.split(".").pop();
     const filePath = `${user.id}/avatar.${ext}`;
 
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, file, { upsert: true });
-
+    const { error } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
     setUploadingAvatar(false);
 
-    if (error) {
-      toast.error("Erro ao enviar foto: " + error.message);
-      return;
-    }
+    if (error) { toast.error("Erro ao enviar foto: " + error.message); return; }
 
-    const { data: urlData } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(filePath);
-
-    // Add cache buster
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
     setAvatarUrl(`${urlData.publicUrl}?t=${Date.now()}`);
     toast.success("Foto atualizada com sucesso!");
-
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("selected_hospital_id");
+    navigate("/login");
   };
 
   const initials = name
     ? name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "U";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto">
@@ -118,7 +184,6 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -149,12 +214,20 @@ export default function UserProfile() {
             </button>
           </div>
           <div className="text-center md:text-left flex-1">
-            <h2 className="text-xl font-bold">{name}</h2>
+            <h2 className="text-xl font-bold">{name || "Usuário"}</h2>
             <p className="text-sm text-muted-foreground">{email}</p>
+            {hospitalName && (
+              <p className="text-xs text-muted-foreground mt-0.5">{hospitalName}</p>
+            )}
             <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
-              <Badge className="bg-primary text-primary-foreground">Administrador</Badge>
-              <Badge variant="outline">CCIH</Badge>
-              <Badge variant="outline">{specialty}</Badge>
+              {roles.map((r) => (
+                <Badge key={r} className="bg-primary/10 text-primary border-primary/30" variant="outline">
+                  {ROLE_LABELS[r] || r}
+                </Badge>
+              ))}
+              {roles.length === 0 && (
+                <Badge variant="outline">Sem perfil atribuído</Badge>
+              )}
             </div>
           </div>
           <Button
@@ -183,25 +256,23 @@ export default function UserProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nome Completo</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-                <div className="space-y-2"><Label>E-mail</Label><Input value={email} disabled className="bg-muted" /></div>
-                <div className="space-y-2"><Label>Telefone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Especialidade</Label><Input value={specialty} onChange={(e) => setSpecialty(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Registro Conselho</Label><Input value={council} onChange={(e) => setCouncil(e.target.value)} /></div>
                 <div className="space-y-2">
-                  <Label>Setor Principal</Label>
-                  <Select defaultValue="ccih">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ccih">CCIH</SelectItem>
-                      <SelectItem value="uti">UTI Adulto</SelectItem>
-                      <SelectItem value="neonatal">UTI Neonatal</SelectItem>
-                      <SelectItem value="clinica">Clínica Médica</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Nome Completo</Label>
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail</Label>
+                  <Input value={email} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone</Label>
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-0000" />
                 </div>
               </div>
-              <Button onClick={() => toast.success("Dados atualizados com sucesso")}>Salvar Alterações</Button>
+              <Button onClick={handleSaveProfile} disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Salvar Alterações
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -212,48 +283,42 @@ export default function UserProfile() {
               <CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" />Alterar Senha</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2"><Label>Senha Atual</Label><Input type="password" placeholder="••••••••" /></div>
-              <div className="space-y-2"><Label>Nova Senha</Label><Input type="password" placeholder="••••••••" /></div>
-              <div className="space-y-2"><Label>Confirmar Nova Senha</Label><Input type="password" placeholder="••••••••" /></div>
-              <Button onClick={() => toast.success("Senha alterada com sucesso")}>Alterar Senha</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" />Autenticação de Dois Fatores</CardTitle>
-              <CardDescription>Adicione uma camada extra de segurança à sua conta</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">2FA via Aplicativo</p>
-                  <p className="text-xs text-muted-foreground">Google Authenticator ou similar</p>
-                </div>
-                <Switch />
+              <div className="space-y-2">
+                <Label>Nova Senha</Label>
+                <Input type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Confirmar Nova Senha</Label>
+                <Input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              </div>
+              <Button onClick={handleChangePassword} disabled={changingPassword}>
+                {changingPassword && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Alterar Senha
+              </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />Sessões Ativas</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" />Informações da Conta</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium">Chrome — Windows 11</p>
-                  <p className="text-xs text-muted-foreground">São Paulo, BR · Agora (sessão atual)</p>
+                  <p className="text-sm font-medium">Perfis de Acesso</p>
+                  <p className="text-xs text-muted-foreground">
+                    {roles.map(r => ROLE_LABELS[r] || r).join(", ") || "Nenhum"}
+                  </p>
                 </div>
-                <Badge className="bg-emerald-500 text-white">Ativa</Badge>
               </div>
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Safari — iPad</p>
-                  <p className="text-xs text-muted-foreground">São Paulo, BR · 28/03/2026 16:30</p>
+              {hospitalName && (
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">Hospital Vinculado</p>
+                    <p className="text-xs text-muted-foreground">{hospitalName}</p>
+                  </div>
                 </div>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => toast.success("Sessão encerrada")}>Encerrar</Button>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -278,23 +343,10 @@ export default function UserProfile() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Preferências de Interface</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm font-medium">Tema</p><p className="text-xs text-muted-foreground">Aparência do sistema</p></div>
-                <Select defaultValue="light"><SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="light">Claro</SelectItem><SelectItem value="dark">Escuro</SelectItem><SelectItem value="auto">Automático</SelectItem></SelectContent></Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm font-medium">Idioma</p><p className="text-xs text-muted-foreground">Idioma da interface</p></div>
-                <Select defaultValue="pt-BR"><SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pt-BR">Português (BR)</SelectItem><SelectItem value="en">English</SelectItem><SelectItem value="es">Español</SelectItem></SelectContent></Select>
-              </div>
-              <Button onClick={() => toast.success("Preferências salvas")}>Salvar Preferências</Button>
-            </CardContent>
-          </Card>
-
           <Separator />
-          <Button variant="outline" className="text-destructive w-full" onClick={() => toast.info("Você seria desconectado")}><LogOut className="h-4 w-4 mr-2" />Sair da Conta</Button>
+          <Button variant="outline" className="text-destructive w-full" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" />Sair da Conta
+          </Button>
         </TabsContent>
       </Tabs>
     </div>
