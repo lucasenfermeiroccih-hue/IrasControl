@@ -741,7 +741,7 @@ function DetailedTable({ data }: { data: AntibiogramDashRecord[] }) {
       if (tOrg !== "all" && d.organism !== tOrg) return false;
       if (tSir !== "all") {
         const dominant = d.results.reduce((acc, r) => { acc[r.sir] = (acc[r.sir] || 0) + 1; return acc; }, {} as Record<string, number>);
-        const max = Object.entries(dominant).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const max = Object.entries(dominant).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
         if (max !== tSir) return false;
       }
       return true;
