@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,84 +10,91 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
-type CaseStatus = "aberto" | "em_investigacao" | "concluido" | "pendente";
+type CaseStatus = "open" | "investigating" | "confirmed" | "discarded" | "closed";
 
-interface InvestigationCase {
+interface InfectionCase {
   id: string;
-  paciente: string;
-  prontuario: string;
-  setor: string;
-  evento: string;
-  classificacao: string;
-  dispositivos: string[];
+  case_number: string | null;
+  infection_type: string | null;
+  infection_site: string | null;
+  device_related: boolean;
+  device_type: string | null;
   status: CaseStatus;
-  dataNotificacao: string;
-  dataEncerramento?: string;
-  checklist: { item: string; checked: boolean }[];
-  observacoes: string;
+  detection_date: string;
+  confirmation_date: string | null;
+  notes: string | null;
+  // joined from patients
+  patient?: { full_name: string; medical_record: string | null; sector: string | null } | null;
 }
 
 const statusConfig: Record<CaseStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  aberto: { label: "Aberto", variant: "destructive" },
-  em_investigacao: { label: "Em Investigação", variant: "default" },
-  concluido: { label: "Concluído", variant: "secondary" },
-  pendente: { label: "Pendente", variant: "outline" },
+  open: { label: "Aberto", variant: "destructive" },
+  investigating: { label: "Em Investigação", variant: "default" },
+  confirmed: { label: "Confirmado", variant: "secondary" },
+  discarded: { label: "Descartado", variant: "outline" },
+  closed: { label: "Encerrado", variant: "outline" },
 };
 
-const setores = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
+const setores = [
+  "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
+  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner",
+  "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto",
+];
 const eventos = ["IPCS-CVC", "ITU-SVD", "PAV", "ISC", "Surto", "Óbito relacionado a IRAS", "Colonização MR"];
 const classificacoes = ["IRAS confirmada", "IRAS provável", "Colonização", "Contaminação", "Em investigação"];
-const dispositivosList = ["CVC", "SVD", "VM", "DVE", "PICC", "PAI", "TOT", "Dreno"];
-
-const defaultChecklist = [
-  "Coleta de culturas realizada",
-  "Precauções de contato instaladas",
-  "Notificação ANVISA realizada",
-  "Discussão com equipe assistencial",
-  "Medidas de bloqueio epidemiológico",
-  "Busca ativa de contactantes",
-  "Revisão de procedimentos invasivos",
-  "Relatório final elaborado",
-];
-
-const initialCases: InvestigationCase[] = [
-  { id: "INV-001", paciente: "Maria S. Lima", prontuario: "P-10234", setor: "UTI Adulto", evento: "IPCS-CVC", classificacao: "IRAS confirmada", dispositivos: ["CVC"], status: "concluido", dataNotificacao: "2026-03-10", dataEncerramento: "2026-03-18", checklist: defaultChecklist.map((item) => ({ item, checked: true })), observacoes: "KPC isolada em hemocultura." },
-  { id: "INV-002", paciente: "João P. Santos", prontuario: "P-10890", setor: "UTI Neonatal", evento: "PAV", classificacao: "IRAS provável", dispositivos: ["VM", "TOT"], status: "em_investigacao", dataNotificacao: "2026-03-20", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 4 })), observacoes: "Aguardando resultado de cultura traqueal." },
-  { id: "INV-003", paciente: "Ana C. Ferreira", prontuario: "P-11023", setor: "CC", evento: "ISC", classificacao: "Em investigação", dispositivos: ["Dreno"], status: "aberto", dataNotificacao: "2026-03-25", checklist: defaultChecklist.map((item) => ({ item, checked: false })), observacoes: "" },
-  { id: "INV-004", paciente: "Carlos R. Oliveira", prontuario: "P-09876", setor: "Enfermaria A", evento: "ITU-SVD", classificacao: "IRAS confirmada", dispositivos: ["SVD"], status: "concluido", dataNotificacao: "2026-03-05", dataEncerramento: "2026-03-12", checklist: defaultChecklist.map((item) => ({ item, checked: true })), observacoes: "ESBL em urocultura. Cateter removido." },
-  { id: "INV-005", paciente: "Fernanda M. Costa", prontuario: "P-11200", setor: "UTI Adulto", evento: "Surto", classificacao: "IRAS confirmada", dispositivos: ["CVC", "SVD"], status: "em_investigacao", dataNotificacao: "2026-03-22", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 5 })), observacoes: "Possível surto Acinetobacter no leito 5-8." },
-  { id: "INV-006", paciente: "Ricardo A. Mendes", prontuario: "P-10567", setor: "UTI Pediátrica", evento: "IPCS-CVC", classificacao: "Colonização", dispositivos: ["PICC"], status: "pendente", dataNotificacao: "2026-03-15", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 2 })), observacoes: "Aguardando parecer infectologia." },
-  { id: "INV-007", paciente: "Lucia B. Alves", prontuario: "P-11345", setor: "Pronto Socorro", evento: "Colonização MR", classificacao: "Colonização", dispositivos: [], status: "aberto", dataNotificacao: "2026-03-26", checklist: defaultChecklist.map((item) => ({ item, checked: false })), observacoes: "MRSA em swab nasal admissional." },
-  { id: "INV-008", paciente: "Pedro H. Rocha", prontuario: "P-10999", setor: "CME", evento: "Óbito relacionado a IRAS", classificacao: "IRAS confirmada", dispositivos: ["CVC", "VM"], status: "em_investigacao", dataNotificacao: "2026-03-19", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 6 })), observacoes: "Óbito em investigação. Comissão de óbito acionada." },
-  { id: "INV-009", paciente: "Mariana F. Dias", prontuario: "P-11100", setor: "UTI Adulto", evento: "PAV", classificacao: "Em investigação", dispositivos: ["VM", "TOT"], status: "pendente", dataNotificacao: "2026-03-24", checklist: defaultChecklist.map((item, i) => ({ item, checked: i < 1 })), observacoes: "" },
-  { id: "INV-010", paciente: "Roberto G. Nunes", prontuario: "P-10450", setor: "Enfermaria B", evento: "ITU-SVD", classificacao: "Contaminação", dispositivos: ["SVD"], status: "concluido", dataNotificacao: "2026-03-08", dataEncerramento: "2026-03-10", checklist: defaultChecklist.map((item) => ({ item, checked: true })), observacoes: "Contaminação confirmada. Sem tratamento necessário." },
-];
 
 const CasesInvestigation = () => {
-  const [cases, setCases] = useState<InvestigationCase[]>(initialCases);
+  const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const [cases, setCases] = useState<InfectionCase[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [detailCase, setDetailCase] = useState<InvestigationCase | null>(null);
+  const [detailCase, setDetailCase] = useState<InfectionCase | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [search, setSearch] = useState("");
-  const [editingCase, setEditingCase] = useState<InvestigationCase | null>(null);
+  const [editingCase, setEditingCase] = useState<InfectionCase | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [] as string[], observacoes: "",
+    paciente: "", prontuario: "", setor: "", evento: "", classificacao: "",
+    dispositivos: [] as string[], observacoes: "",
   });
+
+  const fetchCases = async () => {
+    if (!hospitalId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("infection_cases")
+      .select("*, patient:patients(full_name, medical_record, sector)")
+      .eq("hospital_id", hospitalId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setCases(data.map(d => ({ ...d, patient: d.patient as any })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (hospitalId) fetchCases();
+  }, [hospitalId]);
 
   const filtered = cases.filter((c) => {
     if (filterStatus !== "todos" && c.status !== filterStatus) return false;
-    if (search && !c.paciente.toLowerCase().includes(search.toLowerCase()) && !c.prontuario.toLowerCase().includes(search.toLowerCase())) return false;
+    const name = c.patient?.full_name || "";
+    const record = c.patient?.medical_record || "";
+    if (search && !name.toLowerCase().includes(search.toLowerCase()) && !record.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   const kpis = {
-    abertos: cases.filter((c) => c.status === "aberto").length,
-    emInvestigacao: cases.filter((c) => c.status === "em_investigacao").length,
-    concluidos: cases.filter((c) => c.status === "concluido").length,
-    pendentes: cases.filter((c) => c.status === "pendente").length,
+    abertos: cases.filter(c => c.status === "open").length,
+    emInvestigacao: cases.filter(c => c.status === "investigating").length,
+    confirmados: cases.filter(c => c.status === "confirmed").length,
+    encerrados: cases.filter(c => c.status === "closed" || c.status === "discarded").length,
   };
 
   const openNew = () => {
@@ -96,52 +103,157 @@ const CasesInvestigation = () => {
     setDialogOpen(true);
   };
 
-  const openEditForm = (c: InvestigationCase) => {
+  const openEdit = (c: InfectionCase) => {
     setEditingCase(c);
-    setForm({ paciente: c.paciente, prontuario: c.prontuario, setor: c.setor, evento: c.evento, classificacao: c.classificacao, dispositivos: [...c.dispositivos], observacoes: c.observacoes });
+    setForm({
+      paciente: c.patient?.full_name || "",
+      prontuario: c.patient?.medical_record || "",
+      setor: c.patient?.sector || "",
+      evento: c.infection_type || "",
+      classificacao: c.infection_site || "",
+      dispositivos: c.device_type ? [c.device_type] : [],
+      observacoes: c.notes || "",
+    });
     setDetailCase(null);
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.paciente || !form.setor || !form.evento) { toast.error("Preencha paciente, setor e evento."); return; }
-    if (editingCase) {
-      setCases(cases.map((c) => c.id === editingCase.id ? { ...c, ...form } : c));
-      toast.success("Caso atualizado!");
-    } else {
-      const newCase: InvestigationCase = {
-        id: `INV-${String(cases.length + 1).padStart(3, "0")}`, ...form,
-        status: "aberto", dataNotificacao: new Date().toISOString().split("T")[0],
-        checklist: defaultChecklist.map((item) => ({ item, checked: false })),
-      };
-      setCases([newCase, ...cases]);
-      toast.success("Caso registrado!");
+  const handleSave = async () => {
+    if (!form.paciente || !form.setor || !form.evento) {
+      toast.error("Preencha paciente, setor e evento.");
+      return;
     }
-    setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
-    setEditingCase(null);
+    if (!hospitalId || !userId) return;
+    setSaving(true);
+
+    if (editingCase) {
+      const { error } = await supabase
+        .from("infection_cases")
+        .update({
+          infection_type: form.evento,
+          infection_site: form.classificacao,
+          device_related: form.dispositivos.length > 0,
+          device_type: form.dispositivos[0] as any || null,
+          notes: form.observacoes,
+        })
+        .eq("id", editingCase.id);
+
+      if (error) {
+        toast.error("Erro ao atualizar caso");
+      } else {
+        toast.success("Caso atualizado!");
+        fetchCases();
+      }
+    } else {
+      // First create patient if needed
+      const { data: patient, error: patientError } = await supabase
+        .from("patients")
+        .insert({
+          full_name: form.paciente,
+          medical_record: form.prontuario || null,
+          sector: form.setor,
+          hospital_id: hospitalId,
+          created_by: userId,
+        })
+        .select()
+        .single();
+
+      if (patientError) {
+        toast.error("Erro ao criar paciente: " + patientError.message);
+        setSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("infection_cases")
+        .insert({
+          hospital_id: hospitalId,
+          patient_id: patient.id,
+          infection_type: form.evento,
+          infection_site: form.classificacao,
+          device_related: form.dispositivos.length > 0,
+          device_type: form.dispositivos[0] as any || null,
+          notes: form.observacoes,
+          created_by: userId,
+          status: "open" as const,
+        });
+
+      if (error) {
+        toast.error("Erro ao criar caso: " + error.message);
+      } else {
+        toast.success("Caso registrado!");
+        fetchCases();
+      }
+    }
+
+    setSaving(false);
     setDialogOpen(false);
   };
 
-  const toggleChecklist = (caseId: string, idx: number) => {
-    setCases((prev) => prev.map((c) => {
-      if (c.id !== caseId) return c;
-      const updated = [...c.checklist];
-      updated[idx] = { ...updated[idx], checked: !updated[idx].checked };
-      const updatedCase = { ...c, checklist: updated };
-      // Keep detailCase in sync
+  const handleStatusChange = async (caseId: string, newStatus: CaseStatus) => {
+    const updates: any = { status: newStatus };
+    if (newStatus === "confirmed") updates.confirmation_date = new Date().toISOString().split("T")[0];
+
+    const { error } = await supabase
+      .from("infection_cases")
+      .update(updates)
+      .eq("id", caseId);
+
+    if (error) {
+      toast.error("Erro ao atualizar status");
+    } else {
+      toast.success(`Status: ${statusConfig[newStatus].label}`);
+      fetchCases();
       if (detailCase?.id === caseId) {
-        setDetailCase(updatedCase);
+        setDetailCase(prev => prev ? { ...prev, status: newStatus } : null);
       }
-      return updatedCase;
-    }));
+    }
   };
 
-  const handleStatusChange = (caseId: string, newStatus: CaseStatus) => {
-    setCases(cases.map((c) => c.id === caseId ? {
-      ...c, status: newStatus, dataEncerramento: newStatus === "concluido" ? new Date().toISOString().split("T")[0] : c.dataEncerramento,
-    } : c));
-    toast.success(`Status: ${statusConfig[newStatus].label}`);
+  const handleExportPDF = async () => {
+    toast.info("Gerando PDF...");
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        body: {
+          type: "cases",
+          hospitalId,
+          data: {
+            cases: cases.map(c => ({
+              id: c.case_number || c.id.slice(0, 8),
+              paciente: c.patient?.full_name || "—",
+              setor: c.patient?.sector || "—",
+              evento: c.infection_type || "—",
+              status: statusConfig[c.status]?.label || c.status,
+              data: c.detection_date,
+            })),
+            kpis,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.pdf) {
+        const byteArray = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `casos-investigacao-${new Date().toISOString().split("T")[0]}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("PDF exportado!");
+      }
+    } catch {
+      toast.error("Erro ao gerar PDF");
+    }
   };
+
+  if (ctxLoading || loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
@@ -151,9 +263,14 @@ const CasesInvestigation = () => {
           <h1 className="text-lg md:text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
         </div>
-        <Button onClick={openNew} size="sm" className="gap-2 self-start sm:self-auto">
-          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Caso</span><span className="sm:hidden">Novo</span>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+            <Download className="h-4 w-4 mr-1" /> PDF
+          </Button>
+          <Button onClick={openNew} size="sm" className="gap-2">
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Caso</span><span className="sm:hidden">Novo</span>
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -161,8 +278,8 @@ const CasesInvestigation = () => {
         {[
           { icon: AlertTriangle, color: "text-destructive", value: kpis.abertos, label: "Abertos" },
           { icon: Search, color: "text-primary", value: kpis.emInvestigacao, label: "Em Investigação" },
-          { icon: CheckCircle, color: "text-success", value: kpis.concluidos, label: "Concluídos" },
-          { icon: Clock, color: "text-warning", value: kpis.pendentes, label: "Pendentes" },
+          { icon: CheckCircle, color: "text-success", value: kpis.confirmados, label: "Confirmados" },
+          { icon: Clock, color: "text-warning", value: kpis.encerrados, label: "Encerrados" },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="flex items-center gap-3 p-3 md:pt-5 md:p-5">
@@ -186,20 +303,22 @@ const CasesInvestigation = () => {
           <SelectTrigger className="w-full sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os Status</SelectItem>
-            <SelectItem value="aberto">Aberto</SelectItem>
-            <SelectItem value="em_investigacao">Em Investigação</SelectItem>
-            <SelectItem value="concluido">Concluído</SelectItem>
-            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="open">Aberto</SelectItem>
+            <SelectItem value="investigating">Em Investigação</SelectItem>
+            <SelectItem value="confirmed">Confirmado</SelectItem>
+            <SelectItem value="discarded">Descartado</SelectItem>
+            <SelectItem value="closed">Encerrado</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Desktop Table */}
+      {/* Table */}
       <Card>
         <CardHeader className="p-3 md:p-6 pb-2">
           <CardTitle className="text-sm md:text-lg">Casos de Investigação ({filtered.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0 md:p-6 md:pt-0">
+          {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
             <Table className="text-sm">
               <TableHeader>
@@ -208,28 +327,29 @@ const CasesInvestigation = () => {
                   <TableHead>Paciente</TableHead>
                   <TableHead>Setor</TableHead>
                   <TableHead>Evento</TableHead>
-                  <TableHead>Classificação</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum caso encontrado. Clique em "Novo Caso" para começar.</TableCell></TableRow>
+                )}
                 {filtered.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs">{c.id}</TableCell>
+                    <TableCell className="font-mono text-xs">{c.case_number || c.id.slice(0, 8)}</TableCell>
                     <TableCell>
-                      <div className="font-medium">{c.paciente}</div>
-                      <div className="text-xs text-muted-foreground">{c.prontuario}</div>
+                      <div className="font-medium">{c.patient?.full_name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{c.patient?.medical_record || ""}</div>
                     </TableCell>
-                    <TableCell>{c.setor}</TableCell>
-                    <TableCell>{c.evento}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs">{c.classificacao}</Badge></TableCell>
-                    <TableCell><Badge variant={statusConfig[c.status].variant} className="text-xs">{statusConfig[c.status].label}</Badge></TableCell>
-                    <TableCell className="text-xs">{c.dataNotificacao}</TableCell>
+                    <TableCell>{c.patient?.sector || "—"}</TableCell>
+                    <TableCell>{c.infection_type || "—"}</TableCell>
+                    <TableCell><Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-xs">{statusConfig[c.status]?.label || c.status}</Badge></TableCell>
+                    <TableCell className="text-xs">{c.detection_date}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditForm(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)}><Eye className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
@@ -239,34 +359,27 @@ const CasesInvestigation = () => {
             </Table>
           </div>
 
-          {/* Mobile Cards */}
+          {/* Mobile */}
           <div className="md:hidden space-y-2 p-3">
-            {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso encontrado</p>}
+            {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso. Clique em "Novo" para começar.</p>}
             {filtered.map((c) => (
               <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-sm">{c.paciente}</p>
-                    <p className="text-[10px] text-muted-foreground">{c.id} · {c.prontuario}</p>
+                    <p className="font-semibold text-sm">{c.patient?.full_name || "—"}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.case_number || c.id.slice(0, 8)}</p>
                   </div>
-                  <Badge variant={statusConfig[c.status].variant} className="text-[10px] shrink-0">
-                    {statusConfig[c.status].label}
+                  <Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-[10px] shrink-0">
+                    {statusConfig[c.status]?.label || c.status}
                   </Badge>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px]">{c.setor}</Badge>
-                  <Badge variant="outline" className="text-[10px]">{c.evento}</Badge>
-                  <span className="text-[10px] text-muted-foreground ml-auto">{c.dataNotificacao}</span>
+                  <Badge variant="outline" className="text-[10px]">{c.patient?.sector || "—"}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{c.infection_type || "—"}</Badge>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{c.detection_date}</span>
                 </div>
-                {c.dispositivos.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {c.dispositivos.map(d => (
-                      <span key={d} className="text-[9px] bg-muted px-1.5 py-0.5 rounded">{d}</span>
-                    ))}
-                  </div>
-                )}
                 <div className="flex gap-2 pt-1 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEditForm(c)}>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEdit(c)}>
                     <Pencil className="h-3 w-3" /> Editar
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => setDetailCase(c)}>
@@ -282,7 +395,7 @@ const CasesInvestigation = () => {
       {/* New/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
-          <DialogHeader><DialogTitle className="text-base">{editingCase ? `Editar ${editingCase.id}` : "Novo Caso"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-base">{editingCase ? "Editar Caso" : "Novo Caso"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
@@ -306,74 +419,59 @@ const CasesInvestigation = () => {
                 <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label className="text-xs">Dispositivos</Label>
-              <div className="grid grid-cols-4 gap-2 mt-1">
-                {dispositivosList.map((d) => (
-                  <label key={d} className="flex items-center gap-1.5 text-xs">
-                    <Checkbox checked={form.dispositivos.includes(d)} onCheckedChange={(checked) => setForm({ ...form, dispositivos: checked ? [...form.dispositivos, d] : form.dispositivos.filter((x) => x !== d) })} />
-                    {d}
-                  </label>
-                ))}
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} />
             </div>
-            <div className="space-y-1"><Label className="text-xs">Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} /></div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingCase(null); }}>Cancelar</Button>
-            <Button onClick={handleSave}>{editingCase ? "Salvar" : "Registrar"}</Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {editingCase ? "Salvar" : "Registrar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={!!detailCase} onOpenChange={() => setDetailCase(null)}>
+      <Dialog open={!!detailCase} onOpenChange={(open) => !open && setDetailCase(null)}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
           {detailCase && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-base flex items-center justify-between gap-2">
-                  <span className="truncate">{detailCase.id} — {detailCase.paciente}</span>
-                  <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0" onClick={() => openEditForm(detailCase)}>
-                    <Pencil className="h-3 w-3" /> Editar
-                  </Button>
+                <DialogTitle className="text-base flex items-center gap-2">
+                  {detailCase.case_number || detailCase.id.slice(0, 8)}
+                  <Badge variant={statusConfig[detailCase.status]?.variant || "outline"}>
+                    {statusConfig[detailCase.status]?.label || detailCase.status}
+                  </Badge>
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-muted-foreground">Prontuário:</span> {detailCase.prontuario}</div>
-                  <div><span className="text-muted-foreground">Setor:</span> {detailCase.setor}</div>
-                  <div><span className="text-muted-foreground">Evento:</span> {detailCase.evento}</div>
-                  <div><span className="text-muted-foreground">Classificação:</span> {detailCase.classificacao}</div>
-                  <div><span className="text-muted-foreground">Dispositivos:</span> {detailCase.dispositivos.join(", ") || "—"}</div>
-                  <div><span className="text-muted-foreground">Notificação:</span> {detailCase.dataNotificacao}</div>
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><span className="text-muted-foreground">Paciente:</span><p className="font-medium">{detailCase.patient?.full_name || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Prontuário:</span><p className="font-medium">{detailCase.patient?.medical_record || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Setor:</span><p className="font-medium">{detailCase.patient?.sector || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Evento:</span><p className="font-medium">{detailCase.infection_type || "—"}</p></div>
                 </div>
-                {detailCase.observacoes && <div className="text-xs bg-muted/50 p-3 rounded-md">{detailCase.observacoes}</div>}
-
-                <div>
-                  <h4 className="font-semibold text-sm mb-2">Checklist de Investigação</h4>
-                  <div className="space-y-2">
-                    {detailCase.checklist.map((item, idx) => (
-                      <label key={idx} className="flex items-center gap-2 text-xs">
-                        <Checkbox checked={item.checked} onCheckedChange={() => toggleChecklist(detailCase.id, idx)} />
-                        <span className={item.checked ? "line-through text-muted-foreground" : ""}>{item.item}</span>
-                      </label>
-                    ))}
+                {detailCase.notes && (
+                  <div>
+                    <span className="text-muted-foreground">Observações:</span>
+                    <p className="mt-1 bg-muted/50 rounded p-2 text-xs">{detailCase.notes}</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    {detailCase.checklist.filter((c) => c.checked).length}/{detailCase.checklist.length} itens concluídos
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {detailCase.status !== "em_investigacao" && (
-                    <Button size="sm" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "em_investigacao"); setDetailCase(null); }}>Iniciar Investigação</Button>
-                  )}
-                  {detailCase.status !== "concluido" && (
-                    <Button size="sm" variant="secondary" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "concluido"); setDetailCase(null); }}>Concluir</Button>
-                  )}
-                  {detailCase.status !== "pendente" && (
-                    <Button size="sm" variant="outline" className="text-xs" onClick={() => { handleStatusChange(detailCase.id, "pendente"); setDetailCase(null); }}>Pendente</Button>
-                  )}
+                )}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Alterar Status</Label>
+                  <Select value={detailCase.status} onValueChange={(v) => handleStatusChange(detailCase.id, v as CaseStatus)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Aberto</SelectItem>
+                      <SelectItem value="investigating">Em Investigação</SelectItem>
+                      <SelectItem value="confirmed">Confirmado</SelectItem>
+                      <SelectItem value="discarded">Descartado</SelectItem>
+                      <SelectItem value="closed">Encerrado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </>
