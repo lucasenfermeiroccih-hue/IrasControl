@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,42 +8,86 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Building2, Users, Bell, Shield, Database, Plus, Pencil, Trash2, Mail, Lock } from "lucide-react";
+import { Settings, Building2, Users, Bell, Shield, Database, Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  sector: string;
-  status: "ativo" | "inativo" | "pendente";
-  lastAccess: string;
+interface HospitalUser {
+  user_id: string;
+  is_primary_admin: boolean;
+  profile?: { full_name: string; email: string };
+  role?: string;
 }
 
-const mockUsers: User[] = [
-  { id: "1", name: "Dr. Carlos Mendes", email: "carlos.mendes@hospital.com", role: "Administrador", sector: "CCIH", status: "ativo", lastAccess: "29/03/2026 08:15" },
-  { id: "2", name: "Enf. Ana Paula", email: "ana.paula@hospital.com", role: "Enfermeiro CCIH", sector: "UTI Adulto", status: "ativo", lastAccess: "29/03/2026 07:45" },
-  { id: "3", name: "Enf. Roberto Silva", email: "roberto.silva@hospital.com", role: "Enfermeiro CCIH", sector: "UTI Neonatal", status: "ativo", lastAccess: "28/03/2026 16:30" },
-  { id: "4", name: "Dr. Maria Souza", email: "maria.souza@hospital.com", role: "Médico Infectologista", sector: "CCIH", status: "ativo", lastAccess: "29/03/2026 09:00" },
-  { id: "5", name: "Tec. João Lima", email: "joao.lima@hospital.com", role: "Técnico Lab", sector: "Laboratório", status: "ativo", lastAccess: "28/03/2026 14:20" },
-  { id: "6", name: "Enf. Patrícia Costa", email: "patricia.costa@hospital.com", role: "Enfermeiro", sector: "Clínica Médica", status: "inativo", lastAccess: "15/03/2026 10:00" },
-  { id: "7", name: "Dr. Fernando Alves", email: "fernando.alves@hospital.com", role: "Médico", sector: "Cirúrgica", status: "pendente", lastAccess: "—" },
-];
-
-const statusColors: Record<string, string> = {
-  ativo: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  inativo: "bg-gray-100 text-gray-800 border-gray-200",
-  pendente: "bg-yellow-100 text-yellow-800 border-yellow-200",
-};
-
 export default function AdminSettings() {
-  const [showUserDialog, setShowUserDialog] = useState(false);
+  const { hospitalId, loading: ctxLoading } = useHospitalContext();
+  const [hospitalData, setHospitalData] = useState<any>(null);
+  const [users, setUsers] = useState<HospitalUser[]>([]);
+  const [sectors, setSectors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState({ email: true, push: true, critical: true, daily: false, weekly: true });
-  const [orgName, setOrgName] = useState("Hospital São Lucas");
-  const [orgCnes, setOrgCnes] = useState("2345678");
+
+  useEffect(() => {
+    if (!hospitalId) return;
+    const fetch = async () => {
+      setLoading(true);
+      const [{ data: hospital }, { data: sectorData }, { data: huData }] = await Promise.all([
+        supabase.from("hospitals").select("*").eq("id", hospitalId).single(),
+        supabase.from("sectors").select("name").eq("hospital_id", hospitalId).eq("is_active", true),
+        supabase.from("hospital_users").select("user_id, is_primary_admin").eq("hospital_id", hospitalId),
+      ]);
+
+      if (hospital) setHospitalData(hospital);
+      if (sectorData) setSectors(sectorData.map((s: any) => s.name));
+
+      if (huData && huData.length > 0) {
+        const userIds = huData.map((h: any) => h.user_id);
+        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds);
+        const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", userIds);
+
+        const merged = huData.map((hu: any) => ({
+          ...hu,
+          profile: profiles?.find((p: any) => p.user_id === hu.user_id),
+          role: roles?.find((r: any) => r.user_id === hu.user_id)?.role || "viewer",
+        }));
+        setUsers(merged);
+      }
+      setLoading(false);
+    };
+    fetch();
+  }, [hospitalId]);
+
+  const handleSaveHospital = async () => {
+    if (!hospitalId || !hospitalData) return;
+    const { error } = await supabase.from("hospitals").update({
+      name: hospitalData.name,
+      cnes: hospitalData.cnes,
+      type: hospitalData.type,
+      bed_count: hospitalData.bed_count,
+      contact_email: hospitalData.contact_email,
+    }).eq("id", hospitalId);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success("Dados da instituição salvos");
+  };
+
+  const roleLabels: Record<string, string> = {
+    super_admin: "Super Admin",
+    hospital_admin: "Administrador",
+    nurse_ccih: "Enfermeiro CCIH",
+    doctor: "Médico",
+    doctor_scih: "Médico SCIH",
+    nurse_tech_scih: "Téc. Enfermagem SCIH",
+    lab_tech: "Técnico Lab",
+    biologist: "Biólogo",
+    administrative: "Administrativo",
+    viewer: "Visualizador",
+  };
+
+  if (ctxLoading || loading) {
+    return <div className="flex items-center justify-center min-h-[40vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -64,51 +108,49 @@ export default function AdminSettings() {
         </TabsList>
 
         <TabsContent value="org" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Dados da Instituição</CardTitle>
-              <CardDescription>Informações cadastrais do hospital</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nome da Instituição</Label>
-                  <Input value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+          {hospitalData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Dados da Instituição</CardTitle>
+                <CardDescription>Informações cadastrais do hospital</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome da Instituição</Label>
+                    <Input value={hospitalData.name || ""} onChange={e => setHospitalData((h: any) => ({ ...h, name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CNES</Label>
+                    <Input value={hospitalData.cnes || ""} onChange={e => setHospitalData((h: any) => ({ ...h, cnes: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo</Label>
+                    <Select value={hospitalData.type || "geral"} onValueChange={v => setHospitalData((h: any) => ({ ...h, type: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="geral">Hospital Geral</SelectItem>
+                        <SelectItem value="especializado">Hospital Especializado</SelectItem>
+                        <SelectItem value="universitario">Hospital Universitário</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Número de Leitos</Label>
+                    <Input type="number" value={hospitalData.bed_count || 0} onChange={e => setHospitalData((h: any) => ({ ...h, bed_count: Number(e.target.value) }))} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>CNES</Label>
-                  <Input value={orgCnes} onChange={(e) => setOrgCnes(e.target.value)} />
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>E-mail de Contato</Label>
+                    <Input value={hospitalData.contact_email || ""} onChange={e => setHospitalData((h: any) => ({ ...h, contact_email: e.target.value }))} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Select defaultValue="geral">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="geral">Hospital Geral</SelectItem>
-                      <SelectItem value="especializado">Hospital Especializado</SelectItem>
-                      <SelectItem value="universitario">Hospital Universitário</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Número de Leitos</Label>
-                  <Input type="number" defaultValue="320" />
-                </div>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Responsável CCIH</Label>
-                  <Input defaultValue="Dr. Carlos Mendes" />
-                </div>
-                <div className="space-y-2">
-                  <Label>E-mail CCIH</Label>
-                  <Input defaultValue="ccih@hospitalsaolucas.com" />
-                </div>
-              </div>
-              <Button onClick={() => toast.success("Dados da instituição salvos")}>Salvar Alterações</Button>
-            </CardContent>
-          </Card>
+                <Button onClick={handleSaveHospital}>Salvar Alterações</Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -116,19 +158,16 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["UTI Adulto", "UTI Neonatal", "Clínica Médica", "Cirúrgica", "Emergência", "Centro Cirúrgico", "Laboratório", "Farmácia"].map((s) => (
-                  <Badge key={s} variant="outline" className="border-primary/30">{s}</Badge>
-                ))}
+                {sectors.length > 0
+                  ? sectors.map(s => <Badge key={s} variant="outline" className="border-primary/30">{s}</Badge>)
+                  : <p className="text-sm text-muted-foreground">Nenhum setor cadastrado</p>}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4 mt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{mockUsers.length} usuários cadastrados</p>
-            <Button size="sm" onClick={() => setShowUserDialog(true)}><Plus className="h-4 w-4 mr-1" />Novo Usuário</Button>
-          </div>
+          <p className="text-sm text-muted-foreground">{users.length} usuários vinculados</p>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -136,31 +175,25 @@ export default function AdminSettings() {
                   <TableRow>
                     <TableHead>Usuário</TableHead>
                     <TableHead className="hidden md:table-cell">Perfil</TableHead>
-                    <TableHead className="hidden md:table-cell">Setor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden lg:table-cell">Último Acesso</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead>Admin</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockUsers.map((u) => (
-                    <TableRow key={u.id}>
+                  {users.map(u => (
+                    <TableRow key={u.user_id}>
                       <TableCell>
-                        <p className="font-medium text-sm">{u.name}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        <p className="font-medium text-sm">{u.profile?.full_name || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{u.profile?.email || "—"}</p>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{u.role}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{u.sector}</TableCell>
-                      <TableCell><Badge variant="outline" className={statusColors[u.status]}>{u.status}</Badge></TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{u.lastAccess}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost"><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </div>
+                      <TableCell className="hidden md:table-cell text-sm">{roleLabels[u.role || "viewer"] || u.role}</TableCell>
+                      <TableCell>
+                        {u.is_primary_admin && <Badge className="bg-primary text-primary-foreground">Admin</Badge>}
                       </TableCell>
                     </TableRow>
                   ))}
+                  {users.length === 0 && (
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Nenhum usuário</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -169,9 +202,7 @@ export default function AdminSettings() {
 
         <TabsContent value="notifications" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" />Preferências de Notificação</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" />Preferências de Notificação</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {[
                 { key: "email" as const, label: "Notificações por E-mail", desc: "Receber alertas e resumos por e-mail" },
@@ -179,13 +210,10 @@ export default function AdminSettings() {
                 { key: "critical" as const, label: "Alertas Críticos", desc: "Notificação imediata para alertas de prioridade crítica" },
                 { key: "daily" as const, label: "Resumo Diário", desc: "Relatório diário consolidado às 07:00" },
                 { key: "weekly" as const, label: "Resumo Semanal", desc: "Relatório semanal enviado às segundas-feiras" },
-              ].map((item) => (
+              ].map(item => (
                 <div key={item.key} className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
-                  </div>
-                  <Switch checked={notifications[item.key]} onCheckedChange={(v) => setNotifications({ ...notifications, [item.key]: v })} />
+                  <div><p className="text-sm font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
+                  <Switch checked={notifications[item.key]} onCheckedChange={v => setNotifications({ ...notifications, [item.key]: v })} />
                 </div>
               ))}
               <Button onClick={() => toast.success("Preferências salvas")}>Salvar Preferências</Button>
@@ -195,9 +223,7 @@ export default function AdminSettings() {
 
         <TabsContent value="security" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" />Políticas de Segurança</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" />Políticas de Segurança</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between py-2">
                 <div><p className="text-sm font-medium">Autenticação de Dois Fatores (2FA)</p><p className="text-xs text-muted-foreground">Exigir 2FA para todos os administradores</p></div>
@@ -208,10 +234,6 @@ export default function AdminSettings() {
                 <Select defaultValue="30"><SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="15">15 min</SelectItem><SelectItem value="30">30 min</SelectItem><SelectItem value="60">60 min</SelectItem></SelectContent></Select>
               </div>
               <div className="flex items-center justify-between py-2">
-                <div><p className="text-sm font-medium">Complexidade de Senha</p><p className="text-xs text-muted-foreground">Mínimo 8 caracteres, maiúscula, número e especial</p></div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between py-2">
                 <div><p className="text-sm font-medium">Log de Auditoria</p><p className="text-xs text-muted-foreground">Registrar todas as ações no sistema</p></div>
                 <Switch defaultChecked />
               </div>
@@ -220,33 +242,6 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Usuário</DialogTitle>
-            <DialogDescription>Cadastrar um novo usuário no sistema</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2"><Label>Nome Completo</Label><Input placeholder="Nome do profissional" /></div>
-            <div className="space-y-2"><Label>E-mail</Label><Input type="email" placeholder="email@hospital.com" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Perfil</Label>
-                <Select><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="admin">Administrador</SelectItem><SelectItem value="enfccih">Enfermeiro CCIH</SelectItem><SelectItem value="medico">Médico</SelectItem><SelectItem value="teclab">Técnico Lab</SelectItem></SelectContent></Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Setor</Label>
-                <Select><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="ccih">CCIH</SelectItem><SelectItem value="uti">UTI Adulto</SelectItem><SelectItem value="neonatal">UTI Neonatal</SelectItem><SelectItem value="clinica">Clínica Médica</SelectItem></SelectContent></Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUserDialog(false)}>Cancelar</Button>
-            <Button onClick={() => { setShowUserDialog(false); toast.success("Convite enviado com sucesso"); }}>Enviar Convite</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
