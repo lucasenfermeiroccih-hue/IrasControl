@@ -176,7 +176,25 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-3 space-y-2">
+        {multiHospital && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-xs border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent"
+            onClick={() => {
+              localStorage.removeItem("selected_hospital_id");
+              navigate("/select-hospital");
+            }}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+            {!collapsed && (
+              <span className="truncate">
+                {hospitalName ? `Trocar (${hospitalName})` : "Trocar Hospital"}
+              </span>
+            )}
+          </Button>
+        )}
         {!collapsed && (
           <p className="text-xs text-sidebar-foreground/50">© 2026 IRASControl</p>
         )}
