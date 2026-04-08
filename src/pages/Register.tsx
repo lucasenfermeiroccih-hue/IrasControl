@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import {
   Shield, Loader2, Building2, UserPlus, ArrowLeft, ArrowRight,
-  CheckCircle, Eye, EyeOff, AlertTriangle,
+  CheckCircle, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,37 +18,22 @@ const brazilianStates = [
   "PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
-type Step = "checking" | "blocked" | "hospital" | "admin" | "success";
+type Step = "hospital" | "admin" | "success";
 
 export default function Register() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("checking");
+  const [step, setStep] = useState<Step>("hospital");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Hospital form
   const [hospitalForm, setHospitalForm] = useState({
     name: "", cnes: "", type: "geral", bed_count: "",
     city: "", state: "", contact_email: "", contact_phone: "",
   });
 
-  // Admin form
   const [adminForm, setAdminForm] = useState({
     full_name: "", email: "", password: "", confirmPassword: "",
   });
-
-  useEffect(() => {
-    const checkSetup = async () => {
-      const { data, error } = await supabase.rpc("has_any_super_admin");
-      if (error) {
-        toast.error("Erro ao verificar status do sistema");
-        setStep("blocked");
-        return;
-      }
-      setStep(data ? "blocked" : "hospital");
-    };
-    checkSetup();
-  }, []);
 
   const handleNextToAdmin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +62,7 @@ export default function Register() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.functions.invoke("initial-setup", {
+    const { data, error } = await supabase.functions.invoke("register-hospital", {
       body: {
         hospital_name: hospitalForm.name,
         hospital_cnes: hospitalForm.cnes,
@@ -96,47 +81,13 @@ export default function Register() {
     setLoading(false);
 
     if (error || data?.error) {
-      toast.error(data?.error || error?.message || "Erro ao realizar setup");
+      toast.error(data?.error || error?.message || "Erro ao realizar cadastro");
       return;
     }
 
-    toast.success("Setup inicial concluído!");
+    toast.success("Hospital e conta criados com sucesso!");
     setStep("success");
   };
-
-  // --- Loading state ---
-  if (step === "checking") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  // --- Blocked: setup already done ---
-  if (step === "blocked") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="mx-auto mb-2">
-              <AlertTriangle className="h-12 w-12 text-destructive" />
-            </div>
-            <CardTitle>Setup já realizado</CardTitle>
-            <CardDescription>
-              O sistema já possui um Super Administrador configurado.
-              Novos hospitais e usuários devem ser cadastrados pelo administrador.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="justify-center">
-            <Button onClick={() => navigate("/login")}>
-              Ir para o Login
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-8">
@@ -146,12 +97,11 @@ export default function Register() {
             <Shield className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
           </Link>
-          <CardTitle className="text-lg">Configuração Inicial</CardTitle>
+          <CardTitle className="text-lg">Cadastrar Hospital</CardTitle>
           <CardDescription className="text-xs">
-            Cadastre o primeiro hospital e o administrador do sistema
+            Cadastre seu hospital e crie sua conta de administrador
           </CardDescription>
 
-          {/* Step indicator */}
           <div className="flex items-center justify-center gap-2 mt-3">
             <StepIndicator
               number={1}
@@ -162,14 +112,13 @@ export default function Register() {
             <div className="w-8 h-px bg-border" />
             <StepIndicator
               number={2}
-              label="Super Admin"
+              label="Administrador"
               active={step === "admin"}
               completed={step === "success"}
             />
           </div>
         </CardHeader>
 
-        {/* Step 1: Hospital */}
         {step === "hospital" && (
           <form onSubmit={handleNextToAdmin}>
             <CardContent className="space-y-4">
@@ -177,7 +126,7 @@ export default function Register() {
                 <Building2 className="h-5 w-5 text-primary" />
                 <div>
                   <p className="font-semibold text-sm">Dados do Hospital</p>
-                  <p className="text-xs text-muted-foreground">Informações do primeiro hospital</p>
+                  <p className="text-xs text-muted-foreground">Informações do hospital</p>
                 </div>
               </div>
 
@@ -270,7 +219,7 @@ export default function Register() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button type="button" variant="outline" onClick={() => navigate("/login")}>
+              <Button type="button" variant="outline" onClick={() => navigate("/")}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
               </Button>
               <Button type="submit">
@@ -280,16 +229,15 @@ export default function Register() {
           </form>
         )}
 
-        {/* Step 2: Super Admin */}
         {step === "admin" && (
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <UserPlus className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-semibold text-sm">Conta do Super Administrador</p>
+                  <p className="font-semibold text-sm">Conta do Administrador</p>
                   <p className="text-xs text-muted-foreground">
-                    Este será o administrador principal do sistema
+                    Este será o administrador do hospital
                   </p>
                 </div>
               </div>
@@ -351,7 +299,7 @@ export default function Register() {
               </div>
 
               <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5">
-                O Super Admin poderá cadastrar novos hospitais e criar contas de usuários para cada hospital após o login.
+                Após o cadastro, você poderá gerenciar seu hospital, criar usuários e acessar todas as funcionalidades da plataforma.
               </p>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -366,20 +314,19 @@ export default function Register() {
           </form>
         )}
 
-        {/* Success */}
         {step === "success" && (
           <>
             <CardContent className="text-center space-y-4 py-8">
               <CheckCircle className="h-16 w-16 text-primary mx-auto" />
               <div>
-                <h2 className="text-xl font-bold">Setup Concluído!</h2>
+                <h2 className="text-xl font-bold">Cadastro Concluído!</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   O hospital <span className="font-medium text-foreground">{hospitalForm.name}</span> e
-                  a conta de Super Admin foram criados com sucesso.
+                  sua conta foram criados com sucesso.
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Faça login para começar a configurar o sistema, cadastrar outros hospitais e criar contas de usuários.
+                Faça login para começar a usar o sistema.
               </p>
             </CardContent>
             <CardFooter>
