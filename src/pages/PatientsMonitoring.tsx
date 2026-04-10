@@ -1,433 +1,699 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Stethoscope, Search, Users, AlertTriangle, ShieldCheck, Activity, Thermometer, Pill, FileText, Plus, Pencil, LogOut, Sparkles, Loader2, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import {
+  Stethoscope, Search, Users, AlertTriangle, Activity, Thermometer,
+  Plus, Pencil, LogOut, Clock, Save, Eye, FileText, ShieldAlert, Syringe, ClipboardList
+} from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useHospitalContext } from "@/hooks/useHospitalContext";
+
+// ─── Mock Data ────────────────────────────────────────────────
+const mockPatients = [
+  {
+    id: "mock-1",
+    nome: "Maria Silva Santos",
+    unidade: "UTI 1 Adulto",
+    leito: "201-A",
+    prontuario: "PRO-2025-0042",
+    dataInternacaoHospitalar: "2026-03-15",
+    origem: "Pronto Socorro",
+    dataInternacaoCTI: "2026-03-17",
+    dataAlta: "",
+    doencasBase: "HAS, DM tipo 2, IRC",
+    motivoInternacao: "Sepse de foco pulmonar",
+    dataNascimento: "1958-07-22",
+    sexo: "F",
+    dataAdmissao: "2026-03-15",
+    especialidade: "Clínica médica",
+    diagnostico: "Pneumonia associada à ventilação mecânica",
+    status: "active" as const,
+  },
+  {
+    id: "mock-2",
+    nome: "João Pedro Almeida",
+    unidade: "UTI 2 Adulto",
+    leito: "305-B",
+    prontuario: "PRO-2025-0098",
+    dataInternacaoHospitalar: "2026-04-01",
+    origem: "Enfermaria Cirúrgica",
+    dataInternacaoCTI: "2026-04-03",
+    dataAlta: "",
+    doencasBase: "Obesidade grau III, DPOC",
+    motivoInternacao: "Pós-operatório cirurgia bariátrica complicada",
+    dataNascimento: "1975-11-30",
+    sexo: "M",
+    dataAdmissao: "2026-04-01",
+    especialidade: "Cirurgia Geral",
+    diagnostico: "Infecção de sítio cirúrgico profunda",
+    status: "active" as const,
+  },
+  {
+    id: "mock-3",
+    nome: "Ana Beatriz Ferreira",
+    unidade: "Clínica Médica",
+    leito: "112-C",
+    prontuario: "PRO-2025-0156",
+    dataInternacaoHospitalar: "2026-03-28",
+    origem: "Ambulatório",
+    dataInternacaoCTI: "",
+    dataAlta: "2026-04-08",
+    doencasBase: "LES, Nefrite lúpica",
+    motivoInternacao: "ITU complicada",
+    dataNascimento: "1990-02-14",
+    sexo: "F",
+    dataAdmissao: "2026-03-28",
+    especialidade: "Clínica médica",
+    diagnostico: "Infecção do trato urinário associada a cateter",
+    status: "discharged" as const,
+  },
+];
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
-type RiskLevel = "crítico" | "alto" | "moderado" | "baixo";
 
-interface PatientRow {
+interface MockPatient {
   id: string;
-  full_name: string;
-  medical_record: string | null;
-  sector: string | null;
-  bed: string | null;
-  admission_date: string;
+  nome: string;
+  unidade: string;
+  leito: string;
+  prontuario: string;
+  dataInternacaoHospitalar: string;
+  origem: string;
+  dataInternacaoCTI: string;
+  dataAlta: string;
+  doencasBase: string;
+  motivoInternacao: string;
+  dataNascimento: string;
+  sexo: string;
+  dataAdmissao: string;
+  especialidade: string;
+  diagnostico: string;
   status: PatientStatus;
-  notes: string | null;
-  gender: string | null;
-  birth_date: string | null;
 }
 
-const statusLabels: Record<PatientStatus, string> = {
-  active: "Internado",
-  discharged: "Alta",
-  transferred: "Transferido",
-  deceased: "Óbito",
-};
+const especialidades = [
+  "Clínica médica", "Cirurgia Geral", "Cirurgia Vascular", "Cirurgia Cardíaca",
+  "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Ortopédica",
+];
 
-const statusColors: Record<PatientStatus, string> = {
-  active: "bg-blue-100 text-blue-800 border-blue-200",
-  discharged: "bg-green-100 text-green-800 border-green-200",
-  transferred: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  deceased: "bg-gray-100 text-gray-800 border-gray-200",
-};
+const tiposAlta = ["Óbito", "Alta", "Transferência"];
 
-const riskConfig: Record<RiskLevel, { label: string; color: string; value: number }> = {
-  crítico: { label: "Crítico", color: "bg-destructive text-destructive-foreground", value: 100 },
-  alto: { label: "Alto", color: "bg-orange-500 text-white", value: 75 },
-  moderado: { label: "Moderado", color: "bg-yellow-500 text-white", value: 50 },
-  baixo: { label: "Baixo", color: "bg-emerald-500 text-white", value: 25 },
-};
+const criteriosDiagnosticos = [
+  "Febre > 38°C por mais de 24h",
+  "Leucocitose > 12.000/mm³",
+  "Hemocultura positiva",
+  "Urocultura positiva (≥ 100.000 UFC/mL)",
+  "Cultura de secreção traqueal positiva",
+  "Sinais flogísticos em sítio cirúrgico",
+  "Secreção purulenta",
+  "Infiltrado pulmonar novo ou progressivo",
+  "Piora do padrão ventilatório",
+  "Instabilidade hemodinâmica sem outra causa",
+  "Uso de antimicrobiano terapêutico ≥ 72h",
+  "PCR ou Procalcitonina elevada",
+];
 
-const sectors = ["Todos", "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
-const sectorOptions = sectors.filter(s => s !== "Todos");
+const mockLabPanel = [
+  { exame: "Hemocultura", data: "05/04/2026", microrganismo: "Staphylococcus aureus", sensibilidade: "MRSA", mdr: true },
+  { exame: "Urocultura", data: "03/04/2026", microrganismo: "Klebsiella pneumoniae", sensibilidade: "KPC+", mdr: true },
+  { exame: "Cultura sec. traqueal", data: "06/04/2026", microrganismo: "Pseudomonas aeruginosa", sensibilidade: "Sensível a Meropenem", mdr: false },
+  { exame: "Cultura ferida op.", data: "04/04/2026", microrganismo: "Escherichia coli", sensibilidade: "ESBL", mdr: true },
+];
 
-const emptyForm = {
-  full_name: "", medical_record: "", sector: "", bed: "", admission_date: "",
-  status: "active" as PatientStatus, notes: "", gender: "", birth_date: "",
-};
+const mockFatoresRisco = [
+  "Idade > 65 anos",
+  "Diabetes mellitus",
+  "Imunossupressão",
+  "Tempo de internação > 7 dias",
+  "Uso prévio de antibióticos",
+  "Ventilação mecânica prolongada",
+  "Cateter venoso central > 5 dias",
+];
 
 function daysFromDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (!dateStr) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000));
 }
 
+function calcAge(birth: string) {
+  if (!birth) return "—";
+  const diff = Date.now() - new Date(birth).getTime();
+  return Math.floor(diff / (365.25 * 86400000)) + " anos";
+}
+
+// ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
-  const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
-  const [patients, setPatients] = useState<PatientRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<MockPatient[]>(mockPatients as MockPatient[]);
+  const [selectedId, setSelectedId] = useState<string>(mockPatients[0].id);
   const [search, setSearch] = useState("");
-  const [sectorFilter, setSectorFilter] = useState("Todos");
-  const [statusFilter, setStatusFilter] = useState("Todos");
-  const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [devices, setDevices] = useState<Record<string, string[]>>({});
-  const [prescriptions, setPrescriptions] = useState<Record<string, string[]>>({});
+  const [newPatientOpen, setNewPatientOpen] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
+  const [dischargeType, setDischargeType] = useState("");
+  const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
 
-  const fetchPatients = useCallback(async () => {
-    if (!hospitalId) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .eq("hospital_id", hospitalId)
-      .order("created_at", { ascending: false });
-    if (!error && data) setPatients(data as PatientRow[]);
-    setLoading(false);
-  }, [hospitalId]);
+  // Form state for new patient modal
+  const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "" });
 
-  const fetchDevicesAndPrescriptions = useCallback(async () => {
-    if (!hospitalId) return;
-    const { data: devData } = await supabase
-      .from("patient_devices")
-      .select("patient_id, device_type, device_name")
-      .in("patient_id", patients.map(p => p.id));
-    if (devData) {
-      const map: Record<string, string[]> = {};
-      devData.forEach((d: any) => {
-        if (!map[d.patient_id]) map[d.patient_id] = [];
-        map[d.patient_id].push(d.device_name || d.device_type);
-      });
-      setDevices(map);
-    }
-    const { data: rxData } = await supabase
-      .from("antimicrobial_prescriptions")
-      .select("patient_id, drug_name")
-      .eq("hospital_id", hospitalId)
-      .eq("is_active", true);
-    if (rxData) {
-      const map: Record<string, string[]> = {};
-      rxData.forEach((r: any) => {
-        if (!map[r.patient_id]) map[r.patient_id] = [];
-        map[r.patient_id].push(r.drug_name);
-      });
-      setPrescriptions(map);
-    }
-  }, [hospitalId, patients]);
+  const selected = patients.find(p => p.id === selectedId) || patients[0];
+  const diasInternacao = daysFromDate(selected.dataInternacaoHospitalar);
 
-  useEffect(() => { fetchPatients(); }, [fetchPatients]);
-  useEffect(() => { if (patients.length > 0) fetchDevicesAndPrescriptions(); }, [patients.length, fetchDevicesAndPrescriptions]);
+  // Section states (all mock/local)
+  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
+  const [dispositivos, setDispositivos] = useState({ cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não" });
+  const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
+  const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "" });
+  const [iras, setIras] = useState({ temIras: "", numeroIras: "", quaisIras: "", dataFechamento: "" });
+  const [conclusao, setConclusao] = useState({ classificacao: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
+  const [criteriosSelecionados, setCriteriosSelecionados] = useState<string[]>([]);
+  const [justificativa, setJustificativa] = useState("");
+  const [ocorrencia, setOcorrencia] = useState({ unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
+  const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" });
+  const [responsavel, setResponsavel] = useState("");
 
-  const filtered = patients.filter((p) => {
-    const matchSearch = !search || (p.full_name?.toLowerCase().includes(search.toLowerCase())) || (p.medical_record?.toLowerCase().includes(search.toLowerCase()));
-    const matchSector = sectorFilter === "Todos" || p.sector === sectorFilter;
-    const matchStatus = statusFilter === "Todos" || p.status === statusFilter;
-    return matchSearch && matchSector && matchStatus;
-  });
+  const tempFloat = parseFloat(sinaisVitais.temperatura);
+  const tempAlta = !isNaN(tempFloat) && tempFloat > 38;
 
-  const activePatients = patients.filter(p => p.status === "active");
-  const withDevices = patients.filter(p => (devices[p.id] || []).length > 0 && p.status === "active");
-  const withRx = patients.filter(p => (prescriptions[p.id] || []).length > 0 && p.status === "active");
+  const filtered = patients.filter(p =>
+    !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.prontuario.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const openNewForm = () => {
-    setEditingPatient(null);
-    setForm(emptyForm);
-    setFormOpen(true);
+  const activeCount = patients.filter(p => p.status === "active").length;
+
+  const handleNewPatient = () => {
+    if (!newForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
+    const id = "mock-" + Date.now();
+    setPatients(prev => [{
+      id, nome: newForm.nome, unidade: newForm.unidade || "UTI 1 Adulto", leito: newForm.leito || "—",
+      prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
+      dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
+      origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+      dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
+      especialidade: "", diagnostico: "", status: "active" as const,
+    }, ...prev]);
+    setNewPatientOpen(false);
+    setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "" });
+    toast.success("Paciente cadastrado com ID: " + id);
   };
 
-  const openEditForm = (patient: PatientRow) => {
-    setEditingPatient(patient);
-    setForm({
-      full_name: patient.full_name,
-      medical_record: patient.medical_record || "",
-      sector: patient.sector || "",
-      bed: patient.bed || "",
-      admission_date: patient.admission_date,
-      status: patient.status,
-      notes: patient.notes || "",
-      gender: patient.gender || "",
-      birth_date: patient.birth_date || "",
-    });
-    setSelectedPatient(null);
-    setFormOpen(true);
+  const handleDischarge = () => {
+    if (!dischargeType) { toast.error("Selecione o tipo de alta"); return; }
+    const statusMap: Record<string, MockPatient["status"]> = { "Óbito": "discharged", "Alta": "discharged", "Transferência": "discharged" };
+    setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, status: statusMap[dischargeType] || "discharged", dataAlta: new Date().toISOString().slice(0, 10) } : p));
+    setDischargeOpen(false);
+    toast.success(`Paciente ${selected.nome} — ${dischargeType} registrada`);
   };
 
-  const handleSave = async () => {
-    if (!form.full_name.trim() || !hospitalId) {
-      toast.error("Nome é obrigatório.");
-      return;
-    }
-    const payload = {
-      full_name: form.full_name,
-      medical_record: form.medical_record || null,
-      sector: form.sector || null,
-      bed: form.bed || null,
-      admission_date: form.admission_date || new Date().toISOString().slice(0, 10),
-      status: form.status as any,
-      notes: form.notes || null,
-      gender: form.gender || null,
-      birth_date: form.birth_date || null,
-      hospital_id: hospitalId,
-    };
+  const cvcDays = dispInvasivos.cvcInsercao ? daysFromDate(dispInvasivos.cvcInsercao) : null;
+  const svuDays = dispInvasivos.svuInsercao ? daysFromDate(dispInvasivos.svuInsercao) : null;
+  const vmDays = dispInvasivos.vmInsercao ? daysFromDate(dispInvasivos.vmInsercao) : null;
 
-    if (editingPatient) {
-      const { error } = await supabase.from("patients").update(payload).eq("id", editingPatient.id);
-      if (error) { toast.error("Erro ao atualizar: " + error.message); return; }
-      toast.success("Paciente atualizado!");
-    } else {
-      const { error } = await supabase.from("patients").insert({ ...payload, created_by: userId });
-      if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }
-      toast.success("Paciente cadastrado!");
-    }
-    setFormOpen(false);
-    fetchPatients();
-  };
-
-  const dischargePatient = async (patient: PatientRow) => {
-    const { error } = await supabase
-      .from("patients")
-      .update({ status: "discharged" as any, discharge_date: new Date().toISOString().slice(0, 10) })
-      .eq("id", patient.id);
-    if (error) { toast.error("Erro: " + error.message); return; }
-    toast.success(`Paciente ${patient.full_name} recebeu alta!`);
-    setSelectedPatient(null);
-    fetchPatients();
-  };
-
-  if (ctxLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const readOnly = viewMode === "view";
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Stethoscope className="h-7 w-7 text-primary" />
           <div>
             <h1 className="text-2xl font-bold text-foreground">Monitoramento de Pacientes</h1>
-            <p className="text-sm text-muted-foreground">Vigilância epidemiológica e acompanhamento</p>
+            <p className="text-sm text-muted-foreground">Investigação de infecções — Controle diário</p>
           </div>
         </div>
-        <Button onClick={openNewForm} className="gap-2">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Cadastrar Paciente</span>
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant={viewMode === "edit" ? "default" : "outline"} size="sm" onClick={() => setViewMode("edit")}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+          <Button variant={viewMode === "view" ? "default" : "outline"} size="sm" onClick={() => setViewMode("view")}><Eye className="h-4 w-4 mr-1" />Visualizar</Button>
+          <Button size="sm" onClick={() => setNewPatientOpen(true)}><Plus className="h-4 w-4 mr-1" />Cadastrar Novo Paciente</Button>
+        </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">Pacientes Ativos</p><p className="text-2xl font-bold">{activePatients.length}</p></div>
+          <div><p className="text-xs text-muted-foreground">Ativos</p><p className="text-2xl font-bold">{activeCount}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-destructive/10"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
-          <div><p className="text-xs text-muted-foreground">Total Cadastrados</p><p className="text-2xl font-bold">{patients.length}</p></div>
+          <div><p className="text-xs text-muted-foreground">Total</p><p className="text-2xl font-bold">{patients.length}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-orange-500/10"><ShieldCheck className="h-5 w-5 text-orange-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Com Dispositivos</p><p className="text-2xl font-bold">{withDevices.length}</p></div>
+          <div className="p-2 rounded-lg bg-accent"><Clock className="h-5 w-5 text-primary" /></div>
+          <div><p className="text-xs text-muted-foreground">Dias Int. (atual)</p><p className="text-2xl font-bold">{diasInternacao}d</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-yellow-500/10"><Activity className="h-5 w-5 text-yellow-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Com Antimicrobianos</p><p className="text-2xl font-bold">{withRx.length}</p></div>
+          <div className="p-2 rounded-lg bg-accent"><Activity className="h-5 w-5 text-primary" /></div>
+          <div><p className="text-xs text-muted-foreground">MDR Detectados</p><p className="text-2xl font-bold text-destructive">{mockLabPanel.filter(l => l.mdr).length}</p></div>
         </CardContent></Card>
       </div>
 
-      {/* Filters */}
+      {/* Patient selector */}
       <Card><CardContent className="p-4">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar paciente ou prontuário..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar paciente ou prontuário..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
-          <Select value={sectorFilter} onValueChange={setSectorFilter}>
-            <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{sectors.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-full md:w-[300px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Todos">Todos Status</SelectItem>
-              {(["active", "discharged", "transferred", "deceased"] as PatientStatus[]).map(s =>
-                <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-              )}
+              {filtered.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.nome} — {p.prontuario}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </CardContent></Card>
 
-      {/* Table */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Lista de Pacientes ({filtered.length})</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead className="hidden md:table-cell">Setor / Leito</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Dispositivos</TableHead>
-                <TableHead className="hidden lg:table-cell">Dias Int.</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(p => (
-                <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedPatient(p)}>
-                  <TableCell>
-                    <p className="font-medium text-sm">{p.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{p.medical_record || "—"}</p>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <p className="text-sm">{p.sector || "—"}</p>
-                    <p className="text-xs text-muted-foreground">{p.bed || ""}</p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColors[p.status]}>{statusLabels[p.status]}</Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <span className="text-sm">{(devices[p.id] || []).length || "—"}</span>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <span className={`text-sm font-medium ${daysFromDate(p.admission_date) > 14 ? "text-destructive" : ""}`}>
-                      {daysFromDate(p.admission_date)}d
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right flex items-center justify-end gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditForm(p); }}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {p.status === "active" && (
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); dischargePatient(p); }}>
-                        <LogOut className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
+      {/* ─── TABBED SECTIONS ──────────────────────────────── */}
+      <Tabs defaultValue="identificacao" className="w-full">
+        <TabsList className="flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="identificacao" className="text-xs">Identificação</TabsTrigger>
+          <TabsTrigger value="exames" className="text-xs">Exames</TabsTrigger>
+          <TabsTrigger value="dispositivos" className="text-xs">Dispositivos</TabsTrigger>
+          <TabsTrigger value="evolucao" className="text-xs">Evolução</TabsTrigger>
+          <TabsTrigger value="sinais" className="text-xs">Sinais Vitais</TabsTrigger>
+          <TabsTrigger value="iras" className="text-xs">IRAS</TabsTrigger>
+          <TabsTrigger value="conclusao" className="text-xs">Conclusão</TabsTrigger>
+          <TabsTrigger value="criterios" className="text-xs">Critérios Diag.</TabsTrigger>
+          <TabsTrigger value="laboratorial" className="text-xs">Lab</TabsTrigger>
+          <TabsTrigger value="ocorrencia" className="text-xs">Ocorrência</TabsTrigger>
+          <TabsTrigger value="fatores" className="text-xs">Fatores Risco</TabsTrigger>
+          <TabsTrigger value="responsavel" className="text-xs">Responsável</TabsTrigger>
+        </TabsList>
+
+        {/* 1) Identificação */}
+        <TabsContent value="identificacao">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <Field label="Nome" value={selected.nome} />
+              <Field label="Unidade" value={selected.unidade} />
+              <Field label="Leito" value={selected.leito} />
+              <Field label="Prontuário" value={selected.prontuario} />
+              <Field label="Data Int. Hospitalar" value={selected.dataInternacaoHospitalar} />
+              <Field label="Origem" value={selected.origem} />
+              <Field label="Data Int. CTI" value={selected.dataInternacaoCTI || "—"} />
+              <Field label="Data da Alta" value={selected.dataAlta || "—"} />
+              <Field label="Doenças de base" value={selected.doencasBase} className="md:col-span-2" />
+              <Field label="Motivo da internação" value={selected.motivoInternacao} className="md:col-span-2" />
+              <Field label="Data Nascimento / Idade" value={`${selected.dataNascimento} (${calcAge(selected.dataNascimento)})`} />
+              <Field label="Sexo" value={selected.sexo === "M" ? "Masculino" : selected.sexo === "F" ? "Feminino" : "—"} />
+              <Field label="Data de admissão" value={selected.dataAdmissao} />
+              <Field label="Especialidade Clínica" value={selected.especialidade} />
+              <Field label="Diagnóstico" value={selected.diagnostico} className="md:col-span-2" />
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <Clock className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Dias de Internação</p>
+                  <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
+                </div>
+              </div>
+              <div>
+                <Badge variant={selected.status === "active" ? "default" : "secondary"} className="text-sm">
+                  {selected.status === "active" ? "Internado" : selected.status === "discharged" ? "Alta" : selected.status}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 2) Exames */}
+        <TabsContent value="exames">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Syringe className="h-4 w-4 text-primary" />Exames</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {([
+                ["hemocultura", "Hemocultura", "hemoculturaObs"],
+                ["urocultura", "Urocultura", "uroculturaObs"],
+                ["culturaTraqueal", "Cultura de secreção traqueal", "culturaTraquealObs"],
+                ["culturaFerida", "Cultura de ferida operatória", "culturaFeridaObs"],
+              ] as const).map(([key, label, obsKey]) => (
+                <div key={key} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                  <div className="space-y-1">
+                    <Label>{label}</Label>
+                    <Select disabled={readOnly} value={(exames as any)[key]} onValueChange={v => setExames(prev => ({ ...prev, [key]: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="Sim">Sim</SelectItem><SelectItem value="Não">Não</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2 space-y-1">
+                    <Label>Observação</Label>
+                    <Input disabled={readOnly} value={(exames as any)[obsKey]} onChange={e => setExames(prev => ({ ...prev, [obsKey]: e.target.value }))} placeholder="Detalhes..." />
+                  </div>
+                </div>
               ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum paciente encontrado</TableCell></TableRow>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 3) Dispositivos */}
+        <TabsContent value="dispositivos">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos — Controle Diário</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DeviceSelect label="Cateter Venoso Central" disabled={readOnly} value={dispositivos.cvc} onChange={v => setDispositivos(p => ({ ...p, cvc: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
+              <DeviceSelect label="Cateter Arterial Periférico" disabled={readOnly} value={dispositivos.cateterArterial} onChange={v => setDispositivos(p => ({ ...p, cateterArterial: v }))} options={["Sim", "Não"]} />
+              <DeviceSelect label="Cateter de Hemodiálise" disabled={readOnly} value={dispositivos.cateterHemodialise} onChange={v => setDispositivos(p => ({ ...p, cateterHemodialise: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
+              <DeviceSelect label="Ventilação Mecânica" disabled={readOnly} value={dispositivos.ventilacao} onChange={v => setDispositivos(p => ({ ...p, ventilacao: v }))} options={["Sim", "Não"]} />
+              <DeviceSelect label="Cateter Vesical de Demora" disabled={readOnly} value={dispositivos.cateterVesical} onChange={v => setDispositivos(p => ({ ...p, cateterVesical: v }))} options={["Sim", "Não"]} />
+              <DeviceSelect label="Sonda Nasogástrica/Nasoenteral" disabled={readOnly} value={dispositivos.sonda} onChange={v => setDispositivos(p => ({ ...p, sonda: v }))} options={["Sim", "Não"]} />
+              <DeviceSelect label="Drenos" disabled={readOnly} value={dispositivos.drenos} onChange={v => setDispositivos(p => ({ ...p, drenos: v }))} options={["Sim", "Não"]} />
+              <DeviceSelect label="Ferida Operatória" disabled={readOnly} value={dispositivos.feridaOp} onChange={v => setDispositivos(p => ({ ...p, feridaOp: v }))} options={["Sim", "Não"]} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 4) Evolução */}
+        <TabsContent value="evolucao">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4 text-primary" />Evolução — Controle Diário</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                ["evolucaoInternacao", "Evolução durante internação"],
+                ["colonizacoes", "Colonizações"],
+                ["antibioticoPrevio", "Antibióticos usados previamente"],
+                ["culturasPreviaCTI", "Culturas prévias ao CTI"],
+                ["resultadoCulturasCTI", "Resultado de culturas no CTI"],
+                ["antibioticosCTI", "Antibióticos no CTI"],
+                ["dispositivosInvasivos", "Dispositivos invasivos"],
+                ["examesImagem", "Exames de imagem"],
+                ["condutasDiarias", "Condutas diárias"],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="space-y-1">
+                  <Label>{label}</Label>
+                  <Textarea disabled={readOnly} value={(evolucao as any)[key]} onChange={e => setEvolucao(prev => ({ ...prev, [key]: e.target.value }))} rows={3} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 5) Sinais Vitais */}
+        <TabsContent value="sinais">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Thermometer className="h-4 w-4 text-primary" />Preenchimento Diário</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label className="flex items-center gap-2">
+                  Temperatura (°C)
+                  {tempAlta && <Badge variant="destructive" className="text-xs animate-pulse">⚠ ALERTA: Febre</Badge>}
+                </Label>
+                <Input
+                  disabled={readOnly}
+                  type="number"
+                  step="0.1"
+                  value={sinaisVitais.temperatura}
+                  onChange={e => setSinaisVitais(p => ({ ...p, temperatura: e.target.value }))}
+                  className={tempAlta ? "border-destructive text-destructive font-bold bg-destructive/5" : ""}
+                  placeholder="36.5"
+                />
+              </div>
+              <div className="space-y-1"><Label>Leucócitos</Label><Input disabled={readOnly} value={sinaisVitais.leucocitos} onChange={e => setSinaisVitais(p => ({ ...p, leucocitos: e.target.value }))} placeholder="ex: 12.500" /></div>
+              <div className="space-y-1"><Label>Pressão Arterial</Label><Input disabled={readOnly} value={sinaisVitais.pressaoArterial} onChange={e => setSinaisVitais(p => ({ ...p, pressaoArterial: e.target.value }))} placeholder="ex: 120/80" /></div>
+              <div className="space-y-1"><Label>FIO2 / PEEP</Label><Input disabled={readOnly} value={sinaisVitais.fio2Peep} onChange={e => setSinaisVitais(p => ({ ...p, fio2Peep: e.target.value }))} placeholder="ex: 40% / 8" /></div>
+              <div className="space-y-1"><Label>Hematúria</Label><Input disabled={readOnly} value={sinaisVitais.hematuria} onChange={e => setSinaisVitais(p => ({ ...p, hematuria: e.target.value }))} placeholder="Sim / Não / Observação" /></div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 6) IRAS */}
+        <TabsContent value="iras">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-destructive" />Seção IRAS</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>IRAS</Label>
+                <RadioGroup disabled={readOnly} value={iras.temIras} onValueChange={v => setIras(p => ({ ...p, temIras: v }))} className="flex gap-4">
+                  <div className="flex items-center gap-2"><RadioGroupItem value="Sim" id="iras-sim" /><Label htmlFor="iras-sim">Sim</Label></div>
+                  <div className="flex items-center gap-2"><RadioGroupItem value="Não" id="iras-nao" /><Label htmlFor="iras-nao">Não</Label></div>
+                </RadioGroup>
+              </div>
+              {iras.temIras === "Sim" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1"><Label>Número de IRAS</Label><Input disabled={readOnly} value={iras.numeroIras} onChange={e => setIras(p => ({ ...p, numeroIras: e.target.value }))} /></div>
+                  <div className="md:col-span-2 space-y-1"><Label>Quais foram as IRAS</Label><Input disabled={readOnly} value={iras.quaisIras} onChange={e => setIras(p => ({ ...p, quaisIras: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Data de fechamento</Label><Input disabled={readOnly} type="date" value={iras.dataFechamento} onChange={e => setIras(p => ({ ...p, dataFechamento: e.target.value }))} /></div>
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 7) Conclusão */}
+        <TabsContent value="conclusao">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Conclusão</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1"><Label>Classificação final *</Label><Input disabled={readOnly} value={conclusao.classificacao} onChange={e => setConclusao(p => ({ ...p, classificacao: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Conclusão epidemiológica *</Label><Input disabled={readOnly} value={conclusao.conclusaoEpidemiologica} onChange={e => setConclusao(p => ({ ...p, conclusaoEpidemiologica: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Condutas *</Label><Textarea disabled={readOnly} value={conclusao.condutas} onChange={e => setConclusao(p => ({ ...p, condutas: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Desfecho *</Label><Input disabled={readOnly} value={conclusao.desfecho} onChange={e => setConclusao(p => ({ ...p, desfecho: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Vínculo com surto *</Label><Input disabled={readOnly} value={conclusao.vinculoSurto} onChange={e => setConclusao(p => ({ ...p, vinculoSurto: e.target.value }))} /></div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 8) Critérios Diagnósticos */}
+        <TabsContent value="criterios">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Critérios Diagnósticos</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {criteriosDiagnosticos.map(c => (
+                  <label key={c} className="flex items-start gap-2 cursor-pointer">
+                    <Checkbox
+                      disabled={readOnly}
+                      checked={criteriosSelecionados.includes(c)}
+                      onCheckedChange={checked => {
+                        setCriteriosSelecionados(prev => checked ? [...prev, c] : prev.filter(x => x !== c));
+                      }}
+                    />
+                    <span className="text-sm">{c}</span>
+                  </label>
+                ))}
+              </div>
+              <Separator />
+              <div className="space-y-1">
+                <Label>Justificativa clínica *</Label>
+                <Textarea disabled={readOnly} value={justificativa} onChange={e => setJustificativa(e.target.value)} rows={3} placeholder="Descreva a justificativa clínica..." />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 9) Painel Laboratorial */}
+        <TabsContent value="laboratorial">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Syringe className="h-4 w-4 text-primary" />Painel Laboratorial</CardTitle></CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-medium text-muted-foreground">Exame</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">Data</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">Microrganismo</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">Sensibilidade</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">MDR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mockLabPanel.map((lab, i) => (
+                      <tr key={i} className={`border-b ${lab.mdr ? "bg-destructive/5" : ""}`}>
+                        <td className="p-2">{lab.exame}</td>
+                        <td className="p-2">{lab.data}</td>
+                        <td className="p-2 font-medium">{lab.microrganismo}</td>
+                        <td className="p-2">{lab.sensibilidade}</td>
+                        <td className="p-2">
+                          {lab.mdr
+                            ? <Badge variant="destructive" className="text-xs">MDR</Badge>
+                            : <Badge variant="outline" className="text-xs">Sensível</Badge>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 10) Dados da Ocorrência */}
+        <TabsContent value="ocorrencia">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Dados da Ocorrência</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1"><Label>Unidade/Setor</Label><Input disabled={readOnly} value={ocorrencia.unidadeSetor} onChange={e => setOcorrencia(p => ({ ...p, unidadeSetor: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Leito</Label><Input disabled={readOnly} value={ocorrencia.leito} onChange={e => setOcorrencia(p => ({ ...p, leito: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Data dos sintomas</Label><Input disabled={readOnly} type="date" value={ocorrencia.dataSintomas} onChange={e => setOcorrencia(p => ({ ...p, dataSintomas: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Data da suspeita</Label><Input disabled={readOnly} type="date" value={ocorrencia.dataSuspeita} onChange={e => setOcorrencia(p => ({ ...p, dataSuspeita: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Data da notificação</Label><Input disabled={readOnly} type="date" value={ocorrencia.dataNotificacao} onChange={e => setOcorrencia(p => ({ ...p, dataNotificacao: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Origem da notificação</Label><Input disabled={readOnly} value={ocorrencia.origemNotificacao} onChange={e => setOcorrencia(p => ({ ...p, origemNotificacao: e.target.value }))} /></div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 11) Fatores de Risco e Dispositivos Invasivos */}
+        <TabsContent value="fatores">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Dispositivos Invasivos — Datas</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1"><Label>CVC — Inserção</Label><Input disabled={readOnly} type="date" value={dispInvasivos.cvcInsercao} onChange={e => setDispInvasivos(p => ({ ...p, cvcInsercao: e.target.value }))} /></div>
+                <div className="space-y-1"><Label>CVC — Retirada</Label><Input disabled={readOnly} type="date" value={dispInvasivos.cvcRetirada} onChange={e => setDispInvasivos(p => ({ ...p, cvcRetirada: e.target.value }))} /></div>
+                <div className="flex items-end pb-2"><p className="text-sm">Permanência: <span className="font-bold">{cvcDays != null ? `${cvcDays} dias` : "—"}</span></p></div>
+                <div className="space-y-1"><Label>SVU — Inserção</Label><Input disabled={readOnly} type="date" value={dispInvasivos.svuInsercao} onChange={e => setDispInvasivos(p => ({ ...p, svuInsercao: e.target.value }))} /></div>
+                <div className="space-y-1"><Label>SVU — Retirada</Label><Input disabled={readOnly} type="date" value={dispInvasivos.svuRetirada} onChange={e => setDispInvasivos(p => ({ ...p, svuRetirada: e.target.value }))} /></div>
+                <div className="flex items-end pb-2"><p className="text-sm">Permanência: <span className="font-bold">{svuDays != null ? `${svuDays} dias` : "—"}</span></p></div>
+                <div className="space-y-1"><Label>VM — Inserção</Label><Input disabled={readOnly} type="date" value={dispInvasivos.vmInsercao} onChange={e => setDispInvasivos(p => ({ ...p, vmInsercao: e.target.value }))} /></div>
+                <div className="space-y-1"><Label>VM — Retirada</Label><Input disabled={readOnly} type="date" value={dispInvasivos.vmRetirada} onChange={e => setDispInvasivos(p => ({ ...p, vmRetirada: e.target.value }))} /></div>
+                <div className="flex items-end pb-2"><p className="text-sm">Permanência: <span className="font-bold">{vmDays != null ? `${vmDays} dias` : "—"}</span></p></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Fatores de Risco</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {mockFatoresRisco.map(f => (
+                    <div key={f} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      <span className="text-sm">{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* 12) Responsável */}
+        <TabsContent value="responsavel">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Atribuição de Responsável</CardTitle></CardHeader>
+            <CardContent>
+              <div className="max-w-md space-y-1">
+                <Label>Profissional Responsável</Label>
+                <Select disabled={readOnly} value={responsavel} onValueChange={setResponsavel}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dr-silva">Dr. Carlos Silva — Infectologista</SelectItem>
+                    <SelectItem value="enf-ana">Enf. Ana Beatriz — CCIH</SelectItem>
+                    <SelectItem value="dra-maria">Dra. Maria Lopes — Intensivista</SelectItem>
+                    <SelectItem value="bio-pedro">Biol. Pedro Mendes — Microbiologia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* ─── ACTION BUTTONS ───────────────────────────────── */}
+      <Card>
+        <CardContent className="p-4 flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => toast.success("Rascunho salvo!")} className="gap-2">
+            <Save className="h-4 w-4" />Salvar Rascunho
+          </Button>
+          <Button onClick={() => {
+            if (!conclusao.classificacao || !conclusao.conclusaoEpidemiologica || !conclusao.condutas || !conclusao.desfecho || !conclusao.vinculoSurto) {
+              toast.error("Preencha todos os campos obrigatórios na seção Conclusão");
+              return;
+            }
+            if (!justificativa.trim()) {
+              toast.error("Preencha a justificativa clínica nos Critérios Diagnósticos");
+              return;
+            }
+            toast.success("Dados salvos com sucesso!");
+          }} className="gap-2">
+            <Save className="h-4 w-4" />Salvar e Continuar
+          </Button>
+          {selected.status === "active" && (
+            <Button variant="destructive" onClick={() => setDischargeOpen(true)} className="gap-2">
+              <LogOut className="h-4 w-4" />Dar Alta
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedPatient && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5 text-primary" />
-                  {selectedPatient.full_name}
-                </DialogTitle>
-                <DialogDescription>Prontuário: {selectedPatient.medical_record || "—"} | Admissão: {selectedPatient.admission_date}</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><p className="text-xs text-muted-foreground">Setor / Leito</p><p className="text-sm font-medium">{selectedPatient.sector || "—"} — {selectedPatient.bed || "—"}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Dias de Internação</p><p className="text-sm font-medium">{daysFromDate(selectedPatient.admission_date)} dias</p></div>
-                  <div><p className="text-xs text-muted-foreground">Status</p><Badge variant="outline" className={statusColors[selectedPatient.status]}>{statusLabels[selectedPatient.status]}</Badge></div>
-                  <div><p className="text-xs text-muted-foreground">Gênero</p><p className="text-sm">{selectedPatient.gender || "—"}</p></div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Dispositivos</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {(devices[selectedPatient.id] || []).length > 0
-                      ? (devices[selectedPatient.id] || []).map(d => <Badge key={d} variant="outline" className="border-primary/30">{d}</Badge>)
-                      : <span className="text-sm text-muted-foreground">Nenhum</span>}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Antimicrobianos em Uso</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {(prescriptions[selectedPatient.id] || []).length > 0
-                      ? (prescriptions[selectedPatient.id] || []).map(a => <Badge key={a} variant="secondary">{a}</Badge>)
-                      : <span className="text-sm text-muted-foreground">Nenhum</span>}
-                  </div>
-                </div>
-                {selectedPatient.notes && (
-                  <div><p className="text-xs text-muted-foreground">Observações</p><p className="text-sm bg-muted/50 p-3 rounded-md">{selectedPatient.notes}</p></div>
-                )}
-              </div>
-              <DialogFooter className="mt-4">
-                <Button variant="outline" onClick={() => openEditForm(selectedPatient)}>Editar</Button>
-                {selectedPatient.status === "active" && (
-                  <Button variant="destructive" onClick={() => dischargePatient(selectedPatient)}>Dar Alta</Button>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingPatient ? "Editar Paciente" : "Cadastrar Paciente"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2"><Label>Nome Completo *</Label><Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Prontuário</Label><Input value={form.medical_record} onChange={e => setForm(f => ({ ...f, medical_record: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>Data Admissão</Label><Input type="date" value={form.admission_date} onChange={e => setForm(f => ({ ...f, admission_date: e.target.value }))} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Setor</Label>
-                <Select value={form.sector} onValueChange={v => setForm(f => ({ ...f, sector: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{sectorOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2"><Label>Leito</Label><Input value={form.bed} onChange={e => setForm(f => ({ ...f, bed: e.target.value }))} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as PatientStatus }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(["active", "discharged", "transferred", "deceased"] as PatientStatus[]).map(s =>
-                      <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Gênero</Label>
-                <Select value={form.gender} onValueChange={v => setForm(f => ({ ...f, gender: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="M">Masculino</SelectItem>
-                    <SelectItem value="F">Feminino</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2"><Label>Data Nascimento</Label><Input type="date" value={form.birth_date} onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
-          </div>
+      {/* ─── DISCHARGE MODAL ──────────────────────────────── */}
+      <Dialog open={dischargeOpen} onOpenChange={setDischargeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
+          <Select value={dischargeType} onValueChange={setDischargeType}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{tiposAlta.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+          </Select>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editingPatient ? "Salvar" : "Cadastrar"}</Button>
+            <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDischarge}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
+      <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Cadastrar Novo Paciente</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Nome Completo *</Label><Input value={newForm.nome} onChange={e => setNewForm(p => ({ ...p, nome: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>Prontuário</Label><Input value={newForm.prontuario} onChange={e => setNewForm(p => ({ ...p, prontuario: e.target.value }))} placeholder="Auto" /></div>
+              <div className="space-y-1">
+                <Label>Sexo</Label>
+                <Select value={newForm.sexo} onValueChange={v => setNewForm(p => ({ ...p, sexo: v }))}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent><SelectItem value="M">Masculino</SelectItem><SelectItem value="F">Feminino</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>Unidade</Label><Input value={newForm.unidade} onChange={e => setNewForm(p => ({ ...p, unidade: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>Leito</Label><Input value={newForm.leito} onChange={e => setNewForm(p => ({ ...p, leito: e.target.value }))} /></div>
+            </div>
+            <div className="space-y-1"><Label>Data Nascimento</Label><Input type="date" value={newForm.dataNascimento} onChange={e => setNewForm(p => ({ ...p, dataNascimento: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewPatientOpen(false)}>Cancelar</Button>
+            <Button onClick={handleNewPatient}>Cadastrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Helper Components ────────────────────────────────────────
+function Field({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-foreground">{value || "—"}</p>
+    </div>
+  );
+}
+
+function DeviceSelect({ label, value, onChange, options, disabled }: { label: string; value: string; onChange: (v: string) => void; options: string[]; disabled?: boolean }) {
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <Select disabled={disabled} value={value} onValueChange={onChange}>
+        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+      </Select>
     </div>
   );
 }
