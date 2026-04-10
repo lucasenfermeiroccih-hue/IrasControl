@@ -72,12 +72,16 @@ const criteriosDiagnosticos = [
   "PCR ou Procalcitonina elevada",
 ];
 
-const mockLabPanel = [
+const initialLabPanel = [
   { exame: "Hemocultura", data: "05/04/2026", microrganismo: "Staphylococcus aureus", sensibilidade: "MRSA", mdr: true },
   { exame: "Urocultura", data: "03/04/2026", microrganismo: "Klebsiella pneumoniae", sensibilidade: "KPC+", mdr: true },
   { exame: "Cultura sec. traqueal", data: "06/04/2026", microrganismo: "Pseudomonas aeruginosa", sensibilidade: "Sensível a Meropenem", mdr: false },
   { exame: "Cultura ferida op.", data: "04/04/2026", microrganismo: "Escherichia coli", sensibilidade: "ESBL", mdr: true },
 ];
+
+type LabEntry = typeof initialLabPanel[0];
+
+const exameOptions = ["Hemocultura", "Urocultura", "Cultura de secreção traqueal", "Cultura de ferida operatória", "Cultura de ponta de cateter", "Líquor", "Outro"];
 
 const mockFatoresRisco = [
   "Idade > 65 anos", "Diabetes mellitus", "Imunossupressão",
@@ -138,6 +142,9 @@ export default function PatientsMonitoring() {
   const [justificativa, setJustificativa] = useState("");
   const [ocorrencia, setOcorrencia] = useState({ unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
   const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" });
+  const [labPanel, setLabPanel] = useState<LabEntry[]>(initialLabPanel);
+  const [newLabOpen, setNewLabOpen] = useState(false);
+  const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
   const [responsavel, setResponsavel] = useState("");
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
@@ -239,7 +246,7 @@ export default function PatientsMonitoring() {
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent"><Activity className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">MDR</p><p className="text-2xl font-bold text-destructive">{mockLabPanel.filter(l => l.mdr).length}</p></div>
+          <div><p className="text-xs text-muted-foreground">MDR</p><p className="text-2xl font-bold text-destructive">{labPanel.filter(l => l.mdr).length}</p></div>
         </CardContent></Card>
       </div>
 
@@ -395,9 +402,14 @@ export default function PatientsMonitoring() {
               {/* Lab Panel inline */}
               <Separator />
               <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Syringe className="h-4 w-4 text-primary" />Painel Laboratorial
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Syringe className="h-4 w-4 text-primary" />Painel Laboratorial
+                  </h4>
+                  <Button variant="outline" size="sm" onClick={() => { setNewLab({ exame: "", data: new Date().toISOString().slice(0, 10).split("-").reverse().join("/"), microrganismo: "", sensibilidade: "", mdr: false }); setNewLabOpen(true); }} className="gap-1.5">
+                    <Plus className="h-4 w-4" />Cadastrar Exame
+                  </Button>
+                </div>
                 <div className="overflow-x-auto rounded-lg border">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
@@ -410,7 +422,7 @@ export default function PatientsMonitoring() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mockLabPanel.map((lab, i) => (
+                      {labPanel.map((lab, i) => (
                         <tr key={i} className={`border-t ${lab.mdr ? "bg-destructive/5" : ""}`}>
                           <td className="p-3">{lab.exame}</td>
                           <td className="p-3">{lab.data}</td>
@@ -760,6 +772,39 @@ export default function PatientsMonitoring() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditIdOpen(false)}>Cancelar</Button>
             <Button onClick={saveEditId}>Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── NEW LAB EXAM MODAL ──────────────────────────── */}
+      <Dialog open={newLabOpen} onOpenChange={setNewLabOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Cadastrar Exame Laboratorial</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-medium">Tipo de Exame *</Label>
+              <Select value={newLab.exame} onValueChange={v => setNewLab(p => ({ ...p, exame: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione o exame" /></SelectTrigger>
+                <SelectContent>{exameOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label className="font-medium">Data</Label><Input value={newLab.data} onChange={e => setNewLab(p => ({ ...p, data: e.target.value }))} placeholder="dd/mm/aaaa" /></div>
+            <div className="space-y-2"><Label className="font-medium">Microrganismo</Label><Input value={newLab.microrganismo} onChange={e => setNewLab(p => ({ ...p, microrganismo: e.target.value }))} placeholder="Ex: Staphylococcus aureus" /></div>
+            <div className="space-y-2"><Label className="font-medium">Perfil de Sensibilidade</Label><Input value={newLab.sensibilidade} onChange={e => setNewLab(p => ({ ...p, sensibilidade: e.target.value }))} placeholder="Ex: MRSA, ESBL, Sensível..." /></div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={newLab.mdr} onCheckedChange={checked => setNewLab(p => ({ ...p, mdr: !!checked }))} id="mdr-check" />
+              <Label htmlFor="mdr-check" className="font-medium cursor-pointer">Multirresistente (MDR)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewLabOpen(false)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (!newLab.exame) { toast.error("Selecione o tipo de exame"); return; }
+              if (!newLab.microrganismo.trim()) { toast.error("Informe o microrganismo"); return; }
+              setLabPanel(prev => [...prev, { ...newLab }]);
+              setNewLabOpen(false);
+              toast.success("Exame cadastrado no painel laboratorial!");
+            }}>Cadastrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
