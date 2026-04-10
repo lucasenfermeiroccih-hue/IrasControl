@@ -482,7 +482,7 @@ export default function PatientsMonitoring() {
                   <div className="space-y-4">
                     {([
                       ["CVC", dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada, cvcDays, "cvcInsercao", "cvcRetirada"],
-                      ["SVU", dispInvasivos.svuInsercao, dispInvasivos.svuRetirada, svuDays, "svuInsercao", "svuRetirada"],
+                      ["SVD", dispInvasivos.svuInsercao, dispInvasivos.svuRetirada, svuDays, "svuInsercao", "svuRetirada"],
                       ["VM", dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, vmDays, "vmInsercao", "vmRetirada"],
                     ] as const).map(([label, insVal, retVal, days, insKey, retKey]) => (
                       <div key={label} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end p-3 rounded-lg border bg-muted/30">

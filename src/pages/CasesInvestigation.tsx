@@ -739,7 +739,7 @@ const CasesInvestigation = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[
                         { label: "CVC", ins: "cvcInsercao", ret: "cvcRetirada", days: cvcDays },
-                        { label: "SVU", ins: "svuInsercao", ret: "svuRetirada", days: svuDays },
+                        { label: "SVD", ins: "svuInsercao", ret: "svuRetirada", days: svuDays },
                         { label: "VM", ins: "vmInsercao", ret: "vmRetirada", days: vmDays },
                       ].map(dev => (
                         <div key={dev.label} className="space-y-2 p-3 rounded-lg border">
