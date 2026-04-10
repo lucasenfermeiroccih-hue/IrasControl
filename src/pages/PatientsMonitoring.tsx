@@ -115,6 +115,12 @@ export default function PatientsMonitoring() {
   const [dischargeType, setDischargeType] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
   const [currentStep, setCurrentStep] = useState(0);
+  const [editIdOpen, setEditIdOpen] = useState(false);
+  const [editIdForm, setEditIdForm] = useState<Omit<MockPatient, "id" | "status">>({
+    nome: "", unidade: "", leito: "", prontuario: "", dataInternacaoHospitalar: "",
+    origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+    dataNascimento: "", sexo: "", dataAdmissao: "", especialidade: "", diagnostico: "",
+  });
 
   const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "" });
 
