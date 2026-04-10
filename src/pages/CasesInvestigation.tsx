@@ -473,9 +473,52 @@ const CasesInvestigation = () => {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
-  return (
-    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      {/* ── Header ── */}
+  // If investigation panel is open, show it full-page instead of the list
+  if (detailOpen) {
+    return (
+      <div className="pb-24">
+        {/* ── Sticky Patient Header ── */}
+        <div className="sticky top-0 z-10 bg-background border-b p-4 -mx-4 md:-mx-6 -mt-4 md:-mt-6 px-4 md:px-6">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailOpen(false)}>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <User className="h-5 w-5 text-primary" />
+              <h2 className="font-bold text-foreground text-lg">{ident.nome || "Novo Paciente"}</h2>
+              <Badge variant="outline" className="font-mono text-xs">{protocolo}</Badge>
+              <Badge className={investigationStatus === "closed" ? "bg-muted text-muted-foreground" : investigationStatus === "investigating" ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"}>
+                {investigationStatus === "open" ? "Notificado" : investigationStatus === "investigating" ? "Em Investigação" : investigationStatus === "confirmed" ? "Confirmado" : investigationStatus === "closed" ? "Encerrado" : investigationStatus}
+              </Badge>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-4 gap-y-1 text-xs ml-10">
+            <div><span className="text-muted-foreground">Prontuário:</span> <span className="font-medium">{ident.prontuario || "—"}</span></div>
+            <div><span className="text-muted-foreground">Nasc.:</span> <span className="font-medium">{ident.nascimento ? `${ident.nascimento} (${calcAge(ident.nascimento)})` : "—"}</span></div>
+            <div><span className="text-muted-foreground">Sexo:</span> <span className="font-medium">{ident.sexo || "—"}</span></div>
+            <div><span className="text-muted-foreground">Admissão:</span> <span className="font-medium">{ident.admissao || "—"}</span></div>
+            <div><span className="text-muted-foreground">Unidade:</span> <span className="font-medium">{ident.unidade || "—"}</span></div>
+            <div><span className="text-muted-foreground">Leito:</span> <span className="font-medium">{ident.leito || "—"}</span></div>
+            <div><span className="text-muted-foreground">Espec.:</span> <span className="font-medium">{ident.especialidade || "—"}</span></div>
+            <div><span className="text-muted-foreground">Origem:</span> <span className="font-medium">{ident.origem || "—"}</span></div>
+          </div>
+          {/* Step nav */}
+          <div className="mt-3 ml-10">
+            <Progress value={detailProgress} className="h-1.5 mb-2" />
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {DETAIL_STEPS.map((s, i) => (
+                <Button key={s.key} variant={i === detailStep ? "default" : "ghost"} size="sm"
+                  className={`text-xs shrink-0 gap-1.5 h-8 ${i === detailStep ? "" : "text-muted-foreground"}`}
+                  onClick={() => setDetailStep(i)}>
+                  <s.icon className="h-3.5 w-3.5" />{s.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Step Content ── */}
+        <div className="mt-6 space-y-4 max-w-5xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg md:text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
