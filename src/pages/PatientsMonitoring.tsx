@@ -669,7 +669,21 @@ export default function PatientsMonitoring() {
           </div>
         </div>
 
-        {/* ─── DISCHARGE MODAL ──────────────────────────────── */}
+        {/* ─── DISCHARGE CONFIRM DIALOG ─────────────────── */}
+        <Dialog open={dischargeConfirmOpen} onOpenChange={setDischargeConfirmOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Confirmar Alta</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja dar alta ao paciente <strong className="text-foreground">{selected?.nome || patients.find(p => p.id === selectedId)?.nome}</strong>?
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDischargeConfirmOpen(false)}>Cancelar</Button>
+              <Button variant="destructive" onClick={() => { setDischargeConfirmOpen(false); setDischargeOpen(true); }}>Sim, continuar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ─── DISCHARGE TYPE MODAL ─────────────────────────── */}
         <Dialog open={dischargeOpen} onOpenChange={setDischargeOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
@@ -679,7 +693,7 @@ export default function PatientsMonitoring() {
             </Select>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
-              <Button variant="destructive" onClick={handleDischarge}>Confirmar</Button>
+              <Button variant="destructive" onClick={handleDischarge}>Confirmar Alta</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
