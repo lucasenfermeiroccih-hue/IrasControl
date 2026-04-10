@@ -952,7 +952,17 @@ export default function PatientsMonitoring() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Unidade</Label><Input value={newForm.unidade} onChange={e => setNewForm(p => ({ ...p, unidade: e.target.value }))} /></div>
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select value={newForm.unidade} onValueChange={v => setNewForm(p => ({ ...p, unidade: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    {["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"].map(u => (
+                      <SelectItem key={u} value={u}>{u}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2"><Label>Leito</Label><Input value={newForm.leito} onChange={e => setNewForm(p => ({ ...p, leito: e.target.value }))} /></div>
             </div>
             <div className="space-y-2"><Label>Data Nascimento</Label><Input type="date" value={newForm.dataNascimento} onChange={e => setNewForm(p => ({ ...p, dataNascimento: e.target.value }))} /></div>
