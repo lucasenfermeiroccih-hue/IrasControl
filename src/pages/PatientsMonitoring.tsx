@@ -188,8 +188,27 @@ export default function PatientsMonitoring() {
     }
     setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
     setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico adicionado");
+  };
+
+  const handleEditAtb = (atb: AntibioticEntry) => {
+    setEditingAtbId(atb.id);
+    setNewAtb({ nome: atb.nome, dataInicio: atb.dataInicio, dataFim: atb.dataFim });
+    setNewAtbOpen(true);
+  };
+
+  const handleSaveEditAtb = () => {
+    if (!newAtb.nome || !newAtb.dataInicio) {
+      toast.error("Informe o nome e a data de início do antibiótico");
+      return;
+    }
+    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, ...newAtb } : a));
+    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setEditingAtbId(null);
+    setNewAtbOpen(false);
+    toast.success("Antibiótico atualizado");
   };
 
   const handleRemoveAtb = (id: string) => {
