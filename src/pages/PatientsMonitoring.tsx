@@ -56,6 +56,11 @@ interface MockPatient {
   status: PatientStatus;
 }
 
+const especialidades = [
+  "Clínica médica", "Cirurgia Geral", "Cirurgia Vascular", "Cirurgia Cardíaca",
+  "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Ortopédica",
+];
+
 const tiposAlta = ["Óbito", "Alta", "Transferência"];
 
 const criteriosDiagnosticos = [
@@ -110,6 +115,12 @@ export default function PatientsMonitoring() {
   const [dischargeType, setDischargeType] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
   const [currentStep, setCurrentStep] = useState(0);
+  const [editIdOpen, setEditIdOpen] = useState(false);
+  const [editIdForm, setEditIdForm] = useState<Omit<MockPatient, "id" | "status">>({
+    nome: "", unidade: "", leito: "", prontuario: "", dataInternacaoHospitalar: "",
+    origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+    dataNascimento: "", sexo: "", dataAdmissao: "", especialidade: "", diagnostico: "",
+  });
 
   const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "" });
 
@@ -159,6 +170,19 @@ export default function PatientsMonitoring() {
     setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, status: "discharged" as const, dataAlta: new Date().toISOString().slice(0, 10) } : p));
     setDischargeOpen(false);
     toast.success(`Paciente ${selected.nome} — ${dischargeType} registrada`);
+  };
+
+  const openEditId = () => {
+    const { id, status, ...rest } = selected;
+    setEditIdForm(rest);
+    setEditIdOpen(true);
+  };
+
+  const saveEditId = () => {
+    if (!editIdForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
+    setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, ...editIdForm } : p));
+    setEditIdOpen(false);
+    toast.success("Dados de identificação atualizados!");
   };
 
   const handleSave = () => {
@@ -302,8 +326,11 @@ export default function PatientsMonitoring() {
         {/* 1) Identificação */}
         {currentStep === 0 && (
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle>
+              <Button variant="outline" size="sm" onClick={openEditId} className="gap-1.5">
+                <Pencil className="h-4 w-4" />Editar Identificação
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
@@ -693,6 +720,46 @@ export default function PatientsMonitoring() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewPatientOpen(false)}>Cancelar</Button>
             <Button onClick={handleNewPatient}>Cadastrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── EDIT IDENTIFICATION MODAL ────────────────────── */}
+      <Dialog open={editIdOpen} onOpenChange={setEditIdOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Editar Identificação do Paciente</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 space-y-2"><Label className="font-medium">Nome Completo *</Label><Input value={editIdForm.nome} onChange={e => setEditIdForm(p => ({ ...p, nome: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Prontuário</Label><Input value={editIdForm.prontuario} onChange={e => setEditIdForm(p => ({ ...p, prontuario: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <Label>Sexo</Label>
+              <Select value={editIdForm.sexo} onValueChange={v => setEditIdForm(p => ({ ...p, sexo: v }))}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent><SelectItem value="M">Masculino</SelectItem><SelectItem value="F">Feminino</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Data Nascimento</Label><Input type="date" value={editIdForm.dataNascimento} onChange={e => setEditIdForm(p => ({ ...p, dataNascimento: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Unidade</Label><Input value={editIdForm.unidade} onChange={e => setEditIdForm(p => ({ ...p, unidade: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Leito</Label><Input value={editIdForm.leito} onChange={e => setEditIdForm(p => ({ ...p, leito: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Origem</Label><Input value={editIdForm.origem} onChange={e => setEditIdForm(p => ({ ...p, origem: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Data Int. Hospitalar</Label><Input type="date" value={editIdForm.dataInternacaoHospitalar} onChange={e => setEditIdForm(p => ({ ...p, dataInternacaoHospitalar: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Data Int. CTI</Label><Input type="date" value={editIdForm.dataInternacaoCTI} onChange={e => setEditIdForm(p => ({ ...p, dataInternacaoCTI: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Data de Admissão</Label><Input type="date" value={editIdForm.dataAdmissao} onChange={e => setEditIdForm(p => ({ ...p, dataAdmissao: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Data da Alta</Label><Input type="date" value={editIdForm.dataAlta} onChange={e => setEditIdForm(p => ({ ...p, dataAlta: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <Label>Especialidade Clínica</Label>
+              <Select value={editIdForm.especialidade} onValueChange={v => setEditIdForm(p => ({ ...p, especialidade: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{especialidades.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2 space-y-2"><Label>Diagnóstico</Label><Input value={editIdForm.diagnostico} onChange={e => setEditIdForm(p => ({ ...p, diagnostico: e.target.value }))} /></div>
+            <div className="sm:col-span-2 space-y-2"><Label>Doenças de base</Label><Input value={editIdForm.doencasBase} onChange={e => setEditIdForm(p => ({ ...p, doencasBase: e.target.value }))} /></div>
+            <div className="sm:col-span-2 space-y-2"><Label>Motivo da internação</Label><Input value={editIdForm.motivoInternacao} onChange={e => setEditIdForm(p => ({ ...p, motivoInternacao: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditIdOpen(false)}>Cancelar</Button>
+            <Button onClick={saveEditId}>Salvar Alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
