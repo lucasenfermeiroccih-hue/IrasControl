@@ -1105,3 +1105,5 @@ const CasesInvestigation = () => {
     </div>
   );
 };
+
+export default CasesInvestigation;
