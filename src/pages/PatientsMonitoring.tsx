@@ -741,7 +741,28 @@ export default function PatientsMonitoring() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="font-medium">Nome do Antibiótico *</Label>
-                      <Input value={newAtb.nome} onChange={e => setNewAtb(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Meropenem, Vancomicina..." />
+                      <Select value={newAtb.nome} onValueChange={v => setNewAtb(p => ({ ...p, nome: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Selecione o antibiótico..." /></SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {[
+                            "Penicilina G","Penicilina benzatina","Oxacilina","Nafcilina","Ampicilina","Amoxicilina",
+                            "Piperacilina","Piperacilina/tazobactam","Cefazolina","Cefuroxima","Ceftriaxona","Cefotaxima",
+                            "Ceftazidima","Cefepime","Ceftarolina","Ceftolozano/tazobactam","Ceftazidima/avibactam",
+                            "Cefiderocol","Imipenem/cilastatina","Meropenem","Ertapenem","Doripenem","Aztreonam",
+                            "Sulbactam","Tazobactam","Clavulanato","Avibactam","Vaborbactam","Relebactam",
+                            "Vancomicina","Teicoplanina","Dalbavancina","Oritavancina","Linezolida","Tedizolida",
+                            "Daptomicina","Azitromicina","Claritromicina","Eritromicina","Clindamicina",
+                            "Gentamicina","Amicacina","Tobramicina","Estreptomicina","Neomicina",
+                            "Ciprofloxacino","Levofloxacino","Moxifloxacino","Ofloxacino","Norfloxacino",
+                            "Doxiciclina","Minociclina","Tigeciclina","Eravaciclina",
+                            "Sulfametoxazol-trimetoprim","Sulfadiazina","Metronidazol","Tinidazol",
+                            "Cloranfenicol","Fosfomicina","Nitrofurantoína","Rifampicina","Rifabutina",
+                            "Mupirocina","Polimixina B","Colistina","Fidaxomicina","Bacitracina"
+                          ].map(atb => (
+                            <SelectItem key={atb} value={atb}>{atb}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label className="font-medium">Data de Início *</Label>
