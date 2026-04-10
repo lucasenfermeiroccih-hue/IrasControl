@@ -731,7 +731,7 @@ export default function PatientsMonitoring() {
                   iras,
                   criteriosSelecionados,
                 };
-                navigate("/notificacao-investigacao-ccih", { state: { fromMonitoring: true, data: investigationData } });
+                navigate("/cases/investigation", { state: { fromMonitoring: true, data: investigationData } });
                 toast.success("Dados do paciente transferidos para investigação CCIH");
               }}
             >
