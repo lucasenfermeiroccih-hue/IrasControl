@@ -225,11 +225,7 @@ export default function PatientsMonitoring() {
 
   const handleSave = () => {
     if (!selected) return;
-    if (!conclusao.classificacao || !conclusao.conclusaoEpidemiologica || !conclusao.condutas || !conclusao.desfecho || !conclusao.vinculoSurto) {
-      toast.error("Preencha todos os campos obrigatórios na seção Conclusão");
-      setCurrentStep(6);
-      return;
-    }
+    // Conclusão fields are optional
     if (!justificativa.trim()) {
       toast.error("Preencha a justificativa clínica nos Critérios Diagnósticos");
       setCurrentStep(6);
