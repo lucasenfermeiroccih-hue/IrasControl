@@ -51,6 +51,7 @@ const publicSections = [
       { title: "Indicadores", url: "/indicadores/new", icon: TrendingUp },
       { title: "Indicadores ISC", url: "/indicadores-isc", icon: ClipboardCheck },
       { title: "Indicadores DDD", url: "/indicadores-ddd", icon: Pill },
+      { title: "Consumo Higiene Mãos", url: "/audits/hand-hygiene/consumption/new", icon: HandMetal },
     ],
   },
   {

@@ -46,6 +46,7 @@ import DashboardAntibiogram from "./pages/DashboardAntibiogram.tsx";
 import AgentLibrary from "./pages/AgentLibrary.tsx";
 import AgentChat from "./pages/AgentChat.tsx";
 import NotificacaoInvestigacaoCCIH from "./pages/NotificacaoInvestigacaoCCIH.tsx";
+import AuditHandHygieneConsumptionNew from "./pages/AuditHandHygieneConsumptionNew.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="/agentes" element={<AgentLibrary />} />
             <Route path="/chat/:agentId" element={<AgentChat />} />
             <Route path="/notificacao-investigacao-ccih" element={<NotificacaoInvestigacaoCCIH />} />
+            <Route path="/audits/hand-hygiene/consumption/new" element={<AuditHandHygieneConsumptionNew />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
