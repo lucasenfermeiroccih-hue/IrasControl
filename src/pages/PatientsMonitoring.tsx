@@ -326,8 +326,11 @@ export default function PatientsMonitoring() {
         {/* 1) Identificação */}
         {currentStep === 0 && (
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle>
+              <Button variant="outline" size="sm" onClick={openEditId} className="gap-1.5">
+                <Pencil className="h-4 w-4" />Editar Identificação
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
