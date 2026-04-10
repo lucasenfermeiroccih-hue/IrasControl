@@ -169,6 +169,29 @@ export default function PatientsMonitoring() {
   const tempAlta = !isNaN(tempFloat) && tempFloat > 38;
   const readOnly = viewMode === "view";
 
+  const calcDiasUso = (inicio: string, fim: string) => {
+    if (!inicio) return 0;
+    const d1 = new Date(inicio);
+    const d2 = fim ? new Date(fim) : new Date();
+    const diff = Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(diff, 0);
+  };
+
+  const handleAddAtb = () => {
+    if (!newAtb.nome || !newAtb.dataInicio) {
+      toast.error("Informe o nome e a data de início do antibiótico");
+      return;
+    }
+    setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
+    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setNewAtbOpen(false);
+    toast.success("Antibiótico adicionado");
+  };
+
+  const handleRemoveAtb = (id: string) => {
+    setAntibioticos(prev => prev.filter(a => a.id !== id));
+  };
+
   const filtered = patients.filter(p =>
     !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.prontuario.toLowerCase().includes(search.toLowerCase())
   );
