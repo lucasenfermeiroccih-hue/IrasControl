@@ -167,6 +167,7 @@ export default function PatientsMonitoring() {
   const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
   const [newAtbOpen, setNewAtbOpen] = useState(false);
   const [newAtb, setNewAtb] = useState({ nome: "", dataInicio: "", dataFim: "" });
+  const [editingAtbId, setEditingAtbId] = useState<string | null>(null);
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
   const tempAlta = !isNaN(tempFloat) && tempFloat > 38;
@@ -187,8 +188,27 @@ export default function PatientsMonitoring() {
     }
     setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
     setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico adicionado");
+  };
+
+  const handleEditAtb = (atb: AntibioticEntry) => {
+    setEditingAtbId(atb.id);
+    setNewAtb({ nome: atb.nome, dataInicio: atb.dataInicio, dataFim: atb.dataFim });
+    setNewAtbOpen(true);
+  };
+
+  const handleSaveEditAtb = () => {
+    if (!newAtb.nome || !newAtb.dataInicio) {
+      toast.error("Informe o nome e a data de início do antibiótico");
+      return;
+    }
+    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, ...newAtb } : a));
+    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setEditingAtbId(null);
+    setNewAtbOpen(false);
+    toast.success("Antibiótico atualizado");
   };
 
   const handleRemoveAtb = (id: string) => {
@@ -719,9 +739,14 @@ export default function PatientsMonitoring() {
                                 </TableCell>
                                 {!readOnly && (
                                   <TableCell>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveAtb(atb.id)}>
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <div className="flex gap-1">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditAtb(atb)}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveAtb(atb.id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 )}
                               </TableRow>
@@ -735,9 +760,9 @@ export default function PatientsMonitoring() {
               </Card>
 
               {/* Dialog para adicionar antibiótico */}
-              <Dialog open={newAtbOpen} onOpenChange={setNewAtbOpen}>
+              <Dialog open={newAtbOpen} onOpenChange={v => { setNewAtbOpen(v); if (!v) { setEditingAtbId(null); setNewAtb({ nome: "", dataInicio: "", dataFim: "" }); } }}>
                 <DialogContent className="max-w-md">
-                  <DialogHeader><DialogTitle>Adicionar Antibiótico</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{editingAtbId ? "Editar Antibiótico" : "Adicionar Antibiótico"}</DialogTitle></DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="font-medium">Nome do Antibiótico *</Label>
@@ -779,8 +804,8 @@ export default function PatientsMonitoring() {
                     )}
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setNewAtbOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleAddAtb}>Adicionar</Button>
+                    <Button variant="outline" onClick={() => { setNewAtbOpen(false); setEditingAtbId(null); setNewAtb({ nome: "", dataInicio: "", dataFim: "" }); }}>Cancelar</Button>
+                    <Button onClick={editingAtbId ? handleSaveEditAtb : handleAddAtb}>{editingAtbId ? "Salvar" : "Adicionar"}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
