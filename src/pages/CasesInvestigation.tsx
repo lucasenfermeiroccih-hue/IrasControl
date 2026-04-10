@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -48,6 +49,8 @@ const eventos = ["IPCS-CVC", "ITU-SVD", "PAV", "ISC", "Surto", "Óbito relaciona
 const classificacoes = ["IRAS confirmada", "IRAS provável", "Colonização", "Contaminação", "Em investigação"];
 
 const CasesInvestigation = () => {
+  const location = useLocation();
+  const navState = location.state as { fromMonitoring?: boolean; data?: any } | null;
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
   const [cases, setCases] = useState<InfectionCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,11 +60,84 @@ const CasesInvestigation = () => {
   const [search, setSearch] = useState("");
   const [editingCase, setEditingCase] = useState<InfectionCase | null>(null);
   const [saving, setSaving] = useState(false);
+  const [prefilledBanner, setPrefilledBanner] = useState(false);
 
   const [form, setForm] = useState({
     paciente: "", prontuario: "", setor: "", evento: "", classificacao: "",
     dispositivos: [] as string[], observacoes: "",
   });
+
+  // Detect prefilled data from patient monitoring
+  useEffect(() => {
+    if (navState?.fromMonitoring && navState.data) {
+      const d = navState.data;
+      const obsLines: string[] = [];
+      if (d.diagnostico) obsLines.push(`Diagnóstico: ${d.diagnostico}`);
+      if (d.doencasBase) obsLines.push(`Doenças de base: ${d.doencasBase}`);
+      if (d.motivoInternacao) obsLines.push(`Motivo internação: ${d.motivoInternacao}`);
+      if (d.especialidade) obsLines.push(`Especialidade: ${d.especialidade}`);
+
+      // Dispositivos
+      if (d.dispositivos) {
+        const dispParts = Object.entries(d.dispositivos as Record<string, string>)
+          .filter(([, v]) => v && v !== "Não")
+          .map(([k, v]) => `${k}: ${v}`);
+        if (dispParts.length) obsLines.push(`\nDispositivos: ${dispParts.join(", ")}`);
+      }
+      if (d.dispInvasivos) {
+        const invParts = Object.entries(d.dispInvasivos as Record<string, string>)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`);
+        if (invParts.length) obsLines.push(`Dispositivos invasivos: ${invParts.join(", ")}`);
+      }
+
+      // Exames
+      if (d.labPanel && d.labPanel.length > 0) {
+        const labLines = d.labPanel.map((e: any) =>
+          `${e.exame} (${e.data}) — ${e.microrganismo} | ${e.sensibilidade}${e.mdr ? " [MDR]" : ""}`
+        );
+        obsLines.push(`\nExames:\n${labLines.join("\n")}`);
+      }
+
+      // Evolução
+      if (d.evolucao) {
+        const evParts = Object.entries(d.evolucao as Record<string, string>)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`);
+        if (evParts.length) obsLines.push(`\nEvolução:\n${evParts.join("\n")}`);
+      }
+
+      // Sinais vitais
+      if (d.sinaisVitais) {
+        const svParts = Object.entries(d.sinaisVitais as Record<string, string>)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`);
+        if (svParts.length) obsLines.push(`Sinais vitais: ${svParts.join(", ")}`);
+      }
+
+      // Device type detection
+      const deviceTypes: string[] = [];
+      if (d.dispositivos?.cvc && d.dispositivos.cvc !== "Não") deviceTypes.push("cvc");
+      if (d.dispositivos?.cateterVesical === "Sim") deviceTypes.push("svu");
+      if (d.dispositivos?.ventilacao === "Sim") deviceTypes.push("vm");
+
+      setForm({
+        paciente: d.paciente || "",
+        prontuario: d.prontuario || "",
+        setor: d.setor || "",
+        evento: "",
+        classificacao: "Em investigação",
+        dispositivos: deviceTypes,
+        observacoes: obsLines.join("\n"),
+      });
+      setEditingCase(null);
+      setDialogOpen(true);
+      setPrefilledBanner(true);
+
+      // Clear navigation state to avoid re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [navState]);
 
   const fetchCases = async () => {
     if (!hospitalId) return;
@@ -395,7 +471,13 @@ const CasesInvestigation = () => {
       {/* New/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
-          <DialogHeader><DialogTitle className="text-base">{editingCase ? "Editar Caso" : "Novo Caso"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-base">{editingCase ? "Editar Caso" : prefilledBanner ? "Nova Investigação — Dados Pré-preenchidos" : "Novo Caso"}</DialogTitle></DialogHeader>
+          {prefilledBanner && (
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Info className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs text-primary font-medium">Dados importados do Monitoramento de Pacientes. Revise e complemente.</p>
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
@@ -421,7 +503,7 @@ const CasesInvestigation = () => {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={3} />
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={prefilledBanner ? 8 : 3} />
             </div>
           </div>
           <DialogFooter>
