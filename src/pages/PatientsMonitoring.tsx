@@ -193,7 +193,7 @@ export default function PatientsMonitoring() {
 
   const openDischargeConfirm = (patientId: string) => {
     setDischargePatientId(patientId);
-    openDischargeConfirm(selected.id);
+    setDischargeConfirmOpen(true);
   };
 
   const openEditId = (patientId: string) => {
