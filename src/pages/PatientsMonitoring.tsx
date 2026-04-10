@@ -150,7 +150,10 @@ export default function PatientsMonitoring() {
   const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
   const [dispositivos, setDispositivos] = useState({ cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não" });
   const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
-  const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "" });
+  const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
+  type SinaisVitaisEntry = typeof sinaisVitais & { data: string; hora: string };
+  const [sinaisVitaisHistorico, setSinaisVitaisHistorico] = useState<SinaisVitaisEntry[]>([]);
+  const [showHistorico, setShowHistorico] = useState(false);
   const [iras, setIras] = useState({ temIras: "", numeroIras: "", quaisIras: "", dataFechamento: "" });
   const [conclusao, setConclusao] = useState({ classificacao: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
   const [criteriosSelecionados, setCriteriosSelecionados] = useState<string[]>([]);
@@ -540,30 +543,112 @@ export default function PatientsMonitoring() {
           {currentStep === 4 && (
             <div className="space-y-4">
               <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Thermometer className="h-4 w-4 text-primary" />Sinais Vitais — Preenchimento Diário</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 font-medium">
-                      Temperatura (°C)
-                      {tempAlta && <Badge variant="destructive" className="text-xs animate-pulse">⚠ FEBRE</Badge>}
-                    </Label>
-                    <Input
-                      disabled={readOnly} type="number" step="0.1"
-                      value={sinaisVitais.temperatura}
-                      onChange={e => setSinaisVitais(p => ({ ...p, temperatura: e.target.value }))}
-                      className={tempAlta ? "border-destructive text-destructive font-bold bg-destructive/5 ring-1 ring-destructive/30" : ""}
-                      placeholder="36.5"
-                    />
-                    {tempAlta && (
-                      <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" /> Temperatura acima de 38°C — Investigar foco infeccioso
-                      </p>
-                    )}
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-base flex items-center gap-2"><Thermometer className="h-4 w-4 text-primary" />Sinais Vitais — Preenchimento Diário</CardTitle>
+                    <div className="flex gap-2">
+                      {sinaisVitaisHistorico.length > 0 && (
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowHistorico(!showHistorico)}>
+                          <Clock className="h-3.5 w-3.5" /> Histórico ({sinaisVitaisHistorico.length})
+                        </Button>
+                      )}
+                      {!readOnly && (
+                        <Button size="sm" variant="default" className="gap-1.5" onClick={() => {
+                          if (!sinaisVitais.temperatura && !sinaisVitais.leucocitos && !sinaisVitais.pressaoArterial && !sinaisVitais.spo2) {
+                            toast.error("Preencha pelo menos um campo antes de salvar");
+                            return;
+                          }
+                          const now = new Date();
+                          setSinaisVitaisHistorico(prev => [{
+                            ...sinaisVitais,
+                            data: now.toLocaleDateString("pt-BR"),
+                            hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                          }, ...prev]);
+                          setSinaisVitais({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
+                          toast.success("Sinais vitais salvos no histórico");
+                        }}>
+                          <Save className="h-3.5 w-3.5" /> Salvar registro
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2"><Label className="font-medium">Leucócitos</Label><Input disabled={readOnly} value={sinaisVitais.leucocitos} onChange={e => setSinaisVitais(p => ({ ...p, leucocitos: e.target.value }))} placeholder="ex: 12.500" /></div>
-                  <div className="space-y-2"><Label className="font-medium">Pressão Arterial</Label><Input disabled={readOnly} value={sinaisVitais.pressaoArterial} onChange={e => setSinaisVitais(p => ({ ...p, pressaoArterial: e.target.value }))} placeholder="ex: 120/80" /></div>
-                  <div className="space-y-2"><Label className="font-medium">FIO2 / PEEP</Label><Input disabled={readOnly} value={sinaisVitais.fio2Peep} onChange={e => setSinaisVitais(p => ({ ...p, fio2Peep: e.target.value }))} placeholder="ex: 40% / 8" /></div>
-                  <div className="space-y-2"><Label className="font-medium">Hematúria</Label><Input disabled={readOnly} value={sinaisVitais.hematuria} onChange={e => setSinaisVitais(p => ({ ...p, hematuria: e.target.value }))} placeholder="Sim / Não / Observação" /></div>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 font-medium">
+                        Temperatura (°C)
+                        {tempAlta && <Badge variant="destructive" className="text-xs animate-pulse">⚠ FEBRE</Badge>}
+                      </Label>
+                      <Input
+                        disabled={readOnly} type="number" step="0.1"
+                        value={sinaisVitais.temperatura}
+                        onChange={e => setSinaisVitais(p => ({ ...p, temperatura: e.target.value }))}
+                        className={tempAlta ? "border-destructive text-destructive font-bold bg-destructive/5 ring-1 ring-destructive/30" : ""}
+                        placeholder="36.5"
+                      />
+                      {tempAlta && (
+                        <p className="text-xs text-destructive font-medium flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> Temperatura acima de 38°C — Investigar foco infeccioso
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2"><Label className="font-medium">Leucócitos</Label><Input disabled={readOnly} value={sinaisVitais.leucocitos} onChange={e => setSinaisVitais(p => ({ ...p, leucocitos: e.target.value }))} placeholder="ex: 12.500" /></div>
+                    <div className="space-y-2"><Label className="font-medium">Pressão Arterial</Label><Input disabled={readOnly} value={sinaisVitais.pressaoArterial} onChange={e => setSinaisVitais(p => ({ ...p, pressaoArterial: e.target.value }))} placeholder="ex: 120/80" /></div>
+                    <div className="space-y-2"><Label className="font-medium">SPO2 (%)</Label><Input disabled={readOnly} type="number" value={sinaisVitais.spo2} onChange={e => setSinaisVitais(p => ({ ...p, spo2: e.target.value }))} placeholder="ex: 98" /></div>
+                    <div className="space-y-2"><Label className="font-medium">FIO2 / PEEP</Label><Input disabled={readOnly} value={sinaisVitais.fio2Peep} onChange={e => setSinaisVitais(p => ({ ...p, fio2Peep: e.target.value }))} placeholder="ex: 40% / 8" /></div>
+                    <div className="space-y-2"><Label className="font-medium">Hematúria</Label><Input disabled={readOnly} value={sinaisVitais.hematuria} onChange={e => setSinaisVitais(p => ({ ...p, hematuria: e.target.value }))} placeholder="Sim / Não / Observação" /></div>
+                  </div>
+
+                  {/* Histórico de sinais vitais */}
+                  {showHistorico && sinaisVitaisHistorico.length > 0 && (
+                    <div className="pt-2">
+                      <Separator className="mb-4" />
+                      <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" />Histórico de Registros</h4>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Hora</TableHead>
+                              <TableHead>Temp (°C)</TableHead>
+                              <TableHead>SPO2 (%)</TableHead>
+                              <TableHead>Leucócitos</TableHead>
+                              <TableHead>PA</TableHead>
+                              <TableHead>FIO2/PEEP</TableHead>
+                              <TableHead>Hematúria</TableHead>
+                              {!readOnly && <TableHead className="w-10" />}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {sinaisVitaisHistorico.map((entry, idx) => {
+                              const t = parseFloat(entry.temperatura);
+                              const febre = !isNaN(t) && t > 38;
+                              return (
+                                <TableRow key={idx} className={febre ? "bg-destructive/5" : ""}>
+                                  <TableCell className="font-medium">{entry.data}</TableCell>
+                                  <TableCell>{entry.hora}</TableCell>
+                                  <TableCell className={febre ? "text-destructive font-bold" : ""}>{entry.temperatura || "—"}</TableCell>
+                                  <TableCell>{entry.spo2 || "—"}</TableCell>
+                                  <TableCell>{entry.leucocitos || "—"}</TableCell>
+                                  <TableCell>{entry.pressaoArterial || "—"}</TableCell>
+                                  <TableCell>{entry.fio2Peep || "—"}</TableCell>
+                                  <TableCell>{entry.hematuria || "—"}</TableCell>
+                                  {!readOnly && (
+                                    <TableCell>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setSinaisVitaisHistorico(prev => prev.filter((_, i) => i !== idx))}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
