@@ -518,234 +518,6 @@ const CasesInvestigation = () => {
         </div>
 
         {/* ── Step Content ── */}
-        <div className="mt-6 space-y-4 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg md:text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
-          <Button variant="outline" size="sm" onClick={handleNewNotification} className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-            <ShieldAlert className="h-4 w-4" /> Nova Notificação
-          </Button>
-          <Button onClick={openNew} size="sm" className="gap-2">
-            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Caso</span><span className="sm:hidden">Novo</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { icon: AlertTriangle, color: "text-destructive", value: kpis.abertos, label: "Abertos" },
-          { icon: Search, color: "text-primary", value: kpis.emInvestigacao, label: "Em Investigação" },
-          { icon: CheckCircle, color: "text-green-600", value: kpis.confirmados, label: "Confirmados" },
-          { icon: Clock, color: "text-amber-600", value: kpis.encerrados, label: "Encerrados" },
-        ].map((k) => (
-          <Card key={k.label}><CardContent className="flex items-center gap-3 p-3 md:pt-5 md:p-5">
-            <k.icon className={`h-6 w-6 md:h-8 md:w-8 ${k.color} shrink-0`} />
-            <div><p className="text-lg md:text-2xl font-bold">{k.value}</p><p className="text-[10px] md:text-sm text-muted-foreground">{k.label}</p></div>
-          </CardContent></Card>
-        ))}
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os Status</SelectItem>
-            <SelectItem value="open">Aberto</SelectItem>
-            <SelectItem value="investigating">Em Investigação</SelectItem>
-            <SelectItem value="confirmed">Confirmado</SelectItem>
-            <SelectItem value="discarded">Descartado</SelectItem>
-            <SelectItem value="closed">Encerrado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* ── Table ── */}
-      <Card>
-        <CardHeader className="p-3 md:p-6 pb-2"><CardTitle className="text-sm md:text-lg">Casos de Investigação ({filtered.length})</CardTitle></CardHeader>
-        <CardContent className="p-0 md:p-6 md:pt-0">
-          <div className="hidden md:block overflow-x-auto">
-            <Table className="text-sm">
-              <TableHeader><TableRow>
-                <TableHead>ID</TableHead><TableHead>Paciente</TableHead><TableHead>Setor</TableHead>
-                <TableHead>Evento</TableHead><TableHead>Status</TableHead><TableHead>Data</TableHead><TableHead>Ações</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum caso encontrado.</TableCell></TableRow>}
-                {filtered.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs">{c.case_number || c.id.slice(0, 8)}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{c.patient?.full_name || "—"}</div>
-                      <div className="text-xs text-muted-foreground">{c.patient?.medical_record || ""}</div>
-                    </TableCell>
-                    <TableCell>{c.patient?.sector || "—"}</TableCell>
-                    <TableCell>{c.infection_type || "—"}</TableCell>
-                    <TableCell><Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-xs">{statusConfig[c.status]?.label || c.status}</Badge></TableCell>
-                    <TableCell className="text-xs">{c.detection_date}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openFullInvestigation(c)} title="Investigar"><ClipboardList className="h-3.5 w-3.5 text-primary" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile */}
-          <div className="md:hidden space-y-2 p-3">
-            {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso.</p>}
-            {filtered.map((c) => (
-              <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-sm">{c.patient?.full_name || "—"}</p>
-                    <p className="text-[10px] text-muted-foreground">{c.case_number || c.id.slice(0, 8)}</p>
-                  </div>
-                  <Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-[10px] shrink-0">{statusConfig[c.status]?.label || c.status}</Badge>
-                </div>
-                <div className="flex gap-2 pt-1 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEdit(c)}><Pencil className="h-3 w-3" /> Editar</Button>
-                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openFullInvestigation(c)}><ClipboardList className="h-3 w-3" /> Investigar</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Quick Create/Edit Dialog (existing) ── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
-          <DialogHeader><DialogTitle className="text-base">{editingCase ? "Editar Caso" : prefilledBanner ? "Nova Investigação — Dados Pré-preenchidos" : "Novo Caso"}</DialogTitle></DialogHeader>
-          {prefilledBanner && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Info className="h-4 w-4 text-primary shrink-0" />
-              <p className="text-xs text-primary font-medium">Dados importados do Monitoramento de Pacientes. Revise e complemente.</p>
-            </div>
-          )}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className="text-xs">Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
-              <div className="space-y-1"><Label className="text-xs">Prontuário</Label><Input value={form.prontuario} onChange={(e) => setForm({ ...form, prontuario: e.target.value })} /></div>
-            </div>
-            <div className="space-y-1"><Label className="text-xs">Setor *</Label>
-              <Select value={form.setor} onValueChange={(v) => setForm({ ...form, setor: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{setores.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-            </div>
-            <div className="space-y-1"><Label className="text-xs">Evento *</Label>
-              <Select value={form.evento} onValueChange={(v) => setForm({ ...form, evento: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{eventos.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent></Select>
-            </div>
-            <div className="space-y-1"><Label className="text-xs">Classificação</Label>
-              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-            </div>
-            <div className="space-y-1"><Label className="text-xs">Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={prefilledBanner ? 8 : 3} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}{editingCase ? "Salvar" : "Registrar"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Detail Quick View Dialog (existing) ── */}
-      <Dialog open={!!detailCase} onOpenChange={(open) => !open && setDetailCase(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
-          {detailCase && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-base flex items-center gap-2">
-                  {detailCase.case_number || detailCase.id.slice(0, 8)}
-                  <Badge variant={statusConfig[detailCase.status]?.variant || "outline"}>{statusConfig[detailCase.status]?.label || detailCase.status}</Badge>
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><span className="text-muted-foreground">Paciente:</span><p className="font-medium">{detailCase.patient?.full_name || "—"}</p></div>
-                  <div><span className="text-muted-foreground">Prontuário:</span><p className="font-medium">{detailCase.patient?.medical_record || "—"}</p></div>
-                  <div><span className="text-muted-foreground">Setor:</span><p className="font-medium">{detailCase.patient?.sector || "—"}</p></div>
-                  <div><span className="text-muted-foreground">Evento:</span><p className="font-medium">{detailCase.infection_type || "—"}</p></div>
-                </div>
-                {detailCase.notes && <div><span className="text-muted-foreground">Observações:</span><p className="mt-1 bg-muted/50 rounded p-2 text-xs">{detailCase.notes}</p></div>}
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Alterar Status</Label>
-                  <Select value={detailCase.status} onValueChange={(v) => handleStatusChange(detailCase.id, v as CaseStatus)}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="open">Aberto</SelectItem><SelectItem value="investigating">Em Investigação</SelectItem>
-                      <SelectItem value="confirmed">Confirmado</SelectItem><SelectItem value="discarded">Descartado</SelectItem><SelectItem value="closed">Encerrado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button size="sm" className="w-full gap-1.5" onClick={() => openFullInvestigation(detailCase)}>
-                  <ClipboardList className="h-4 w-4" /> Abrir Investigação Completa
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ════════════════════════════════════════════════════════
-           FULL INVESTIGATION PANEL (all 14 sections)
-         ════════════════════════════════════════════════════════ */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">
-          {/* ── 1. Sticky Patient Header ── */}
-          <div className="sticky top-0 z-10 bg-background border-b p-4">
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                <h2 className="font-bold text-foreground">{ident.nome || "Novo Paciente"}</h2>
-                <Badge variant="outline" className="font-mono text-xs">{protocolo}</Badge>
-                <Badge className={investigationStatus === "closed" ? "bg-muted text-muted-foreground" : investigationStatus === "investigating" ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"}>
-                  {investigationStatus === "open" ? "Notificado" : investigationStatus === "investigating" ? "Em Investigação" : investigationStatus === "confirmed" ? "Confirmado" : investigationStatus === "closed" ? "Encerrado" : investigationStatus}
-                </Badge>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-x-4 gap-y-1 text-xs">
-              <div><span className="text-muted-foreground">Prontuário:</span> <span className="font-medium">{ident.prontuario || "—"}</span></div>
-              <div><span className="text-muted-foreground">Nasc.:</span> <span className="font-medium">{ident.nascimento ? `${ident.nascimento} (${calcAge(ident.nascimento)})` : "—"}</span></div>
-              <div><span className="text-muted-foreground">Sexo:</span> <span className="font-medium">{ident.sexo || "—"}</span></div>
-              <div><span className="text-muted-foreground">Admissão:</span> <span className="font-medium">{ident.admissao || "—"}</span></div>
-              <div><span className="text-muted-foreground">Unidade:</span> <span className="font-medium">{ident.unidade || "—"}</span></div>
-              <div><span className="text-muted-foreground">Leito:</span> <span className="font-medium">{ident.leito || "—"}</span></div>
-              <div><span className="text-muted-foreground">Espec.:</span> <span className="font-medium">{ident.especialidade || "—"}</span></div>
-              <div><span className="text-muted-foreground">Origem:</span> <span className="font-medium">{ident.origem || "—"}</span></div>
-            </div>
-            {/* Step nav */}
-            <div className="mt-3">
-              <Progress value={detailProgress} className="h-1.5 mb-2" />
-              <div className="flex gap-1 overflow-x-auto pb-1">
-                {DETAIL_STEPS.map((s, i) => (
-                  <Button key={s.key} variant={i === detailStep ? "default" : "ghost"} size="sm"
-                    className={`text-xs shrink-0 gap-1 h-7 ${i === detailStep ? "" : "text-muted-foreground"}`}
-                    onClick={() => setDetailStep(i)}>
-                    <s.icon className="h-3 w-3" /><span className="hidden sm:inline">{s.label}</span><span className="sm:hidden">{i + 1}</span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
             {/* ── Step 0: Identificação ── */}
             {detailStep === 0 && (
               <Card>
@@ -811,7 +583,6 @@ const CasesInvestigation = () => {
                   </CardContent>
                 </Card>
 
-                {/* Status / Fase */}
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Status e Fase da Investigação</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
@@ -929,7 +700,6 @@ const CasesInvestigation = () => {
                       <Label className="text-xs">MDR</Label>
                     </div>
                   </div>
-
                   {labResults.length > 0 && (
                     <div className="overflow-x-auto rounded border">
                       <table className="w-full text-xs">
@@ -1114,10 +884,11 @@ const CasesInvestigation = () => {
                 </CardContent>
               </Card>
             )}
-          </div>
+        </div>
 
-          {/* ── Fixed Footer Actions ── */}
-          <div className="sticky bottom-0 bg-background border-t p-3 flex items-center justify-between gap-2">
+        {/* ── Fixed Footer Actions ── */}
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t p-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={detailStep === 0} onClick={() => setDetailStep(s => s - 1)}>
                 <ChevronLeft className="h-4 w-4 mr-1" />Anterior
@@ -1135,16 +906,202 @@ const CasesInvestigation = () => {
                 <Save className="h-4 w-4" />Salvar e Continuar
               </Button>
               {detailStep === DETAIL_STEPS.length - 1 && (
-                <Button size="sm" onClick={handleFinalize} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
+                <Button size="sm" onClick={handleFinalize} className="gap-1 bg-primary hover:bg-primary/90">
                   <CheckCircle2 className="h-4 w-4" />Finalizar Investigação
                 </Button>
               )}
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg md:text-2xl font-bold text-foreground">Notificação e Investigação CCIH</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
+          <Button variant="outline" size="sm" onClick={handleNewNotification} className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+            <ShieldAlert className="h-4 w-4" /> Nova Notificação
+          </Button>
+          <Button onClick={openNew} size="sm" className="gap-2">
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Caso</span><span className="sm:hidden">Novo</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* ── KPIs ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { icon: AlertTriangle, color: "text-destructive", value: kpis.abertos, label: "Abertos" },
+          { icon: Search, color: "text-primary", value: kpis.emInvestigacao, label: "Em Investigação" },
+          { icon: CheckCircle, color: "text-green-600", value: kpis.confirmados, label: "Confirmados" },
+          { icon: Clock, color: "text-amber-600", value: kpis.encerrados, label: "Encerrados" },
+        ].map((k) => (
+          <Card key={k.label}><CardContent className="flex items-center gap-3 p-3 md:pt-5 md:p-5">
+            <k.icon className={`h-6 w-6 md:h-8 md:w-8 ${k.color} shrink-0`} />
+            <div><p className="text-lg md:text-2xl font-bold">{k.value}</p><p className="text-[10px] md:text-sm text-muted-foreground">{k.label}</p></div>
+          </CardContent></Card>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-full sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Status</SelectItem>
+            <SelectItem value="open">Aberto</SelectItem>
+            <SelectItem value="investigating">Em Investigação</SelectItem>
+            <SelectItem value="confirmed">Confirmado</SelectItem>
+            <SelectItem value="discarded">Descartado</SelectItem>
+            <SelectItem value="closed">Encerrado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── Table ── */}
+      <Card>
+        <CardHeader className="p-3 md:p-6 pb-2"><CardTitle className="text-sm md:text-lg">Casos de Investigação ({filtered.length})</CardTitle></CardHeader>
+        <CardContent className="p-0 md:p-6 md:pt-0">
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="text-sm">
+              <TableHeader><TableRow>
+                <TableHead>ID</TableHead><TableHead>Paciente</TableHead><TableHead>Setor</TableHead>
+                <TableHead>Evento</TableHead><TableHead>Status</TableHead><TableHead>Data</TableHead><TableHead>Ações</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum caso encontrado.</TableCell></TableRow>}
+                {filtered.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-xs">{c.case_number || c.id.slice(0, 8)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{c.patient?.full_name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{c.patient?.medical_record || ""}</div>
+                    </TableCell>
+                    <TableCell>{c.patient?.sector || "—"}</TableCell>
+                    <TableCell>{c.infection_type || "—"}</TableCell>
+                    <TableCell><Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-xs">{statusConfig[c.status]?.label || c.status}</Badge></TableCell>
+                    <TableCell className="text-xs">{c.detection_date}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openFullInvestigation(c)} title="Investigar"><ClipboardList className="h-3.5 w-3.5 text-primary" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso.</p>}
+            {filtered.map((c) => (
+              <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-sm">{c.patient?.full_name || "—"}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.case_number || c.id.slice(0, 8)}</p>
+                  </div>
+                  <Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-[10px] shrink-0">{statusConfig[c.status]?.label || c.status}</Badge>
+                </div>
+                <div className="flex gap-2 pt-1 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEdit(c)}><Pencil className="h-3 w-3" /> Editar</Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openFullInvestigation(c)}><ClipboardList className="h-3 w-3" /> Investigar</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Quick Create/Edit Dialog ── */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
+          <DialogHeader><DialogTitle className="text-base">{editingCase ? "Editar Caso" : prefilledBanner ? "Nova Investigação — Dados Pré-preenchidos" : "Novo Caso"}</DialogTitle></DialogHeader>
+          {prefilledBanner && (
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Info className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs text-primary font-medium">Dados importados do Monitoramento de Pacientes. Revise e complemente.</p>
+            </div>
+          )}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Paciente *</Label><Input value={form.paciente} onChange={(e) => setForm({ ...form, paciente: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Prontuário</Label><Input value={form.prontuario} onChange={(e) => setForm({ ...form, prontuario: e.target.value })} /></div>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Setor *</Label>
+              <Select value={form.setor} onValueChange={(v) => setForm({ ...form, setor: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{setores.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Evento *</Label>
+              <Select value={form.evento} onValueChange={(v) => setForm({ ...form, evento: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{eventos.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Classificação</Label>
+              <Select value={form.classificacao} onValueChange={(v) => setForm({ ...form, classificacao: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{classificacoes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Observações</Label>
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={prefilledBanner ? 8 : 3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}{editingCase ? "Salvar" : "Registrar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Detail Quick View Dialog ── */}
+      <Dialog open={!!detailCase} onOpenChange={(open) => !open && setDetailCase(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
+          {detailCase && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base flex items-center gap-2">
+                  {detailCase.case_number || detailCase.id.slice(0, 8)}
+                  <Badge variant={statusConfig[detailCase.status]?.variant || "outline"}>{statusConfig[detailCase.status]?.label || detailCase.status}</Badge>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><span className="text-muted-foreground">Paciente:</span><p className="font-medium">{detailCase.patient?.full_name || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Prontuário:</span><p className="font-medium">{detailCase.patient?.medical_record || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Setor:</span><p className="font-medium">{detailCase.patient?.sector || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Evento:</span><p className="font-medium">{detailCase.infection_type || "—"}</p></div>
+                </div>
+                {detailCase.notes && <div><span className="text-muted-foreground">Observações:</span><p className="mt-1 bg-muted/50 rounded p-2 text-xs">{detailCase.notes}</p></div>}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Alterar Status</Label>
+                  <Select value={detailCase.status} onValueChange={(v) => handleStatusChange(detailCase.id, v as CaseStatus)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Aberto</SelectItem><SelectItem value="investigating">Em Investigação</SelectItem>
+                      <SelectItem value="confirmed">Confirmado</SelectItem><SelectItem value="discarded">Descartado</SelectItem><SelectItem value="closed">Encerrado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button size="sm" className="w-full gap-1.5" onClick={() => openFullInvestigation(detailCase)}>
+                  <ClipboardList className="h-4 w-4" /> Abrir Investigação Completa
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 };
-
-export default CasesInvestigation;
