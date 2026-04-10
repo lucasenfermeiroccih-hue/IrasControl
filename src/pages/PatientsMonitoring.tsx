@@ -641,7 +641,7 @@ export default function PatientsMonitoring() {
                 <Save className="h-4 w-4" />Salvar
               </Button>
               {selected.status === "active" && (
-                <Button variant="destructive" size="sm" onClick={() => setDischargeOpen(true)} className="gap-1.5">
+                <Button variant="destructive" size="sm" onClick={() => setDischargeConfirmOpen(true)} className="gap-1.5">
                   <LogOut className="h-4 w-4" />Alta
                 </Button>
               )}
@@ -855,7 +855,7 @@ export default function PatientsMonitoring() {
                             <LogIn className="h-3.5 w-3.5 text-primary" />
                           </Button>
                           {p.status === "active" && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => { setSelectedId(p.id); setDischargeOpen(true); }} title="Dar alta">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => { setSelectedId(p.id); setDischargeConfirmOpen(true); }} title="Dar alta">
                               <LogOut className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -900,7 +900,7 @@ export default function PatientsMonitoring() {
                       <LogIn className="h-3 w-3" /> Entrar
                     </Button>
                     {p.status === "active" && (
-                      <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setSelectedId(p.id); setDischargeOpen(true); }}>
+                      <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setSelectedId(p.id); setDischargeConfirmOpen(true); }}>
                         <LogOut className="h-3 w-3" /> Alta
                       </Button>
                     )}
