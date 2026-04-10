@@ -775,6 +775,39 @@ export default function PatientsMonitoring() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── NEW LAB EXAM MODAL ──────────────────────────── */}
+      <Dialog open={newLabOpen} onOpenChange={setNewLabOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Cadastrar Exame Laboratorial</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-medium">Tipo de Exame *</Label>
+              <Select value={newLab.exame} onValueChange={v => setNewLab(p => ({ ...p, exame: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione o exame" /></SelectTrigger>
+                <SelectContent>{exameOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label className="font-medium">Data</Label><Input value={newLab.data} onChange={e => setNewLab(p => ({ ...p, data: e.target.value }))} placeholder="dd/mm/aaaa" /></div>
+            <div className="space-y-2"><Label className="font-medium">Microrganismo</Label><Input value={newLab.microrganismo} onChange={e => setNewLab(p => ({ ...p, microrganismo: e.target.value }))} placeholder="Ex: Staphylococcus aureus" /></div>
+            <div className="space-y-2"><Label className="font-medium">Perfil de Sensibilidade</Label><Input value={newLab.sensibilidade} onChange={e => setNewLab(p => ({ ...p, sensibilidade: e.target.value }))} placeholder="Ex: MRSA, ESBL, Sensível..." /></div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={newLab.mdr} onCheckedChange={checked => setNewLab(p => ({ ...p, mdr: !!checked }))} id="mdr-check" />
+              <Label htmlFor="mdr-check" className="font-medium cursor-pointer">Multirresistente (MDR)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewLabOpen(false)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (!newLab.exame) { toast.error("Selecione o tipo de exame"); return; }
+              if (!newLab.microrganismo.trim()) { toast.error("Informe o microrganismo"); return; }
+              setLabPanel(prev => [...prev, { ...newLab }]);
+              setNewLabOpen(false);
+              toast.success("Exame cadastrado no painel laboratorial!");
+            }}>Cadastrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
