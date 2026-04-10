@@ -82,6 +82,13 @@ const initialLabPanel = [
 
 type LabEntry = typeof initialLabPanel[0];
 
+interface AntibioticEntry {
+  id: string;
+  nome: string;
+  dataInicio: string;
+  dataFim: string;
+}
+
 const exameOptions = ["Hemocultura", "Urocultura", "Cultura de secreção traqueal", "Cultura de ferida operatória", "Cultura de ponta de cateter", "Líquor", "Outro"];
 
 const mockFatoresRisco = [
@@ -154,10 +161,36 @@ export default function PatientsMonitoring() {
   const [newLabOpen, setNewLabOpen] = useState(false);
   const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
   const [responsavel, setResponsavel] = useState("");
+  const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
+  const [newAtbOpen, setNewAtbOpen] = useState(false);
+  const [newAtb, setNewAtb] = useState({ nome: "", dataInicio: "", dataFim: "" });
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
   const tempAlta = !isNaN(tempFloat) && tempFloat > 38;
   const readOnly = viewMode === "view";
+
+  const calcDiasUso = (inicio: string, fim: string) => {
+    if (!inicio) return 0;
+    const d1 = new Date(inicio);
+    const d2 = fim ? new Date(fim) : new Date();
+    const diff = Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(diff, 0);
+  };
+
+  const handleAddAtb = () => {
+    if (!newAtb.nome || !newAtb.dataInicio) {
+      toast.error("Informe o nome e a data de início do antibiótico");
+      return;
+    }
+    setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
+    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setNewAtbOpen(false);
+    toast.success("Antibiótico adicionado");
+  };
+
+  const handleRemoveAtb = (id: string) => {
+    setAntibioticos(prev => prev.filter(a => a.id !== id));
+  };
 
   const filtered = patients.filter(p =>
     !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.prontuario.toLowerCase().includes(search.toLowerCase())
@@ -555,6 +588,96 @@ export default function PatientsMonitoring() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Antibióticos em uso */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2"><Syringe className="h-4 w-4 text-primary" />Antibióticos em Uso</CardTitle>
+                    {!readOnly && (
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setNewAtbOpen(true)}>
+                        <Plus className="h-3.5 w-3.5" /> Adicionar
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {antibioticos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum antibiótico cadastrado.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Antibiótico</TableHead>
+                            <TableHead>Início</TableHead>
+                            <TableHead>Fim</TableHead>
+                            <TableHead className="text-center">Dias de Uso</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                            {!readOnly && <TableHead className="w-10" />}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {antibioticos.map(atb => {
+                            const dias = calcDiasUso(atb.dataInicio, atb.dataFim);
+                            const emUso = !atb.dataFim;
+                            return (
+                              <TableRow key={atb.id}>
+                                <TableCell className="font-medium">{atb.nome}</TableCell>
+                                <TableCell>{atb.dataInicio ? new Date(atb.dataInicio + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                <TableCell>{atb.dataFim ? new Date(atb.dataFim + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                <TableCell className="text-center font-semibold">{dias} {dias === 1 ? "dia" : "dias"}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={emUso ? "default" : "secondary"} className={emUso ? "bg-emerald-100 text-emerald-800 border-emerald-200" : ""}>
+                                    {emUso ? "Em uso" : "Finalizado"}
+                                  </Badge>
+                                </TableCell>
+                                {!readOnly && (
+                                  <TableCell>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveAtb(atb.id)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Dialog para adicionar antibiótico */}
+              <Dialog open={newAtbOpen} onOpenChange={setNewAtbOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader><DialogTitle>Adicionar Antibiótico</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="font-medium">Nome do Antibiótico *</Label>
+                      <Input value={newAtb.nome} onChange={e => setNewAtb(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Meropenem, Vancomicina..." />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-medium">Data de Início *</Label>
+                      <Input type="date" value={newAtb.dataInicio} onChange={e => setNewAtb(p => ({ ...p, dataInicio: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-medium">Data de Fim <span className="text-muted-foreground text-xs">(deixe vazio se ainda em uso)</span></Label>
+                      <Input type="date" value={newAtb.dataFim} onChange={e => setNewAtb(p => ({ ...p, dataFim: e.target.value }))} />
+                    </div>
+                    {newAtb.dataInicio && (
+                      <div className="p-3 rounded-lg bg-muted/50 border">
+                        <p className="text-sm font-medium">Tempo de uso: <span className="text-primary">{calcDiasUso(newAtb.dataInicio, newAtb.dataFim)} dias</span></p>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setNewAtbOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleAddAtb}>Adicionar</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 
