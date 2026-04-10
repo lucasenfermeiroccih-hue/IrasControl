@@ -226,11 +226,7 @@ export default function PatientsMonitoring() {
   const handleSave = () => {
     if (!selected) return;
     // Conclusão fields are optional
-    if (!justificativa.trim()) {
-      toast.error("Preencha a justificativa clínica nos Critérios Diagnósticos");
-      setCurrentStep(6);
-      return;
-    }
+    // Justificativa clínica is optional
     toast.success("Dados salvos com sucesso!");
   };
 
@@ -631,11 +627,10 @@ export default function PatientsMonitoring() {
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <Label className="font-medium">Justificativa clínica <span className="text-destructive">*</span></Label>
+                    <Label className="font-medium">Justificativa clínica</Label>
                     <Textarea
                       disabled={readOnly} value={justificativa} onChange={e => setJustificativa(e.target.value)}
                       rows={4} placeholder="Descreva a justificativa clínica..."
-                      className={!justificativa.trim() ? "border-destructive/40" : ""}
                     />
                   </div>
                 </CardContent>
