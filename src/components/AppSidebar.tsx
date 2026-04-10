@@ -2,7 +2,7 @@ import {
   LayoutDashboard, ClipboardCheck, Activity, Shield, Bell,
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
-  BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight
+  BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -68,6 +68,7 @@ const publicSections = [
       { title: "Dashboard ISC", url: "/dashboard-isc", icon: BarChart3 },
       { title: "Dashboard DDD", url: "/dashboard-ddd", icon: Pill },
       { title: "Antibiograma", url: "/dashboard/antimicrobial-sensitivity", icon: Microscope },
+      { title: "Consumo Higiene", url: "/hygiene/consumption-dashboard", icon: Droplets },
     ],
   },
   {
