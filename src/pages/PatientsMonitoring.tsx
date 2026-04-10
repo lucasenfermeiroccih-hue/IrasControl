@@ -570,7 +570,7 @@ export default function PatientsMonitoring() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {mockFatoresRisco.map(f => (
                     <div key={f} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                      <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                       <span className="text-sm">{f}</span>
                     </div>
                   ))}
