@@ -167,6 +167,7 @@ export default function PatientsMonitoring() {
   const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
   const [newAtbOpen, setNewAtbOpen] = useState(false);
   const [newAtb, setNewAtb] = useState({ nome: "", dataInicio: "", dataFim: "" });
+  const [editingAtbId, setEditingAtbId] = useState<string | null>(null);
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
   const tempAlta = !isNaN(tempFloat) && tempFloat > 38;
