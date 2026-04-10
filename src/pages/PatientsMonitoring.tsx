@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ function calcAge(birth: string) {
 
 // ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<MockPatient[]>(mockPatients as MockPatient[]);
   const [selectedId, setSelectedId] = useState<string>(mockPatients[0].id);
   const [search, setSearch] = useState("");
@@ -688,6 +690,37 @@ export default function PatientsMonitoring() {
                 <LogOut className="h-4 w-4" />Alta
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={() => {
+                const investigationData = {
+                  paciente: selected.nome,
+                  prontuario: selected.prontuario,
+                  setor: selected.unidade,
+                  leito: selected.leito,
+                  sexo: selected.sexo,
+                  dataNascimento: selected.dataNascimento,
+                  dataInternacao: selected.dataInternacaoHospitalar,
+                  diagnostico: selected.diagnostico,
+                  doencasBase: selected.doencasBase,
+                  motivoInternacao: selected.motivoInternacao,
+                  especialidade: selected.especialidade,
+                  dispositivos,
+                  dispInvasivos,
+                  labPanel,
+                  evolucao,
+                  sinaisVitais,
+                  iras,
+                  criteriosSelecionados,
+                };
+                navigate("/notificacao-investigacao-ccih", { state: { fromMonitoring: true, data: investigationData } });
+                toast.success("Dados do paciente transferidos para investigação CCIH");
+              }}
+            >
+              <ShieldAlert className="h-4 w-4" />Iniciar Investigação CCIH
+            </Button>
           </div>
         </div>
       </div>
