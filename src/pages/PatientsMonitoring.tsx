@@ -225,11 +225,7 @@ export default function PatientsMonitoring() {
 
   const handleSave = () => {
     if (!selected) return;
-    if (!conclusao.classificacao || !conclusao.conclusaoEpidemiologica || !conclusao.condutas || !conclusao.desfecho || !conclusao.vinculoSurto) {
-      toast.error("Preencha todos os campos obrigatórios na seção Conclusão");
-      setCurrentStep(6);
-      return;
-    }
+    // Conclusão fields are optional
     if (!justificativa.trim()) {
       toast.error("Preencha a justificativa clínica nos Critérios Diagnósticos");
       setCurrentStep(6);
@@ -595,14 +591,26 @@ export default function PatientsMonitoring() {
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" />Conclusão</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                  <RequiredField label="Classificação final" disabled={readOnly} value={conclusao.classificacao} onChange={v => setConclusao(p => ({ ...p, classificacao: v }))} />
-                  <RequiredField label="Conclusão epidemiológica" disabled={readOnly} value={conclusao.conclusaoEpidemiologica} onChange={v => setConclusao(p => ({ ...p, conclusaoEpidemiologica: v }))} />
                   <div className="space-y-2">
-                    <Label className="font-medium">Condutas <span className="text-destructive">*</span></Label>
-                    <Textarea disabled={readOnly} value={conclusao.condutas} onChange={e => setConclusao(p => ({ ...p, condutas: e.target.value }))} className={!conclusao.condutas ? "border-destructive/40" : ""} />
+                    <Label className="font-medium">Classificação final</Label>
+                    <Input disabled={readOnly} value={conclusao.classificacao} onChange={e => setConclusao(p => ({ ...p, classificacao: e.target.value }))} />
                   </div>
-                  <RequiredField label="Desfecho" disabled={readOnly} value={conclusao.desfecho} onChange={v => setConclusao(p => ({ ...p, desfecho: v }))} />
-                  <RequiredField label="Vínculo com surto" disabled={readOnly} value={conclusao.vinculoSurto} onChange={v => setConclusao(p => ({ ...p, vinculoSurto: v }))} />
+                  <div className="space-y-2">
+                    <Label className="font-medium">Conclusão epidemiológica</Label>
+                    <Input disabled={readOnly} value={conclusao.conclusaoEpidemiologica} onChange={e => setConclusao(p => ({ ...p, conclusaoEpidemiologica: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-medium">Condutas</Label>
+                    <Textarea disabled={readOnly} value={conclusao.condutas} onChange={e => setConclusao(p => ({ ...p, condutas: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-medium">Desfecho</Label>
+                    <Input disabled={readOnly} value={conclusao.desfecho} onChange={e => setConclusao(p => ({ ...p, desfecho: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-medium">Vínculo com surto</Label>
+                    <Input disabled={readOnly} value={conclusao.vinculoSurto} onChange={e => setConclusao(p => ({ ...p, vinculoSurto: e.target.value }))} />
+                  </div>
                 </CardContent>
               </Card>
 
