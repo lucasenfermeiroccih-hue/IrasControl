@@ -35,7 +35,6 @@ export interface IndicadorCalculados {
   taxaInfeccao: number | null;
   pacienteExposto: number | null;
   pacienteEmRisco: number | null;
-  taxaInfeccaoHospitalar: number | null;
   taxaLetalidade: number | null;
   taxaUtilizacaoCVC: number | null;
   taxaInfeccaoCVC: number | null;
