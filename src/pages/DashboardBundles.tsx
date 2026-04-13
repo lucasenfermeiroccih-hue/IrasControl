@@ -23,10 +23,10 @@ function getStatusBadge(status: string) {
 export default function DashboardBundles() {
   const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("bundles");
-  const [dia, setDia] = useState("all");
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const [dia, setDia] = useState<string[]>([]);
+  const [mes, setMes] = useState<string[]>([]);
+  const [ano, setAno] = useState<string[]>([]);
+  const [setor, setSetor] = useState<string[]>([]);
 
   const handleExportPdf = () => {
     if (!hospitalId) return;

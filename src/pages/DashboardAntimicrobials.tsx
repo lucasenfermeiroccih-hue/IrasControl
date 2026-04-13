@@ -37,10 +37,10 @@ export default function DashboardAntimicrobials() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
-  const [dia, setDia] = useState("all");
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const [dia, setDia] = useState<string[]>([]);
+  const [mes, setMes] = useState<string[]>([]);
+  const [ano, setAno] = useState<string[]>([]);
+  const [setor, setSetor] = useState<string[]>([]);
 
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }

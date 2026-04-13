@@ -18,10 +18,10 @@ const COLORS = ["hsl(168, 66%, 34%)", "hsl(199, 89%, 48%)", "hsl(38, 92%, 50%)",
 export default function DashboardHygiene() {
   const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("hand_hygiene");
-  const [dia, setDia] = useState("all");
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const [dia, setDia] = useState<string[]>([]);
+  const [mes, setMes] = useState<string[]>([]);
+  const [ano, setAno] = useState<string[]>([]);
+  const [setor, setSetor] = useState<string[]>([]);
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
