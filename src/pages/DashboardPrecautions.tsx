@@ -28,7 +28,7 @@ export default function DashboardPrecautions() {
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
   const [ano, setAno] = useState<string[]>([]);
-  const [setor, setSetor] = useState("all");
+  const [setor, setSetor] = useState<string[]>([]);
 
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }

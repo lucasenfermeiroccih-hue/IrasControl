@@ -18,9 +18,9 @@ import { toast } from "sonner";
 
 export default function Dashboard() {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
-  const [mes, setMes] = useState("all");
-  const [ano, setAno] = useState("all");
-  const [setor, setSetor] = useState("all");
+  const [mes, setMes] = useState<string[]>([]);
+  const [ano, setAno] = useState<string[]>([]);
+  const [setor, setSetor] = useState<string[]>([]);
 
   // Real data states
   const [patients, setPatients] = useState<any[]>([]);
