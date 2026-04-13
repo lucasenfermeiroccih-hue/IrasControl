@@ -8,9 +8,11 @@ import {
 import { CheckCircle, AlertTriangle, TrendingUp, Activity, Loader2, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { useState } from "react";
 
 function getStatusBadge(status: string) {
   if (status === "Crítico") return <Badge variant="destructive">{status}</Badge>;
@@ -21,6 +23,10 @@ function getStatusBadge(status: string) {
 export default function DashboardBundles() {
   const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("bundles");
+  const [dia, setDia] = useState("all");
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -70,6 +76,8 @@ export default function DashboardBundles() {
         }} />
         </div>
       </div>
+
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
