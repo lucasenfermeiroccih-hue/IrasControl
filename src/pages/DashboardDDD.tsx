@@ -21,10 +21,10 @@ export default function DashboardDDD() {
   const { data: allData, loading: dataLoading } = useDDDDashboard();
   const isEmpty = allData.length === 0;
 
-  const [filtroDia, setFiltroDia] = useState("all");
-  const [filtroMes, setFiltroMes] = useState("all");
-  const [filtroAno, setFiltroAno] = useState("all");
-  const [filtroUnidade, setFiltroUnidade] = useState("all");
+  const [filtroDia, setFiltroDia] = useState<string[]>([]);
+  const [filtroMes, setFiltroMes] = useState<string[]>([]);
+  const [filtroAno, setFiltroAno] = useState<string[]>([]);
+  const [filtroUnidade, setFiltroUnidade] = useState<string[]>([]);
   const [filtroAtm, setFiltroAtm] = useState("all");
 
 
