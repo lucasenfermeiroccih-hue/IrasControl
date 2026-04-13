@@ -7,15 +7,21 @@ import {
 } from "recharts";
 import { HandMetal, CheckCircle, AlertTriangle, Users, Loader2, Download } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { useState } from "react";
 
 const COLORS = ["hsl(168, 66%, 34%)", "hsl(199, 89%, 48%)", "hsl(38, 92%, 50%)", "hsl(280, 65%, 60%)", "hsl(0, 72%, 51%)"];
 
 export default function DashboardHygiene() {
   const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("hand_hygiene");
+  const [dia, setDia] = useState("all");
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -57,6 +63,8 @@ export default function DashboardHygiene() {
         }} />
         </div>
       </div>
+
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

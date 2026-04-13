@@ -21,6 +21,7 @@ export default function DashboardDDD() {
   const { data: allData, loading: dataLoading } = useDDDDashboard();
   const isEmpty = allData.length === 0;
 
+  const [filtroDia, setFiltroDia] = useState("all");
   const [filtroMes, setFiltroMes] = useState("all");
   const [filtroAno, setFiltroAno] = useState("all");
   const [filtroUnidade, setFiltroUnidade] = useState("all");
@@ -153,6 +154,13 @@ export default function DashboardDDD() {
           {/* Filtros */}
           <Card>
             <CardContent className="flex flex-wrap gap-3 pt-4">
+              <Select value={filtroDia} onValueChange={setFiltroDia}>
+                <SelectTrigger className="w-[100px]"><SelectValue placeholder="Dia" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Select value={filtroMes} onValueChange={setFiltroMes}>
                 <SelectTrigger className="w-[150px]"><SelectValue placeholder="Mês" /></SelectTrigger>
                 <SelectContent>

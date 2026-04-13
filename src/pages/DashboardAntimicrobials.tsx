@@ -37,6 +37,10 @@ export default function DashboardAntimicrobials() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
+  const [dia, setDia] = useState("all");
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }
@@ -137,6 +141,8 @@ export default function DashboardAntimicrobials() {
           <Button onClick={openNew} className="gap-2" size="sm"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Adicionar</span></Button>
         </div>
       </div>
+
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

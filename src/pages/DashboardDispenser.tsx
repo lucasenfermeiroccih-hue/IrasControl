@@ -6,13 +6,19 @@ import {
 } from "recharts";
 import { FlaskConical, CheckCircle, AlertTriangle, MapPin, Loader2, Download } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { useState } from "react";
 
 export default function DashboardDispenser() {
   const { hospitalId } = useHospitalContext();
   const { stats, loading } = useAuditDashboard("dispenser");
+  const [dia, setDia] = useState("all");
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -53,6 +59,8 @@ export default function DashboardDispenser() {
         }} />
         </div>
       </div>
+
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

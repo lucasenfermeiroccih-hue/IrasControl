@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { Shield, CheckCircle, AlertTriangle, Eye, Loader2, Download } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import DashboardFilters from "@/components/DashboardFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
@@ -24,6 +25,10 @@ export default function DashboardPrecautions() {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
   const [precautions, setPrecautions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dia, setDia] = useState("all");
+  const [mes, setMes] = useState("all");
+  const [ano, setAno] = useState("all");
+  const [setor, setSetor] = useState("all");
 
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }
@@ -109,6 +114,8 @@ export default function DashboardPrecautions() {
         }} />
         </div>
       </div>
+
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
