@@ -115,6 +115,8 @@ export default function DashboardPrecautions() {
         </div>
       </div>
 
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
           <Card key={k.label}>
