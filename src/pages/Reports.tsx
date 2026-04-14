@@ -73,6 +73,7 @@ const Reports = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "",
+    mdr: false, criticidade: "baixo" as string, statusRegistro: "pendente" as string,
   });
 
   // Filters
