@@ -779,33 +779,52 @@ const Reports = () => {
                   <TableHead>Setor</TableHead>
                   <TableHead>Tipo Exame</TableHead>
                   <TableHead>Microorganismo</TableHead>
+                  <TableHead>MDR</TableHead>
+                  <TableHead>Criticidade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
                 )}
-                {filtered.slice(0, 50).map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="text-xs">{r.collection_date}</TableCell>
-                    <TableCell className="text-xs">{r.patient?.medical_record || "—"}</TableCell>
-                    <TableCell className="text-xs">{r.patient?.sector || "—"}</TableCell>
-                    <TableCell className="text-xs">{r.sample_type || "—"}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs">{r.organism || "—"}</Badge></TableCell>
-                    <TableCell>
-                      <Badge variant={r.status === "completed" ? "secondary" : "outline"} className="text-xs">
-                        {r.status === "completed" ? "Liberado" : r.status === "pending" ? "Pendente" : r.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRecord(r)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtered.slice(0, 50).map(r => {
+                  const extra = parseNotes(r.notes);
+                  const critColors: Record<string, string> = { alto: "destructive", medio: "outline", baixo: "secondary" };
+                  const statusLabels: Record<string, string> = { pendente: "Pendente", em_analise: "Em Análise", confirmado: "Confirmado", descartado: "Descartado" };
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs">{r.collection_date}</TableCell>
+                      <TableCell className="text-xs">{r.patient?.medical_record || "—"}</TableCell>
+                      <TableCell className="text-xs">{r.patient?.sector || "—"}</TableCell>
+                      <TableCell className="text-xs">{r.sample_type || "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{r.organism || "—"}</Badge></TableCell>
+                      <TableCell>
+                        {extra.mdr ? (
+                          <Badge variant="destructive" className="text-xs">MDR</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={critColors[extra.criticidade] as any || "secondary"} className="text-xs capitalize">
+                          {extra.criticidade === "medio" ? "Médio" : extra.criticidade}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {statusLabels[extra.statusRegistro] || extra.statusRegistro}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRecord(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
