@@ -1,18 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
-import { History, Pencil, Trash2, FileDown, Loader2, X } from "lucide-react";
+import { History, Pencil, Trash2, FileDown, Loader2, Filter, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
-import { inputFields, calculatedFields } from "@/data/indicadores-config";
+import { inputFields, calculatedFields, mesesOptions, setorOptions } from "@/data/indicadores-config";
 
 interface IndicadorRecord {
   id: string;
@@ -38,6 +41,20 @@ export default function IndicadoresHistory({ onEdit }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Filters
+  const [filterMes, setFilterMes] = useState("");
+  const [filterAno, setFilterAno] = useState("");
+  const [filterSetor, setFilterSetor] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const hasActiveFilters = filterMes || filterAno || filterSetor;
+
+  const clearFilters = () => {
+    setFilterMes("");
+    setFilterAno("");
+    setFilterSetor("");
+  };
+
   const fetchRecords = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
@@ -46,7 +63,7 @@ export default function IndicadoresHistory({ onEdit }: Props) {
       .select("*") as any)
       .eq("hospital_id", hospitalId)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(100);
     setLoading(false);
     if (error) {
       toast.error("Erro ao carregar histórico");
@@ -58,6 +75,15 @@ export default function IndicadoresHistory({ onEdit }: Props) {
   useEffect(() => {
     if (open) fetchRecords();
   }, [open, fetchRecords]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((r) => {
+      if (filterMes && r.mes_vigilancia !== filterMes) return false;
+      if (filterAno && r.ano_vigilancia !== Number(filterAno)) return false;
+      if (filterSetor && r.setor !== filterSetor) return false;
+      return true;
+    });
+  }, [records, filterMes, filterAno, filterSetor]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -122,22 +148,104 @@ export default function IndicadoresHistory({ onEdit }: Props) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-4xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5 text-primary" />
-              Histórico de Indicadores
-            </DialogTitle>
+            <div className="flex items-center justify-between w-full">
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                Histórico de Indicadores
+              </DialogTitle>
+              <div className="flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={showFilters ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        <Filter className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Filtrar</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {hasActiveFilters && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearFilters}>
+                          <FilterX className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Limpar filtros</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </div>
           </DialogHeader>
+
+          {showFilters && (
+            <div className="grid grid-cols-3 gap-3 pb-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Mês</Label>
+                <Select value={filterMes} onValueChange={setFilterMes}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mesesOptions.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ano</Label>
+                <Input
+                  type="number"
+                  placeholder="Todos"
+                  className="h-8 text-xs"
+                  value={filterAno}
+                  onChange={(e) => setFilterAno(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Setor</Label>
+                <Select value={filterSetor} onValueChange={setFilterSetor}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {setorOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Filtros ativos:</span>
+              {filterMes && <Badge variant="outline" className="text-xs">{filterMes}</Badge>}
+              {filterAno && <Badge variant="outline" className="text-xs">{filterAno}</Badge>}
+              {filterSetor && <Badge variant="outline" className="text-xs">{filterSetor}</Badge>}
+              <span>— {filteredRecords.length} registro(s)</span>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-          ) : records.length === 0 ? (
+          ) : filteredRecords.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               Nenhum registro encontrado
             </div>
           ) : (
-            <ScrollArea className="h-[60vh]">
+            <ScrollArea className="h-[55vh]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -149,7 +257,7 @@ export default function IndicadoresHistory({ onEdit }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((r) => (
+                  {filteredRecords.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell>{format(new Date(r.data_vigilancia), "dd/MM/yyyy")}</TableCell>
                       <TableCell>
