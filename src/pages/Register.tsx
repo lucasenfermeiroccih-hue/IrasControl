@@ -158,6 +158,7 @@ export default function Register() {
                       <SelectItem value="geral">Hospital Geral</SelectItem>
                       <SelectItem value="especializado">Especializado</SelectItem>
                       <SelectItem value="universitario">Universitário</SelectItem>
+                      <SelectItem value="maternidade">Hospital Maternidade</SelectItem>
                       <SelectItem value="upa">UPA</SelectItem>
                     </SelectContent>
                   </Select>
