@@ -71,18 +71,18 @@ export function useIndicadorCalculos(v: IndicadorInputs): IndicadorCalculados {
       pacienteEmRisco: safeDiv(v.numInfeccoes, pacienteExposto, 100),
       taxaInfeccaoHospitalar: safeDiv(v.numInfeccoes, v.numPacienteDiaTotal, 1000),
       taxaLetalidade: safeDiv(v.numObitosInfeccao, v.numPacientesInfeccaoHospitalar, 100),
-      taxaUtilizacaoCVC: safeDiv(v.utilizacaoCVC, v.numPacienteDiaTotal, 1000),
+      taxaUtilizacaoCVC: safeDiv(v.utilizacaoCVC, v.numPacienteDiaTotal, 100),
       taxaInfeccaoCVC: safeDiv(v.infeccaoCVC, v.utilizacaoCVC, 1000),
-      taxaUtilizacaoVM: safeDiv(v.utilizacaoVM, v.numPacienteDiaTotal, 1000),
+      taxaUtilizacaoVM: safeDiv(v.utilizacaoVM, v.numPacienteDiaTotal, 100),
       taxaInfeccaoVM: safeDiv(v.infeccaoVM, v.utilizacaoVM, 1000),
-      taxaUtilizacaoSVD: safeDiv(v.utilizacaoSVD, v.numPacienteDiaTotal, 1000),
+      taxaUtilizacaoSVD: safeDiv(v.utilizacaoSVD, v.numPacienteDiaTotal, 100),
       taxaInfeccaoSVD: safeDiv(v.infeccaoSVD, v.utilizacaoSVD, 1000),
       taxaInfTratoUrinario: safeDiv(v.infeccaoTratoUrinario, v.numPacienteDiaTotal, 1000),
       taxaInfSitioCirurgico: safeDiv(v.infeccaoSitioCirurgico, v.numPacienteDiaTotal, 1000),
       taxaInfTratoRespiratorio: safeDiv(v.infeccaoTratoRespiratorio, v.numPacienteDiaTotal, 1000),
       taxaInfPele: safeDiv(v.infeccaoPele, v.numPacienteDiaTotal, 1000),
       taxaInfCorrenteSanguinea: safeDiv(v.infeccaoCorrenteSanguinea, v.numPacienteDiaTotal, 1000),
-      taxaUsoAntibioticos: safeDiv(v.numAntibioticosUtilizados, v.numPacienteDiaTotal, 100),
+      taxaUsoAntibioticos: safeDiv(v.numAntibioticosUtilizados, pacienteExposto, 100),
     };
   }, [v]);
 }
