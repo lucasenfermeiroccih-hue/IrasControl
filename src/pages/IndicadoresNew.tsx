@@ -219,12 +219,19 @@ export default function IndicadoresNew() {
           <CardHeader className="pb-4"><CardTitle className="text-lg">{section}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {fields.map((f) => (
-                <div key={f.id} className="space-y-2">
-                  <Label htmlFor={f.id}>{f.label}</Label>
-                  <Input id={f.id} type="number" min={0} step={1} value={numericValues[f.id] || 0} onChange={(e) => handleNumericChange(f.id, e.target.value)} />
-                </div>
-              ))}
+              {fields.map((f) => {
+                const neonatalLabelMap: Record<string, string> = {
+                  utilizacaoCVC: "Utilização de CVC (PICC, CVU e CVA)",
+                  infeccaoCVC: "Infecção de CVC (PICC, CVU e CVA)",
+                };
+                const label = isNeonatal && neonatalLabelMap[f.id] ? neonatalLabelMap[f.id] : f.label;
+                return (
+                  <div key={f.id} className="space-y-2">
+                    <Label htmlFor={f.id}>{label}</Label>
+                    <Input id={f.id} type="number" min={0} step={1} value={numericValues[f.id] || 0} onChange={(e) => handleNumericChange(f.id, e.target.value)} />
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
