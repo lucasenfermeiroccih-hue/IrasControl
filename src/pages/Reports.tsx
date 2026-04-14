@@ -251,7 +251,7 @@ const Reports = () => {
   };
 
   const resetForm = () => {
-    setFormData({ dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "" });
+    setFormData({ dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "", mdr: false, criticidade: "baixo", statusRegistro: "pendente" });
     setEditingId(null);
     setFormOpen(false);
   };
