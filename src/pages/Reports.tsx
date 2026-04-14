@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import {
   FileText, Plus, Download, Sparkles, TrendingUp, Filter,
   CalendarIcon, Loader2, AlertTriangle, Bug, X, ChevronDown, Check,
-  Brain, Lightbulb, BarChart3, TableIcon, Pencil
+  Brain, Lightbulb, BarChart3, TableIcon, Pencil, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
