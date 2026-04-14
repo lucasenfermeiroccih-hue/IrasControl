@@ -90,9 +90,15 @@ export default function AuditBundlesNew() {
   const cvuRate = useMemo(() => calcRate(form.cvuBundlesOpen, form.cvuCompleteBundles), [form.cvuBundlesOpen, form.cvuCompleteBundles]);
   const cvaRate = useMemo(() => calcRate(form.cvaBundlesOpen, form.cvaCompleteBundles), [form.cvaBundlesOpen, form.cvaCompleteBundles]);
 
-  const totalConformes = Number(form.cvcCompleteBundles || 0) + Number(form.svdCompleteBundles || 0)
+  const pavConformes = Math.max(0, Number(form.pavDiasPreenchidos || 0) - Number(form.pavNaoConforme || 0));
+  const pavRate = useMemo(() => {
+    const dias = Number(form.pavDiasPreenchidos);
+    return !dias ? 0 : (pavConformes / dias) * 100;
+  }, [form.pavDiasPreenchidos, pavConformes]);
+
+  const totalConformes = Number(form.cvcCompleteBundles || 0) + Number(form.svdCompleteBundles || 0) + pavConformes
     + (isNeonatal ? Number(form.piccCompleteBundles || 0) + Number(form.cvuCompleteBundles || 0) + Number(form.cvaCompleteBundles || 0) : 0);
-  const totalInconformes = Number(form.cvcIncompleteBundles || 0) + Number(form.svdIncompleteBundles || 0)
+  const totalInconformes = Number(form.cvcIncompleteBundles || 0) + Number(form.svdIncompleteBundles || 0) + Number(form.pavNaoConforme || 0)
     + (isNeonatal ? Number(form.piccIncompleteBundles || 0) + Number(form.cvuIncompleteBundles || 0) + Number(form.cvaIncompleteBundles || 0) : 0);
 
   const handleSave = async () => {
@@ -111,8 +117,16 @@ export default function AuditBundlesNew() {
       { question: `SVD Inconformes: ${form.svdIncompleteBundles}`, status: Number(form.svdIncompleteBundles) > 0 ? "non_compliant" : "compliant", category: "SVD", item_order: 6 },
     ];
 
+    // PAV items
+    const pavOrder = 7;
+    items.push(
+      { question: `PAV: ${form.pavPacientesDia} pacientes-dia em VM, ${form.pavDiasPreenchidos} dias preenchidos`, status: Number(form.pavNaoConforme) > 0 ? "non_compliant" : "compliant", category: "PAV", item_order: pavOrder },
+      { question: `PAV Conformes: ${pavConformes}`, status: "compliant", category: "PAV", item_order: pavOrder + 1 },
+      { question: `PAV Não Conforme: ${form.pavNaoConforme}`, status: Number(form.pavNaoConforme) > 0 ? "non_compliant" : "compliant", category: "PAV", item_order: pavOrder + 2 },
+    );
+
     if (isNeonatal) {
-      let order = 7;
+      let order = 10;
       for (const [prefix, label] of [["picc", "PICC"], ["cvu", "CVU"], ["cva", "CVA"]] as const) {
         const p = form[`${prefix}Patients` as keyof typeof form];
         const o = form[`${prefix}BundlesOpen` as keyof typeof form];
