@@ -65,6 +65,7 @@ const emptyForm = {
   piccPatients: "", piccBundlesOpen: "", piccIncompleteBundles: "", piccCompleteBundles: "",
   cvuPatients: "", cvuBundlesOpen: "", cvuIncompleteBundles: "", cvuCompleteBundles: "",
   cvaPatients: "", cvaBundlesOpen: "", cvaIncompleteBundles: "", cvaCompleteBundles: "",
+  pavPacientesDia: "", pavDiasPreenchidos: "", pavNaoConforme: "",
   observations: "",
 };
 
@@ -89,9 +90,15 @@ export default function AuditBundlesNew() {
   const cvuRate = useMemo(() => calcRate(form.cvuBundlesOpen, form.cvuCompleteBundles), [form.cvuBundlesOpen, form.cvuCompleteBundles]);
   const cvaRate = useMemo(() => calcRate(form.cvaBundlesOpen, form.cvaCompleteBundles), [form.cvaBundlesOpen, form.cvaCompleteBundles]);
 
-  const totalConformes = Number(form.cvcCompleteBundles || 0) + Number(form.svdCompleteBundles || 0)
+  const pavConformes = Math.max(0, Number(form.pavDiasPreenchidos || 0) - Number(form.pavNaoConforme || 0));
+  const pavRate = useMemo(() => {
+    const dias = Number(form.pavDiasPreenchidos);
+    return !dias ? 0 : (pavConformes / dias) * 100;
+  }, [form.pavDiasPreenchidos, pavConformes]);
+
+  const totalConformes = Number(form.cvcCompleteBundles || 0) + Number(form.svdCompleteBundles || 0) + pavConformes
     + (isNeonatal ? Number(form.piccCompleteBundles || 0) + Number(form.cvuCompleteBundles || 0) + Number(form.cvaCompleteBundles || 0) : 0);
-  const totalInconformes = Number(form.cvcIncompleteBundles || 0) + Number(form.svdIncompleteBundles || 0)
+  const totalInconformes = Number(form.cvcIncompleteBundles || 0) + Number(form.svdIncompleteBundles || 0) + Number(form.pavNaoConforme || 0)
     + (isNeonatal ? Number(form.piccIncompleteBundles || 0) + Number(form.cvuIncompleteBundles || 0) + Number(form.cvaIncompleteBundles || 0) : 0);
 
   const handleSave = async () => {
@@ -110,8 +117,16 @@ export default function AuditBundlesNew() {
       { question: `SVD Inconformes: ${form.svdIncompleteBundles}`, status: Number(form.svdIncompleteBundles) > 0 ? "non_compliant" : "compliant", category: "SVD", item_order: 6 },
     ];
 
+    // PAV items
+    const pavOrder = 7;
+    items.push(
+      { question: `PAV: ${form.pavPacientesDia} pacientes-dia em VM, ${form.pavDiasPreenchidos} dias preenchidos`, status: Number(form.pavNaoConforme) > 0 ? "non_compliant" : "compliant", category: "PAV", item_order: pavOrder },
+      { question: `PAV Conformes: ${pavConformes}`, status: "compliant", category: "PAV", item_order: pavOrder + 1 },
+      { question: `PAV Não Conforme: ${form.pavNaoConforme}`, status: Number(form.pavNaoConforme) > 0 ? "non_compliant" : "compliant", category: "PAV", item_order: pavOrder + 2 },
+    );
+
     if (isNeonatal) {
-      let order = 7;
+      let order = 10;
       for (const [prefix, label] of [["picc", "PICC"], ["cvu", "CVU"], ["cva", "CVA"]] as const) {
         const p = form[`${prefix}Patients` as keyof typeof form];
         const o = form[`${prefix}BundlesOpen` as keyof typeof form];
@@ -239,6 +254,19 @@ export default function AuditBundlesNew() {
         </>
       )}
 
+      {/* PAV */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div><CardTitle className="text-lg">Prevenção de PAV</CardTitle><CardDescription>Pneumonia Associada à Ventilação Mecânica</CardDescription></div>
+          <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Taxa:</span><AdherenceBadge rate={pavRate} /></div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2"><Label>Nº pacientes-dia em ventilação mecânica</Label><Input type="number" min="0" value={form.pavPacientesDia} onChange={set("pavPacientesDia")} /></div>
+          <div className="space-y-2"><Label>Nº de dias preenchidos</Label><Input type="number" min="0" value={form.pavDiasPreenchidos} onChange={set("pavDiasPreenchidos")} /></div>
+          <div className="space-y-2"><Label>Não Conforme</Label><Input type="number" min="0" value={form.pavNaoConforme} onChange={set("pavNaoConforme")} /></div>
+        </CardContent>
+      </Card>
+
       {/* Observações */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Observações</CardTitle></CardHeader>
@@ -252,6 +280,7 @@ export default function AuditBundlesNew() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryItem label="Adesão CVC" value={cvcRate} />
             <SummaryItem label="Adesão SVD" value={svdRate} />
+            <SummaryItem label="Adesão PAV" value={pavRate} />
             {isNeonatal && <SummaryItem label="Adesão PICC" value={piccRate} />}
             {isNeonatal && <SummaryItem label="Adesão CVU" value={cvuRate} />}
             {isNeonatal && <SummaryItem label="Adesão CVA" value={cvaRate} />}
