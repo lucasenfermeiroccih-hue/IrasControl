@@ -103,6 +103,7 @@ function registroToForm(reg: ISCRegistro): { nome: string; dataVigilancia: strin
 
 export default function IndicadoresISC() {
   const [registroId, setRegistroId] = useState<string>(() => generateISCId());
+  const [hospitalTipo, setHospitalTipo] = useState("");
   const [nome, setNome] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState("");
   const [mesVigilancia, setMesVigilancia] = useState("");
