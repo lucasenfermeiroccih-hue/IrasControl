@@ -43,6 +43,11 @@ export function getLastISCRegistro(): ISCRegistro | null {
   return registros.length > 0 ? registros[registros.length - 1] : null;
 }
 
+export function deleteISCRegistro(id: string): void {
+  const registros = getISCRegistros().filter((r) => r.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(registros));
+}
+
 export function generateISCId(): string {
   return `isc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

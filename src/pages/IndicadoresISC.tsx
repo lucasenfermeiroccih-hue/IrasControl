@@ -35,6 +35,7 @@ import {
   generateISCId,
   type ISCRegistro,
 } from "@/lib/isc-storage";
+import ISCHistory from "@/components/ISCHistory";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -370,9 +371,12 @@ export default function IndicadoresISC() {
       </Dialog>
 
       {/* Header */}
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">Indicadores ISC</h1>
-        <p className="text-sm text-muted-foreground">Infecção de Sítio Cirúrgico — Entrada de dados</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Indicadores ISC</h1>
+          <p className="text-sm text-muted-foreground">Infecção de Sítio Cirúrgico — Entrada de dados</p>
+        </div>
+        <ISCHistory onEdit={loadRegistro} />
       </div>
 
       {/* General info */}
