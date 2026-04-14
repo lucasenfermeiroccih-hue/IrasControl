@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   FileText, Plus, Download, Sparkles, TrendingUp, Filter,
-  CalendarIcon, Loader2, AlertTriangle, Bug, X, ChevronDown, Check
+  CalendarIcon, Loader2, AlertTriangle, Bug, X, ChevronDown, Check,
+  Brain, Lightbulb, BarChart3, TableIcon, Pencil
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -47,6 +48,11 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const TREND_COLORS = [
+  "hsl(168, 66%, 34%)", "hsl(0, 72%, 51%)", "hsl(45, 93%, 47%)",
+  "hsl(210, 79%, 46%)", "hsl(280, 68%, 50%)", "hsl(30, 80%, 50%)",
+];
+
 interface LabRecord {
   id: string;
   collection_date: string;
@@ -64,6 +70,7 @@ const Reports = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "",
   });
@@ -76,6 +83,10 @@ const Reports = () => {
   const [filterAno, setFilterAno] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
   const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
+
+  // AI
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
 
   const currentYear = new Date().getFullYear();
   const ANOS = [String(currentYear), String(currentYear - 1), String(currentYear - 2)];
@@ -138,6 +149,23 @@ const Reports = () => {
       .slice(0, 8);
   }, [filtered]);
 
+  // Monthly trend data for top organisms
+  const trendData = useMemo(() => {
+    const monthOrgMap: Record<string, Record<string, number>> = {};
+    const orgCount: Record<string, number> = {};
+    filtered.forEach((r) => {
+      if (!r.organism || !r.collection_date) return;
+      const m = r.collection_date.slice(0, 7);
+      const org = r.organism.split(" ")[0];
+      orgCount[org] = (orgCount[org] || 0) + 1;
+      if (!monthOrgMap[m]) monthOrgMap[m] = {};
+      monthOrgMap[m][org] = (monthOrgMap[m][org] || 0) + 1;
+    });
+    const topOrgs = Object.entries(orgCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([o]) => o);
+    const months = Object.keys(monthOrgMap).sort();
+    return { months, topOrgs, data: months.map(m => ({ mes: m, ...monthOrgMap[m] })) };
+  }, [filtered]);
+
   const handleSaveRecord = async () => {
     const { dataExame, prontuario, setor, tipoExame, microorganismo } = formData;
     if (!dataExame || !setor || !tipoExame || !microorganismo) {
@@ -147,7 +175,6 @@ const Reports = () => {
     if (!hospitalId || !userId) return;
     setSaving(true);
 
-    // Find or create patient by prontuario
     let patientId: string | null = null;
     if (prontuario) {
       const { data: existingPatient } = await supabase
@@ -175,26 +202,58 @@ const Reports = () => {
       }
     }
 
-    const { error } = await supabase.from("lab_results").insert({
-      hospital_id: hospitalId,
-      patient_id: patientId,
-      collection_date: dataExame,
-      sample_type: tipoExame,
-      organism: microorganismo,
-      status: "completed" as const,
-      result_date: new Date().toISOString().split("T")[0],
-      created_by: userId,
-    });
-
-    setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
+    if (editingId) {
+      const { error } = await supabase.from("lab_results").update({
+        collection_date: dataExame,
+        sample_type: tipoExame,
+        organism: microorganismo,
+      }).eq("id", editingId);
+      setSaving(false);
+      if (error) {
+        toast.error("Erro ao atualizar: " + error.message);
+      } else {
+        toast.success("Registro atualizado!");
+        resetForm();
+        fetchRecords();
+      }
     } else {
-      toast.success("Registro salvo com sucesso!");
-      setFormData({ dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "" });
-      setFormOpen(false);
-      fetchRecords();
+      const { error } = await supabase.from("lab_results").insert({
+        hospital_id: hospitalId,
+        patient_id: patientId,
+        collection_date: dataExame,
+        sample_type: tipoExame,
+        organism: microorganismo,
+        status: "completed" as const,
+        result_date: new Date().toISOString().split("T")[0],
+        created_by: userId,
+      });
+      setSaving(false);
+      if (error) {
+        toast.error("Erro ao salvar: " + error.message);
+      } else {
+        toast.success("Registro salvo com sucesso!");
+        resetForm();
+        fetchRecords();
+      }
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ dataExame: "", prontuario: "", setor: "", tipoExame: "", microorganismo: "" });
+    setEditingId(null);
+    setFormOpen(false);
+  };
+
+  const handleEditRecord = (r: LabRecord) => {
+    setEditingId(r.id);
+    setFormData({
+      dataExame: r.collection_date,
+      prontuario: r.patient?.medical_record || "",
+      setor: r.patient?.sector || "",
+      tipoExame: r.sample_type || "",
+      microorganismo: r.organism || "",
+    });
+    setFormOpen(true);
   };
 
   const handleExportCSV = () => {
@@ -249,6 +308,71 @@ const Reports = () => {
     }
   };
 
+  const handleGenerateAI = async () => {
+    if (filtered.length === 0) {
+      toast.error("Sem dados para analisar. Adicione registros primeiro.");
+      return;
+    }
+    setAiLoading(true);
+    setAiInsights([]);
+    try {
+      const summary = {
+        total: filtered.length,
+        organisms: distribution.map(d => `${d.name}: ${d.total}`).join(", "),
+        sectors: [...new Set(filtered.map(r => r.patient?.sector).filter(Boolean))].join(", "),
+        period: `${filtered[filtered.length - 1]?.collection_date} a ${filtered[0]?.collection_date}`,
+      };
+
+      const { data, error } = await supabase.functions.invoke("generate-insights", {
+        body: {
+          context: "microorganism_resistance",
+          summary,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.insights && Array.isArray(data.insights)) {
+        setAiInsights(data.insights);
+      } else {
+        // Fallback local insights
+        setAiInsights(generateLocalInsights());
+      }
+    } catch {
+      // Fallback: generate local insights
+      setAiInsights(generateLocalInsights());
+    }
+    setAiLoading(false);
+  };
+
+  const generateLocalInsights = (): string[] => {
+    const insights: string[] = [];
+    if (distribution.length > 0) {
+      insights.push(`O microorganismo mais prevalente é ${distribution[0].name} com ${distribution[0].total} isolados (${Math.round(distribution[0].total / filtered.length * 100)}% do total).`);
+    }
+    const pendingPct = filtered.length > 0 ? Math.round(filtered.filter(r => r.status === "pending").length / filtered.length * 100) : 0;
+    if (pendingPct > 20) {
+      insights.push(`⚠️ ${pendingPct}% dos exames ainda estão pendentes de liberação. Recomenda-se priorizar a análise para agilizar o tratamento.`);
+    }
+    const sectorMap: Record<string, number> = {};
+    filtered.forEach(r => { if (r.patient?.sector) sectorMap[r.patient.sector] = (sectorMap[r.patient.sector] || 0) + 1; });
+    const topSector = Object.entries(sectorMap).sort((a, b) => b[1] - a[1])[0];
+    if (topSector) {
+      insights.push(`O setor com maior concentração de isolados é "${topSector[0]}" com ${topSector[1]} registros. Avaliar medidas de prevenção focadas.`);
+    }
+    const mrsaCount = filtered.filter(r => r.organism === "MRSA").length;
+    const kpcCount = filtered.filter(r => r.organism?.includes("KPC")).length;
+    if (mrsaCount > 0 || kpcCount > 0) {
+      insights.push(`Alerta: ${mrsaCount} isolados MRSA e ${kpcCount} KPC detectados. Monitorar protocolo de precauções de contato e descolonização.`);
+    }
+    if (distribution.length >= 3) {
+      insights.push(`Tendência: ${distribution.slice(0, 3).map(d => d.name).join(", ")} representam os patógenos dominantes. Considerar revisão do perfil de antibiograma institucional.`);
+    }
+    if (insights.length === 0) {
+      insights.push("Dados insuficientes para gerar insights preditivos. Continue registrando resultados para análises mais robustas.");
+    }
+    return insights;
+  };
+
   if (ctxLoading || loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -267,16 +391,18 @@ const Reports = () => {
             Monitoramento de Microorganismos
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Relatórios e análises de resistência antimicrobiana
+            Relatórios, análises de resistência antimicrobiana e insights preditivos via IA
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Dialog open={formOpen} onOpenChange={setFormOpen}>
+          <Dialog open={formOpen} onOpenChange={(open) => { if (!open) resetForm(); else setFormOpen(true); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-1" /> Novo Registro</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
-              <DialogHeader><DialogTitle>Novo Registro de Microorganismo</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Editar Registro" : "Novo Registro de Microorganismo"}</DialogTitle>
+              </DialogHeader>
               <div className="grid gap-4 py-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -314,11 +440,15 @@ const Reports = () => {
                 <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
                 <Button onClick={handleSaveRecord} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Salvar
+                  {editingId ? "Atualizar" : "Salvar"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <Button variant="secondary" onClick={handleGenerateAI} disabled={aiLoading}>
+            {aiLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Brain className="h-4 w-4 mr-1" />}
+            Gerar Insights IA
+          </Button>
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-1" /> PDF
           </Button>
@@ -327,6 +457,34 @@ const Reports = () => {
           </Button>
         </div>
       </div>
+
+      {/* AI Insights Panel */}
+      {aiInsights.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-primary" />
+                Sugestões e Insights da IA
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAiInsights([])}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <CardDescription>Análise preditiva baseada nos {filtered.length} registros filtrados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {aiInsights.map((insight, i) => (
+                <li key={i} className="flex gap-2 text-sm">
+                  <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>
@@ -435,33 +593,106 @@ const Reports = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Registros</p><p className="text-2xl font-bold">{filtered.length}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Organismos Distintos</p><p className="text-2xl font-bold">{new Set(filtered.map(r => r.organism).filter(Boolean)).size}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-warning">{filtered.filter(r => r.status === "pending").length}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Liberados</p><p className="text-2xl font-bold text-success">{filtered.filter(r => r.status === "completed").length}</p></CardContent></Card>
-      </div>
-
-      {/* Chart */}
-      {distribution.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Distribuição por Microorganismo</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={distribution}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="total" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <p className="text-xs text-muted-foreground">Total Registros</p>
+            </div>
+            <p className="text-2xl font-bold mt-1">{filtered.length}</p>
           </CardContent>
         </Card>
-      )}
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Bug className="h-4 w-4 text-primary" />
+              <p className="text-xs text-muted-foreground">Organismos Distintos</p>
+            </div>
+            <p className="text-2xl font-bold mt-1">{new Set(filtered.map(r => r.organism).filter(Boolean)).size}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <p className="text-xs text-muted-foreground">Pendentes</p>
+            </div>
+            <p className="text-2xl font-bold mt-1 text-warning">{filtered.filter(r => r.status === "pending").length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-success" />
+              <p className="text-xs text-muted-foreground">Liberados</p>
+            </div>
+            <p className="text-2xl font-bold mt-1 text-success">{filtered.filter(r => r.status === "completed").length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Distribution */}
+        {distribution.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Distribuição por Microorganismo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={distribution}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Trend Chart */}
+        {trendData.data.length > 1 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Tendência de Resistência (Mensal)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={trendData.data}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {trendData.topOrgs.map((org, i) => (
+                    <Line key={org} type="monotone" dataKey={org} stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Table */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Registros ({filtered.length})</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TableIcon className="h-4 w-4 text-primary" />
+              Dados Consolidados ({filtered.length})
+            </CardTitle>
+          </div>
+        </CardHeader>
         <CardContent className="p-0 md:p-6 md:pt-0">
           <div className="overflow-x-auto">
             <Table className="text-sm">
@@ -473,11 +704,12 @@ const Reports = () => {
                   <TableHead>Tipo Exame</TableHead>
                   <TableHead>Microorganismo</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
                 )}
                 {filtered.slice(0, 50).map(r => (
                   <TableRow key={r.id}>
@@ -490,6 +722,11 @@ const Reports = () => {
                       <Badge variant={r.status === "completed" ? "secondary" : "outline"} className="text-xs">
                         {r.status === "completed" ? "Liberado" : r.status === "pending" ? "Pendente" : r.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRecord(r)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
