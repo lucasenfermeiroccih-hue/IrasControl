@@ -231,10 +231,11 @@ export default function IndicadoresISC() {
   const totals = useMemo(() => {
     const t: ClinicaData = emptyClinicaData();
     for (const c of clinicasVisiveis) {
-      t.totalCirurgias += data[c].totalCirurgias;
-      t.contatosAtendidos += data[c].contatosAtendidos;
-      t.reinternacoes += data[c].reinternacoes;
-      t.iscConfirmada += data[c].iscConfirmada;
+      const d = data[c] || emptyClinicaData();
+      t.totalCirurgias += d.totalCirurgias;
+      t.contatosAtendidos += d.contatosAtendidos;
+      t.reinternacoes += d.reinternacoes;
+      t.iscConfirmada += d.iscConfirmada;
     }
     return t;
   }, [data, clinicasVisiveis]);
@@ -329,7 +330,7 @@ export default function IndicadoresISC() {
         {indicadorRows.map((row) => (
           <div key={row.key} className="flex items-center justify-between gap-3">
             <Label className="text-xs text-muted-foreground shrink-0 w-[45%]">{row.label}</Label>
-            <div className="w-[55%]">{renderValue(row, clinica, data[clinica], false)}</div>
+            <div className="w-[55%]">{renderValue(row, clinica, data[clinica] || emptyClinicaData(), false)}</div>
           </div>
         ))}
       </CardContent>
@@ -455,7 +456,7 @@ export default function IndicadoresISC() {
                     <TableCell className="font-medium text-sm bg-muted/20">{row.label}</TableCell>
                     {clinicasVisiveis.map((c) => (
                       <TableCell key={c} className="text-center">
-                        {renderValue(row, c, data[c], false)}
+                        {renderValue(row, c, data[c] || emptyClinicaData(), false)}
                       </TableCell>
                     ))}
                     {!isMaternidade && (
