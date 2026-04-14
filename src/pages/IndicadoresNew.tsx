@@ -15,6 +15,7 @@ import { inputFields, calculatedFields, mesesOptions, setorOptions } from "@/dat
 import { useIndicadorCalculos, type IndicadorInputs } from "@/hooks/useIndicadorCalculos";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import IndicadoresHistory from "@/components/IndicadoresHistory";
 
 const defaultInputs: Record<string, number> = {};
 inputFields
