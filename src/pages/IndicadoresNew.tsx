@@ -67,11 +67,27 @@ export default function IndicadoresNew() {
   const calculados = useIndicadorCalculos(numericValues as unknown as IndicadorInputs);
 
   const handleClear = () => {
+    setEditingId(null);
     setNome(""); setDataVigilancia(undefined); setMesVigilancia("");
     setAnoVigilancia(new Date().getFullYear()); setSetor("");
     setNumericValues({ ...defaultInputs });
     setNeonatalWeights({ ...defaultNeonatalWeights });
     toast.info("Formulário limpo");
+  };
+
+  const handleEdit = (record: any) => {
+    setEditingId(record.id);
+    setNome(record.profissional || "");
+    setDataVigilancia(record.data_vigilancia ? new Date(record.data_vigilancia) : undefined);
+    setMesVigilancia(record.mes_vigilancia || "");
+    setAnoVigilancia(record.ano_vigilancia || new Date().getFullYear());
+    setSetor(record.setor || "");
+    const inputs = record.inputs || {};
+    const { neonatalPacienteDiaPorPeso, ...numInputs } = inputs;
+    setNumericValues({ ...defaultInputs, ...numInputs });
+    setNeonatalWeights({ ...defaultNeonatalWeights, ...(neonatalPacienteDiaPorPeso || {}) });
+    window.scrollTo(0, 0);
+    toast.info("Registro carregado para edição");
   };
 
   const handleSave = async () => {
@@ -83,7 +99,7 @@ export default function IndicadoresNew() {
       ? { ...numericValues, neonatalPacienteDiaPorPeso: neonatalWeights }
       : numericValues;
 
-    const { error } = await (supabase.from("indicadores_records" as any).insert as any)({
+    const payload = {
       hospital_id: hospitalId,
       user_id: userId,
       profissional: nome,
@@ -93,14 +109,23 @@ export default function IndicadoresNew() {
       setor,
       inputs: inputsToSave,
       calculated: calculados,
-    });
+    };
+
+    let error: any;
+    if (editingId) {
+      const res = await (supabase.from("indicadores_records" as any).update as any)(payload).eq("id", editingId);
+      error = res.error;
+    } else {
+      const res = await (supabase.from("indicadores_records" as any).insert as any)(payload);
+      error = res.error;
+    }
     setSaving(false);
 
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
       return;
     }
-    toast.success("Indicadores salvos com sucesso!");
+    toast.success(editingId ? "Registro atualizado com sucesso!" : "Indicadores salvos com sucesso!");
     handleClear();
     window.scrollTo(0, 0);
   };
