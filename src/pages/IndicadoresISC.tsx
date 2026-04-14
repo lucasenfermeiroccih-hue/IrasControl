@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,7 @@ function registroToForm(reg: ISCRegistro): { nome: string; dataVigilancia: strin
 
 export default function IndicadoresISC() {
   const [registroId, setRegistroId] = useState<string>(() => generateISCId());
+  const [hospitalTipo, setHospitalTipo] = useState("");
   const [nome, setNome] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState("");
   const [mesVigilancia, setMesVigilancia] = useState("");
@@ -182,6 +184,7 @@ export default function IndicadoresISC() {
 
   const handleLimpar = () => {
     setRegistroId(generateISCId());
+    setHospitalTipo("");
     setNome("");
     setDataVigilancia("");
     setMesVigilancia("");
@@ -300,7 +303,21 @@ export default function IndicadoresISC() {
           <CardTitle className="text-base md:text-lg">Informações Gerais</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Building2 className="h-4 w-4 text-primary" />
+                Hospital
+              </Label>
+              <Select value={hospitalTipo} onValueChange={setHospitalTipo}>
+                <SelectTrigger><SelectValue placeholder="Selecione o hospital" /></SelectTrigger>
+                <SelectContent>
+                  {["Hospital Geral", "Maternidade", "Hospital Pediátrico", "Hospital de médio porte", "Hospital dos olhos"].map((h) => (
+                    <SelectItem key={h} value={h}>{h}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="nome">Nome do Profissional *</Label>
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
