@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import {
   FileText, Plus, Download, Sparkles, TrendingUp, Filter,
   CalendarIcon, Loader2, AlertTriangle, Bug, X, ChevronDown, Check,
-  Brain, Lightbulb, BarChart3, TableIcon, Pencil
+  Brain, Lightbulb, BarChart3, TableIcon, Pencil, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,10 @@ const Reports = () => {
   const [filterSetor, setFilterSetor] = useState<string>("all");
   const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
 
+  // Pagination
+  const PAGE_SIZE = 15;
+  const [tablePage, setTablePage] = useState(1);
+
   // AI
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
@@ -146,6 +150,12 @@ const Reports = () => {
       return true;
     });
   }, [records, filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
+
+  // Reset page when filters change
+  useEffect(() => { setTablePage(1); }, [filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedData = useMemo(() => filtered.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE), [filtered, tablePage]);
 
   const distribution = useMemo(() => {
     const map: Record<string, number> = {};
@@ -789,7 +799,10 @@ const Reports = () => {
                 {filtered.length === 0 && (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
                 )}
-                {filtered.slice(0, 50).map(r => {
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
+                )}
+                {paginatedData.map(r => {
                   const extra = parseNotes(r.notes);
                   const critColors: Record<string, string> = { alto: "destructive", medio: "outline", baixo: "secondary" };
                   const statusLabels: Record<string, string> = { pendente: "Pendente", em_analise: "Em Análise", confirmado: "Confirmado", descartado: "Descartado" };
@@ -828,6 +841,38 @@ const Reports = () => {
               </TableBody>
             </Table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t px-4 py-3 md:px-6">
+              <span className="text-xs text-muted-foreground">
+                Exibindo {((tablePage - 1) * PAGE_SIZE) + 1}–{Math.min(tablePage * PAGE_SIZE, filtered.length)} de {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={tablePage <= 1} onClick={() => setTablePage(p => p - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (tablePage <= 3) {
+                    page = i + 1;
+                  } else if (tablePage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = tablePage - 2 + i;
+                  }
+                  return (
+                    <Button key={page} variant={page === tablePage ? "default" : "outline"} size="icon" className="h-7 w-7 text-xs" onClick={() => setTablePage(page)}>
+                      {page}
+                    </Button>
+                  );
+                })}
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={tablePage >= totalPages} onClick={() => setTablePage(p => p + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
