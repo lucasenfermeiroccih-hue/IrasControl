@@ -254,6 +254,19 @@ export default function AuditBundlesNew() {
         </>
       )}
 
+      {/* PAV */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div><CardTitle className="text-lg">Prevenção de PAV</CardTitle><CardDescription>Pneumonia Associada à Ventilação Mecânica</CardDescription></div>
+          <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Taxa:</span><AdherenceBadge rate={pavRate} /></div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2"><Label>Nº pacientes-dia em ventilação mecânica</Label><Input type="number" min="0" value={form.pavPacientesDia} onChange={set("pavPacientesDia")} /></div>
+          <div className="space-y-2"><Label>Nº de dias preenchidos</Label><Input type="number" min="0" value={form.pavDiasPreenchidos} onChange={set("pavDiasPreenchidos")} /></div>
+          <div className="space-y-2"><Label>Não Conforme</Label><Input type="number" min="0" value={form.pavNaoConforme} onChange={set("pavNaoConforme")} /></div>
+        </CardContent>
+      </Card>
+
       {/* Observações */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Observações</CardTitle></CardHeader>
@@ -267,6 +280,7 @@ export default function AuditBundlesNew() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryItem label="Adesão CVC" value={cvcRate} />
             <SummaryItem label="Adesão SVD" value={svdRate} />
+            <SummaryItem label="Adesão PAV" value={pavRate} />
             {isNeonatal && <SummaryItem label="Adesão PICC" value={piccRate} />}
             {isNeonatal && <SummaryItem label="Adesão CVU" value={cvuRate} />}
             {isNeonatal && <SummaryItem label="Adesão CVA" value={cvaRate} />}
