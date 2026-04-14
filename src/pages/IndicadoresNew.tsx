@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Save, RotateCcw, Activity } from "lucide-react";
+import { CalendarIcon, Save, RotateCcw, Activity, Baby } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,17 @@ inputFields
   .filter((f) => f.type === "number")
   .forEach((f) => { defaultInputs[f.id] = 0; });
 
+const neonatalWeightCategories = [
+  { id: "pesoMenor750", label: "Menor que 750g" },
+  { id: "peso750a999", label: "750g a 999g" },
+  { id: "peso1000a1499", label: "1.000g a 1.499g" },
+  { id: "peso1500a2499", label: "1.500g a 2.499g" },
+  { id: "pesoMaiorIgual2500", label: "≥ 2.500g" },
+];
+
+const defaultNeonatalWeights: Record<string, number> = {};
+neonatalWeightCategories.forEach((c) => { defaultNeonatalWeights[c.id] = 0; });
+
 export default function IndicadoresNew() {
   const { hospitalId, userId } = useHospitalContext();
   const [nome, setNome] = useState("");
@@ -29,7 +40,10 @@ export default function IndicadoresNew() {
   const [anoVigilancia, setAnoVigilancia] = useState<number>(new Date().getFullYear());
   const [setor, setSetor] = useState("");
   const [numericValues, setNumericValues] = useState<Record<string, number>>({ ...defaultInputs });
+  const [neonatalWeights, setNeonatalWeights] = useState<Record<string, number>>({ ...defaultNeonatalWeights });
   const [saving, setSaving] = useState(false);
+
+  const isNeonatal = setor === "UTI Neonatal";
 
   const handleNumericChange = useCallback((id: string, raw: string) => {
     const val = raw === "" ? 0 : Number(raw);
@@ -37,12 +51,24 @@ export default function IndicadoresNew() {
     setNumericValues((prev) => ({ ...prev, [id]: val }));
   }, []);
 
+  const handleWeightChange = useCallback((id: string, raw: string) => {
+    const val = raw === "" ? 0 : Number(raw);
+    if (isNaN(val)) return;
+    setNeonatalWeights((prev) => ({ ...prev, [id]: val }));
+  }, []);
+
+  const totalPacienteDiaPorPeso = useMemo(
+    () => Object.values(neonatalWeights).reduce((s, v) => s + v, 0),
+    [neonatalWeights]
+  );
+
   const calculados = useIndicadorCalculos(numericValues as unknown as IndicadorInputs);
 
   const handleClear = () => {
     setNome(""); setDataVigilancia(undefined); setMesVigilancia("");
     setAnoVigilancia(new Date().getFullYear()); setSetor("");
     setNumericValues({ ...defaultInputs });
+    setNeonatalWeights({ ...defaultNeonatalWeights });
     toast.info("Formulário limpo");
   };
 
@@ -51,6 +77,10 @@ export default function IndicadoresNew() {
     if (!mesVigilancia || !setor) { toast.error("Selecione mês e setor"); return; }
     
     setSaving(true);
+    const inputsToSave = isNeonatal
+      ? { ...numericValues, neonatalPacienteDiaPorPeso: neonatalWeights }
+      : numericValues;
+
     const { error } = await (supabase.from("indicadores_records" as any).insert as any)({
       hospital_id: hospitalId,
       user_id: userId,
@@ -59,7 +89,7 @@ export default function IndicadoresNew() {
       mes_vigilancia: mesVigilancia,
       ano_vigilancia: anoVigilancia,
       setor,
-      inputs: numericValues,
+      inputs: inputsToSave,
       calculated: calculados,
     });
     setSaving(false);
@@ -143,6 +173,46 @@ export default function IndicadoresNew() {
           </div>
         </CardContent>
       </Card>
+
+      {isNeonatal && (
+        <Card className="border-accent/30">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Baby className="h-5 w-5 text-primary" />
+              Paciente-Dia por Peso (UTI Neonatal)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Informe a quantidade de paciente-dia por faixa de peso
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {neonatalWeightCategories.map((cat) => (
+                <div key={cat.id} className="space-y-2">
+                  <Label htmlFor={cat.id}>{cat.label}</Label>
+                  <Input
+                    id={cat.id}
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={neonatalWeights[cat.id] || 0}
+                    onChange={(e) => handleWeightChange(cat.id, e.target.value)}
+                  />
+                </div>
+              ))}
+              <div className="space-y-2">
+                <Label className="font-semibold">Total Paciente-Dia por Peso</Label>
+                <Input
+                  readOnly
+                  value={totalPacienteDiaPorPeso}
+                  className="bg-muted font-semibold text-foreground"
+                  tabIndex={-1}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {Object.entries(sectionGroups).map(([section, fields]) => (
         <Card key={section}>
