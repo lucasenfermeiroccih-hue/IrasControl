@@ -528,6 +528,64 @@ function buildISCPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
+function buildIndicadoresPdf(data: any, hospital: string): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Indicadores");
+
+  pdf.addText(`Profissional: ${data.profissional || "-"}`);
+  pdf.addText(`Periodo: ${data.mes || "-"} / ${data.ano || "-"}`);
+  pdf.addText(`Setor: ${data.setor || "-"}`);
+  pdf.addText(`Data da Vigilancia: ${data.dataVigilancia || "-"}`);
+  pdf.addSpacer();
+
+  const inputs = data.inputs || {};
+  const inputLabels = data.inputLabels || {};
+  const inputKeys = Object.keys(inputs).filter(k => k !== "neonatalPacienteDiaPorPeso");
+
+  if (inputKeys.length > 0) {
+    pdf.addSubtitle("Dados Informados");
+    pdf.addTable(
+      ["Campo", "Valor"],
+      inputKeys.map((k: string) => [inputLabels[k] || k, String(inputs[k] ?? 0)]),
+      [USABLE_W * 0.65, USABLE_W * 0.35]
+    );
+  }
+
+  if (inputs.neonatalPacienteDiaPorPeso) {
+    pdf.addSubtitle("Paciente-Dia por Peso (Neonatal)");
+    const weightLabels: Record<string, string> = {
+      pesoMenor750: "Menor que 750g",
+      peso750a999: "750g a 999g",
+      peso1000a1499: "1.000g a 1.499g",
+      peso1500a2499: "1.500g a 2.499g",
+      pesoMaiorIgual2500: ">= 2.500g",
+    };
+    const w = inputs.neonatalPacienteDiaPorPeso;
+    pdf.addTable(
+      ["Faixa de Peso", "Paciente-Dia"],
+      Object.keys(w).map((k: string) => [weightLabels[k] || k, String(w[k] ?? 0)]),
+      [USABLE_W * 0.65, USABLE_W * 0.35]
+    );
+  }
+
+  const calculated = data.calculated || {};
+  const calcLabels = data.calcLabels || {};
+  const calcKeys = Object.keys(calculated);
+
+  if (calcKeys.length > 0) {
+    pdf.addSubtitle("Campos Calculados");
+    pdf.addTable(
+      ["Indicador", "Valor"],
+      calcKeys.map((k: string) => [
+        calcLabels[k] || k,
+        calculated[k] !== null && calculated[k] !== undefined ? Number(calculated[k]).toFixed(2) : "-",
+      ]),
+      [USABLE_W * 0.65, USABLE_W * 0.35]
+    );
+  }
+
+  return pdf.toBase64();
+}
+
 // ─── Main handler ───
 
 Deno.serve(async (req) => {
@@ -572,6 +630,7 @@ Deno.serve(async (req) => {
       analytics: buildAnalyticsPdf,
       ddd: buildDDDPdf,
       isc: buildISCPdf,
+      indicadores: buildIndicadoresPdf,
     };
 
     const generator = generators[type];
