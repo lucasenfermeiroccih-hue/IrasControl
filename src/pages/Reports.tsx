@@ -96,6 +96,10 @@ const Reports = () => {
   const [filterSetor, setFilterSetor] = useState<string>("all");
   const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
 
+  // Pagination
+  const PAGE_SIZE = 15;
+  const [tablePage, setTablePage] = useState(1);
+
   // AI
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
