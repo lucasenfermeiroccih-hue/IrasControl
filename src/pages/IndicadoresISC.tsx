@@ -59,6 +59,61 @@ interface PartoCirurgicoData {
   numTotalCesarianas: number;
 }
 
+interface ProcedimentoExtra {
+  numerador: number;
+  denominador: number;
+}
+
+type ProcedimentosExtras = Record<string, ProcedimentoExtra>;
+
+const procedimentosExtrasConfig = [
+  {
+    key: "implanteMamario",
+    titulo: "Implante Mamário",
+    labelNum: "Nº de ISC de implante mamário no período (Numerador)",
+    descNum: "Informar o número de infecções de sítio cirúrgico de implante mamário no período.",
+    labelDen: "Nº total de cirurgias com implante mamário (Denominador)",
+    descDen: "Informar o número total de cirurgias com implante mamário realizadas no serviço de saúde, no mês de vigilância.",
+  },
+  {
+    key: "artroplastiaJoelho",
+    titulo: "Artroplastia de Joelho Primária",
+    labelNum: "Nº de ISC - artroplastia de joelho primária no período (Numerador)",
+    descNum: "Informar o número de infecções de sítio cirúrgico associado a artroplastia de joelho primária que ocorreram no mês de vigilância.",
+    labelDen: "Nº total de artroplastias de joelho primárias (Denominador)",
+    descDen: "Informar o número total de cirurgias de artroplastia de joelho primária realizadas no serviço de saúde, no mês de vigilância.",
+  },
+  {
+    key: "artroplastiaQuadril",
+    titulo: "Artroplastia Total de Quadril Primária",
+    labelNum: "Nº de ISC - artroplastia total de quadril primária no período (Numerador)",
+    descNum: "Informar o número de infecções de sítio cirúrgico associado a artroplastia total de quadril primária que ocorreram no mês de vigilância.",
+    labelDen: "Nº total de artroplastias totais de quadril primárias (Denominador)",
+    descDen: "Informar o número total de cirurgias de artroplastia total de quadril primária realizadas no serviço de saúde, no mês de vigilância.",
+  },
+  {
+    key: "cirurgiaCardiaca",
+    titulo: "Cirurgia Cardíaca",
+    labelNum: "Nº de infecções de órgão/cavidade pós revascularização do miocárdio (Numerador)",
+    descNum: "Informar o número de infecções de órgão/cavidade pós revascularização do miocárdio que ocorreram no mês de vigilância.",
+    labelDen: "Nº total de revascularizações do miocárdio (Denominador)",
+    descDen: "Informar o número total de revascularizações do miocárdio realizadas no serviço de saúde, no mês de vigilância.",
+  },
+  {
+    key: "cirurgiaNeurologica",
+    titulo: "Cirurgia Neurológica",
+    labelNum: "Nº de infecções de órgão/cavidade pós derivações internas neurológicas (exceto DVE/DLE) (Numerador)",
+    descNum: "Informar o número de infecções de órgão/cavidade pós cirurgia de derivações internas neurológicas (exceto DVE/DLE) que ocorreram no mês de vigilância.",
+    labelDen: "Nº total de cirurgias derivações internas neurológicas (exceto DVE/DLE) (Denominador)",
+    descDen: "Informar o número total de cirurgias derivações internas neurológicas (exceto DVE/DLE) realizadas no serviço de saúde, no mês de vigilância.",
+  },
+] as const;
+
+const emptyProcedimentoExtra = (): ProcedimentoExtra => ({ numerador: 0, denominador: 0 });
+
+const createInitialExtras = (): ProcedimentosExtras =>
+  Object.fromEntries(procedimentosExtrasConfig.map((p) => [p.key, emptyProcedimentoExtra()]));
+
 const emptyClinicaData = (): ClinicaData => ({
   totalCirurgias: 0,
   contatosAtendidos: 0,
@@ -120,8 +175,11 @@ export default function IndicadoresISC() {
   const [anoVigilancia, setAnoVigilancia] = useState(new Date().getFullYear().toString());
   const [data, setData] = useState<FormData>(createInitialData);
   const [partoCirurgico, setPartoCirurgico] = useState<PartoCirurgicoData>(emptyPartoCirurgico);
+  const [procedimentosExtras, setProcedimentosExtras] = useState<ProcedimentosExtras>(createInitialExtras);
 
   const isMaternidade = hospitalTipo === "Maternidade";
+  const isHospitalOlhos = hospitalTipo === "Hospital dos olhos";
+  const showExtras = !isMaternidade && !isHospitalOlhos && hospitalTipo !== "";
   const clinicasVisiveis = isMaternidade ? (["Cesariana"] as Clinica[]) : ([...clinicas] as Clinica[]);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [pendingRegistro, setPendingRegistro] = useState<ISCRegistro | null>(null);
@@ -209,6 +267,7 @@ export default function IndicadoresISC() {
     setAnoVigilancia(new Date().getFullYear().toString());
     setData(createInitialData());
     setPartoCirurgico(emptyPartoCirurgico());
+    setProcedimentosExtras(createInitialExtras());
     toast.info("Formulário limpo.");
   };
 
@@ -462,6 +521,57 @@ export default function IndicadoresISC() {
           </CardContent>
         </Card>
       )}
+
+      {/* Procedimentos extras (Hospital Geral, Pediátrico, Médio porte) */}
+      {showExtras && procedimentosExtrasConfig.map((proc) => {
+        const val = procedimentosExtras[proc.key] || emptyProcedimentoExtra();
+        const taxa = val.denominador > 0 ? ((val.numerador / val.denominador) * 100).toFixed(1) : "0.0";
+        return (
+          <Card key={proc.key} className="border-muted">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base md:text-lg">{proc.titulo}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{proc.labelNum}</Label>
+                  <p className="text-xs text-muted-foreground">{proc.descNum}</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-9"
+                    value={val.numerador || ""}
+                    onChange={(e) => setProcedimentosExtras(prev => ({
+                      ...prev,
+                      [proc.key]: { ...prev[proc.key], numerador: Number(e.target.value) || 0 },
+                    }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{proc.labelDen}</Label>
+                  <p className="text-xs text-muted-foreground">{proc.descDen}</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-9"
+                    value={val.denominador || ""}
+                    onChange={(e) => setProcedimentosExtras(prev => ({
+                      ...prev,
+                      [proc.key]: { ...prev[proc.key], denominador: Number(e.target.value) || 0 },
+                    }))}
+                  />
+                </div>
+                <div className="space-y-1.5 flex flex-col justify-end">
+                  <Label className="text-sm">Taxa de ISC (%)</Label>
+                  <div className="h-9 flex items-center justify-center rounded-md border bg-primary/5 font-semibold text-primary text-lg">
+                    {taxa}%
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* Actions - sticky on mobile */}
       <div className="sticky bottom-0 z-10 flex gap-3 justify-end bg-background/95 backdrop-blur-sm py-3 border-t border-border -mx-4 px-4 md:-mx-6 md:px-6 lg:static lg:border-0 lg:bg-transparent lg:backdrop-blur-none lg:py-0 lg:mx-0 lg:px-0">
