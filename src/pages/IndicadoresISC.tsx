@@ -456,7 +456,7 @@ export default function IndicadoresISC() {
                     <TableCell className="font-medium text-sm bg-muted/20">{row.label}</TableCell>
                     {clinicasVisiveis.map((c) => (
                       <TableCell key={c} className="text-center">
-                        {renderValue(row, c, data[c], false)}
+                        {renderValue(row, c, data[c] || emptyClinicaData(), false)}
                       </TableCell>
                     ))}
                     {!isMaternidade && (
