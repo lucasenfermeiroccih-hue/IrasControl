@@ -69,7 +69,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
       .from("audits")
       .select("*")
       .eq("hospital_id", hospitalId)
-      .eq("audit_type", auditType)
+      .eq("audit_type", auditType as any)
       .order("audit_date", { ascending: false });
     if (!error && data) {
       setRecords(data as AuditRecord[]);
