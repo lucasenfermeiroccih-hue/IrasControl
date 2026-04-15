@@ -603,6 +603,66 @@ export type Database = {
           },
         ]
       }
+      form_templates: {
+        Row: {
+          campos: number
+          categoria: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          hospital_id: string
+          id: string
+          nome: string
+          obrigatorio: boolean
+          preenchimentos: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campos?: number
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          hospital_id: string
+          id?: string
+          nome: string
+          obrigatorio?: boolean
+          preenchimentos?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campos?: number
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          hospital_id?: string
+          id?: string
+          nome?: string
+          obrigatorio?: boolean
+          preenchimentos?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_users: {
         Row: {
           created_at: string
