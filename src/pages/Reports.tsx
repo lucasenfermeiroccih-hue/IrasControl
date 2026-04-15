@@ -189,6 +189,61 @@ const Reports = () => {
     return { months, topOrgs, data: months.map(m => ({ mes: m, ...monthOrgMap[m] })) };
   }, [filtered]);
 
+  // MDR evolution by month
+  const mdrEvolution = useMemo(() => {
+    const map: Record<string, { total: number; mdr: number }> = {};
+    filtered.forEach(r => {
+      if (!r.collection_date) return;
+      const m = r.collection_date.slice(0, 7);
+      if (!map[m]) map[m] = { total: 0, mdr: 0 };
+      map[m].total++;
+      if (parseNotes(r.notes).mdr) map[m].mdr++;
+    });
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([mes, v]) => ({ mes, total: v.total, mdr: v.mdr, pct: v.total > 0 ? Math.round((v.mdr / v.total) * 100) : 0 }));
+  }, [filtered]);
+
+  // Distribution by exam type
+  const examTypeData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(r => { if (r.sample_type) map[r.sample_type] = (map[r.sample_type] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Resistant organisms (MDR only)
+  const resistantOrganisms = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(r => {
+      if (r.organism && parseNotes(r.notes).mdr) map[r.organism] = (map[r.organism] || 0) + 1;
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Top 10 organisms
+  const top10Organisms = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(r => { if (r.organism) map[r.organism] = (map[r.organism] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name, value, pct: Math.round((value / filtered.length) * 100) }));
+  }, [filtered]);
+
+  // Cases by status over time
+  const casesOverTime = useMemo(() => {
+    const map: Record<string, { pendente: number; confirmado: number; descartado: number }> = {};
+    filtered.forEach(r => {
+      const m = r.collection_date?.slice(0, 7);
+      if (!m) return;
+      if (!map[m]) map[m] = { pendente: 0, confirmado: 0, descartado: 0 };
+      const st = parseNotes(r.notes).statusRegistro;
+      if (st === "confirmado") map[m].confirmado++;
+      else if (st === "descartado") map[m].descartado++;
+      else map[m].pendente++;
+    });
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([mes, v]) => ({ mes, ...v }));
+  }, [filtered]);
+
+  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#f97316", "#6366f1", "#14b8a6"];
+
   const handleSaveRecord = async () => {
     const { dataExame, prontuario, setor, tipoExame, microorganismo, mdr, criticidade, statusRegistro } = formData;
     if (!dataExame || !setor || !tipoExame || !microorganismo) {
