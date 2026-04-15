@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Activity, Download, Filter, X, Loader2, Heart, Skull, Bug, Timer,
-  Syringe, TrendingUp, ShieldAlert, Thermometer,
+  Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown,
 } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,7 +17,7 @@ import {
 import { mesesOptions, setorOptions } from "@/data/indicadores-config";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-import { exportPdf } from "@/lib/pdf-export";
+
 
 const COLORS = [
   "hsl(168 66% 34%)", "hsl(217 91% 60%)", "hsl(0 72% 51%)",
@@ -71,6 +73,63 @@ export default function IndicadoresDashboard() {
   const [mesFiltro, setMesFiltro] = useState("Todos");
   const [anoFiltro, setAnoFiltro] = useState(String(new Date().getFullYear()));
   const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [activeTab, setActiveTab] = useState("infeccao");
+  const [exporting, setExporting] = useState(false);
+
+  const tabRefs = {
+    infeccao: useRef<HTMLDivElement>(null),
+    dispositivos: useRef<HTMLDivElement>(null),
+    taxas: useRef<HTMLDivElement>(null),
+    permanencia: useRef<HTMLDivElement>(null),
+  };
+
+  const tabNames: Record<string, string> = {
+    infeccao: "Infecção",
+    dispositivos: "Dispositivos",
+    taxas: "Taxas Específicas",
+    permanencia: "Permanência / ATB",
+  };
+
+  const exportTabPdf = useCallback(async () => {
+    const ref = tabRefs[activeTab as keyof typeof tabRefs]?.current;
+    if (!ref) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(ref, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "l" : "p", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableW = pageW - margin * 2;
+      const ratio = canvas.height / canvas.width;
+      const imgW = usableW;
+      const imgH = imgW * ratio;
+
+      // Title
+      pdf.setFontSize(14);
+      pdf.text(`Indicadores - ${tabNames[activeTab]}`, margin, margin + 5);
+      pdf.setFontSize(9);
+      pdf.text(`Filtros: Mês=${mesFiltro} | Ano=${anoFiltro} | Setor=${setorFiltro}`, margin, margin + 11);
+      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 16);
+
+      const startY = margin + 20;
+      if (imgH + startY <= pageH - margin) {
+        pdf.addImage(imgData, "PNG", margin, startY, imgW, imgH);
+      } else {
+        // Scale to fit page
+        const fitH = pageH - startY - margin;
+        const fitW = fitH / ratio;
+        pdf.addImage(imgData, "PNG", margin, startY, Math.min(fitW, usableW), Math.min(fitH, imgH));
+      }
+
+      pdf.save(`indicadores-${activeTab}-${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("Erro ao exportar PDF:", err);
+    } finally {
+      setExporting(false);
+    }
+  }, [activeTab, mesFiltro, anoFiltro, setorFiltro]);
 
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }
@@ -182,10 +241,10 @@ export default function IndicadoresDashboard() {
             <p className="text-xs md:text-sm text-muted-foreground">Análise gamificada dos indicadores epidemiológicos</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => {
-          if (!hospitalId) return;
-          exportPdf({ type: "analytics", hospitalId, data: { kpis: { totalCases: filtered.length, confirmedCases: 0, avgCompliance: 0, criticalAlerts: 0 }, monthlyTrend: [], infectionBySector: [], resistanceProfile: [] }, filenamePrefix: "indicadores" });
-        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+        <Button variant="outline" size="sm" onClick={exportTabPdf} disabled={exporting}>
+          {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileDown className="h-4 w-4 mr-1" />}
+          Exportar Aba PDF
+        </Button>
       </div>
 
       {/* Filters */}
@@ -230,7 +289,7 @@ export default function IndicadoresDashboard() {
       </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="infeccao" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="infeccao" className="flex-1 min-w-[120px] text-xs gap-1.5"><Bug className="h-3.5 w-3.5" />Infecção</TabsTrigger>
           <TabsTrigger value="dispositivos" className="flex-1 min-w-[120px] text-xs gap-1.5"><Syringe className="h-3.5 w-3.5" />Dispositivos</TabsTrigger>
@@ -240,65 +299,68 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 1: Infecção ====== */}
         <TabsContent value="infeccao" className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
-            <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
-            <KpiCard label="Nº de Infecções" value={agg.numInfeccoes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
-            <KpiCard label="Taxa de Letalidade" value={taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
-          </div>
-
-          {monthlyData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Infecção Hospitalar por Mês (‰)</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Óbitos e Infecções por Mês</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card className="lg:col-span-2">
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+          <div ref={tabRefs.infeccao} className="space-y-4 bg-background p-1">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
+              <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
+              <KpiCard label="Nº de Infecções" value={agg.numInfeccoes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
+              <KpiCard label="Taxa de Letalidade" value={taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
             </div>
-          )}
+
+            {monthlyData.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Infecção Hospitalar por Mês (‰)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Óbitos e Infecções por Mês</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 2: Dispositivos ====== */}
         <TabsContent value="dispositivos" className="space-y-4">
+          <div ref={tabRefs.dispositivos} className="space-y-4 bg-background p-1">
           {/* Gauge cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <Card><CardContent className="p-4 flex flex-col items-center"><GaugeChart value={taxaUtilCVC} max={100} label="Taxa Util. CVC (%)" color="hsl(217,91%,60%)" /></CardContent></Card>
@@ -353,10 +415,12 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 3: Taxas Específicas ====== */}
         <TabsContent value="taxas" className="space-y-4">
+          <div ref={tabRefs.taxas} className="space-y-4 bg-background p-1">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard label="Taxa Inf. PAV (VM)" value={taxaInfVM} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)" />
             <KpiCard label="Taxa Inf. CVC" value={taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(217,91%,60%)" />
@@ -402,10 +466,12 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 4: Permanência / ATB ====== */}
         <TabsContent value="permanencia" className="space-y-4">
+          <div ref={tabRefs.permanencia} className="space-y-4 bg-background p-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <KpiCard label="Tempo Médio de Permanência" value={tempoPermanencia} unit="dias" icon={Timer} color="hsl(168,66%,34%)" />
             <KpiCard label="Taxa Uso Antibióticos" value={taxaUsoAtb} unit="%" icon={Syringe} color="hsl(217,91%,60%)" />
@@ -443,6 +509,7 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
       </Tabs>
 
