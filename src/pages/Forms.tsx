@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,47 +10,65 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Copy, Trash2, Edit, Eye, FolderOpen, FileText, ClipboardCheck, CheckCircle2 } from "lucide-react";
+import { Plus, Search, Copy, Trash2, Edit, Eye, FolderOpen, FileText, ClipboardCheck, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
-type FormTemplate = {
+interface FormTemplate {
   id: string;
   nome: string;
   categoria: string;
   campos: number;
-  status: "ativo" | "rascunho" | "arquivado";
-  ultimaEdicao: string;
+  status: string;
+  updated_at: string;
   preenchimentos: number;
   obrigatorio: boolean;
-};
-
-const initialTemplates: FormTemplate[] = [
-  { id: "F001", nome: "Checklist de Higiene das Mãos", categoria: "Auditoria", campos: 12, status: "ativo", ultimaEdicao: "2026-03-25", preenchimentos: 234, obrigatorio: true },
-  { id: "F002", nome: "Notificação de IRAS", categoria: "Vigilância", campos: 18, status: "ativo", ultimaEdicao: "2026-03-20", preenchimentos: 89, obrigatorio: true },
-  { id: "F003", nome: "Bundle CVC - Inserção", categoria: "Bundle", campos: 15, status: "ativo", ultimaEdicao: "2026-03-18", preenchimentos: 156, obrigatorio: true },
-  { id: "F004", nome: "Bundle CVC - Manutenção", categoria: "Bundle", campos: 10, status: "ativo", ultimaEdicao: "2026-03-18", preenchimentos: 312, obrigatorio: true },
-  { id: "F005", nome: "Bundle SVD - Inserção", categoria: "Bundle", campos: 12, status: "ativo", ultimaEdicao: "2026-03-15", preenchimentos: 98, obrigatorio: true },
-  { id: "F006", nome: "Precauções de Contato", categoria: "Precaução", campos: 8, status: "ativo", ultimaEdicao: "2026-03-12", preenchimentos: 45, obrigatorio: false },
-  { id: "F007", nome: "Avaliação de Estrutura CTI", categoria: "Infraestrutura", campos: 25, status: "ativo", ultimaEdicao: "2026-03-10", preenchimentos: 12, obrigatorio: false },
-  { id: "F008", nome: "Registro de Cultura Laboratorial", categoria: "Laboratório", campos: 20, status: "rascunho", ultimaEdicao: "2026-03-08", preenchimentos: 0, obrigatorio: false },
-  { id: "F009", nome: "Investigação de Surto", categoria: "Vigilância", campos: 30, status: "rascunho", ultimaEdicao: "2026-03-05", preenchimentos: 0, obrigatorio: true },
-  { id: "F010", nome: "Auditoria de Dispensers (v1)", categoria: "Auditoria", campos: 14, status: "arquivado", ultimaEdicao: "2026-01-20", preenchimentos: 67, obrigatorio: false },
-  { id: "F011", nome: "Relatório Mensal CCIH", categoria: "Relatório", campos: 22, status: "ativo", ultimaEdicao: "2026-03-01", preenchimentos: 6, obrigatorio: true },
-  { id: "F012", nome: "Feedback de Treinamento", categoria: "Educação", campos: 8, status: "ativo", ultimaEdicao: "2026-02-28", preenchimentos: 180, obrigatorio: false },
-];
+}
 
 const categorias = ["Auditoria", "Vigilância", "Bundle", "Precaução", "Infraestrutura", "Laboratório", "Relatório", "Educação"];
 
 export default function Forms() {
-  const [templates, setTemplates] = useState(initialTemplates);
+  const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newForm, setNewForm] = useState({ nome: "", categoria: "", campos: "", obrigatorio: false, descricao: "" });
 
+  const fetchTemplates = async () => {
+    if (!hospitalId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("form_templates")
+      .select("*")
+      .eq("hospital_id", hospitalId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setTemplates(data.map((t: any) => ({
+        id: t.id,
+        nome: t.nome,
+        categoria: t.categoria,
+        campos: t.campos,
+        status: t.status,
+        updated_at: t.updated_at?.slice(0, 10) || "",
+        preenchimentos: t.preenchimentos,
+        obrigatorio: t.obrigatorio,
+      })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (hospitalId && !ctxLoading) fetchTemplates();
+    else if (!ctxLoading) setLoading(false);
+  }, [hospitalId, ctxLoading]);
+
   const filtered = templates.filter((t) => {
-    const matchSearch = t.nome.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = t.nome.toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || t.categoria === catFilter;
     const matchStatus = statusFilter === "all" || t.status === statusFilter;
     return matchSearch && matchCat && matchStatus;
@@ -63,48 +81,57 @@ export default function Forms() {
     preenchimentos: templates.reduce((s, t) => s + t.preenchimentos, 0),
   };
 
-  const handleCreate = () => {
-    if (!newForm.nome || !newForm.categoria) {
-      toast.error("Preencha nome e categoria.");
-      return;
-    }
-    const novo: FormTemplate = {
-      id: `F${String(templates.length + 1).padStart(3, "0")}`,
+  const handleCreate = async () => {
+    if (!newForm.nome || !newForm.categoria) { toast.error("Preencha nome e categoria."); return; }
+    if (!hospitalId) return;
+
+    const { error } = await supabase.from("form_templates").insert({
+      hospital_id: hospitalId,
       nome: newForm.nome,
       categoria: newForm.categoria,
       campos: parseInt(newForm.campos) || 0,
       status: "rascunho",
-      ultimaEdicao: new Date().toISOString().slice(0, 10),
-      preenchimentos: 0,
       obrigatorio: newForm.obrigatorio,
-    };
-    setTemplates([novo, ...templates]);
+      descricao: newForm.descricao,
+      created_by: userId,
+    } as any);
+
+    if (error) { toast.error("Erro ao criar: " + error.message); return; }
     setNewForm({ nome: "", categoria: "", campos: "", obrigatorio: false, descricao: "" });
     setDialogOpen(false);
     toast.success("Formulário criado como rascunho!");
+    fetchTemplates();
   };
 
-  const handleDuplicate = (t: FormTemplate) => {
-    const dup: FormTemplate = {
-      ...t,
-      id: `F${String(templates.length + 1).padStart(3, "0")}`,
+  const handleDuplicate = async (t: FormTemplate) => {
+    if (!hospitalId) return;
+    const { error } = await supabase.from("form_templates").insert({
+      hospital_id: hospitalId,
       nome: `${t.nome} (Cópia)`,
+      categoria: t.categoria,
+      campos: t.campos,
       status: "rascunho",
-      preenchimentos: 0,
-      ultimaEdicao: new Date().toISOString().slice(0, 10),
-    };
-    setTemplates([dup, ...templates]);
+      obrigatorio: t.obrigatorio,
+      created_by: userId,
+    } as any);
+
+    if (error) { toast.error("Erro ao duplicar: " + error.message); return; }
     toast.success("Formulário duplicado!");
+    fetchTemplates();
   };
 
-  const handleArchive = (id: string) => {
-    setTemplates(templates.map((t) => (t.id === id ? { ...t, status: "arquivado" as const } : t)));
-    toast.success("Formulário arquivado.");
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    const { error } = await supabase.from("form_templates").update({ status: newStatus } as any).eq("id", id);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success(newStatus === "arquivado" ? "Formulário arquivado." : "Formulário ativado!");
+    fetchTemplates();
   };
 
-  const handleActivate = (id: string) => {
-    setTemplates(templates.map((t) => (t.id === id ? { ...t, status: "ativo" as const } : t)));
-    toast.success("Formulário ativado!");
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("form_templates").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Formulário excluído.");
+    fetchTemplates();
   };
 
   const statusBadge = (s: string) => {
@@ -112,6 +139,8 @@ export default function Forms() {
     if (s === "rascunho") return <Badge variant="secondary">Rascunho</Badge>;
     return <Badge variant="outline" className="text-muted-foreground">Arquivado</Badge>;
   };
+
+  if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -186,7 +215,7 @@ export default function Forms() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar por nome ou código..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-9" placeholder="Buscar por nome..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={catFilter} onValueChange={setCatFilter}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
@@ -206,91 +235,99 @@ export default function Forms() {
         </Select>
       </div>
 
+      {/* Empty state */}
+      {templates.length === 0 && !loading && (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <FileText className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhum formulário cadastrado</h3>
+            <p className="text-sm text-muted-foreground">Clique em "Novo Formulário" para criar seu primeiro template.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabela */}
-      <Tabs defaultValue="todos">
-        <TabsList>
-          <TabsTrigger value="todos">Todos ({filtered.length})</TabsTrigger>
-          <TabsTrigger value="obrigatorios">Obrigatórios ({filtered.filter(f => f.obrigatorio).length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="todos">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead className="text-center">Campos</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Preench.</TableHead>
-                    <TableHead>Última Edição</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono text-xs">{t.id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">{t.nome}</span>
-                          {t.obrigatorio && <Badge variant="outline" className="text-xs">Obrigatório</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
-                      <TableCell className="text-center">{t.campos}</TableCell>
-                      <TableCell>{statusBadge(t.status)}</TableCell>
-                      <TableCell className="text-center">{t.preenchimentos}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{t.ultimaEdicao}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" title="Visualizar"><Eye className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" title="Duplicar" onClick={() => handleDuplicate(t)}><Copy className="h-4 w-4" /></Button>
-                          {t.status !== "arquivado" ? (
-                            <Button size="icon" variant="ghost" title="Arquivar" onClick={() => handleArchive(t.id)}><Trash2 className="h-4 w-4" /></Button>
-                          ) : (
-                            <Button size="icon" variant="ghost" title="Ativar" onClick={() => handleActivate(t.id)}><CheckCircle2 className="h-4 w-4" /></Button>
-                          )}
-                        </div>
-                      </TableCell>
+      {templates.length > 0 && (
+        <Tabs defaultValue="todos">
+          <TabsList>
+            <TabsTrigger value="todos">Todos ({filtered.length})</TabsTrigger>
+            <TabsTrigger value="obrigatorios">Obrigatórios ({filtered.filter(f => f.obrigatorio).length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="todos">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-center">Campos</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Preench.</TableHead>
+                      <TableHead>Última Edição</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="obrigatorios">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Preench.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.filter(f => f.obrigatorio).map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono text-xs">{t.id}</TableCell>
-                      <TableCell className="font-medium text-sm">{t.nome}</TableCell>
-                      <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
-                      <TableCell>{statusBadge(t.status)}</TableCell>
-                      <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((t) => (
+                      <TableRow key={t.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">{t.nome}</span>
+                            {t.obrigatorio && <Badge variant="outline" className="text-xs">Obrigatório</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
+                        <TableCell className="text-center">{t.campos}</TableCell>
+                        <TableCell>{statusBadge(t.status)}</TableCell>
+                        <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{t.updated_at}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="icon" variant="ghost" title="Duplicar" onClick={() => handleDuplicate(t)}><Copy className="h-4 w-4" /></Button>
+                            {t.status !== "arquivado" ? (
+                              <Button size="icon" variant="ghost" title="Arquivar" onClick={() => handleUpdateStatus(t.id, "arquivado")}><Trash2 className="h-4 w-4" /></Button>
+                            ) : (
+                              <Button size="icon" variant="ghost" title="Ativar" onClick={() => handleUpdateStatus(t.id, "ativo")}><CheckCircle2 className="h-4 w-4" /></Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="obrigatorios">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Preench.</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.filter(f => f.obrigatorio).map((t) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-medium text-sm">{t.nome}</TableCell>
+                        <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
+                        <TableCell>{statusBadge(t.status)}</TableCell>
+                        <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

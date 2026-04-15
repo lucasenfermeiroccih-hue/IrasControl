@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ShieldAlert, Save, FileText, Syringe, ClipboardList, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { ShieldAlert, Save, FileText, Syringe, ClipboardList, AlertTriangle, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 const setores = [
   "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
@@ -45,100 +47,121 @@ interface InvestigationData {
 
 export default function NotificacaoInvestigacaoCCIH() {
   const location = useLocation();
-  const navState = location.state as { fromMonitoring?: boolean; data?: InvestigationData } | null;
+  const navigate = useNavigate();
+  const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const navState = location.state as { fromMonitoring?: boolean; data?: InvestigationData; patientId?: string } | null;
   const prefilled = navState?.fromMonitoring && navState?.data;
+  const patientId = navState?.patientId || null;
 
-  const [caseId] = useState(() => "INV-" + Date.now().toString().slice(-8));
+  const [saving, setSaving] = useState(false);
+  const [caseId] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
 
   const [form, setForm] = useState({
-    paciente: "",
-    prontuario: "",
-    setor: "",
-    leito: "",
-    sexo: "",
-    dataNascimento: "",
-    dataInternacao: "",
-    diagnostico: "",
-    doencasBase: "",
-    motivoInternacao: "",
-    especialidade: "",
+    paciente: prefilled ? navState!.data!.paciente : "",
+    prontuario: prefilled ? navState!.data!.prontuario : "",
+    setor: prefilled ? navState!.data!.setor : "",
+    leito: prefilled ? navState!.data!.leito : "",
+    sexo: prefilled ? navState!.data!.sexo : "",
+    dataNascimento: prefilled ? navState!.data!.dataNascimento : "",
+    dataInternacao: prefilled ? navState!.data!.dataInternacao : "",
+    diagnostico: prefilled ? navState!.data!.diagnostico : "",
+    doencasBase: prefilled ? navState!.data!.doencasBase : "",
+    motivoInternacao: prefilled ? navState!.data!.motivoInternacao : "",
+    especialidade: prefilled ? navState!.data!.especialidade : "",
     evento: "",
-    classificacao: "",
     dataDeteccao: new Date().toISOString().slice(0, 10),
+    classificacao: "",
+    status: "Em investigação",
     observacoes: "",
-    status: "Em investigação" as string,
   });
 
-  const [dispositivosTexto, setDispositivosTexto] = useState("");
+  const isPrefilled = !!prefilled;
+  const criterios = prefilled ? navState!.data!.criteriosSelecionados || [] : [];
+
+  const [dispositivoTexto, setDispositivoTexto] = useState("");
   const [examesTexto, setExamesTexto] = useState("");
   const [evolucaoTexto, setEvolucaoTexto] = useState("");
-  const [criterios, setCriterios] = useState<string[]>([]);
-  const [isPrefilled, setIsPrefilled] = useState(false);
 
   useEffect(() => {
-    if (prefilled && navState.data) {
+    if (prefilled && navState?.data) {
       const d = navState.data;
-      setForm(prev => ({
-        ...prev,
-        paciente: d.paciente || "",
-        prontuario: d.prontuario || "",
-        setor: d.setor || "",
-        leito: d.leito || "",
-        sexo: d.sexo || "",
-        dataNascimento: d.dataNascimento || "",
-        dataInternacao: d.dataInternacao || "",
-        diagnostico: d.diagnostico || "",
-        doencasBase: d.doencasBase || "",
-        motivoInternacao: d.motivoInternacao || "",
-        especialidade: d.especialidade || "",
-        status: "Em investigação",
-      }));
+      const disp = d.dispInvasivos || {};
+      const lines: string[] = [];
+      if (disp.cvcInsercao) lines.push(`CVC: inserção ${disp.cvcInsercao}${disp.cvcRetirada ? `, retirada ${disp.cvcRetirada}` : ""}`);
+      if (disp.svuInsercao) lines.push(`SVD: inserção ${disp.svuInsercao}${disp.svuRetirada ? `, retirada ${disp.svuRetirada}` : ""}`);
+      if (disp.vmInsercao) lines.push(`VM: inserção ${disp.vmInsercao}${disp.vmRetirada ? `, retirada ${disp.vmRetirada}` : ""}`);
+      setDispositivoTexto(lines.join("\n"));
 
-      // Build dispositivos text
-      const dispParts: string[] = [];
-      if (d.dispositivos) {
-        Object.entries(d.dispositivos).forEach(([k, v]) => {
-          if (v && v !== "Não") dispParts.push(`${k}: ${v}`);
-        });
-      }
-      if (d.dispInvasivos) {
-        Object.entries(d.dispInvasivos).forEach(([k, v]) => {
-          if (v) dispParts.push(`${k}: ${v}`);
-        });
-      }
-      setDispositivosTexto(dispParts.join("\n"));
-
-      // Build exames text
-      if (d.labPanel && d.labPanel.length > 0) {
-        setExamesTexto(d.labPanel.map(e => `${e.exame} (${e.data}) — ${e.microrganismo} | ${e.sensibilidade}${e.mdr ? " [MDR]" : ""}`).join("\n"));
+      if (d.labPanel?.length > 0) {
+        setExamesTexto(d.labPanel.map(l => `${l.exame} (${l.data}): ${l.microrganismo} — ${l.sensibilidade}${l.mdr ? " [MDR]" : ""}`).join("\n"));
       }
 
-      // Build evolução text
-      if (d.evolucao) {
-        const evParts = Object.entries(d.evolucao)
-          .filter(([, v]) => v)
-          .map(([k, v]) => `${k}: ${v}`);
-        if (d.sinaisVitais) {
-          Object.entries(d.sinaisVitais)
-            .filter(([, v]) => v)
-            .forEach(([k, v]) => evParts.push(`${k}: ${v}`));
-        }
-        setEvolucaoTexto(evParts.join("\n"));
-      }
-
-      if (d.criteriosSelecionados) setCriterios(d.criteriosSelecionados);
-
-      setIsPrefilled(true);
+      const evLines: string[] = [];
+      const ev = d.evolucao || {};
+      Object.entries(ev).forEach(([k, v]) => { if (v) evLines.push(`${k}: ${v}`); });
+      const sv = d.sinaisVitais || {};
+      Object.entries(sv).forEach(([k, v]) => { if (v) evLines.push(`${k}: ${v}`); });
+      setEvolucaoTexto(evLines.join("\n"));
     }
   }, []);
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.paciente.trim()) { toast.error("Nome do paciente é obrigatório"); return; }
     if (!form.setor) { toast.error("Setor é obrigatório"); return; }
+    if (!hospitalId || !userId) { toast.error("Contexto do hospital não disponível"); return; }
+
+    setSaving(true);
+
+    const statusMap: Record<string, string> = {
+      "Em investigação": "investigating",
+      "IRAS confirmada": "confirmed",
+      "Colonização": "open",
+      "Contaminação": "discarded",
+    };
+
+    const notes = [
+      form.observacoes,
+      dispositivoTexto ? `Dispositivos: ${dispositivoTexto}` : "",
+      examesTexto ? `Exames: ${examesTexto}` : "",
+      evolucaoTexto ? `Evolução: ${evolucaoTexto}` : "",
+      criterios.length > 0 ? `Critérios: ${criterios.join(", ")}` : "",
+    ].filter(Boolean).join("\n\n");
+
+    const deviceTypeMap: Record<string, string> = {
+      "IPCS-CVC": "cvc",
+      "ITU-SVD": "svu",
+      "PAV": "vm",
+    };
+
+    const { error } = await supabase.from("infection_cases").insert({
+      hospital_id: hospitalId,
+      patient_id: patientId || null,
+      case_number: caseId,
+      infection_type: form.evento || null,
+      infection_site: form.classificacao || null,
+      device_related: !!deviceTypeMap[form.evento],
+      device_type: (deviceTypeMap[form.evento] as any) || null,
+      detection_date: form.dataDeteccao,
+      status: (statusMap[form.classificacao] || "investigating") as any,
+      investigating_user_id: userId,
+      notes,
+      created_by: userId,
+    });
+
+    if (error) {
+      toast.error("Erro ao salvar investigação: " + error.message);
+      setSaving(false);
+      return;
+    }
+
     toast.success(`Investigação ${caseId} salva com sucesso!`);
+    setSaving(false);
+    navigate("/cases-investigation");
   };
+
+  if (ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="pb-8 space-y-6">
@@ -166,96 +189,91 @@ export default function NotificacaoInvestigacaoCCIH() {
         </div>
       )}
 
-      {/* Identificação do Paciente */}
+      {/* Dados do Paciente */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />Identificação do Paciente
-            {isPrefilled && <Badge variant="secondary" className="text-xs">Pré-preenchido</Badge>}
+            <FileText className="h-4 w-4 text-primary" />Dados do Paciente
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>Nome do Paciente <span className="text-destructive">*</span></Label>
-            <Input value={form.paciente} onChange={e => updateForm("paciente", e.target.value)} className={isPrefilled ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Prontuário</Label>
-            <Input value={form.prontuario} onChange={e => updateForm("prontuario", e.target.value)} className={isPrefilled && form.prontuario ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Setor <span className="text-destructive">*</span></Label>
-            <Select value={form.setor} onValueChange={v => updateForm("setor", v)}>
-              <SelectTrigger className={isPrefilled && form.setor ? "border-primary/40 bg-primary/5" : ""}><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{setores.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Leito</Label>
-            <Input value={form.leito} onChange={e => updateForm("leito", e.target.value)} className={isPrefilled && form.leito ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Data de Internação</Label>
-            <Input type="date" value={form.dataInternacao} onChange={e => updateForm("dataInternacao", e.target.value)} className={isPrefilled && form.dataInternacao ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Sexo</Label>
-            <Select value={form.sexo} onValueChange={v => updateForm("sexo", v)}>
-              <SelectTrigger className={isPrefilled && form.sexo ? "border-primary/40 bg-primary/5" : ""}><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="M">Masculino</SelectItem>
-                <SelectItem value="F">Feminino</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Data de Nascimento</Label>
-            <Input type="date" value={form.dataNascimento} onChange={e => updateForm("dataNascimento", e.target.value)} className={isPrefilled && form.dataNascimento ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Especialidade</Label>
-            <Input value={form.especialidade} onChange={e => updateForm("especialidade", e.target.value)} className={isPrefilled && form.especialidade ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Diagnóstico</Label>
-            <Input value={form.diagnostico} onChange={e => updateForm("diagnostico", e.target.value)} className={isPrefilled && form.diagnostico ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3 space-y-1.5">
-            <Label>Doenças de Base</Label>
-            <Input value={form.doencasBase} onChange={e => updateForm("doencasBase", e.target.value)} className={isPrefilled && form.doencasBase ? "border-primary/40 bg-primary/5" : ""} />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3 space-y-1.5">
-            <Label>Motivo da Internação</Label>
-            <Input value={form.motivoInternacao} onChange={e => updateForm("motivoInternacao", e.target.value)} className={isPrefilled && form.motivoInternacao ? "border-primary/40 bg-primary/5" : ""} />
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Nome do Paciente *</Label>
+              <Input value={form.paciente} onChange={e => updateForm("paciente", e.target.value)} className={isPrefilled && form.paciente ? "border-primary/40 bg-primary/5" : ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Prontuário</Label>
+              <Input value={form.prontuario} onChange={e => updateForm("prontuario", e.target.value)} className={isPrefilled && form.prontuario ? "border-primary/40 bg-primary/5" : ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setor *</Label>
+              <Select value={form.setor} onValueChange={v => updateForm("setor", v)}>
+                <SelectTrigger className={isPrefilled && form.setor ? "border-primary/40 bg-primary/5" : ""}><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{setores.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Leito</Label>
+              <Input value={form.leito} onChange={e => updateForm("leito", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Sexo</Label>
+              <Select value={form.sexo} onValueChange={v => updateForm("sexo", v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="M">Masculino</SelectItem>
+                  <SelectItem value="F">Feminino</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data de Nascimento</Label>
+              <Input type="date" value={form.dataNascimento} onChange={e => updateForm("dataNascimento", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data de Internação</Label>
+              <Input type="date" value={form.dataInternacao} onChange={e => updateForm("dataInternacao", e.target.value)} className={isPrefilled && form.dataInternacao ? "border-primary/40 bg-primary/5" : ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Diagnóstico</Label>
+              <Input value={form.diagnostico} onChange={e => updateForm("diagnostico", e.target.value)} className={isPrefilled && form.diagnostico ? "border-primary/40 bg-primary/5" : ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Especialidade</Label>
+              <Input value={form.especialidade} onChange={e => updateForm("especialidade", e.target.value)} />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Dados da Investigação */}
+      {/* Evento IRAS */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <ClipboardList className="h-4 w-4 text-primary" />Dados da Investigação
+            <AlertTriangle className="h-4 w-4 text-destructive" />Evento IRAS
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>Evento / Tipo de Infecção</Label>
-            <Select value={form.evento} onValueChange={v => updateForm("evento", v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione o evento" /></SelectTrigger>
-              <SelectContent>{eventos.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Classificação</Label>
-            <Select value={form.classificacao} onValueChange={v => updateForm("classificacao", v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{classificacoes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Data de Detecção</Label>
-            <Input type="date" value={form.dataDeteccao} onChange={e => updateForm("dataDeteccao", e.target.value)} />
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Tipo de Evento</Label>
+              <Select value={form.evento} onValueChange={v => updateForm("evento", v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{eventos.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data de Detecção</Label>
+              <Input type="date" value={form.dataDeteccao} onChange={e => updateForm("dataDeteccao", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Classificação</Label>
+              <Select value={form.classificacao} onValueChange={v => updateForm("classificacao", v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{classificacoes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -264,17 +282,17 @@ export default function NotificacaoInvestigacaoCCIH() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-primary" />Dispositivos Invasivos
-            {isPrefilled && dispositivosTexto && <Badge variant="secondary" className="text-xs">Pré-preenchido</Badge>}
+            <Syringe className="h-4 w-4 text-primary" />Dispositivos Invasivos
+            {isPrefilled && dispositivoTexto && <Badge variant="secondary" className="text-xs">Pré-preenchido</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
             rows={4}
-            placeholder="Descreva os dispositivos invasivos do paciente..."
-            value={dispositivosTexto}
-            onChange={e => setDispositivosTexto(e.target.value)}
-            className={isPrefilled && dispositivosTexto ? "border-primary/40 bg-primary/5" : ""}
+            placeholder="Descreva os dispositivos invasivos em uso..."
+            value={dispositivoTexto}
+            onChange={e => setDispositivoTexto(e.target.value)}
+            className={isPrefilled && dispositivoTexto ? "border-primary/40 bg-primary/5" : ""}
           />
         </CardContent>
       </Card>
@@ -353,11 +371,12 @@ export default function NotificacaoInvestigacaoCCIH() {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => toast.success("Rascunho salvo!")} className="gap-1.5">
-          <Save className="h-4 w-4" />Salvar Rascunho
+        <Button variant="outline" onClick={() => navigate(-1)} className="gap-1.5">
+          Cancelar
         </Button>
-        <Button onClick={handleSave} className="gap-1.5">
-          <Save className="h-4 w-4" />Salvar Investigação
+        <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Salvar Investigação
         </Button>
       </div>
     </div>

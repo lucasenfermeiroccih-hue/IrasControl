@@ -1,25 +1,22 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
-  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets
+  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 const SPECIALTIES = [
-  "Clínica médica",
-  "Cirurgia Geral",
-  "Cirurgia Cardíaca",
-  "Cirurgia Oftalmológica",
-  "Neurocirurgia",
-  "Cirurgia Vascular",
-  "Cirurgia Ortopédica",
+  "Clínica médica", "Cirurgia Geral", "Cirurgia Cardíaca",
+  "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Vascular", "Cirurgia Ortopédica",
 ];
 
 const MONTHS = [
@@ -33,68 +30,66 @@ const COLORS = [
   "hsl(20, 70%, 50%)",
 ];
 
-const PATIENTS_STORAGE_KEY = "irascontrol_patients";
-const PATIENTS_EXTRA_KEY = "irascontrol_patients_extra";
-
-interface StoredPatient {
+interface PatientRow {
   id: string;
-  nome: string;
-  unidade: string;
-  especialidade: string;
-  dataInternacaoHospitalar: string;
-  dataAdmissao: string;
-  dataAlta: string;
+  full_name: string;
+  sector: string | null;
+  specialty: string | null;
+  admission_date: string;
+  discharge_date: string | null;
   status: string;
-  tipoAlta?: string;
-  [key: string]: any;
-}
-
-interface PatientExtraData {
-  dispInvasivos?: { cvcInsercao: string; cvcRetirada: string; svuInsercao: string; svuRetirada: string; vmInsercao: string; vmRetirada: string };
-  antibioticos?: { id: string; nome: string; dataInicio: string; dataFim: string }[];
-}
-
-function loadAllPatients(): StoredPatient[] {
-  try {
-    const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return [];
-}
-
-function loadAllExtras(): Record<string, PatientExtraData> {
-  try {
-    return JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
-  } catch {}
-  return {};
+  discharge_type: string | null;
 }
 
 const PatientDashboardIndicators = () => {
+  const { hospitalId, loading: ctxLoading } = useHospitalContext();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const [year, setYear] = useState(String(currentYear));
   const [month, setMonth] = useState(String(currentMonth));
+  const [patients, setPatients] = useState<PatientRow[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const patients = useMemo(() => loadAllPatients(), []);
-  const extras = useMemo(() => loadAllExtras(), []);
+  useEffect(() => {
+    if (!hospitalId || ctxLoading) { setLoading(false); return; }
+    (async () => {
+      setLoading(true);
+      const [pRes, dRes, rxRes] = await Promise.all([
+        supabase.from("patients").select("id, full_name, sector, specialty, admission_date, discharge_date, status, discharge_type").eq("hospital_id", hospitalId),
+        supabase.from("patient_devices").select("*").in("patient_id", []),
+        supabase.from("antimicrobial_prescriptions").select("id, start_date, patient_id").eq("hospital_id", hospitalId),
+      ]);
+      const pts = pRes.data || [];
+      setPatients(pts as PatientRow[]);
+
+      // Load devices for all patients
+      if (pts.length > 0) {
+        const patIds = pts.map((p: any) => p.id);
+        const { data: devData } = await supabase.from("patient_devices").select("*").in("patient_id", patIds);
+        setDevices(devData || []);
+      }
+
+      setPrescriptions(rxRes.data || []);
+      setLoading(false);
+    })();
+  }, [hospitalId, ctxLoading]);
 
   const indicators = useMemo(() => {
     const selectedMonth = Number(month);
     const selectedYear = Number(year);
 
-    // Patients admitted in selected month
     const admittedInMonth = patients.filter(p => {
-      const dateStr = p.dataAdmissao || p.dataInternacaoHospitalar;
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
+      if (!p.admission_date) return false;
+      const d = new Date(p.admission_date);
       return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     });
 
-    // By specialty
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
     admittedInMonth.forEach(p => {
-      const spec = p.especialidade || "Outros";
+      const spec = p.specialty || "Outros";
       if (bySpecialty[spec] !== undefined) bySpecialty[spec]++;
     });
 
@@ -104,48 +99,38 @@ const PatientDashboardIndicators = () => {
       internacoes: bySpecialty[s] || 0,
     }));
 
-    // Deaths (status=deceased or tipoAlta=Óbito, in selected month)
     const deaths = patients.filter(p => {
-      if (p.status !== "deceased" && p.tipoAlta !== "Óbito") return false;
-      const d = p.dataAlta ? new Date(p.dataAlta) : null;
+      if (p.status !== "deceased" && p.discharge_type !== "Óbito") return false;
+      const d = p.discharge_date ? new Date(p.discharge_date) : null;
       return d && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     }).length;
 
-    // Discharges (status=discharged or tipoAlta=Alta)
     const discharges = patients.filter(p => {
-      if (p.tipoAlta === "Óbito" || p.status === "deceased") return false;
-      if (p.status !== "discharged" && p.tipoAlta !== "Alta") return false;
-      const d = p.dataAlta ? new Date(p.dataAlta) : null;
+      if (p.discharge_type === "Óbito" || p.status === "deceased") return false;
+      if (p.status !== "discharged" && p.discharge_type !== "Alta") return false;
+      const d = p.discharge_date ? new Date(p.discharge_date) : null;
       return d && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     }).length;
 
-    // Patient-days
     const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonth, 1));
     const endOfMonth = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0));
 
     let totalPatientDays = 0;
     patients.forEach(p => {
-      const admStr = p.dataAdmissao || p.dataInternacaoHospitalar;
-      if (!admStr) return;
-      const admDate = new Date(admStr);
-      const disDate = p.dataAlta ? new Date(p.dataAlta) : new Date();
+      if (!p.admission_date) return;
+      const admDate = new Date(p.admission_date);
+      const disDate = p.discharge_date ? new Date(p.discharge_date) : new Date();
       const from = admDate > startOfMonth ? admDate : startOfMonth;
       const to = disDate < endOfMonth ? disDate : endOfMonth;
       const days = Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1);
       if (from <= to) totalPatientDays += days;
     });
 
-    // Device-days from extras
-    const calcDeviceDays = (type: "cvc" | "svu" | "vm") => {
+    const calcDeviceDays = (type: string) => {
       let total = 0;
-      Object.values(extras).forEach(extra => {
-        if (!extra.dispInvasivos) return;
-        const insKey = type === "cvc" ? "cvcInsercao" : type === "svu" ? "svuInsercao" : "vmInsercao";
-        const retKey = type === "cvc" ? "cvcRetirada" : type === "svu" ? "svuRetirada" : "vmRetirada";
-        const insStr = extra.dispInvasivos[insKey];
-        if (!insStr) return;
-        const ins = new Date(insStr);
-        const rem = extra.dispInvasivos[retKey] ? new Date(extra.dispInvasivos[retKey]) : new Date();
+      devices.filter(d => d.device_type === type).forEach(dev => {
+        const ins = new Date(dev.insertion_date);
+        const rem = dev.removal_date ? new Date(dev.removal_date) : new Date();
         const from = ins > startOfMonth ? ins : startOfMonth;
         const to = rem < endOfMonth ? rem : endOfMonth;
         if (from <= to) total += Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1);
@@ -157,23 +142,17 @@ const PatientDashboardIndicators = () => {
     const svuDays = calcDeviceDays("svu");
     const vmDays = calcDeviceDays("vm");
 
-    // Antibiotics count
-    let abCount = 0;
-    Object.values(extras).forEach(extra => {
-      (extra.antibioticos || []).forEach(ab => {
-        if (!ab.dataInicio) return;
-        const d = new Date(ab.dataInicio);
-        if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) abCount++;
-      });
-    });
+    const abCount = prescriptions.filter(rx => {
+      if (!rx.start_date) return false;
+      const d = new Date(rx.start_date);
+      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+    }).length;
 
-    // Extubation (VM removed in month)
-    let extubations = 0;
-    Object.values(extras).forEach(extra => {
-      if (!extra.dispInvasivos?.vmRetirada) return;
-      const d = new Date(extra.dispInvasivos.vmRetirada);
-      if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) extubations++;
-    });
+    const extubations = devices.filter(d => {
+      if (d.device_type !== "vm" || !d.removal_date) return false;
+      const rd = new Date(d.removal_date);
+      return rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear;
+    }).length;
 
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
@@ -181,24 +160,13 @@ const PatientDashboardIndicators = () => {
       { name: "Internados", value: patients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
-    return {
-      specialtyData,
-      deaths,
-      discharges,
-      totalPatientDays,
-      cvcDays,
-      svuDays,
-      vmDays,
-      abCount,
-      extubations,
-      totalAdmitted: admittedInMonth.length,
-      outcomeData,
-    };
-  }, [patients, extras, month, year]);
+    return { specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays, abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData };
+  }, [patients, devices, prescriptions, month, year]);
+
+  if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Dashboard de Indicadores Operacionais</h1>
@@ -248,7 +216,6 @@ const PatientDashboardIndicators = () => {
 
       {patients.length > 0 && (
         <>
-          {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             <KpiCard icon={Users} label="Internações" value={indicators.totalAdmitted} color="text-primary" />
             <KpiCard icon={BedDouble} label="Paciente-Dia" value={indicators.totalPatientDays} color="text-primary" />
@@ -260,7 +227,6 @@ const PatientDashboardIndicators = () => {
             <KpiCard icon={Syringe} label="Antibióticos" value={indicators.abCount} color="text-orange-600" />
           </div>
 
-          {/* Extubation badge */}
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-green-600" />
@@ -268,9 +234,7 @@ const PatientDashboardIndicators = () => {
             </Badge>
           </div>
 
-          {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Bar Chart - Admissions by Specialty */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -305,7 +269,6 @@ const PatientDashboardIndicators = () => {
               </CardContent>
             </Card>
 
-            {/* Pie Chart - Outcomes */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -319,16 +282,7 @@ const PatientDashboardIndicators = () => {
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      <Pie
-                        data={indicators.outcomeData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={95}
-                        paddingAngle={4}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
+                      <Pie data={indicators.outcomeData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                         {indicators.outcomeData.map((entry, index) => (
                           <Cell key={`pie-${index}`} fill={entry.color} />
                         ))}
@@ -341,14 +295,12 @@ const PatientDashboardIndicators = () => {
             </Card>
           </div>
 
-          {/* Device density cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <DensityCard title="Densidade CVC" deviceDays={indicators.cvcDays} patientDays={indicators.totalPatientDays} icon={Cable} color="text-amber-600" />
             <DensityCard title="Densidade SVD" deviceDays={indicators.svuDays} patientDays={indicators.totalPatientDays} icon={Droplets} color="text-purple-600" />
             <DensityCard title="Densidade VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
           </div>
 
-          {/* Specialty detail table */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Detalhamento por Especialidade</CardTitle>
