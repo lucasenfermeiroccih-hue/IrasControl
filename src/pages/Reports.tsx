@@ -5,7 +5,7 @@ import {
   FileText, Plus, Download, Sparkles, TrendingUp, Filter,
   CalendarIcon, Loader2, AlertTriangle, Bug, X, ChevronDown, Check,
   Brain, Lightbulb, BarChart3, TableIcon, Pencil, ChevronLeft, ChevronRight,
-  Activity, ShieldAlert, FlaskConical, Skull, Award, Clipboard
+  Activity, ShieldAlert, FlaskConical, Skull, Award, Clipboard, Trash2
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
