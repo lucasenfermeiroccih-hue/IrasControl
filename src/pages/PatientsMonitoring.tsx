@@ -214,11 +214,17 @@ export default function PatientsMonitoring() {
   const readOnly = viewMode === "view";
 
   const calcDiasUso = (inicio: string, fim: string) => {
-    if (!inicio) return 0;
-    const d1 = new Date(inicio);
-    const d2 = fim ? new Date(fim) : new Date();
-    const diff = Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(diff, 0);
+    const d1 = parseDate(inicio);
+    if (!d1) return 0;
+    const d2 = parseDate(fim);
+    let end: number;
+    if (d2) {
+      end = d2.getTime();
+    } else {
+      const now = new Date();
+      end = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    return Math.max(0, Math.ceil((end - d1.getTime()) / 86400000));
   };
 
   const handleAddAtb = () => {
