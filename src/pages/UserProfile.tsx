@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Lock, Bell, Shield, LogOut, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -29,6 +30,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function UserProfile() {
   const navigate = useNavigate();
+  const { user: authUser, isReady } = useAuthReady();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
@@ -46,27 +48,27 @@ export default function UserProfile() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!isReady) return;
+    if (!authUser) { navigate("/login"); return; }
+    loadProfile(authUser.id, authUser.email || "");
+  }, [isReady, authUser]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (userId: string, userEmail: string) => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { navigate("/login"); return; }
 
     // Parallel: profile, roles, hospital membership
     const [{ data: profile }, { data: userRoles }, { data: membership }] = await Promise.all([
-      supabase.from("profiles").select("full_name, email, phone").eq("user_id", user.id).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("hospital_users").select("hospital_id, hospitals(name)").eq("user_id", user.id).limit(1).maybeSingle(),
+      supabase.from("profiles").select("full_name, email, phone").eq("user_id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("hospital_users").select("hospital_id, hospitals(name)").eq("user_id", userId).limit(1).maybeSingle(),
     ]);
 
     if (profile) {
       setName(profile.full_name || "");
-      setEmail(profile.email || user.email || "");
+      setEmail(profile.email || userEmail);
       setPhone(profile.phone || "");
     } else {
-      setEmail(user.email || "");
+      setEmail(userEmail);
     }
 
     setRoles((userRoles || []).map((r: any) => r.role));
