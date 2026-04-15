@@ -18,13 +18,30 @@ export function RequireHospitalAccess() {
       return;
     }
 
+    let cancelled = false;
+
     const validateAccess = async () => {
       const selectedHospitalId = localStorage.getItem("selected_hospital_id");
 
-      const { data: memberships } = await supabase
+      const { data: memberships, error } = await supabase
         .from("hospital_users")
         .select("hospital_id")
         .eq("user_id", user.id);
+
+      if (cancelled) return;
+
+      if (error) {
+        if (selectedHospitalId) {
+          setStatus("authorized");
+          return;
+        }
+
+        setStatus("loading");
+        window.setTimeout(() => {
+          if (!cancelled) validateAccess();
+        }, 400);
+        return;
+      }
 
       const hospitalIds = (memberships || []).map((membership) => membership.hospital_id);
 
@@ -50,6 +67,10 @@ export function RequireHospitalAccess() {
     };
 
     validateAccess();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isReady, user]);
 
   if (!isReady || status === "loading") {

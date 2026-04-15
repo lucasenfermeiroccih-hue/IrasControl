@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import {
   Shield, Activity, BarChart3, Bell, FileText, Users,
   CheckCircle, ArrowRight, Microscope, ClipboardCheck,
@@ -54,15 +54,15 @@ const logos = ["Hospital São Lucas", "Hospital Albert Sabin", "Santa Casa de Mi
 
 export default function Index() {
   const navigate = useNavigate();
+  const { user, isReady } = useAuthReady();
 
   // Redirect already-authenticated users to dashboard
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate("/select-hospital", { replace: true });
-      }
-    });
-  }, [navigate]);
+    if (!isReady) return;
+    if (user) {
+      navigate("/select-hospital", { replace: true });
+    }
+  }, [isReady, user, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
