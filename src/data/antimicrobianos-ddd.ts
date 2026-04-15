@@ -62,7 +62,7 @@ export const antimicrobianosBase: AntimicrobianoRow[] = [
   { id: 52, nome: "Voriconazol", apresentacao: "FR AMP 200MG", mgPorUnidade: 200, dddPadrao: 0.4 },
 ];
 
-// Mock data para dashboard (múltiplos meses)
+// Interface para dados do dashboard DDD
 export interface DDDRegistroMensal {
   mes: string;
   ano: number;
@@ -76,50 +76,4 @@ export interface DDDRegistroMensal {
   dddPadrao: number;
   valorAB: number;
   indicadorConsumo: number;
-}
-
-const unidades = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico"];
-const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const topAntimicrobianos = ["Meropenem", "Vancomicina", "Piperacilina-tazobactam (base piperacilina)", "Cefepima", "Ceftriaxone", "Ciprofloxacina", "Linezolida", "Amicacina"];
-
-function randomRange(min: number, max: number) {
-  return Math.round((Math.random() * (max - min) + min) * 100) / 100;
-}
-
-export function generateMockDDDData(): DDDRegistroMensal[] {
-  const data: DDDRegistroMensal[] = [];
-  for (let ano = 2024; ano <= 2025; ano++) {
-    const maxMes = ano === 2025 ? 6 : 12;
-    for (let m = 0; m < maxMes; m++) {
-      for (const unidade of unidades) {
-        const pacienteDia = Math.round(randomRange(200, 600));
-        for (const atm of topAntimicrobianos) {
-          const base = antimicrobianosBase.find(a => a.nome === atm);
-          const qty = Math.round(randomRange(10, 200));
-          const mgPerUnit = base?.mgPorUnidade || 500;
-          const totalMg = qty * mgPerUnit;
-          const totalG = totalMg / 1000;
-          const dddPadrao = base?.dddPadrao || 1;
-          const valorAB = totalG / dddPadrao;
-          const indicadorConsumo = pacienteDia > 0 ? (valorAB / pacienteDia) * 1000 : 0;
-
-          data.push({
-            mes: meses[m],
-            ano,
-            mesNumero: m + 1,
-            unidade,
-            pacienteDia,
-            antimicrobiano: atm,
-            quantidadeUnidades: qty,
-            totalMg,
-            totalG,
-            dddPadrao,
-            valorAB: Math.round(valorAB * 100) / 100,
-            indicadorConsumo: Math.round(indicadorConsumo * 100) / 100,
-          });
-        }
-      }
-    }
-  }
-  return data;
 }
