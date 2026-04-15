@@ -143,7 +143,7 @@ export default function PatientsMonitoring() {
   const [viewPatientOpen, setViewPatientOpen] = useState(false);
   const [viewPatientId, setViewPatientId] = useState<string | null>(null);
 
-  const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "" });
+  const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
 
   const selected = selectedId ? patients.find(p => p.id === selectedId) || null : null;
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
