@@ -7,19 +7,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, isReady } = useAuthReady();
   const [loading, setLoading] = useState(false);
 
   // Redirect already-authenticated users
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate("/select-hospital", { replace: true });
-      }
-    });
-  }, [navigate]);
+    if (!isReady) return;
+    if (user) {
+      navigate("/select-hospital", { replace: true });
+    }
+  }, [isReady, user, navigate]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetMode, setResetMode] = useState(false);
