@@ -1342,6 +1342,33 @@ export default function PatientsMonitoring() {
             <div className="sm:col-span-2 space-y-2"><Label>Diagnóstico</Label><Input value={editIdForm.diagnostico} onChange={e => setEditIdForm(p => ({ ...p, diagnostico: e.target.value }))} /></div>
             <div className="sm:col-span-2 space-y-2"><Label>Doenças de base</Label><Input value={editIdForm.doencasBase} onChange={e => setEditIdForm(p => ({ ...p, doencasBase: e.target.value }))} /></div>
             <div className="sm:col-span-2 space-y-2"><Label>Motivo da internação</Label><Input value={editIdForm.motivoInternacao} onChange={e => setEditIdForm(p => ({ ...p, motivoInternacao: e.target.value }))} /></div>
+            {(editIdForm.unidade === "UTI Neonatal" || editIdForm.unidade === "Alojamento Conjunto") && (
+              <>
+                <div className="space-y-2">
+                  <Label className="font-medium">Infecção Materna</Label>
+                  <Select value={infeccaoMaternaDetail} onValueChange={v => { setInfeccaoMaternaDetail(v); if (v === "Não") setIrasTransplacentariaDetail(""); }}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sim">Sim</SelectItem>
+                      <SelectItem value="Não">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {infeccaoMaternaDetail === "Sim" && (
+                  <div className="space-y-2">
+                    <Label className="font-medium">IRAS Transplacentária</Label>
+                    <Select value={irasTransplacentariaDetail} onValueChange={v => setIrasTransplacentariaDetail(v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {["Herpes simples", "Toxoplasmose", "Rubéola", "Citomegalovírus", "Sífilis", "Hepatite B", "Vírus HIV"].map(item => (
+                          <SelectItem key={item} value={item}>{item}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditIdOpen(false)}>Cancelar</Button>
