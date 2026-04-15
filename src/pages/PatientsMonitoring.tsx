@@ -307,18 +307,22 @@ export default function PatientsMonitoring() {
   const handleNewPatient = () => {
     if (!newForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const id = "mock-" + Date.now();
-    setPatients(prev => [{
-      id, nome: newForm.nome, unidade: newForm.unidade || "UTI 1 Adulto", leito: newForm.leito || "—",
-      prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
-      dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
-      origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
-       dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
-      especialidade: "", diagnostico: "", status: "active" as const,
-      infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
-      pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
-      bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
-      idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
-    }, ...prev]);
+    setPatients(prev => {
+      const updated = [{
+        id, nome: newForm.nome, unidade: newForm.unidade || "UTI 1 Adulto", leito: newForm.leito || "—",
+        prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
+        dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
+        origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+        dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
+        especialidade: "", diagnostico: "", status: "active" as const,
+        infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
+        pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
+        bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
+        idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
+      }, ...prev];
+      persistPatients(updated);
+      return updated;
+    });
     setNewPatientOpen(false);
     setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
     toast.success("Paciente cadastrado com ID: " + id);
