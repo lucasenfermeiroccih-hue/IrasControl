@@ -347,9 +347,9 @@ export default function PatientsMonitoring() {
     toast.success("Dados salvos com sucesso!");
   };
 
-  const cvcDays = dispInvasivos.cvcInsercao ? daysFromDate(dispInvasivos.cvcInsercao) : null;
-  const svuDays = dispInvasivos.svuInsercao ? daysFromDate(dispInvasivos.svuInsercao) : null;
-  const vmDays = dispInvasivos.vmInsercao ? daysFromDate(dispInvasivos.vmInsercao) : null;
+  const cvcDays = dispInvasivos.cvcInsercao ? calcDiasUso(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada) : null;
+  const svuDays = dispInvasivos.svuInsercao ? calcDiasUso(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada) : null;
+  const vmDays = dispInvasivos.vmInsercao ? calcDiasUso(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada) : null;
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
