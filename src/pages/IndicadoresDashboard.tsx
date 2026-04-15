@@ -299,61 +299,63 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 1: Infecção ====== */}
         <TabsContent value="infeccao" className="space-y-4">
-          <div ref={tabRefs.infeccao} className="space-y-4">
-            <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
-            <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
-            <KpiCard label="Nº de Infecções" value={agg.numInfeccoes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
-            <KpiCard label="Taxa de Letalidade" value={taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
-          </div>
-
-          {monthlyData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Infecção Hospitalar por Mês (‰)</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Óbitos e Infecções por Mês</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card className="lg:col-span-2">
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
-                <CardContent className="p-3 pt-2">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={35} />
-                      <Tooltip />
-                      <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+          <div ref={tabRefs.infeccao} className="space-y-4 bg-background p-1">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
+              <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
+              <KpiCard label="Nº de Infecções" value={agg.numInfeccoes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
+              <KpiCard label="Taxa de Letalidade" value={taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
             </div>
-          )}
+
+            {monthlyData.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Infecção Hospitalar por Mês (‰)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Óbitos e Infecções por Mês</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 2: Dispositivos ====== */}
