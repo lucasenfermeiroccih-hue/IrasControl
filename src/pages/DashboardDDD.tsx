@@ -130,7 +130,7 @@ export default function DashboardDDD() {
             ins.push(`💊 Antimicrobiano mais utilizado: ${atmMaisUsado}.`);
             ins.push(`🏥 ${unidades.length} unidades monitoradas com ${antimicrobianos.length} antimicrobianos distintos.`);
             ins.push(`📈 ${filtered.length} registros no período filtrado de ${allData.length} totais.`);
-            const topUnit = useMemo ? unidadeMaisConsumo : "—";
+            const topUnit = unidadeMaiorConsumo;
             ins.push(`🔝 Unidade com maior consumo: ${topUnit}.`);
             return ins;
           }} />
