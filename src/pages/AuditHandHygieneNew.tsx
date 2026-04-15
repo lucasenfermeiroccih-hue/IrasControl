@@ -105,9 +105,15 @@ export default function AuditHandHygieneNew() {
               <SelectContent>{fiveMoments.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div><Label className="text-base">Higienizou?</Label><p className="text-sm text-muted-foreground">O profissional realizou a higienização</p></div>
-            <Switch checked={form.performedHygiene} onCheckedChange={v => setForm(p => ({ ...p, performedHygiene: v }))} />
+          <div className="space-y-2">
+            <Label>Higienizou? *</Label>
+            <Select value={form.performedHygiene ? "sim" : "nao"} onValueChange={v => setForm(p => ({ ...p, performedHygiene: v === "sim" }))}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sim">Sim</SelectItem>
+                <SelectItem value="nao">Não</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Técnica?</Label>
