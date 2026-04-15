@@ -360,6 +360,7 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 2: Dispositivos ====== */}
         <TabsContent value="dispositivos" className="space-y-4">
+          <div ref={tabRefs.dispositivos} className="space-y-4 bg-background p-1">
           {/* Gauge cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <Card><CardContent className="p-4 flex flex-col items-center"><GaugeChart value={taxaUtilCVC} max={100} label="Taxa Util. CVC (%)" color="hsl(217,91%,60%)" /></CardContent></Card>
@@ -414,6 +415,7 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 3: Taxas Específicas ====== */}
