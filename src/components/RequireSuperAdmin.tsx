@@ -1,22 +1,19 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { Loader2, ShieldAlert } from "lucide-react";
 
 export function RequireSuperAdmin() {
-  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized" | "unauthenticated">("loading");
+  const { user, isReady } = useAuthReady();
+  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized">("loading");
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setStatus("unauthenticated");
-        return;
-      }
+    if (!isReady || !user) return;
 
+    const check = async () => {
       const { data: isSuperAdmin } = await supabase.rpc("has_role", {
-        _user_id: session.user.id,
+        _user_id: user.id,
         _role: "super_admin",
       });
 
@@ -24,15 +21,9 @@ export function RequireSuperAdmin() {
     };
 
     check();
+  }, [user, isReady]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      check();
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (status === "loading") {
+  if (!isReady || (status === "loading" && !!user)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -40,7 +31,7 @@ export function RequireSuperAdmin() {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

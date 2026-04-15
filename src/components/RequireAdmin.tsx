@@ -1,37 +1,29 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { Loader2, ShieldAlert } from "lucide-react";
 
 export function RequireAdmin() {
-  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized" | "unauthenticated">("loading");
+  const { user, isReady } = useAuthReady();
+  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized">("loading");
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setStatus("unauthenticated");
-        return;
-      }
+    if (!isReady || !user) return;
 
+    const check = async () => {
       const [{ data: isSuperAdmin }, { data: isHospitalAdmin }] = await Promise.all([
-        supabase.rpc("has_role", { _user_id: session.user.id, _role: "super_admin" }),
-        supabase.rpc("has_role", { _user_id: session.user.id, _role: "hospital_admin" }),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "hospital_admin" }),
       ]);
 
       setStatus(isSuperAdmin || isHospitalAdmin ? "authorized" : "unauthorized");
     };
 
     check();
+  }, [user, isReady]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      check();
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (status === "loading") {
+  if (!isReady || (status === "loading" && !!user)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -39,7 +31,7 @@ export function RequireAdmin() {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
