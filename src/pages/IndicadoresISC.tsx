@@ -247,11 +247,17 @@ export default function IndicadoresISC() {
     ? ((partoCirurgico.numISCCesariana / partoCirurgico.numTotalCesarianas) * 100).toFixed(1)
     : "0.0";
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!nome.trim()) {
       toast.error("Informe o nome do profissional.");
       return;
     }
+    if (!hospitalId || !userId) {
+      toast.error("Hospital ou usuário não identificado.");
+      return;
+    }
+
+    // Save to localStorage (legacy)
     const registro: ISCRegistro = {
       id: registroId,
       nomeProfissional: nome.trim(),
@@ -263,7 +269,63 @@ export default function IndicadoresISC() {
       atualizadoEm: new Date().toISOString(),
     };
     saveISCRegistro(registro);
-    toast.success("Dados salvos com sucesso!");
+
+    // Save to Supabase
+    try {
+      const { data: iscRecord, error: recError } = await supabase
+        .from("isc_records")
+        .insert({
+          hospital_id: hospitalId,
+          user_id: userId,
+          nome_profissional: nome.trim(),
+          data_vigilancia: dataVigilancia || new Date().toISOString().split("T")[0],
+          mes: mesVigilancia,
+          ano: anoVigilancia,
+        })
+        .select("id")
+        .single();
+
+      if (recError) throw recError;
+
+      // Insert indicators for each clinica with data
+      const indicators = clinicasVisiveis
+        .filter((c) => {
+          const d = data[c];
+          return d && (d.totalCirurgias > 0 || d.iscConfirmada > 0 || d.contatosAtendidos > 0 || d.reinternacoes > 0);
+        })
+        .map((c) => ({
+          isc_record_id: iscRecord.id,
+          procedimento: c,
+          total_cirurgias: data[c].totalCirurgias,
+          contatos_atendidos: data[c].contatosAtendidos,
+          reinternacoes: data[c].reinternacoes,
+          isc_confirmada: data[c].iscConfirmada,
+          sitio: data[c].sitio || null,
+        }));
+
+      if (indicators.length > 0) {
+        const { error: indError } = await supabase
+          .from("isc_record_indicators")
+          .insert(indicators);
+        if (indError) throw indError;
+      }
+
+      toast.success("Dados salvos com sucesso!");
+
+      // Reset form for new entry
+      setRegistroId(generateISCId());
+      setHospitalTipo("");
+      setNome("");
+      setDataVigilancia("");
+      setMesVigilancia("");
+      setAnoVigilancia(new Date().getFullYear().toString());
+      setData(createInitialData());
+      setPartoCirurgico(emptyPartoCirurgico());
+      setProcedimentosExtras(createInitialExtras());
+    } catch (err: any) {
+      console.error("Erro ao salvar no Supabase:", err);
+      toast.error("Erro ao salvar: " + (err.message || "Tente novamente."));
+    }
   };
 
   const handleLimpar = () => {
