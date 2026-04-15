@@ -188,10 +188,13 @@ const LaboratoryResults = () => {
 
   const resetForm = () => {
     setFormData({
-      patient_id: "", sample_type: "", collection_date: new Date().toISOString().slice(0, 10),
-      result_date: "", organism: "", notes: "", status: "pending",
+      patient_name: "", patient_id: "", sample_type: "", collection_date: new Date().toISOString().slice(0, 10),
+      result_date: "", organism: "", notes: "", status: "pending", unidade_internacao: "",
     });
     setAntibiogramEntries([]);
+    setIrasTransplacentaria("");
+    setVdrlMae(""); setVdrlRN(""); setVdrlReagente("");
+    setCmvReagente("");
   };
 
   const addAntibiogramEntry = () => {
