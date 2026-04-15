@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import {
   Search, Microscope, Clock, Eye, FlaskConical, Loader2,
-  Plus, Sparkles, TrendingUp, AlertTriangle, Bug, ShieldAlert, X
+  Plus, Sparkles, TrendingUp, AlertTriangle, Bug, ShieldAlert, X,
+  Baby, Syringe
 } from "lucide-react";
 
 type SIR = "S" | "I" | "R";
