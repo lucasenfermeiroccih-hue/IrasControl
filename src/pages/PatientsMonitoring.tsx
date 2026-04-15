@@ -1315,7 +1315,17 @@ export default function PatientsMonitoring() {
               </Select>
             </div>
             <div className="space-y-2"><Label>Data Nascimento</Label><Input type="date" value={editIdForm.dataNascimento} onChange={e => setEditIdForm(p => ({ ...p, dataNascimento: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Unidade</Label><Input value={editIdForm.unidade} onChange={e => setEditIdForm(p => ({ ...p, unidade: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <Label>Unidade</Label>
+              <Select value={editIdForm.unidade} onValueChange={v => setEditIdForm(p => ({ ...p, unidade: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                <SelectContent>
+                  {["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"].map(u => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2"><Label>Leito</Label><Input value={editIdForm.leito} onChange={e => setEditIdForm(p => ({ ...p, leito: e.target.value }))} /></div>
             <div className="space-y-2"><Label>Origem</Label><Input value={editIdForm.origem} onChange={e => setEditIdForm(p => ({ ...p, origem: e.target.value }))} /></div>
             <div className="space-y-2"><Label>Data Int. Hospitalar</Label><Input type="date" value={editIdForm.dataInternacaoHospitalar} onChange={e => setEditIdForm(p => ({ ...p, dataInternacaoHospitalar: e.target.value }))} /></div>
