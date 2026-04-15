@@ -43,7 +43,7 @@ export default function Marketplace() {
   const [selectedExt, setSelectedExt] = useState<Extension | null>(null);
   const [tab, setTab] = useState("all");
 
-  const filtered = mockExtensions.filter((e) => {
+  const filtered = extensions.filter((e) => {
     const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.description.toLowerCase().includes(search.toLowerCase());
     const matchCategory = categoryFilter === "Todos" || e.category === categoryFilter;
     const matchTab = tab === "all" || (tab === "installed" && e.installed);
@@ -61,8 +61,8 @@ export default function Marketplace() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Puzzle className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Disponíveis</p><p className="text-2xl font-bold">{mockExtensions.length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><CheckCircle className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Instalados</p><p className="text-2xl font-bold">{mockExtensions.filter((e) => e.installed).length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Puzzle className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Disponíveis</p><p className="text-2xl font-bold">{extensions.length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><CheckCircle className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Instalados</p><p className="text-2xl font-bold">{extensions.filter((e) => e.installed).length}</p></div></CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><Star className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Melhor Avaliação</p><p className="text-2xl font-bold">4.9</p></div></CardContent></Card>
       </div>
 
