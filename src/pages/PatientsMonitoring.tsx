@@ -406,8 +406,8 @@ export default function PatientsMonitoring() {
 
   const handleSave = () => {
     if (!selected) return;
-    // Conclusão fields are optional
-    // Justificativa clínica is optional
+    persistPatients(patients);
+    persistCurrentPatientExtra();
     toast.success("Dados salvos com sucesso!");
   };
 
