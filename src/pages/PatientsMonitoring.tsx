@@ -18,91 +18,14 @@ import {
   ClipboardList, ChevronLeft, CheckCircle2, Trash2, LogIn
 } from "lucide-react";
 import { toast } from "sonner";
-
-// ─── Mock Data ────────────────────────────────────────────────
-const mockPatients = [
-  {
-    id: "mock-1", nome: "Maria Silva Santos", unidade: "UTI 1 Adulto", leito: "201-A",
-    prontuario: "PRO-2025-0042", dataInternacaoHospitalar: "2026-03-15", origem: "Pronto Socorro",
-    dataInternacaoCTI: "2026-03-17", dataAlta: "", doencasBase: "HAS, DM tipo 2, IRC",
-    motivoInternacao: "Sepse de foco pulmonar", dataNascimento: "1958-07-22", sexo: "F",
-    dataAdmissao: "2026-03-15", especialidade: "Clínica médica",
-    diagnostico: "Pneumonia associada à ventilação mecânica", status: "active" as const,
-  },
-  {
-    id: "mock-2", nome: "João Pedro Almeida", unidade: "UTI 2 Adulto", leito: "305-B",
-    prontuario: "PRO-2025-0098", dataInternacaoHospitalar: "2026-04-01", origem: "Enfermaria Cirúrgica",
-    dataInternacaoCTI: "2026-04-03", dataAlta: "", doencasBase: "Obesidade grau III, DPOC",
-    motivoInternacao: "Pós-operatório cirurgia bariátrica complicada", dataNascimento: "1975-11-30",
-    sexo: "M", dataAdmissao: "2026-04-01", especialidade: "Cirurgia Geral",
-    diagnostico: "Infecção de sítio cirúrgico profunda", status: "active" as const,
-  },
-  {
-    id: "mock-3", nome: "Ana Beatriz Ferreira", unidade: "Clínica Médica", leito: "112-C",
-    prontuario: "PRO-2025-0156", dataInternacaoHospitalar: "2026-03-28", origem: "Ambulatório",
-    dataInternacaoCTI: "", dataAlta: "2026-04-08", doencasBase: "LES, Nefrite lúpica",
-    motivoInternacao: "ITU complicada", dataNascimento: "1990-02-14", sexo: "F",
-    dataAdmissao: "2026-03-28", especialidade: "Clínica médica",
-    diagnostico: "Infecção do trato urinário associada a cateter", status: "discharged" as const,
-  },
-];
+import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
 
-interface MockPatient {
-  id: string; nome: string; unidade: string; leito: string; prontuario: string;
-  dataInternacaoHospitalar: string; origem: string; dataInternacaoCTI: string;
-  dataAlta: string; doencasBase: string; motivoInternacao: string; dataNascimento: string;
-  sexo: string; dataAdmissao: string; especialidade: string; diagnostico: string;
-  status: PatientStatus;
-  tipoAlta?: string;
-  infeccaoMaterna?: string;
-  irasTransplacentaria?: string;
-  pesoRN?: string;
-  diagnosticoRN?: string;
-  tipoParto?: string;
-  bolsaRotaH?: string;
-  bolsaRotaDias?: string;
-  apgar?: string;
-  idadeGestacional?: string;
-  dataInternacaoRN?: string;
-}
-
-// Per-patient extra data stored in localStorage
+// Per-patient extra data (devices/antibiotics still in component state for now)
 interface PatientExtraData {
   dispInvasivos?: { cvcInsercao: string; cvcRetirada: string; svuInsercao: string; svuRetirada: string; vmInsercao: string; vmRetirada: string; tqtInsercao: string; tqtRetirada: string };
   antibioticos?: { id: string; nome: string; dataInicio: string; dataFim: string }[];
-}
-
-const PATIENTS_STORAGE_KEY = "irascontrol_patients";
-const PATIENTS_EXTRA_KEY = "irascontrol_patients_extra";
-
-function loadPatients(): MockPatient[] {
-  try {
-    const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return mockPatients as MockPatient[];
-}
-
-function persistPatients(patients: MockPatient[]) {
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
-}
-
-function loadPatientExtra(patientId: string): PatientExtraData {
-  try {
-    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
-    return all[patientId] || {};
-  } catch {}
-  return {};
-}
-
-function savePatientExtra(patientId: string, data: PatientExtraData) {
-  try {
-    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
-    all[patientId] = data;
-    localStorage.setItem(PATIENTS_EXTRA_KEY, JSON.stringify(all));
-  } catch {}
 }
 
 const especialidades = [
