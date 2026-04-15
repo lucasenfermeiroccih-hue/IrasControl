@@ -392,8 +392,45 @@ export default function PatientsMonitoring() {
                   <Field label="Doenças de base" value={selected.doencasBase} className="lg:col-span-2" />
                   <Field label="Motivo da internação" value={selected.motivoInternacao} className="lg:col-span-2" />
                 </div>
+                {(selected.unidade === "UTI Neonatal" || selected.unidade === "Alojamento Conjunto") && (
+                  <>
+                    <Separator className="my-5" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                      <div className="space-y-2">
+                        <Label className="font-medium">Infecção Materna</Label>
+                        {readOnly ? (
+                          <p className="text-sm text-foreground">{infeccaoMaternaDetail || "—"}</p>
+                        ) : (
+                          <Select value={infeccaoMaternaDetail} onValueChange={v => { setInfeccaoMaternaDetail(v); if (v === "Não") setIrasTransplacentariaDetail(""); }}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sim">Sim</SelectItem>
+                              <SelectItem value="Não">Não</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                      {infeccaoMaternaDetail === "Sim" && (
+                        <div className="space-y-2">
+                          <Label className="font-medium">IRAS Transplacentária</Label>
+                          {readOnly ? (
+                            <p className="text-sm text-foreground">{irasTransplacentariaDetail || "—"}</p>
+                          ) : (
+                            <Select value={irasTransplacentariaDetail} onValueChange={v => setIrasTransplacentariaDetail(v)}>
+                              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                {["Herpes simples", "Toxoplasmose", "Rubéola", "Citomegalovírus", "Sífilis", "Hepatite B", "Vírus HIV"].map(item => (
+                                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
                 <div className="mt-5 flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
-                  <Clock className="h-5 w-5 text-primary" />
                   <div>
                     <p className="text-xs text-muted-foreground">Tempo de Internação</p>
                     <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
