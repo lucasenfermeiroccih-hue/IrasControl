@@ -186,17 +186,6 @@ export default function IndicadoresISC() {
     ? (["Cesariana"] as Clinica[])
     : (clinicas.filter((c) => c !== "Cesariana") as Clinica[]);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
-  const [pendingRegistro, setPendingRegistro] = useState<ISCRegistro | null>(null);
-
-  useEffect(() => {
-    const dismissed = sessionStorage.getItem("isc_resume_dismissed");
-    if (dismissed) return;
-    const last = getLastISCRegistro();
-    if (last) {
-      setPendingRegistro(last);
-      setShowResumeDialog(true);
-    }
-  }, []);
 
   const loadRegistro = (reg: ISCRegistro) => {
     const restored = registroToForm(reg);
@@ -206,23 +195,6 @@ export default function IndicadoresISC() {
     setMesVigilancia(restored.mes);
     setAnoVigilancia(restored.ano);
     setData(restored.data);
-  };
-
-  const handleResumeEdit = () => {
-    if (pendingRegistro) {
-      loadRegistro(pendingRegistro);
-      toast.info("Registro anterior carregado para edição.");
-    }
-    sessionStorage.setItem("isc_resume_dismissed", "1");
-    setShowResumeDialog(false);
-    setPendingRegistro(null);
-  };
-
-  const handleNewRecord = () => {
-    setRegistroId(generateISCId());
-    sessionStorage.setItem("isc_resume_dismissed", "1");
-    setShowResumeDialog(false);
-    setPendingRegistro(null);
   };
 
   const updateField = (clinica: Clinica, field: keyof ClinicaData, value: number | string) => {
