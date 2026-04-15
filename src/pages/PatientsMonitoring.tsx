@@ -241,16 +241,17 @@ export default function PatientsMonitoring() {
       prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
       dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
       origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
-      dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
+       dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
       especialidade: "", diagnostico: "", status: "active" as const,
+      infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
+      pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
+      bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
+      idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
     }, ...prev]);
     setNewPatientOpen(false);
     setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
     toast.success("Paciente cadastrado com ID: " + id);
   };
-
-  const handleDischarge = () => {
-    if (!dischargeType) { toast.error("Selecione o tipo de alta"); return; }
     const dpId = dischargePatientId;
     if (!dpId) return;
     const pat = patients.find(p => p.id === dpId);
