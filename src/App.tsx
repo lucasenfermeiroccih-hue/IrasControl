@@ -53,6 +53,7 @@ import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
+import { RequireHospitalAccess } from "./components/RequireHospitalAccess.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -72,53 +73,55 @@ const App = () => (
           <Route path="/select-hospital" element={<SelectHospital />} />
           
           {/* Internal routes with sidebar layout */}
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
-            <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
-            <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
-            <Route path="/audits/dispenser/new" element={<AuditDispenserNew />} />
-            <Route path="/audits/infrastructure/cti/new" element={<AuditCTINew />} />
-            <Route path="/audits/antimicrobial-sensitivity/new" element={<AuditAntibiogramNew />} />
-            <Route path="/dashboard/bundles-compliance" element={<DashboardBundles />} />
-            <Route path="/dashboard/infection-control" element={<DashboardInfectionControl />} />
-            <Route path="/hygiene/monitoring" element={<DashboardHygiene />} />
-            <Route path="/dashboard/dispenser" element={<DashboardDispenser />} />
-            <Route path="/dashboard/structure" element={<DashboardStructure />} />
-            <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
-            <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/cases/investigation" element={<CasesInvestigation />} />
-            <Route path="/cases/investigation/analytics" element={<CasesInvestigationAnalytics />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/laboratory-results" element={<LaboratoryResults />} />
-            <Route path="/reports/analytics" element={<ReportsAnalytics />} />
-            <Route path="/forms" element={<Forms />} />
-            <Route path="/patients/dashboard-indicators" element={<PatientDashboardIndicators />} />
-            <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
-            <Route element={<RequireAdmin />}>
-              <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/admin/users" element={<HospitalUsers />} />
-              <Route path="/crm" element={<CRM />} />
-              <Route path="/marketplace" element={<Marketplace />} />
-              <Route path="/planos" element={<Pricing />} />
+          <Route element={<RequireHospitalAccess />}>
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/audits/bundles/new" element={<AuditBundlesNew />} />
+              <Route path="/audits/hand-hygiene/new" element={<AuditHandHygieneNew />} />
+              <Route path="/audits/infection-control/new" element={<AuditInfectionControlNew />} />
+              <Route path="/audits/dispenser/new" element={<AuditDispenserNew />} />
+              <Route path="/audits/infrastructure/cti/new" element={<AuditCTINew />} />
+              <Route path="/audits/antimicrobial-sensitivity/new" element={<AuditAntibiogramNew />} />
+              <Route path="/dashboard/bundles-compliance" element={<DashboardBundles />} />
+              <Route path="/dashboard/infection-control" element={<DashboardInfectionControl />} />
+              <Route path="/hygiene/monitoring" element={<DashboardHygiene />} />
+              <Route path="/dashboard/dispenser" element={<DashboardDispenser />} />
+              <Route path="/dashboard/structure" element={<DashboardStructure />} />
+              <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
+              <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/cases/investigation" element={<CasesInvestigation />} />
+              <Route path="/cases/investigation/analytics" element={<CasesInvestigationAnalytics />} />
+              <Route path="/alerts" element={<Alerts />} />
+              <Route path="/laboratory-results" element={<LaboratoryResults />} />
+              <Route path="/reports/analytics" element={<ReportsAnalytics />} />
+              <Route path="/forms" element={<Forms />} />
+              <Route path="/patients/dashboard-indicators" element={<PatientDashboardIndicators />} />
+              <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
+              <Route element={<RequireAdmin />}>
+                <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/users" element={<HospitalUsers />} />
+                <Route path="/crm" element={<CRM />} />
+                <Route path="/marketplace" element={<Marketplace />} />
+                <Route path="/planos" element={<Pricing />} />
+              </Route>
+              <Route element={<RequireSuperAdmin />}>
+                <Route path="/super-admin" element={<SuperAdmin />} />
+              </Route>
+              <Route path="/settings/profile" element={<UserProfile />} />
+              <Route path="/indicadores/new" element={<IndicadoresNew />} />
+              <Route path="/indicadores/dashboard" element={<IndicadoresDashboard />} />
+              <Route path="/indicadores-isc" element={<IndicadoresISC />} />
+              <Route path="/dashboard-isc" element={<DashboardISC />} />
+              <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
+              <Route path="/dashboard-ddd" element={<DashboardDDD />} />
+              <Route path="/dashboard/antimicrobial-sensitivity" element={<DashboardAntibiogram />} />
+              <Route path="/agentes" element={<AgentLibrary />} />
+              <Route path="/chat/:agentId" element={<AgentChat />} />
+              <Route path="/notificacao-investigacao-ccih" element={<NotificacaoInvestigacaoCCIH />} />
+              <Route path="/audits/hand-hygiene/consumption/new" element={<AuditHandHygieneConsumptionNew />} />
+              <Route path="/hygiene/consumption-dashboard" element={<HygieneConsumptionDashboard />} />
             </Route>
-            <Route element={<RequireSuperAdmin />}>
-              <Route path="/super-admin" element={<SuperAdmin />} />
-            </Route>
-            <Route path="/settings/profile" element={<UserProfile />} />
-            <Route path="/indicadores/new" element={<IndicadoresNew />} />
-            <Route path="/indicadores/dashboard" element={<IndicadoresDashboard />} />
-            <Route path="/indicadores-isc" element={<IndicadoresISC />} />
-            <Route path="/dashboard-isc" element={<DashboardISC />} />
-            <Route path="/indicadores-ddd" element={<IndicadoresDDD />} />
-            <Route path="/dashboard-ddd" element={<DashboardDDD />} />
-            <Route path="/dashboard/antimicrobial-sensitivity" element={<DashboardAntibiogram />} />
-            <Route path="/agentes" element={<AgentLibrary />} />
-            <Route path="/chat/:agentId" element={<AgentChat />} />
-            <Route path="/notificacao-investigacao-ccih" element={<NotificacaoInvestigacaoCCIH />} />
-            <Route path="/audits/hand-hygiene/consumption/new" element={<AuditHandHygieneConsumptionNew />} />
-            <Route path="/hygiene/consumption-dashboard" element={<HygieneConsumptionDashboard />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
