@@ -420,6 +420,7 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 3: Taxas Específicas ====== */}
         <TabsContent value="taxas" className="space-y-4">
+          <div ref={tabRefs.taxas} className="space-y-4 bg-background p-1">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard label="Taxa Inf. PAV (VM)" value={taxaInfVM} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)" />
             <KpiCard label="Taxa Inf. CVC" value={taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(217,91%,60%)" />
@@ -465,6 +466,7 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
 
         {/* ====== TAB 4: Permanência / ATB ====== */}
