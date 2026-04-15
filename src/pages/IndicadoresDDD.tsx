@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,9 @@ import {
 import { toast } from "sonner";
 import {
   Save, Calculator, Trash2, History, RotateCcw, Pencil, FileText,
-  Filter, X,
+  Filter, X, Loader2,
 } from "lucide-react";
 import { antimicrobianosBase } from "@/data/antimicrobianos-ddd";
-import { salvarRegistroDDD, listarRegistrosDDD, excluirRegistroDDD, DDDRegistroSalvo } from "@/lib/ddd-storage";
 import { exportPdf } from "@/lib/pdf-export";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -37,6 +36,29 @@ const unidadesPacienteDia = [
 
 const DASH = "—";
 
+interface DDDRecordFromDB {
+  id: string;
+  profissional: string;
+  data_vigilancia: string;
+  mes_vigilancia: string;
+  ano_vigilancia: number;
+  paciente_dia: Record<string, number>;
+  compilado_utis: number;
+  created_at: string;
+  ddd_record_lines: {
+    antimicrobiano_id: number;
+    nome: string;
+    apresentacao: string;
+    mg_por_unidade: number;
+    quantidade: number;
+    total_mg: number;
+    total_g: number;
+    ddd_padrao: number;
+    valor_ab: number | null;
+    indicador: number | null;
+  }[];
+}
+
 export default function IndicadoresDDD() {
   const { hospitalId } = useHospitalContext();
   const [profissional, setProfissional] = useState("");
@@ -44,33 +66,53 @@ export default function IndicadoresDDD() {
   const [mesVigilancia, setMesVigilancia] = useState("");
   const [anoVigilancia, setAnoVigilancia] = useState(new Date().getFullYear());
   const [showHistory, setShowHistory] = useState(false);
-  const [registrosSalvos, setRegistrosSalvos] = useState<DDDRegistroSalvo[]>(() => listarRegistrosDDD());
+  const [registrosSalvos, setRegistrosSalvos] = useState<DDDRecordFromDB[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<DDDRegistroSalvo | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DDDRecordFromDB | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // History filters
   const [filtroMes, setFiltroMes] = useState("");
   const [filtroAno, setFiltroAno] = useState("");
   const [filtroSetor, setFiltroSetor] = useState("");
   const hasFilters = filtroMes || filtroAno || filtroSetor;
-
   const clearFilters = () => { setFiltroMes(""); setFiltroAno(""); setFiltroSetor(""); };
+
+  const fetchHistory = useCallback(async () => {
+    if (!hospitalId) return;
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from("ddd_records")
+      .select("*, ddd_record_lines(*)")
+      .eq("hospital_id", hospitalId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setLoadingHistory(false);
+    if (error) { console.error(error); return; }
+    setRegistrosSalvos((data as any) || []);
+  }, [hospitalId]);
+
+  useEffect(() => {
+    if (showHistory) fetchHistory();
+  }, [showHistory, fetchHistory]);
 
   const filteredRegistros = useMemo(() => {
     return registrosSalvos.filter(reg => {
-      if (filtroMes && reg.mesVigilancia !== filtroMes) return false;
-      if (filtroAno && String(reg.anoVigilancia) !== filtroAno) return false;
+      if (filtroMes && reg.mes_vigilancia !== filtroMes) return false;
+      if (filtroAno && String(reg.ano_vigilancia) !== filtroAno) return false;
       if (filtroSetor) {
-        const hasSetor = Object.entries(reg.pacienteDia).some(([k, v]) => k === filtroSetor && v > 0);
+        const pd = (reg.paciente_dia || {}) as Record<string, number>;
+        const hasSetor = Object.entries(pd).some(([k, v]) => k === filtroSetor && v > 0);
         if (!hasSetor) return false;
       }
       return true;
     });
   }, [registrosSalvos, filtroMes, filtroAno, filtroSetor]);
 
-  const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.anoVigilancia)))].sort(), [registrosSalvos]);
+  const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.ano_vigilancia)))].sort(), [registrosSalvos]);
 
   const [pacienteDia, setPacienteDia] = useState<Record<string, number>>(
     Object.fromEntries(unidadesPacienteDia.map(u => [u, 0]))
@@ -146,107 +188,106 @@ export default function IndicadoresDDD() {
       indicador: row.indicador,
     }));
 
-    // Also save to localStorage for history
-    if (editingId) {
-      const all = listarRegistrosDDD();
-      const idx = all.findIndex(r => r.id === editingId);
-      if (idx >= 0) {
-        all[idx] = { ...all[idx], profissional, dataVigilancia, mesVigilancia, anoVigilancia, pacienteDia, compiladoUTIs, linhas };
-        localStorage.setItem("ddd-registros", JSON.stringify(all));
-      }
-      setEditingId(null);
-    } else {
-      salvarRegistroDDD({ profissional, dataVigilancia, mesVigilancia, anoVigilancia, pacienteDia, compiladoUTIs, linhas });
-    }
-
-    // Persist to Supabase
     try {
       if (editingId) {
-        // Delete old lines and update record
-        const localRecs = listarRegistrosDDD();
-        const localRec = localRecs.find(r => r.id === editingId);
-        // Find supabase record by matching mes/ano/profissional or use supabase id
-        // For simplicity, delete old and re-insert
-      }
-
-      const { data: rec, error: recErr } = await supabase
-        .from("ddd_records")
-        .insert({
-          hospital_id: hospitalId,
-          user_id: user.id,
+        // Update existing record
+        await supabase.from("ddd_record_lines").delete().eq("ddd_record_id", editingId);
+        const { error: upErr } = await supabase.from("ddd_records").update({
           profissional: profissional.trim(),
           data_vigilancia: dataVigilancia,
           mes_vigilancia: mesVigilancia,
           ano_vigilancia: anoVigilancia,
           paciente_dia: pacienteDia as any,
           compilado_utis: compiladoUTIs,
-        })
-        .select("id")
-        .single();
+        }).eq("id", editingId);
+        if (upErr) throw upErr;
 
-      if (recErr) throw recErr;
+        const linhasToInsert = linhas.filter(l => l.quantidade > 0).map(l => ({
+          ddd_record_id: editingId,
+          antimicrobiano_id: l.antimicrobianoId,
+          nome: l.nome, apresentacao: l.apresentacao,
+          mg_por_unidade: l.mgPorUnidade, quantidade: l.quantidade,
+          total_mg: l.totalMg, total_g: l.totalG, ddd_padrao: l.dddPadrao,
+          valor_ab: l.valorAB, indicador: l.indicador,
+        }));
+        if (linhasToInsert.length > 0) {
+          const { error: lineErr } = await supabase.from("ddd_record_lines").insert(linhasToInsert);
+          if (lineErr) throw lineErr;
+        }
+        toast.success("Registro atualizado com sucesso!");
+      } else {
+        const { data: rec, error: recErr } = await supabase
+          .from("ddd_records")
+          .insert({
+            hospital_id: hospitalId,
+            user_id: user.id,
+            profissional: profissional.trim(),
+            data_vigilancia: dataVigilancia,
+            mes_vigilancia: mesVigilancia,
+            ano_vigilancia: anoVigilancia,
+            paciente_dia: pacienteDia as any,
+            compilado_utis: compiladoUTIs,
+          })
+          .select("id")
+          .single();
+        if (recErr) throw recErr;
 
-      const linhasToInsert = linhas
-        .filter(l => l.quantidade > 0)
-        .map(l => ({
+        const linhasToInsert = linhas.filter(l => l.quantidade > 0).map(l => ({
           ddd_record_id: rec.id,
           antimicrobiano_id: l.antimicrobianoId,
-          nome: l.nome,
-          apresentacao: l.apresentacao,
-          mg_por_unidade: l.mgPorUnidade,
-          quantidade: l.quantidade,
-          total_mg: l.totalMg,
-          total_g: l.totalG,
-          ddd_padrao: l.dddPadrao,
-          valor_ab: l.valorAB,
-          indicador: l.indicador,
+          nome: l.nome, apresentacao: l.apresentacao,
+          mg_por_unidade: l.mgPorUnidade, quantidade: l.quantidade,
+          total_mg: l.totalMg, total_g: l.totalG, ddd_padrao: l.dddPadrao,
+          valor_ab: l.valorAB, indicador: l.indicador,
         }));
-
-      if (linhasToInsert.length > 0) {
-        const { error: lineErr } = await supabase
-          .from("ddd_record_lines")
-          .insert(linhasToInsert);
-        if (lineErr) throw lineErr;
+        if (linhasToInsert.length > 0) {
+          const { error: lineErr } = await supabase.from("ddd_record_lines").insert(linhasToInsert);
+          if (lineErr) throw lineErr;
+        }
+        toast.success("Registro salvo com sucesso!");
       }
-
-      toast.success(editingId ? "Registro atualizado com sucesso!" : "Registro salvo com sucesso!");
     } catch (err: any) {
       console.error("Erro ao salvar no Supabase:", err);
       toast.error("Erro ao salvar no banco de dados: " + (err.message || ""));
     }
 
-    setRegistrosSalvos(listarRegistrosDDD());
+    setEditingId(null);
     handleClear();
+    if (showHistory) fetchHistory();
     window.scrollTo(0, 0);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    excluirRegistroDDD(deleteTarget.id);
-    setRegistrosSalvos(listarRegistrosDDD());
+    setDeleting(true);
+    await supabase.from("ddd_record_lines").delete().eq("ddd_record_id", deleteTarget.id);
+    const { error } = await supabase.from("ddd_records").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setRegistrosSalvos(prev => prev.filter(r => r.id !== deleteTarget.id));
     setDeleteTarget(null);
     toast.success("Registro excluído.");
   };
 
-  const handleLoadRecord = (reg: DDDRegistroSalvo) => {
+  const handleLoadRecord = (reg: DDDRecordFromDB) => {
     setEditingId(reg.id);
     setProfissional(reg.profissional);
-    setDataVigilancia(reg.dataVigilancia);
-    setMesVigilancia(reg.mesVigilancia);
-    setAnoVigilancia(reg.anoVigilancia);
-    setPacienteDia(reg.pacienteDia);
+    setDataVigilancia(reg.data_vigilancia);
+    setMesVigilancia(reg.mes_vigilancia);
+    setAnoVigilancia(reg.ano_vigilancia);
+    setPacienteDia((reg.paciente_dia || {}) as Record<string, number>);
     const newQtd: Record<number, number> = {};
-    for (const linha of reg.linhas) {
-      newQtd[linha.antimicrobianoId] = linha.quantidade;
+    for (const linha of (reg.ddd_record_lines || [])) {
+      newQtd[linha.antimicrobiano_id] = linha.quantidade;
     }
     setQuantidades(prev => ({ ...prev, ...newQtd }));
     setShowHistory(false);
     toast.info("Registro carregado para edição.");
   };
 
-  const handleExportPdf = (reg: DDDRegistroSalvo) => {
+  const handleExportPdf = (reg: DDDRecordFromDB) => {
     if (!hospitalId) { toast.error("Hospital não identificado."); return; }
-    const linhasComDados = reg.linhas.filter(l => l.quantidade > 0);
+    const linhasComDados = (reg.ddd_record_lines || []).filter(l => l.quantidade > 0);
     exportPdf({
       type: "audits",
       hospitalId,
@@ -258,14 +299,14 @@ export default function IndicadoresDDD() {
         },
         audits: linhasComDados.map(l => ({
           type: l.nome,
-          sector: `${reg.mesVigilancia}/${reg.anoVigilancia}`,
-          date: reg.dataVigilancia,
+          sector: `${reg.mes_vigilancia}/${reg.ano_vigilancia}`,
+          date: reg.data_vigilancia,
           compliance: l.indicador ?? 0,
           compliant: l.quantidade,
           total: l.quantidade,
         })),
       },
-      filenamePrefix: `ddd-${reg.mesVigilancia}-${reg.anoVigilancia}`,
+      filenamePrefix: `ddd-${reg.mes_vigilancia}-${reg.ano_vigilancia}`,
     });
     toast.success("PDF exportado!");
   };
@@ -324,7 +365,7 @@ export default function IndicadoresDDD() {
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Deseja realmente excluir o registro de <strong>{deleteTarget?.profissional}</strong> ({deleteTarget?.mesVigilancia}/{deleteTarget?.anoVigilancia})?
+              Deseja realmente excluir o registro de <strong>{deleteTarget?.profissional}</strong> ({deleteTarget?.mes_vigilancia}/{deleteTarget?.ano_vigilancia})?
               Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
@@ -413,10 +454,10 @@ export default function IndicadoresDDD() {
                       {filteredRegistros.map(reg => (
                         <TableRow key={reg.id}>
                           <TableCell className="font-medium">{reg.profissional}</TableCell>
-                          <TableCell><Badge variant="secondary">{reg.mesVigilancia}/{reg.anoVigilancia}</Badge></TableCell>
-                          <TableCell>{reg.dataVigilancia}</TableCell>
-                          <TableCell className="font-mono">{reg.compiladoUTIs}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{new Date(reg.criadoEm).toLocaleString("pt-BR")}</TableCell>
+                          <TableCell><Badge variant="secondary">{reg.mes_vigilancia}/{reg.ano_vigilancia}</Badge></TableCell>
+                          <TableCell>{reg.data_vigilancia}</TableCell>
+                          <TableCell className="font-mono">{reg.compilado_utis}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(reg.created_at).toLocaleString("pt-BR")}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => handleLoadRecord(reg)}>
@@ -442,9 +483,9 @@ export default function IndicadoresDDD() {
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-medium text-sm">{reg.profissional}</p>
-                          <Badge variant="secondary" className="mt-1">{reg.mesVigilancia}/{reg.anoVigilancia}</Badge>
+                          <Badge variant="secondary" className="mt-1">{reg.mes_vigilancia}/{reg.ano_vigilancia}</Badge>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{new Date(reg.criadoEm).toLocaleDateString("pt-BR")}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(reg.created_at).toLocaleDateString("pt-BR")}</span>
                       </div>
                       <div className="flex gap-1.5">
                         <Button size="sm" variant="outline" className="flex-1 text-xs gap-1" onClick={() => handleLoadRecord(reg)}>

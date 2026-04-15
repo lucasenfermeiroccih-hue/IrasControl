@@ -227,6 +227,18 @@ export default function IndicadoresDashboard() {
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
+  if (records.length === 0) return (
+    <div className="flex items-center justify-center min-h-[400px] p-6">
+      <div className="text-center space-y-4">
+        <div className="p-4 rounded-full bg-primary/10 mx-auto w-fit">
+          <Activity className="h-10 w-10 text-primary" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground">Nenhum indicador registrado</h3>
+        <p className="text-sm text-muted-foreground max-w-md">Cadastre indicadores na página de entrada de dados para visualizar o dashboard.</p>
+      </div>
+    </div>
+  );
+
   const clearFilters = () => { setMesFiltro("Todos"); setAnoFiltro(String(new Date().getFullYear())); setSetorFiltro("Todos"); };
 
   return (

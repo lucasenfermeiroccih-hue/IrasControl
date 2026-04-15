@@ -32,9 +32,6 @@ import {
 import { toast } from "sonner";
 import { Save, RotateCcw } from "lucide-react";
 import {
-  getLastISCRegistro,
-  saveISCRegistro,
-  generateISCId,
   type ISCRegistro,
 } from "@/lib/isc-storage";
 import ISCHistory from "@/components/ISCHistory";
@@ -172,7 +169,7 @@ function registroToForm(reg: ISCRegistro): { nome: string; dataVigilancia: strin
 
 export default function IndicadoresISC() {
   const { hospitalId, userId } = useHospitalContext();
-  const [registroId, setRegistroId] = useState<string>(() => generateISCId());
+  const [registroId, setRegistroId] = useState<string | null>(null);
   const [hospitalTipo, setHospitalTipo] = useState("");
   const [nome, setNome] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState("");
@@ -189,17 +186,6 @@ export default function IndicadoresISC() {
     ? (["Cesariana"] as Clinica[])
     : (clinicas.filter((c) => c !== "Cesariana") as Clinica[]);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
-  const [pendingRegistro, setPendingRegistro] = useState<ISCRegistro | null>(null);
-
-  useEffect(() => {
-    const dismissed = sessionStorage.getItem("isc_resume_dismissed");
-    if (dismissed) return;
-    const last = getLastISCRegistro();
-    if (last) {
-      setPendingRegistro(last);
-      setShowResumeDialog(true);
-    }
-  }, []);
 
   const loadRegistro = (reg: ISCRegistro) => {
     const restored = registroToForm(reg);
@@ -209,23 +195,6 @@ export default function IndicadoresISC() {
     setMesVigilancia(restored.mes);
     setAnoVigilancia(restored.ano);
     setData(restored.data);
-  };
-
-  const handleResumeEdit = () => {
-    if (pendingRegistro) {
-      loadRegistro(pendingRegistro);
-      toast.info("Registro anterior carregado para edição.");
-    }
-    sessionStorage.setItem("isc_resume_dismissed", "1");
-    setShowResumeDialog(false);
-    setPendingRegistro(null);
-  };
-
-  const handleNewRecord = () => {
-    setRegistroId(generateISCId());
-    sessionStorage.setItem("isc_resume_dismissed", "1");
-    setShowResumeDialog(false);
-    setPendingRegistro(null);
   };
 
   const updateField = (clinica: Clinica, field: keyof ClinicaData, value: number | string) => {
@@ -261,20 +230,7 @@ export default function IndicadoresISC() {
       return;
     }
 
-    // Save to localStorage (legacy)
-    const registro: ISCRegistro = {
-      id: registroId,
-      nomeProfissional: nome.trim(),
-      dataVigilancia,
-      mes: mesVigilancia,
-      ano: anoVigilancia,
-      indicadores: { ...data },
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-    saveISCRegistro(registro);
-
-    // Save to Supabase
+    // Save to Supabase only
     try {
       const { data: iscRecord, error: recError } = await supabase
         .from("isc_records")
@@ -291,7 +247,6 @@ export default function IndicadoresISC() {
 
       if (recError) throw recError;
 
-      // Insert indicators for each clinica with data
       const indicators = clinicasVisiveis
         .filter((c) => {
           const d = data[c];
@@ -316,8 +271,8 @@ export default function IndicadoresISC() {
 
       toast.success("Dados salvos com sucesso!");
 
-      // Reset form for new entry
-      setRegistroId(generateISCId());
+      // Reset form
+      setRegistroId(null);
       setHospitalTipo("");
       setNome("");
       setDataVigilancia("");
@@ -333,7 +288,7 @@ export default function IndicadoresISC() {
   };
 
   const handleLimpar = () => {
-    setRegistroId(generateISCId());
+    setRegistroId(null);
     setHospitalTipo("");
     setNome("");
     setDataVigilancia("");
@@ -425,23 +380,7 @@ export default function IndicadoresISC() {
 
   return (
     <div className="space-y-5 p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Resume dialog */}
-      <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registro anterior encontrado</DialogTitle>
-            <DialogDescription>
-              Existe um registro salvo por <strong>{pendingRegistro?.nomeProfissional}</strong>
-              {pendingRegistro?.mes && ` (${meses[Number(pendingRegistro.mes) - 1] || ""}/{pendingRegistro.ano})`}.
-              Deseja continuar editando ou criar um novo?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={handleNewRecord}>Novo Registro</Button>
-            <Button onClick={handleResumeEdit}>Continuar Edição</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Resume dialog removed - no longer using localStorage */}
 
       {/* Header */}
       <div className="flex items-center justify-between">
