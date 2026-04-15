@@ -157,6 +157,8 @@ export default function PatientsMonitoring() {
   const [sinaisVitaisHistorico, setSinaisVitaisHistorico] = useState<SinaisVitaisEntry[]>([]);
   const [showHistorico, setShowHistorico] = useState(false);
   const [iras, setIras] = useState({ temIras: "", numeroIras: "", quaisIras: "", dataFechamento: "" });
+  const [infeccaoMaternaDetail, setInfeccaoMaternaDetail] = useState("");
+  const [irasTransplacentariaDetail, setIrasTransplacentariaDetail] = useState("");
   const [conclusao, setConclusao] = useState({ classificacao: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
   const [criteriosSelecionados, setCriteriosSelecionados] = useState<string[]>([]);
   const [justificativa, setJustificativa] = useState("");
