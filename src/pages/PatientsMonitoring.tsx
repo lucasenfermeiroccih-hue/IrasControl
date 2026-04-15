@@ -1425,6 +1425,33 @@ export default function PatientsMonitoring() {
             <div className="sm:col-span-2 space-y-2"><Label>Motivo da internação</Label><Input value={editIdForm.motivoInternacao} onChange={e => setEditIdForm(p => ({ ...p, motivoInternacao: e.target.value }))} /></div>
             {(editIdForm.unidade === "UTI Neonatal" || editIdForm.unidade === "Alojamento Conjunto") && (
               <>
+                <div className="sm:col-span-2"><Separator className="my-2" /></div>
+                <p className="sm:col-span-2 text-sm font-semibold text-foreground">Dados Neonatais</p>
+                <div className="space-y-2"><Label>Peso do RN ao Nascer (g)</Label><Input type="number" value={neonatalDetail.pesoRN} onChange={e => setNeonatalDetail(p => ({ ...p, pesoRN: e.target.value }))} placeholder="Ex: 3200" /></div>
+                <div className="space-y-2"><Label>Diagnóstico RN</Label><Input value={neonatalDetail.diagnosticoRN} onChange={e => setNeonatalDetail(p => ({ ...p, diagnosticoRN: e.target.value }))} /></div>
+                <div className="space-y-2">
+                  <Label>Parto</Label>
+                  <Select value={neonatalDetail.tipoParto} onValueChange={v => setNeonatalDetail(p => ({ ...p, tipoParto: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cesárea">Cesárea</SelectItem>
+                      <SelectItem value="Normal">Normal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Bolsa Rota</Label>
+                  <div className="flex items-center gap-2">
+                    <Input type="number" value={neonatalDetail.bolsaRotaH} onChange={e => setNeonatalDetail(p => ({ ...p, bolsaRotaH: e.target.value }))} placeholder="h" className="w-20" />
+                    <span className="text-sm text-muted-foreground">h</span>
+                    <Input type="number" value={neonatalDetail.bolsaRotaDias} onChange={e => setNeonatalDetail(p => ({ ...p, bolsaRotaDias: e.target.value }))} placeholder="dias" className="w-20" />
+                    <span className="text-sm text-muted-foreground">dias</span>
+                  </div>
+                </div>
+                <div className="space-y-2"><Label>Apgar</Label><Input value={neonatalDetail.apgar} onChange={e => setNeonatalDetail(p => ({ ...p, apgar: e.target.value }))} placeholder="Ex: 8/9" /></div>
+                <div className="space-y-2"><Label>Idade Gestacional</Label><Input value={neonatalDetail.idadeGestacional} onChange={e => setNeonatalDetail(p => ({ ...p, idadeGestacional: e.target.value }))} placeholder="Ex: 38 semanas" /></div>
+                <div className="space-y-2"><Label>Data da Internação</Label><Input type="date" value={neonatalDetail.dataInternacaoRN} onChange={e => setNeonatalDetail(p => ({ ...p, dataInternacaoRN: e.target.value }))} /></div>
+                <div className="sm:col-span-2"><Separator className="my-2" /></div>
                 <div className="space-y-2">
                   <Label className="font-medium">Infecção Materna</Label>
                   <Select value={infeccaoMaternaDetail} onValueChange={v => { setInfeccaoMaternaDetail(v); if (v === "Não") setIrasTransplacentariaDetail(""); }}>
