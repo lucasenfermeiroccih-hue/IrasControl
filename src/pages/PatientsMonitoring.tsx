@@ -1284,7 +1284,7 @@ export default function PatientsMonitoring() {
 
       {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
       <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Cadastrar Novo Paciente</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label className="font-medium">Nome Completo *</Label><Input value={newForm.nome} onChange={e => setNewForm(p => ({ ...p, nome: e.target.value }))} /></div>
