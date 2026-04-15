@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportPdf } from "@/lib/pdf-export";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { Bell, AlertTriangle, ShieldAlert, CheckCircle, ArrowUpRight, Loader2, Download } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 const severityConfig: Record<string, { label: string; variant: "destructive" | "default" | "secondary" | "outline" }> = {
   critical: { label: "Crítico", variant: "destructive" },
@@ -82,7 +83,19 @@ const Alerts = () => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Alertas</h1><p className="text-muted-foreground">Central de alertas e notificações</p></div>
-        <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
+        <div className="flex gap-2">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${kpis.total} alertas registrados: ${kpis.pendentes} ativos, ${kpis.resolvidos} resolvidos.`);
+            if (kpis.criticos > 0) ins.push(`🚨 ${kpis.criticos} alertas críticos requerem ação imediata!`);
+            else ins.push(`✅ Nenhum alerta crítico ativo no momento.`);
+            const bySev: Record<string, number> = {}; alerts.forEach(a => { bySev[a.severity] = (bySev[a.severity] || 0) + 1; });
+            Object.entries(bySev).forEach(([s, c]) => ins.push(`📌 ${severityConfig[s]?.label || s}: ${c} alerta(s).`));
+            if (kpis.resolvidos > 0) ins.push(`📈 Taxa de resolução: ${((kpis.resolvidos / Math.max(kpis.total, 1)) * 100).toFixed(1)}%.`);
+            return ins;
+          }} />
+          <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

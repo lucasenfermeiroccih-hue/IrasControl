@@ -19,6 +19,7 @@ import {
   Plus, Eye, Loader2, ClipboardCheck, Users, Building2, Calendar,
   Clock, FileText, AlertTriangle, Trash2
 } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -228,6 +229,15 @@ export default function DashboardPrecautions() {
           </div>
         </div>
         <div className="flex gap-2">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${stats.totalRecords} auditorias com ${stats.pctConformidade}% de conformidade geral.`);
+            ins.push(`✅ ${stats.totalConforme} itens conformes vs ❌ ${stats.totalNaoConforme} não conformes.`);
+            if (stats.pctConformidade >= 80) ins.push(`🎯 Conformidade acima de 80% — bom desempenho!`);
+            else ins.push(`⚠️ Conformidade abaixo de 80% — revisar protocolos de precaução.`);
+            ins.push(`📋 ${stats.totalAvaliado} itens avaliados, ${stats.totalNA} não aplicáveis.`);
+            return ins;
+          }} />
           <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1">
             <Download className="h-4 w-4" /> Exportar PDF
           </Button>

@@ -8,6 +8,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
 import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2, Download, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { useDDDDashboard } from "@/hooks/useDDDDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
@@ -122,17 +123,29 @@ export default function DashboardDDD() {
             Visualização do consumo de antimicrobianos — {allData.length} registro(s)
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => {
-          if (!hospitalId) return;
-          exportPdf({
-            type: "ddd", hospitalId,
-            data: {
-              kpis: { totalDDD: totalConsumo, totalRecords: filtered.length, uniqueDrugs: antimicrobianos.length },
-              lines: filtered.slice(0, 80).map(d => ({ nome: d.antimicrobiano, apresentacao: d.unidade, quantidade: 0, total_g: d.totalG, indicador: d.indicadorConsumo })),
-            },
-            filenamePrefix: "ddd",
-          });
-        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+        <div className="flex gap-2">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 Consumo total DDD: ${totalConsumo} com média de ${avgConsumo} por registro.`);
+            ins.push(`💊 Antimicrobiano mais utilizado: ${atmMaisUsado}.`);
+            ins.push(`🏥 ${unidades.length} unidades monitoradas com ${antimicrobianos.length} antimicrobianos distintos.`);
+            ins.push(`📈 ${filtered.length} registros no período filtrado de ${allData.length} totais.`);
+            const topUnit = useMemo ? unidadeMaisConsumo : "—";
+            ins.push(`🔝 Unidade com maior consumo: ${topUnit}.`);
+            return ins;
+          }} />
+          <Button variant="outline" size="sm" onClick={() => {
+            if (!hospitalId) return;
+            exportPdf({
+              type: "ddd", hospitalId,
+              data: {
+                kpis: { totalDDD: totalConsumo, totalRecords: filtered.length, uniqueDrugs: antimicrobianos.length },
+                lines: filtered.slice(0, 80).map(d => ({ nome: d.antimicrobiano, apresentacao: d.unidade, quantidade: 0, total_g: d.totalG, indicador: d.indicadorConsumo })),
+              },
+              filenamePrefix: "ddd",
+            });
+          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+        </div>
       </div>
 
       {isEmpty && (

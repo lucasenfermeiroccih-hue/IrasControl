@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -201,17 +202,30 @@ export default function DashboardISC() {
           <h1 className="text-2xl font-bold text-foreground">Dashboard ISC</h1>
           <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Visão analítica</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => {
-          if (!hospitalId) return;
-          exportPdf({
-            type: "isc", hospitalId,
-            data: {
-              kpis: { totalSurgeries: kpis.totalCirurgias, totalISC: kpis.totalISC, iscRate: kpis.taxaISC.toFixed(1) },
-              indicators: filtered.map(r => ({ procedimento: r.clinica, total_cirurgias: r.totalCirurgias, isc_confirmada: r.iscConfirmada })),
-            },
-            filenamePrefix: "isc",
-          });
-        }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+        <div className="flex gap-2">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${kpis.totalCirurgias} cirurgias com ${kpis.totalISC} ISC confirmadas (Taxa: ${kpis.taxaISC.toFixed(1)}%).`);
+            ins.push(`📞 Taxa de resposta de contato: ${kpis.taxaResposta.toFixed(1)}%.`);
+            ins.push(`🔄 ${kpis.totalReinternacoes} reinternações registradas.`);
+            if (kpis.taxaISC <= 2) ins.push(`✅ Taxa de ISC dentro do benchmark esperado (≤2%).`);
+            else if (kpis.taxaISC <= 5) ins.push(`⚠️ Taxa de ISC moderada — monitorar de perto.`);
+            else ins.push(`🚨 Taxa de ISC acima de 5% — investigação e ações corretivas recomendadas.`);
+            if (clinicaStats.length > 0) { const worst = clinicaStats.sort((a, b) => b.taxaISC - a.taxaISC)[0]; ins.push(`🏥 Clínica com maior taxa: ${worst.name} (${worst.taxaISC.toFixed(1)}%).`); }
+            return ins;
+          }} />
+          <Button variant="outline" size="sm" onClick={() => {
+            if (!hospitalId) return;
+            exportPdf({
+              type: "isc", hospitalId,
+              data: {
+                kpis: { totalSurgeries: kpis.totalCirurgias, totalISC: kpis.totalISC, iscRate: kpis.taxaISC.toFixed(1) },
+                indicators: filtered.map(r => ({ procedimento: r.clinica, total_cirurgias: r.totalCirurgias, isc_confirmada: r.iscConfirmada })),
+              },
+              filenamePrefix: "isc",
+            });
+          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+        </div>
       </div>
 
       {/* Filters */}

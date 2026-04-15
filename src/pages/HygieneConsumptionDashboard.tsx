@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HandMetal, FileText, TrendingUp, Droplets, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 
 // ─── Mock Data ────────────────────────────────────────────────
 const mockData = [
@@ -72,14 +73,26 @@ export default function HygieneConsumptionDashboard() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-lg bg-primary/10">
-          <HandMetal className="h-6 w-6 text-primary" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-primary/10">
+            <HandMetal className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Dashboard — Consumo de Higiene das Mãos</h1>
+            <p className="text-sm text-muted-foreground">Portaria nº 1.377 · Monitoramento de indicadores</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dashboard — Consumo de Higiene das Mãos</h1>
-          <p className="text-sm text-muted-foreground">Portaria nº 1.377 · Monitoramento de indicadores</p>
-        </div>
+        <DashboardAIInsights generateInsights={() => {
+          const ins: string[] = [];
+          ins.push(`📊 ${totalFormularios} formulários avaliados com taxa de adesão de ${taxaGeral}%.`);
+          ins.push(`🧴 Consumo total: ${totalAlcool.toLocaleString()}ml álcool + ${totalSabonete.toLocaleString()}ml sabonete.`);
+          ins.push(`📈 Consumo por paciente-dia: ${consumoPD} ml.`);
+          ins.push(`✅ ${totalCom} observações com higienização vs ${totalSem} sem higienização.`);
+          if (Number(taxaGeral) >= 80) ins.push(`🎯 Adesão acima de 80% — dentro da meta recomendada!`);
+          else ins.push(`⚠️ Adesão abaixo de 80% — ações de melhoria são recomendadas.`);
+          return ins;
+        }} />
       </div>
 
       {/* Filtros */}

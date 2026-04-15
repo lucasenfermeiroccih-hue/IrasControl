@@ -18,6 +18,7 @@ import {
   FileText, Syringe, ShieldAlert, ClipboardList, User, Save, CheckCircle2, XCircle, Trash2,
   ChevronLeft, ChevronRight, Stethoscope, Activity
 } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -924,6 +925,19 @@ const CasesInvestigation = () => {
           <p className="text-xs md:text-sm text-muted-foreground">Gerenciamento de casos de infecção hospitalar</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${cases.length} casos registrados: ${kpis.abertos} abertos, ${kpis.emInvestigacao} em investigação, ${kpis.confirmados} confirmados.`);
+            if (kpis.confirmados > 0) ins.push(`🦠 Taxa de confirmação: ${((kpis.confirmados / Math.max(cases.length, 1)) * 100).toFixed(1)}%.`);
+            const byType: Record<string, number> = {}; cases.forEach(c => { const t = c.infection_type || "Outros"; byType[t] = (byType[t] || 0) + 1; });
+            const topType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+            if (topType) ins.push(`🔬 Tipo de infecção mais frequente: ${topType[0]} (${topType[1]} casos).`);
+            const bySector: Record<string, number> = {}; cases.forEach(c => { const s = c.patient?.sector || "Outros"; bySector[s] = (bySector[s] || 0) + 1; });
+            const topSector = Object.entries(bySector).sort((a, b) => b[1] - a[1])[0];
+            if (topSector) ins.push(`🏥 Setor com mais notificações: ${topSector[0]} (${topSector[1]} casos).`);
+            if (kpis.encerrados > 0) ins.push(`✅ ${kpis.encerrados} casos já foram encerrados/descartados.`);
+            return ins;
+          }} />
           <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="h-4 w-4 mr-1" /> PDF</Button>
           <Button variant="outline" size="sm" onClick={handleNewNotification} className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
             <ShieldAlert className="h-4 w-4" /> Nova Notificação

@@ -10,6 +10,7 @@ import {
   Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
 } from "recharts";
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Target, Brain, Download, RefreshCw, Loader2 } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { toast } from "sonner";
 import { useReportsAnalytics } from "@/hooks/useReportsAnalytics";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -83,6 +84,16 @@ export default function ReportsAnalytics() {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${kpiData.totalCases} casos totais com ${kpiData.confirmedCases} confirmados no período.`);
+            ins.push(`✅ Conformidade média de ${kpiData.avgCompliance}% nas auditorias realizadas.`);
+            if (kpiData.criticalAlerts > 0) ins.push(`⚠️ ${kpiData.criticalAlerts} alertas críticos requerem atenção imediata.`);
+            if (monthlyTrend.length > 1) ins.push(`📈 Tendência mensal mostra ${monthlyTrend.length} meses de dados para análise.`);
+            if (infectionBySector.length > 0) ins.push(`🏥 ${infectionBySector[0]?.setor || "Setor principal"} apresenta maior taxa de infecção.`);
+            ins.push(`🔬 Perfil de resistência analisado em ${resistanceProfile.length} categorias.`);
+            return ins;
+          }} />
           <Button onClick={handleGenerateReport} disabled={generating}>
             <RefreshCw className={`h-4 w-4 mr-2 ${generating ? "animate-spin" : ""}`} />
             {generating ? "Gerando..." : "Gerar Relatório"}

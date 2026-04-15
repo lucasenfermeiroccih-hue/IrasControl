@@ -6,6 +6,7 @@ import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
   Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets
 } from "lucide-react";
+import DashboardAIInsights from "@/components/DashboardAIInsights";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
@@ -204,6 +205,18 @@ const PatientDashboardIndicators = () => {
           <p className="text-muted-foreground">Dados do Monitoramento de Pacientes — internações, desfechos, dispositivos e antimicrobianos</p>
         </div>
         <div className="flex gap-2">
+          <DashboardAIInsights generateInsights={() => {
+            const ins: string[] = [];
+            ins.push(`📊 ${indicators.totalAdmitted} pacientes admitidos no período selecionado.`);
+            ins.push(`💀 ${indicators.deaths} óbitos e ${indicators.discharges} altas registradas.`);
+            ins.push(`🛏️ Total de ${indicators.totalPatientDays} paciente-dia.`);
+            if (indicators.cvcDays > 0) ins.push(`💉 CVC: ${indicators.cvcDays} dias-dispositivo.`);
+            if (indicators.svuDays > 0) ins.push(`🔧 SVD: ${indicators.svuDays} dias-dispositivo.`);
+            if (indicators.vmDays > 0) ins.push(`🌬️ VM: ${indicators.vmDays} dias-dispositivo.`);
+            if (indicators.abCount > 0) ins.push(`💊 ${indicators.abCount} antimicrobianos utilizados no período.`);
+            if (indicators.extubations > 0) ins.push(`✅ ${indicators.extubations} extubações realizadas com sucesso.`);
+            return ins;
+          }} />
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
