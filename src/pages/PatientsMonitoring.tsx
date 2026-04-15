@@ -18,91 +18,14 @@ import {
   ClipboardList, ChevronLeft, CheckCircle2, Trash2, LogIn
 } from "lucide-react";
 import { toast } from "sonner";
-
-// ─── Mock Data ────────────────────────────────────────────────
-const mockPatients = [
-  {
-    id: "mock-1", nome: "Maria Silva Santos", unidade: "UTI 1 Adulto", leito: "201-A",
-    prontuario: "PRO-2025-0042", dataInternacaoHospitalar: "2026-03-15", origem: "Pronto Socorro",
-    dataInternacaoCTI: "2026-03-17", dataAlta: "", doencasBase: "HAS, DM tipo 2, IRC",
-    motivoInternacao: "Sepse de foco pulmonar", dataNascimento: "1958-07-22", sexo: "F",
-    dataAdmissao: "2026-03-15", especialidade: "Clínica médica",
-    diagnostico: "Pneumonia associada à ventilação mecânica", status: "active" as const,
-  },
-  {
-    id: "mock-2", nome: "João Pedro Almeida", unidade: "UTI 2 Adulto", leito: "305-B",
-    prontuario: "PRO-2025-0098", dataInternacaoHospitalar: "2026-04-01", origem: "Enfermaria Cirúrgica",
-    dataInternacaoCTI: "2026-04-03", dataAlta: "", doencasBase: "Obesidade grau III, DPOC",
-    motivoInternacao: "Pós-operatório cirurgia bariátrica complicada", dataNascimento: "1975-11-30",
-    sexo: "M", dataAdmissao: "2026-04-01", especialidade: "Cirurgia Geral",
-    diagnostico: "Infecção de sítio cirúrgico profunda", status: "active" as const,
-  },
-  {
-    id: "mock-3", nome: "Ana Beatriz Ferreira", unidade: "Clínica Médica", leito: "112-C",
-    prontuario: "PRO-2025-0156", dataInternacaoHospitalar: "2026-03-28", origem: "Ambulatório",
-    dataInternacaoCTI: "", dataAlta: "2026-04-08", doencasBase: "LES, Nefrite lúpica",
-    motivoInternacao: "ITU complicada", dataNascimento: "1990-02-14", sexo: "F",
-    dataAdmissao: "2026-03-28", especialidade: "Clínica médica",
-    diagnostico: "Infecção do trato urinário associada a cateter", status: "discharged" as const,
-  },
-];
+import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
 
-interface MockPatient {
-  id: string; nome: string; unidade: string; leito: string; prontuario: string;
-  dataInternacaoHospitalar: string; origem: string; dataInternacaoCTI: string;
-  dataAlta: string; doencasBase: string; motivoInternacao: string; dataNascimento: string;
-  sexo: string; dataAdmissao: string; especialidade: string; diagnostico: string;
-  status: PatientStatus;
-  tipoAlta?: string;
-  infeccaoMaterna?: string;
-  irasTransplacentaria?: string;
-  pesoRN?: string;
-  diagnosticoRN?: string;
-  tipoParto?: string;
-  bolsaRotaH?: string;
-  bolsaRotaDias?: string;
-  apgar?: string;
-  idadeGestacional?: string;
-  dataInternacaoRN?: string;
-}
-
-// Per-patient extra data stored in localStorage
+// Per-patient extra data (devices/antibiotics still in component state for now)
 interface PatientExtraData {
   dispInvasivos?: { cvcInsercao: string; cvcRetirada: string; svuInsercao: string; svuRetirada: string; vmInsercao: string; vmRetirada: string; tqtInsercao: string; tqtRetirada: string };
   antibioticos?: { id: string; nome: string; dataInicio: string; dataFim: string }[];
-}
-
-const PATIENTS_STORAGE_KEY = "irascontrol_patients";
-const PATIENTS_EXTRA_KEY = "irascontrol_patients_extra";
-
-function loadPatients(): MockPatient[] {
-  try {
-    const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return mockPatients as MockPatient[];
-}
-
-function persistPatients(patients: MockPatient[]) {
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
-}
-
-function loadPatientExtra(patientId: string): PatientExtraData {
-  try {
-    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
-    return all[patientId] || {};
-  } catch {}
-  return {};
-}
-
-function savePatientExtra(patientId: string, data: PatientExtraData) {
-  try {
-    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
-    all[patientId] = data;
-    localStorage.setItem(PATIENTS_EXTRA_KEY, JSON.stringify(all));
-  } catch {}
 }
 
 const especialidades = [
@@ -121,14 +44,13 @@ const criteriosDiagnosticos = [
   "PCR ou Procalcitonina elevada",
 ];
 
-const initialLabPanel = [
-  { exame: "Hemocultura", data: "05/04/2026", microrganismo: "Staphylococcus aureus", sensibilidade: "MRSA", mdr: true },
-  { exame: "Urocultura", data: "03/04/2026", microrganismo: "Klebsiella pneumoniae", sensibilidade: "KPC+", mdr: true },
-  { exame: "Cultura sec. traqueal", data: "06/04/2026", microrganismo: "Pseudomonas aeruginosa", sensibilidade: "Sensível a Meropenem", mdr: false },
-  { exame: "Cultura ferida op.", data: "04/04/2026", microrganismo: "Escherichia coli", sensibilidade: "ESBL", mdr: true },
-];
-
-type LabEntry = typeof initialLabPanel[0];
+interface LabEntry {
+  exame: string;
+  data: string;
+  microrganismo: string;
+  sensibilidade: string;
+  mdr: boolean;
+}
 
 interface AntibioticEntry {
   id: string;
@@ -139,7 +61,7 @@ interface AntibioticEntry {
 
 const exameOptions = ["Hemocultura", "Urocultura", "Cultura de secreção traqueal", "Cultura de ferida operatória", "Cultura de ponta de cateter", "Líquor", "Outro"];
 
-const mockFatoresRisco = [
+const fatoresRiscoOptions = [
   "Idade > 65 anos", "Diabetes mellitus", "Imunossupressão",
   "Tempo de internação > 7 dias", "Uso prévio de antibióticos",
   "Ventilação mecânica prolongada", "Cateter venoso central > 5 dias",
@@ -194,7 +116,7 @@ function calcAge(birth: string) {
 // ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<MockPatient[]>(() => loadPatients());
+  const { patients, loading: patientsLoading, createPatient, updatePatient, dischargePatient: dischargePatientFn } = usePatientMonitoring();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [newPatientOpen, setNewPatientOpen] = useState(false);
@@ -205,7 +127,7 @@ export default function PatientsMonitoring() {
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
   const [currentStep, setCurrentStep] = useState(0);
   const [editIdOpen, setEditIdOpen] = useState(false);
-  const [editIdForm, setEditIdForm] = useState<Omit<MockPatient, "id" | "status">>({
+  const [editIdForm, setEditIdForm] = useState<Omit<PatientRecord, "id" | "status">>({
     nome: "", unidade: "", leito: "", prontuario: "", dataInternacaoHospitalar: "",
     origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
     dataNascimento: "", sexo: "", dataAdmissao: "", especialidade: "", diagnostico: "",
@@ -238,7 +160,7 @@ export default function PatientsMonitoring() {
   const [justificativa, setJustificativa] = useState("");
   const [ocorrencia, setOcorrencia] = useState({ unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
   const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
-  const [labPanel, setLabPanel] = useState<LabEntry[]>(initialLabPanel);
+  const [labPanel, setLabPanel] = useState<LabEntry[]>([]);
   const [newLabOpen, setNewLabOpen] = useState(false);
   const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
   const [responsavel, setResponsavel] = useState("");
@@ -304,45 +226,38 @@ export default function PatientsMonitoring() {
   );
   const activeCount = patients.filter(p => p.status === "active").length;
 
-  const handleNewPatient = () => {
+  const handleNewPatient = async () => {
     if (!newForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
-    const id = "mock-" + Date.now();
-    setPatients(prev => {
-      const updated = [{
-        id, nome: newForm.nome, unidade: newForm.unidade || "UTI 1 Adulto", leito: newForm.leito || "—",
-        prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
-        dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
-        origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
-        dataNascimento: newForm.dataNascimento, sexo: newForm.sexo, dataAdmissao: new Date().toISOString().slice(0, 10),
-        especialidade: "", diagnostico: "", status: "active" as const,
-        infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
-        pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
-        bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
-        idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
-      }, ...prev];
-      persistPatients(updated);
-      return updated;
+    await createPatient({
+      nome: newForm.nome,
+      unidade: newForm.unidade || "UTI 1 Adulto",
+      leito: newForm.leito || "—",
+      prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
+      dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
+      origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+      dataNascimento: newForm.dataNascimento, sexo: newForm.sexo,
+      dataAdmissao: new Date().toISOString().slice(0, 10),
+      especialidade: "", diagnostico: "", status: "active",
+      infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
+      pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
+      bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
+      idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
     });
     setNewPatientOpen(false);
     setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
-    toast.success("Paciente cadastrado com ID: " + id);
   };
 
-  const handleDischarge = () => {
+  const handleDischarge = async () => {
     if (!dischargeType) { toast.error("Selecione o tipo de alta"); return; }
     const dpId = dischargePatientId;
     if (!dpId) return;
     const pat = patients.find(p => p.id === dpId);
-    const statusMap: Record<string, PatientStatus> = { "Óbito": "deceased", "Alta": "discharged", "Transferência": "transferred" };
-    const newStatus = statusMap[dischargeType] || "discharged";
-    setPatients(prev => {
-      const updated = prev.map(p => p.id === dpId ? { ...p, status: newStatus, dataAlta: new Date().toISOString().slice(0, 10), tipoAlta: dischargeType } : p);
-      persistPatients(updated);
-      return updated;
-    });
-    setDischargeOpen(false);
-    setDischargePatientId(null);
-    toast.success(`Paciente ${pat?.nome || ""} — ${dischargeType} registrada`);
+    const ok = await dischargePatientFn(dpId, dischargeType);
+    if (ok) {
+      setDischargeOpen(false);
+      setDischargePatientId(null);
+      toast.success(`Paciente ${pat?.nome || ""} — ${dischargeType} registrada`);
+    }
   };
 
   const openDischargeConfirm = (patientId: string) => {
@@ -359,21 +274,14 @@ export default function PatientsMonitoring() {
     setEditIdOpen(true);
   };
 
-  const saveEditId = () => {
+  const saveEditId = async () => {
     if (!editIdForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
-    setPatients(prev => {
-      const updated = prev.map(p => p.id === selectedId ? { ...p, ...editIdForm } : p);
-      persistPatients(updated);
-      return updated;
-    });
-    setEditIdOpen(false);
-    toast.success("Dados de identificação atualizados!");
-  };
-
-  // Persist device and antibiotic data for current patient
-  const persistCurrentPatientExtra = () => {
     if (!selectedId) return;
-    savePatientExtra(selectedId, { dispInvasivos, antibioticos });
+    const ok = await updatePatient(selectedId, editIdForm);
+    if (ok) {
+      setEditIdOpen(false);
+      toast.success("Dados de identificação atualizados!");
+    }
   };
 
   const enterPatient = (patientId: string) => {
@@ -387,12 +295,9 @@ export default function PatientsMonitoring() {
       });
       setInfeccaoMaternaDetail(pat.infeccaoMaterna || "");
       setIrasTransplacentariaDetail(pat.irasTransplacentaria || "");
-      // Load extra data (devices, antibiotics) from localStorage
-      const extra = loadPatientExtra(patientId);
-      if (extra.dispInvasivos) setDispInvasivos(extra.dispInvasivos);
-      else setDispInvasivos({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
-      if (extra.antibioticos) setAntibioticos(extra.antibioticos);
-      else setAntibioticos([]);
+      // Reset devices/antibiotics (will be loaded from Supabase in future)
+      setDispInvasivos({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+      setAntibioticos([]);
     }
     setSelectedId(patientId);
     setCurrentStep(0);
@@ -404,10 +309,9 @@ export default function PatientsMonitoring() {
     setViewPatientOpen(true);
   };
 
-  const handleSave = () => {
-    if (!selected) return;
-    persistPatients(patients);
-    persistCurrentPatientExtra();
+  const handleSave = async () => {
+    if (!selected || !selectedId) return;
+    await updatePatient(selectedId, selected);
     toast.success("Dados salvos com sucesso!");
   };
 
@@ -773,7 +677,7 @@ export default function PatientsMonitoring() {
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" />Fatores de Risco</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {mockFatoresRisco.map(f => (
+                    {fatoresRiscoOptions.map(f => (
                       <div key={f} className="flex items-center gap-2 p-2.5 rounded-md bg-destructive/5 border border-destructive/10">
                         <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                         <span className="text-sm">{f}</span>
@@ -1292,6 +1196,17 @@ export default function PatientsMonitoring() {
   }
 
   // ─── PATIENT LIST VIEW (main page) ─────────────────────────
+  if (patientsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Carregando pacientes...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       {/* ─── Page Header ──────────────────────────────────── */}
@@ -1332,6 +1247,26 @@ export default function PatientsMonitoring() {
         <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
+      {/* ─── Empty State ─────────────────────────────────── */}
+      {patients.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+            <div className="p-4 rounded-full bg-primary/10">
+              <Stethoscope className="h-10 w-10 text-primary" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">Nenhum paciente cadastrado</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Cadastre o primeiro paciente para iniciar o monitoramento de infecções e controle diário.
+              </p>
+            </div>
+            <Button onClick={() => setNewPatientOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />Cadastrar Primeiro Paciente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       {/* ─── Patient Table ────────────────────────────────── */}
       <Card>
         <CardHeader className="p-3 md:p-6 pb-2">
@@ -1442,6 +1377,8 @@ export default function PatientsMonitoring() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
       <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>

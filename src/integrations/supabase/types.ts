@@ -1041,52 +1041,76 @@ export type Database = {
       patients: {
         Row: {
           admission_date: string
+          admission_reason: string | null
+          base_diseases: string | null
           bed: string | null
           birth_date: string | null
+          clinical_data: Json | null
           created_at: string
           created_by: string | null
+          diagnosis: string | null
           discharge_date: string | null
+          discharge_type: string | null
           full_name: string
           gender: string | null
           hospital_id: string
+          icu_admission_date: string | null
           id: string
           medical_record: string | null
           notes: string | null
+          origin: string | null
           sector: string | null
+          specialty: string | null
           status: Database["public"]["Enums"]["patient_status"]
           updated_at: string
         }
         Insert: {
           admission_date?: string
+          admission_reason?: string | null
+          base_diseases?: string | null
           bed?: string | null
           birth_date?: string | null
+          clinical_data?: Json | null
           created_at?: string
           created_by?: string | null
+          diagnosis?: string | null
           discharge_date?: string | null
+          discharge_type?: string | null
           full_name: string
           gender?: string | null
           hospital_id: string
+          icu_admission_date?: string | null
           id?: string
           medical_record?: string | null
           notes?: string | null
+          origin?: string | null
           sector?: string | null
+          specialty?: string | null
           status?: Database["public"]["Enums"]["patient_status"]
           updated_at?: string
         }
         Update: {
           admission_date?: string
+          admission_reason?: string | null
+          base_diseases?: string | null
           bed?: string | null
           birth_date?: string | null
+          clinical_data?: Json | null
           created_at?: string
           created_by?: string | null
+          diagnosis?: string | null
           discharge_date?: string | null
+          discharge_type?: string | null
           full_name?: string
           gender?: string | null
           hospital_id?: string
+          icu_admission_date?: string | null
           id?: string
           medical_record?: string | null
           notes?: string | null
+          origin?: string | null
           sector?: string | null
+          specialty?: string | null
           status?: Database["public"]["Enums"]["patient_status"]
           updated_at?: string
         }
