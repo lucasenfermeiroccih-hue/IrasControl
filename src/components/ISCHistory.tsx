@@ -13,7 +13,23 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-import type { ISCRegistro } from "@/lib/isc-storage";
+interface ISCRegistro {
+  id: string;
+  nomeProfissional: string;
+  dataVigilancia: string;
+  mes: string;
+  ano: string;
+  indicadores: Record<string, {
+    totalCirurgias: number;
+    contatosAtendidos: number;
+    reinternacoes: number;
+    iscConfirmada: number;
+    sitio: string;
+  }>;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",

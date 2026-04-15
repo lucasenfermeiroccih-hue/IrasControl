@@ -31,10 +31,24 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Save, RotateCcw } from "lucide-react";
-import {
-  type ISCRegistro,
-} from "@/lib/isc-storage";
 import ISCHistory from "@/components/ISCHistory";
+
+interface ISCRegistro {
+  id: string;
+  nomeProfissional: string;
+  dataVigilancia: string;
+  mes: string;
+  ano: string;
+  indicadores: Record<string, {
+    totalCirurgias: number;
+    contatosAtendidos: number;
+    reinternacoes: number;
+    iscConfirmada: number;
+    sitio: string;
+  }>;
+  criadoEm: string;
+  atualizadoEm: string;
+}
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
