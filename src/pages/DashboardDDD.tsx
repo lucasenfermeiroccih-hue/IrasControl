@@ -172,6 +172,21 @@ export default function DashboardDDD() {
                 {antimicrobianos.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => {
+                setFiltroDia([]);
+                setFiltroMes([]);
+                setFiltroAno([]);
+                setFiltroUnidade([]);
+                setFiltroAtm("all");
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpar Filtros
+            </Button>
           </div>
 
           {/* KPIs */}
