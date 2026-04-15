@@ -1247,6 +1247,26 @@ export default function PatientsMonitoring() {
         <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
+      {/* ─── Empty State ─────────────────────────────────── */}
+      {patients.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+            <div className="p-4 rounded-full bg-primary/10">
+              <Stethoscope className="h-10 w-10 text-primary" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">Nenhum paciente cadastrado</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Cadastre o primeiro paciente para iniciar o monitoramento de infecções e controle diário.
+              </p>
+            </div>
+            <Button onClick={() => setNewPatientOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />Cadastrar Primeiro Paciente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       {/* ─── Patient Table ────────────────────────────────── */}
       <Card>
         <CardHeader className="p-3 md:p-6 pb-2">
