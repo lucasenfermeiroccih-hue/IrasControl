@@ -1,0 +1,432 @@
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
+import {
+  Loader2, Users, BedDouble, Skull, HeartPulse, Syringe,
+  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets
+} from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell
+} from "recharts";
+
+const SPECIALTIES = [
+  "Clínica Médica",
+  "Cirurgia Geral",
+  "Cirurgia Cardíaca",
+  "Cirurgia Oftalmológica",
+  "Neurocirurgia",
+  "Cirurgia Vascular",
+  "Cirurgia Ortopédica",
+];
+
+const MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const COLORS = [
+  "hsl(168, 66%, 34%)", "hsl(210, 60%, 50%)", "hsl(340, 60%, 50%)",
+  "hsl(45, 80%, 50%)", "hsl(270, 50%, 55%)", "hsl(120, 40%, 45%)",
+  "hsl(20, 70%, 50%)",
+];
+
+const PIE_COLORS = ["hsl(168, 66%, 34%)", "hsl(210, 60%, 50%)", "hsl(340, 60%, 50%)", "hsl(45, 80%, 50%)", "hsl(270, 50%, 55%)", "hsl(120, 40%, 45%)", "hsl(20, 70%, 50%)"];
+
+const PatientDashboardIndicators = () => {
+  const { hospitalId, loading: ctxLoading } = useHospitalContext();
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const [year, setYear] = useState(String(currentYear));
+  const [month, setMonth] = useState(String(currentMonth));
+  const [patients, setPatients] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hospitalId) return;
+    setLoading(true);
+
+    const startDate = `${year}-${String(Number(month) + 1).padStart(2, "0")}-01`;
+    const endMonth = Number(month) + 2;
+    const endYear = endMonth > 12 ? Number(year) + 1 : Number(year);
+    const endM = endMonth > 12 ? 1 : endMonth;
+    const endDate = `${endYear}-${String(endM).padStart(2, "0")}-01`;
+
+    Promise.all([
+      supabase
+        .from("patients")
+        .select("*")
+        .eq("hospital_id", hospitalId)
+        .lte("admission_date", endDate)
+        .or(`discharge_date.is.null,discharge_date.gte.${startDate}`),
+      supabase
+        .from("patient_devices")
+        .select("*, patient:patients(hospital_id, admission_date, discharge_date, sector)")
+        .lte("insertion_date", endDate)
+        .or(`removal_date.is.null,removal_date.gte.${startDate}`),
+      supabase
+        .from("antimicrobial_prescriptions")
+        .select("*")
+        .eq("hospital_id", hospitalId)
+        .lte("start_date", endDate)
+        .or(`end_date.is.null,end_date.gte.${startDate}`),
+    ]).then(([pRes, dRes, aRes]) => {
+      setPatients(pRes.data || []);
+      setDevices((dRes.data || []).filter((d: any) => d.patient?.hospital_id === hospitalId));
+      setPrescriptions(aRes.data || []);
+      setLoading(false);
+    });
+  }, [hospitalId, year, month]);
+
+  const indicators = useMemo(() => {
+    const selectedMonth = Number(month);
+    const selectedYear = Number(year);
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+
+    // Patients admitted in the selected month
+    const admittedInMonth = patients.filter(p => {
+      const d = new Date(p.admission_date);
+      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+    });
+
+    // By specialty (sector)
+    const bySpecialty: Record<string, number> = {};
+    SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
+    admittedInMonth.forEach(p => {
+      const sec = p.sector || "Outros";
+      if (bySpecialty[sec] !== undefined) bySpecialty[sec]++;
+      else {
+        // map to closest or "Outros"
+        bySpecialty[sec] = (bySpecialty[sec] || 0) + 1;
+      }
+    });
+
+    const specialtyData = SPECIALTIES.map(s => ({
+      name: s.length > 15 ? s.replace("Cirurgia ", "C. ") : s,
+      fullName: s,
+      internacoes: bySpecialty[s] || 0,
+    }));
+
+    // Deaths
+    const deaths = patients.filter(p =>
+      p.status === "deceased" &&
+      p.discharge_date &&
+      new Date(p.discharge_date).getMonth() === selectedMonth &&
+      new Date(p.discharge_date).getFullYear() === selectedYear
+    ).length;
+
+    // Discharges (altas)
+    const discharges = patients.filter(p =>
+      p.status === "discharged" &&
+      p.discharge_date &&
+      new Date(p.discharge_date).getMonth() === selectedMonth &&
+      new Date(p.discharge_date).getFullYear() === selectedYear
+    ).length;
+
+    // Patient-days calculation
+    const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonth, 1));
+    const endOfMonth = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0));
+
+    let totalPatientDays = 0;
+    patients.forEach(p => {
+      const admDate = new Date(p.admission_date);
+      const disDate = p.discharge_date ? new Date(p.discharge_date) : new Date();
+      const from = admDate > startOfMonth ? admDate : startOfMonth;
+      const to = disDate < endOfMonth ? disDate : endOfMonth;
+      const days = Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1);
+      totalPatientDays += days;
+    });
+
+    // Device-days
+    const calcDeviceDays = (type: string) => {
+      let total = 0;
+      devices.filter(d => d.device_type === type).forEach(d => {
+        const ins = new Date(d.insertion_date);
+        const rem = d.removal_date ? new Date(d.removal_date) : new Date();
+        const from = ins > startOfMonth ? ins : startOfMonth;
+        const to = rem < endOfMonth ? rem : endOfMonth;
+        total += Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1);
+      });
+      return total;
+    };
+
+    const cvcDays = calcDeviceDays("cvc");
+    const svuDays = calcDeviceDays("svu");
+    const vmDays = calcDeviceDays("vm");
+
+    // Antimicrobials count
+    const abCount = prescriptions.filter(p => {
+      const sd = new Date(p.start_date);
+      return sd.getMonth() === selectedMonth && sd.getFullYear() === selectedYear;
+    }).length;
+
+    // Extubation success (VM devices removed in month)
+    const extubations = devices.filter(d =>
+      d.device_type === "vm" &&
+      d.removal_date &&
+      new Date(d.removal_date).getMonth() === selectedMonth &&
+      new Date(d.removal_date).getFullYear() === selectedYear
+    ).length;
+
+    // Pie data for outcomes
+    const outcomeData = [
+      { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
+      { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
+      { name: "Internados", value: patients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
+    ].filter(d => d.value > 0);
+
+    return {
+      specialtyData,
+      deaths,
+      discharges,
+      totalPatientDays,
+      cvcDays,
+      svuDays,
+      vmDays,
+      abCount,
+      extubations,
+      totalAdmitted: admittedInMonth.length,
+      outcomeData,
+    };
+  }, [patients, devices, prescriptions, month, year]);
+
+  if (ctxLoading || loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard de Indicadores Operacionais</h1>
+          <p className="text-muted-foreground">Internações, desfechos, dispositivos e antimicrobianos</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m, i) => (
+                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(y => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* KPI Cards Row 1 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <KpiCard icon={Users} label="Internações" value={indicators.totalAdmitted} color="text-primary" />
+        <KpiCard icon={BedDouble} label="Paciente-Dia" value={indicators.totalPatientDays} color="text-primary" />
+        <KpiCard icon={Skull} label="Óbitos" value={indicators.deaths} color="text-destructive" />
+        <KpiCard icon={HeartPulse} label="Altas" value={indicators.discharges} color="text-green-600" />
+        <KpiCard icon={Wind} label="VM Pac-Dia" value={indicators.vmDays} color="text-blue-600" />
+        <KpiCard icon={Cable} label="CVC Pac-Dia" value={indicators.cvcDays} color="text-amber-600" />
+        <KpiCard icon={Droplets} label="SVD Pac-Dia" value={indicators.svuDays} color="text-purple-600" />
+        <KpiCard icon={Syringe} label="Antibióticos" value={indicators.abCount} color="text-orange-600" />
+      </div>
+
+      {/* Extubation badge */}
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
+          <ArrowUpFromLine className="h-4 w-4 text-green-600" />
+          Alta / Extubação: <span className="font-bold">{indicators.extubations}</span>
+        </Badge>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Bar Chart - Admissions by Specialty */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-primary" />
+              Internações por Especialidade — {MONTHS[Number(month)]} {year}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {indicators.specialtyData.every(s => s.internacoes === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-12">Nenhuma internação registrada no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={indicators.specialtyData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" angle={-35} textAnchor="end" tick={{ fontSize: 11 }} interval={0} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: number) => [value, "Internações"]}
+                    labelFormatter={(label: string) => {
+                      const item = indicators.specialtyData.find(s => s.name === label);
+                      return item?.fullName || label;
+                    }}
+                  />
+                  <Bar dataKey="internacoes" name="Internações" radius={[4, 4, 0, 0]}>
+                    {indicators.specialtyData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart - Outcomes */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Desfechos do Período
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {indicators.outcomeData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem dados de desfechos.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={indicators.outcomeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={95}
+                    paddingAngle={4}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {indicators.outcomeData.map((entry, index) => (
+                      <Cell key={`pie-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Device density cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <DensityCard
+          title="Densidade CVC"
+          deviceDays={indicators.cvcDays}
+          patientDays={indicators.totalPatientDays}
+          icon={Cable}
+          color="text-amber-600"
+        />
+        <DensityCard
+          title="Densidade SVD"
+          deviceDays={indicators.svuDays}
+          patientDays={indicators.totalPatientDays}
+          icon={Droplets}
+          color="text-purple-600"
+        />
+        <DensityCard
+          title="Densidade VM"
+          deviceDays={indicators.vmDays}
+          patientDays={indicators.totalPatientDays}
+          icon={Wind}
+          color="text-blue-600"
+        />
+      </div>
+
+      {/* Specialty detail table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Detalhamento por Especialidade</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3 font-medium">Especialidade</th>
+                  <th className="text-center py-2 px-3 font-medium">Internações</th>
+                  <th className="text-center py-2 px-3 font-medium">% do Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {indicators.specialtyData.map((s, i) => (
+                  <tr key={s.fullName} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="py-2 px-3 flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: COLORS[i] }} />
+                      {s.fullName}
+                    </td>
+                    <td className="text-center py-2 px-3 font-semibold">{s.internacoes}</td>
+                    <td className="text-center py-2 px-3 text-muted-foreground">
+                      {indicators.totalAdmitted > 0 ? ((s.internacoes / indicators.totalAdmitted) * 100).toFixed(1) : "0.0"}%
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-muted/30 font-semibold">
+                  <td className="py-2 px-3">Total</td>
+                  <td className="text-center py-2 px-3">{indicators.totalAdmitted}</td>
+                  <td className="text-center py-2 px-3">100%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Sub-components
+
+function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number; color: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-3 px-3 text-center">
+        <Icon className={`mx-auto h-6 w-6 mb-1 ${color}`} />
+        <p className="text-xl font-bold">{value}</p>
+        <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
+  title: string; deviceDays: number; patientDays: number; icon: any; color: string;
+}) {
+  const density = patientDays > 0 ? ((deviceDays / patientDays) * 1000).toFixed(1) : "0.0";
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${color}`} />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-3xl font-bold">{density}</p>
+        <p className="text-xs text-muted-foreground">por 1.000 paciente-dia</p>
+        <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t">
+          <span>Dispositivo-dia: {deviceDays}</span>
+          <span>Paciente-dia: {patientDays}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default PatientDashboardIndicators;

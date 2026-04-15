@@ -48,6 +48,7 @@ import AgentChat from "./pages/AgentChat.tsx";
 import NotificacaoInvestigacaoCCIH from "./pages/NotificacaoInvestigacaoCCIH.tsx";
 import AuditHandHygieneConsumptionNew from "./pages/AuditHandHygieneConsumptionNew.tsx";
 import HygieneConsumptionDashboard from "./pages/HygieneConsumptionDashboard.tsx";
+import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/laboratory-results" element={<LaboratoryResults />} />
             <Route path="/reports/analytics" element={<ReportsAnalytics />} />
             <Route path="/forms" element={<Forms />} />
+            <Route path="/patients/dashboard-indicators" element={<PatientDashboardIndicators />} />
             <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
             <Route element={<RequireAdmin />}>
               <Route path="/admin/settings" element={<AdminSettings />} />
