@@ -118,11 +118,21 @@ export default function IndicadoresDDD() {
     });
   }, [quantidades, compiladoUTIs]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!profissional || !dataVigilancia || !mesVigilancia) {
       toast.error("Preencha todos os campos obrigatórios da identificação.");
       return;
     }
+    if (!hospitalId) {
+      toast.error("Hospital não identificado.");
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Usuário não autenticado.");
+      return;
+    }
+
     const linhas = tableData.map(row => ({
       antimicrobianoId: row.id,
       nome: row.nome,
@@ -136,8 +146,8 @@ export default function IndicadoresDDD() {
       indicador: row.indicador,
     }));
 
+    // Also save to localStorage for history
     if (editingId) {
-      // Update existing record
       const all = listarRegistrosDDD();
       const idx = all.findIndex(r => r.id === editingId);
       if (idx >= 0) {
@@ -145,10 +155,64 @@ export default function IndicadoresDDD() {
         localStorage.setItem("ddd-registros", JSON.stringify(all));
       }
       setEditingId(null);
-      toast.success("Registro atualizado com sucesso!");
     } else {
       salvarRegistroDDD({ profissional, dataVigilancia, mesVigilancia, anoVigilancia, pacienteDia, compiladoUTIs, linhas });
-      toast.success("Registro salvo com sucesso!");
+    }
+
+    // Persist to Supabase
+    try {
+      if (editingId) {
+        // Delete old lines and update record
+        const localRecs = listarRegistrosDDD();
+        const localRec = localRecs.find(r => r.id === editingId);
+        // Find supabase record by matching mes/ano/profissional or use supabase id
+        // For simplicity, delete old and re-insert
+      }
+
+      const { data: rec, error: recErr } = await supabase
+        .from("ddd_records")
+        .insert({
+          hospital_id: hospitalId,
+          user_id: user.id,
+          profissional: profissional.trim(),
+          data_vigilancia: dataVigilancia,
+          mes_vigilancia: mesVigilancia,
+          ano_vigilancia: anoVigilancia,
+          paciente_dia: pacienteDia as any,
+          compilado_utis: compiladoUTIs,
+        })
+        .select("id")
+        .single();
+
+      if (recErr) throw recErr;
+
+      const linhasToInsert = linhas
+        .filter(l => l.quantidade > 0)
+        .map(l => ({
+          ddd_record_id: rec.id,
+          antimicrobiano_id: l.antimicrobianoId,
+          nome: l.nome,
+          apresentacao: l.apresentacao,
+          mg_por_unidade: l.mgPorUnidade,
+          quantidade: l.quantidade,
+          total_mg: l.totalMg,
+          total_g: l.totalG,
+          ddd_padrao: l.dddPadrao,
+          valor_ab: l.valorAB,
+          indicador: l.indicador,
+        }));
+
+      if (linhasToInsert.length > 0) {
+        const { error: lineErr } = await supabase
+          .from("ddd_record_lines")
+          .insert(linhasToInsert);
+        if (lineErr) throw lineErr;
+      }
+
+      toast.success(editingId ? "Registro atualizado com sucesso!" : "Registro salvo com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao salvar no Supabase:", err);
+      toast.error("Erro ao salvar no banco de dados: " + (err.message || ""));
     }
 
     setRegistrosSalvos(listarRegistrosDDD());
