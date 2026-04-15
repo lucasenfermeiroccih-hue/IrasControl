@@ -92,6 +92,7 @@ const App = () => (
             <Route path="/laboratory-results" element={<LaboratoryResults />} />
             <Route path="/reports/analytics" element={<ReportsAnalytics />} />
             <Route path="/forms" element={<Forms />} />
+            <Route path="/patients/dashboard-indicators" element={<PatientDashboardIndicators />} />
             <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
             <Route element={<RequireAdmin />}>
               <Route path="/admin/settings" element={<AdminSettings />} />
