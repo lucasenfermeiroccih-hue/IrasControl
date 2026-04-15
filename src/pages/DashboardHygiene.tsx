@@ -3,25 +3,40 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie, Cell, Legend
 } from "recharts";
-import { HandMetal, CheckCircle, AlertTriangle, Users, Loader2, Download } from "lucide-react";
+import { HandMetal, CheckCircle, AlertTriangle, Users, Loader2, Download, ClipboardCheck, XCircle } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const COLORS = ["hsl(168, 66%, 34%)", "hsl(199, 89%, 48%)", "hsl(38, 92%, 50%)", "hsl(280, 65%, 60%)", "hsl(0, 72%, 51%)"];
+const PIE_COLORS = ["hsl(168, 66%, 34%)", "hsl(0, 72%, 51%)"];
 
 export default function DashboardHygiene() {
   const { hospitalId } = useHospitalContext();
-  const { stats, loading } = useAuditDashboard("hand_hygiene");
+  const { stats, items, loading } = useAuditDashboard("hand_hygiene");
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
+
+  // Compute hygiene-specific stats from audit items
+  const hygieneStats = useMemo(() => {
+    const hygieneItems = items.filter(i => i.category === "Higiene");
+    const sim = hygieneItems.filter(i => i.status === "compliant").length;
+    const nao = hygieneItems.filter(i => i.status === "non_compliant").length;
+    const total = hygieneItems.length;
+    return { sim, nao, total };
+  }, [items]);
+
+  const pieData = useMemo(() => [
+    { name: "Sim", value: hygieneStats.sim },
+    { name: "Não", value: hygieneStats.nao },
+  ], [hygieneStats]);
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -39,9 +54,9 @@ export default function DashboardHygiene() {
 
   const kpis = [
     { label: "Taxa de Adesão", value: `${stats.avgCompliance}%`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-    { label: "Observações Mês", value: String(stats.totalAudits), icon: HandMetal, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Não Conformidades", value: String(stats.nonCompliantItems), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Setores Avaliados", value: String(stats.sectorData.length), icon: Users, color: "text-info", bg: "bg-info/10" },
+    { label: "Formulários Analisados", value: String(stats.totalAudits), icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Com Higienização", value: String(hygieneStats.sim), icon: HandMetal, color: "text-success", bg: "bg-success/10" },
+    { label: "Sem Higienização", value: String(hygieneStats.nao), icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
   return (
@@ -54,13 +69,14 @@ export default function DashboardHygiene() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
           <DashboardAIInsights generateInsights={() => {
-          const ins: string[] = [];
-          ins.push(`📊 Taxa de adesão geral de ${stats.avgCompliance}% com ${stats.totalAudits} observações.`);
-          if (stats.nonCompliantItems > 0) ins.push(`⚠️ ${stats.nonCompliantItems} oportunidades perdidas.`);
-          if (stats.topFailures.length > 0) ins.push(`🔻 Item mais crítico: "${stats.topFailures[0].item}".`);
-          ins.push("💡 Recomendação: feedback em tempo real e campanhas focadas nos momentos mais frágeis.");
-          return ins;
-        }} />
+            const ins: string[] = [];
+            ins.push(`📊 Taxa de adesão geral de ${stats.avgCompliance}% com ${stats.totalAudits} formulários.`);
+            ins.push(`✅ ${hygieneStats.sim} instâncias com higienização realizada.`);
+            ins.push(`❌ ${hygieneStats.nao} instâncias sem higienização.`);
+            if (stats.topFailures.length > 0) ins.push(`🔻 Item mais crítico: "${stats.topFailures[0].item}".`);
+            ins.push("💡 Recomendação: feedback em tempo real e campanhas focadas nos momentos mais frágeis.");
+            return ins;
+          }} />
         </div>
       </div>
 
@@ -80,6 +96,63 @@ export default function DashboardHygiene() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Hygiene Sim/Não charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Higienizou? (Sim / Não)</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center gap-4">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} dataKey="value" paddingAngle={4} label={({ name, value }) => `${name}: ${value}`}>
+                    {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => v} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+              {hygieneStats.total > 0 && (
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: PIE_COLORS[0] }} />
+                    <span className="text-muted-foreground">Sim:</span>
+                    <span className="font-bold">{hygieneStats.sim} ({Math.round((hygieneStats.sim / hygieneStats.total) * 100)}%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: PIE_COLORS[1] }} />
+                    <span className="text-muted-foreground">Não:</span>
+                    <span className="font-bold">{hygieneStats.nao} ({Math.round((hygieneStats.nao / hygieneStats.total) * 100)}%)</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Resumo de Higienização</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={[
+                { name: "Formulários", value: stats.totalAudits },
+                { name: "Com Higienização", value: hygieneStats.sim },
+                { name: "Sem Higienização", value: hygieneStats.nao },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="value" name="Quantidade" radius={[4, 4, 0, 0]}>
+                  <Cell fill="hsl(199, 89%, 48%)" />
+                  <Cell fill="hsl(168, 66%, 34%)" />
+                  <Cell fill="hsl(0, 72%, 51%)" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
