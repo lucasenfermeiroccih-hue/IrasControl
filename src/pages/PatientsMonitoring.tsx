@@ -629,7 +629,7 @@ export default function PatientsMonitoring() {
                       <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                         <Syringe className="h-4 w-4 text-amber-600" />VDRL — Sífilis
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label className="font-medium">VDRL da Mãe</Label>
                           {readOnly ? (
@@ -644,6 +644,14 @@ export default function PatientsMonitoring() {
                             <p className="text-sm text-foreground">{vdrl.vdrlRN || "—"}</p>
                           ) : (
                             <Input value={vdrl.vdrlRN} onChange={e => setVdrl(p => ({ ...p, vdrlRN: e.target.value }))} placeholder="Ex: Reagente 1:4" />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-medium">VDRL no Líquor</Label>
+                          {readOnly ? (
+                            <p className="text-sm text-foreground">{vdrl.vdrlLiquor || "—"}</p>
+                          ) : (
+                            <Input value={vdrl.vdrlLiquor} onChange={e => setVdrl(p => ({ ...p, vdrlLiquor: e.target.value }))} placeholder="Ex: Não reagente" />
                           )}
                         </div>
                       </div>
