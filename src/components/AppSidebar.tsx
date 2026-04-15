@@ -8,6 +8,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
