@@ -211,7 +211,7 @@ const LaboratoryResults = () => {
 
   const handleSave = async () => {
     if (!hospitalId) return;
-    if (!formData.patient_id) { toast.error("Selecione o paciente"); return; }
+    if (!formData.patient_name.trim()) { toast.error("Informe o nome do paciente"); return; }
     if (!formData.sample_type) { toast.error("Selecione o tipo de material"); return; }
     if (!formData.collection_date) { toast.error("Informe a data de coleta"); return; }
 
