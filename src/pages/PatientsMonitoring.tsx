@@ -387,6 +387,12 @@ export default function PatientsMonitoring() {
       });
       setInfeccaoMaternaDetail(pat.infeccaoMaterna || "");
       setIrasTransplacentariaDetail(pat.irasTransplacentaria || "");
+      // Load extra data (devices, antibiotics) from localStorage
+      const extra = loadPatientExtra(patientId);
+      if (extra.dispInvasivos) setDispInvasivos(extra.dispInvasivos);
+      else setDispInvasivos({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" });
+      if (extra.antibioticos) setAntibioticos(extra.antibioticos);
+      else setAntibioticos([]);
     }
     setSelectedId(patientId);
     setCurrentStep(0);
