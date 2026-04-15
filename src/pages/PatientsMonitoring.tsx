@@ -117,9 +117,35 @@ const STEPS = [
   { key: "conclusao", label: "Conclusão", icon: CheckCircle2 },
 ] as const;
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    let yearNum = parseInt(y);
+    if (yearNum < 100) yearNum += 2000;
+    const dayNum = parseInt(d);
+    const monthNum = parseInt(m);
+    if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return null;
+    const result = new Date(Date.UTC(yearNum, monthNum - 1, dayNum));
+    if (result.getUTCDate() !== dayNum || result.getUTCMonth() !== monthNum - 1) return null;
+    return result;
+  }
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const result = new Date(Date.UTC(+iso[1], +iso[2] - 1, +iso[3]));
+    if (result.getUTCDate() !== +iso[3] || result.getUTCMonth() !== +iso[2] - 1) return null;
+    return result;
+  }
+  return null;
+}
+
 function daysFromDate(dateStr: string) {
-  if (!dateStr) return 0;
-  return Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000));
+  const d = parseDate(dateStr);
+  if (!d) return 0;
+  const now = new Date();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.floor((todayUTC - d.getTime()) / 86400000));
 }
 
 function calcAge(birth: string) {
@@ -188,11 +214,17 @@ export default function PatientsMonitoring() {
   const readOnly = viewMode === "view";
 
   const calcDiasUso = (inicio: string, fim: string) => {
-    if (!inicio) return 0;
-    const d1 = new Date(inicio);
-    const d2 = fim ? new Date(fim) : new Date();
-    const diff = Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(diff, 0);
+    const d1 = parseDate(inicio);
+    if (!d1) return 0;
+    const d2 = parseDate(fim);
+    let end: number;
+    if (d2) {
+      end = d2.getTime();
+    } else {
+      const now = new Date();
+      end = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    return Math.max(0, Math.ceil((end - d1.getTime()) / 86400000));
   };
 
   const handleAddAtb = () => {
@@ -315,9 +347,9 @@ export default function PatientsMonitoring() {
     toast.success("Dados salvos com sucesso!");
   };
 
-  const cvcDays = dispInvasivos.cvcInsercao ? daysFromDate(dispInvasivos.cvcInsercao) : null;
-  const svuDays = dispInvasivos.svuInsercao ? daysFromDate(dispInvasivos.svuInsercao) : null;
-  const vmDays = dispInvasivos.vmInsercao ? daysFromDate(dispInvasivos.vmInsercao) : null;
+  const cvcDays = dispInvasivos.cvcInsercao ? calcDiasUso(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada) : null;
+  const svuDays = dispInvasivos.svuInsercao ? calcDiasUso(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada) : null;
+  const vmDays = dispInvasivos.vmInsercao ? calcDiasUso(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada) : null;
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
