@@ -363,6 +363,16 @@ const Reports = () => {
     setFormOpen(true);
   };
 
+  const handleDeleteRecord = async (id: string) => {
+    const { error } = await supabase.from("lab_results").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir: " + error.message);
+    } else {
+      toast.success("Registro excluído com sucesso!");
+      fetchRecords();
+    }
+  };
+
   const handleExportCSV = () => {
     const header = "Data Coleta,Prontuário,Setor,Tipo Exame,Microorganismo,Status\n";
     const rows = filtered.map((r) =>
