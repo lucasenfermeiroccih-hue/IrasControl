@@ -601,33 +601,27 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* AI Insights Panel */}
-      {aiInsights.length > 0 && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-primary" />
-                Sugestões e Insights da IA
-              </CardTitle>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAiInsights([])}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <CardDescription>Análise preditiva baseada nos {filtered.length} registros filtrados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
+      {/* AI Insights Dialog */}
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Lightbulb className="h-5 w-5 text-primary" />
+              Sugestões e Insights da IA
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-3 pr-4">
               {aiInsights.map((insight, i) => (
-                <li key={i} className="flex gap-2 text-sm">
+                <div key={i} className="flex gap-3 items-start p-3 rounded-lg border bg-muted/30">
                   <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <span>{insight}</span>
-                </li>
+                  <p className="text-sm leading-relaxed">{insight}</p>
+                </div>
               ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <Card>
