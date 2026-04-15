@@ -589,6 +589,35 @@ export default function PatientsMonitoring() {
                     </table>
                   </div>
                 </div>
+
+                {irasTransplacentariaDetail === "Sífilis" && (
+                  <>
+                    <Separator />
+                    <div className="p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                      <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                        <Syringe className="h-4 w-4 text-amber-600" />VDRL — Sífilis
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="font-medium">VDRL da Mãe</Label>
+                          {readOnly ? (
+                            <p className="text-sm text-foreground">{vdrl.vdrlMae || "—"}</p>
+                          ) : (
+                            <Input value={vdrl.vdrlMae} onChange={e => setVdrl(p => ({ ...p, vdrlMae: e.target.value }))} placeholder="Ex: Reagente 1:8" />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-medium">VDRL do RN</Label>
+                          {readOnly ? (
+                            <p className="text-sm text-foreground">{vdrl.vdrlRN || "—"}</p>
+                          ) : (
+                            <Input value={vdrl.vdrlRN} onChange={e => setVdrl(p => ({ ...p, vdrlRN: e.target.value }))} placeholder="Ex: Reagente 1:4" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
