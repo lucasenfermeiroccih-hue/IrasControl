@@ -237,7 +237,7 @@ export default function PatientsMonitoring() {
       especialidade: "", diagnostico: "", status: "active" as const,
     }, ...prev]);
     setNewPatientOpen(false);
-    setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "" });
+    setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
     toast.success("Paciente cadastrado com ID: " + id);
   };
 
