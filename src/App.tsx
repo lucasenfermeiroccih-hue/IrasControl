@@ -46,6 +46,7 @@ import DashboardAntibiogram from "./pages/DashboardAntibiogram.tsx";
 import AgentLibrary from "./pages/AgentLibrary.tsx";
 import AgentChat from "./pages/AgentChat.tsx";
 import NotificacaoInvestigacaoCCIH from "./pages/NotificacaoInvestigacaoCCIH.tsx";
+import CasesInvestigationAnalytics from "./pages/CasesInvestigationAnalytics.tsx";
 import AuditHandHygieneConsumptionNew from "./pages/AuditHandHygieneConsumptionNew.tsx";
 import HygieneConsumptionDashboard from "./pages/HygieneConsumptionDashboard.tsx";
 import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/cases/investigation" element={<CasesInvestigation />} />
+            <Route path="/cases/investigation/analytics" element={<CasesInvestigationAnalytics />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/laboratory-results" element={<LaboratoryResults />} />
             <Route path="/reports/analytics" element={<ReportsAnalytics />} />
