@@ -687,6 +687,75 @@ export type Database = {
         }
         Relationships: []
       }
+      hygiene_consumption_records: {
+        Row: {
+          ano: string
+          consumo_alcool_ml: number
+          consumo_sabonete_ml: number
+          created_at: string
+          hospital_id: string
+          id: string
+          instancias_com_higienizacao: number
+          instancias_sem_higienizacao: number
+          mes: string
+          paciente_dia: number
+          responsavel: string
+          setor: string
+          total_formularios: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          consumo_alcool_ml?: number
+          consumo_sabonete_ml?: number
+          created_at?: string
+          hospital_id: string
+          id?: string
+          instancias_com_higienizacao?: number
+          instancias_sem_higienizacao?: number
+          mes: string
+          paciente_dia?: number
+          responsavel?: string
+          setor: string
+          total_formularios?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          consumo_alcool_ml?: number
+          consumo_sabonete_ml?: number
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          instancias_com_higienizacao?: number
+          instancias_sem_higienizacao?: number
+          mes?: string
+          paciente_dia?: number
+          responsavel?: string
+          setor?: string
+          total_formularios?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_consumption_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_consumption_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indicadores_records: {
         Row: {
           ano_vigilancia: number
@@ -1348,6 +1417,8 @@ export type Database = {
         | "dispenser"
         | "cti_infrastructure"
         | "antibiogram"
+        | "precaution"
+        | "hand_hygiene_consumption"
       case_status:
         | "open"
         | "investigating"
@@ -1512,6 +1583,8 @@ export const Constants = {
         "dispenser",
         "cti_infrastructure",
         "antibiogram",
+        "precaution",
+        "hand_hygiene_consumption",
       ],
       case_status: [
         "open",
