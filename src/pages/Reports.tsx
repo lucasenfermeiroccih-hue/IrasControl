@@ -825,7 +825,148 @@ const Reports = () => {
         )}
       </div>
 
-      {/* Table */}
+      {/* Análise Histórica Section */}
+      <Separator />
+      <div className="flex items-center gap-2">
+        <Activity className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-bold text-foreground">Análise Histórica</h2>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Evolução MDR */}
+        {mdrEvolution.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-destructive" />
+                Evolução de Multirresistentes (MDR)
+              </CardTitle>
+              <CardDescription className="text-xs">Proporção de isolados MDR ao longo do tempo</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={mdrEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(value: number, name: string) => [value, name === "mdr" ? "MDR" : name === "total" ? "Total" : `${value}%`]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} name="Total Isolados" />
+                  <Area type="monotone" dataKey="mdr" stroke="hsl(var(--destructive))" fill="hsl(var(--destructive))" fillOpacity={0.3} name="MDR" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Por Tipo de Exame */}
+        {examTypeData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FlaskConical className="h-4 w-4 text-primary" />
+                Distribuição por Tipo de Exame
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={examTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} labelLine={false} fontSize={10}>
+                    {examTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Microorganismos Resistentes */}
+        {resistantOrganisms.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Skull className="h-4 w-4 text-destructive" />
+                Microorganismos Resistentes (MDR)
+              </CardTitle>
+              <CardDescription className="text-xs">Isolados identificados como multirresistentes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={resistantOrganisms} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 9 }} width={120} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="Isolados MDR" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Casos ao longo do tempo */}
+        {casesOverTime.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clipboard className="h-4 w-4 text-primary" />
+                Evolução de Casos por Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={casesOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="pendente" stackId="a" fill="#f59e0b" name="Pendente" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="confirmado" stackId="a" fill="hsl(var(--destructive))" name="Confirmado" />
+                  <Bar dataKey="descartado" stackId="a" fill="hsl(var(--primary))" name="Descartado" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Top 10 Microorganismos */}
+      {top10Organisms.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Award className="h-4 w-4 text-primary" />
+              Top 10 Microorganismos
+            </CardTitle>
+            <CardDescription className="text-xs">Ranking dos microorganismos mais frequentes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {top10Organisms.map((org, i) => (
+                <div key={org.name} className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-muted-foreground w-6 text-right">{i + 1}º</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium truncate">{org.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{org.value} ({org.pct}%)</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${top10Organisms[0]?.value ? (org.value / top10Organisms[0].value) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
