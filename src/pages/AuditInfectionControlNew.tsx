@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, BarChart3, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
@@ -126,9 +127,12 @@ export default function AuditInfectionControlNew() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
           <div><h1 className="text-2xl font-bold">Vigilância de Processos</h1><p className="text-muted-foreground text-sm">Auditoria assistencial estruturada</p></div>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/dashboard/infection-control")}>
-          <BarChart3 className="h-4 w-4" />Dashboard
-        </Button>
+        <div className="flex items-center gap-2">
+          <AuditHistory auditType="infection_control" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/dashboard/infection-control")}>
+            <BarChart3 className="h-4 w-4" />Dashboard
+          </Button>
+        </div>
       </div>
 
       <Card><CardContent className="pt-6">

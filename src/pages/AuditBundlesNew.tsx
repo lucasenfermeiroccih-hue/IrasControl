@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Activity, BarChart3, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -164,9 +165,29 @@ export default function AuditBundlesNew() {
             <p className="text-muted-foreground text-sm">Registro de conformidade de protocolos de cateter</p>
           </div>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => navigate("/dashboard/bundles-compliance")}>
-          <BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Ver Dashboard</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <AuditHistory auditType="bundles" onEdit={(record) => {
+            toast.info("Carregando dados para edição...");
+            // Parse observations to extract form data
+            const obs = record.observations || "";
+            const parts = obs.split("\n");
+            const header = parts[0] || "";
+            const nameMatch = header.split("|")[0]?.trim();
+            const monthMatch = header.match(/Mês:\s*(\w+)/)?.[1] || "";
+            setForm(prev => ({
+              ...prev,
+              employeeName: nameMatch || "",
+              auditDate: record.audit_date || "",
+              surveillanceMonth: monthMatch,
+              sector: record.sector || "",
+              observations: parts.slice(1).join("\n").trim(),
+            }));
+            window.scrollTo(0, 0);
+          }} />
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/dashboard/bundles-compliance")}>
+            <BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Ver Dashboard</span>
+          </Button>
+        </div>
       </div>
 
       {/* Identificação */}

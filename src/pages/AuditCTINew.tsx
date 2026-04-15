@@ -12,6 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
@@ -120,9 +121,12 @@ export default function AuditCTINew() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-        <div><h1 className="text-2xl font-bold">Auditoria de Infraestrutura — CTI</h1><p className="text-muted-foreground text-sm">Registro de conformidade de setores críticos</p></div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+          <div><h1 className="text-2xl font-bold">Auditoria de Infraestrutura — CTI</h1><p className="text-muted-foreground text-sm">Registro de conformidade de setores críticos</p></div>
+        </div>
+        <AuditHistory auditType="cti_infrastructure" />
       </div>
 
       <Card>

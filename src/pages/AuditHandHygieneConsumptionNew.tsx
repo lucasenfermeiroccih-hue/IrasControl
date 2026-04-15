@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { HandMetal, Save, Calculator, TrendingUp, Droplets, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import AuditHistory from "@/components/AuditHistory";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -89,14 +90,17 @@ export default function AuditHandHygieneConsumptionNew() {
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-lg bg-primary/10">
-          <HandMetal className="h-6 w-6 text-primary" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-primary/10">
+            <HandMetal className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Registro de Consumo — Higiene das Mãos (UTI)</h1>
+            <p className="text-sm text-muted-foreground">RDC nº 36 · Portaria nº 1.377</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Registro de Consumo — Higiene das Mãos (UTI)</h1>
-          <p className="text-sm text-muted-foreground">RDC nº 36 · Portaria nº 1.377</p>
-        </div>
+        <AuditHistory auditType="hand_hygiene" />
       </div>
 
       {/* Identificação */}

@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, ClipboardCheck, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import AuditHistory from "@/components/AuditHistory";
 
 const units = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const professionals = ["Médico(a)", "Enfermeiro(a)", "Técnico(a) de Enfermagem", "Fisioterapeuta", "Farmacêutico(a)", "Nutricionista", "Outro"];
@@ -61,12 +62,15 @@ export default function AuditHandHygieneNew() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-        <div>
-          <h1 className="text-2xl font-bold">Auditoria de Higienização das Mãos</h1>
-          <p className="text-muted-foreground text-sm">Registro de conformidade dos 5 momentos da higiene</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+          <div>
+            <h1 className="text-2xl font-bold">Auditoria de Higienização das Mãos</h1>
+            <p className="text-muted-foreground text-sm">Registro de conformidade dos 5 momentos da higiene</p>
+          </div>
         </div>
+        <AuditHistory auditType="hand_hygiene" />
       </div>
 
       <Card>

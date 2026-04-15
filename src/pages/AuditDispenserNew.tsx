@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, Activity, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const preparationTypes = ["Álcool gel 70%", "Sabonete líquido", "Clorexidina degermante 2%", "Clorexidina alcoólica 0,5%", "Outro"];
@@ -100,9 +101,12 @@ export default function AuditDispenserNew() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-        <div><h1 className="text-2xl font-bold">Vigilância de Dispenser</h1><p className="text-muted-foreground text-sm">Auditoria de conformidade de dispensers</p></div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+          <div><h1 className="text-2xl font-bold">Vigilância de Dispenser</h1><p className="text-muted-foreground text-sm">Auditoria de conformidade de dispensers</p></div>
+        </div>
+        <AuditHistory auditType="dispenser" />
       </div>
 
       <Card>

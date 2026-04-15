@@ -13,6 +13,7 @@ import { ArrowLeft, Save, Plus, Trash2, AlertTriangle, ShieldAlert, Loader2 } fr
 import { pathogenCategories, pathogensByCategory, getAllPathogens, type PathogenCategory } from "@/data/pathogens";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import AuditHistory from "@/components/AuditHistory";
 
 const biologicalSites = [
   "Sangue (Hemocultura)", "Urina (Urocultura)", "Secreção traqueal",
@@ -153,9 +154,12 @@ export default function AuditAntibiogramNew() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-        <div><h1 className="text-2xl font-bold">Registro de Antibiograma</h1><p className="text-muted-foreground text-sm">Perfil de sensibilidade — BrCAST/EUCAST</p></div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+          <div><h1 className="text-2xl font-bold">Registro de Antibiograma</h1><p className="text-muted-foreground text-sm">Perfil de sensibilidade — BrCAST/EUCAST</p></div>
+        </div>
+        <AuditHistory auditType="antibiogram" />
       </div>
 
       <Card>
