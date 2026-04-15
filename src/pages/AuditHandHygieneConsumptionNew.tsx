@@ -16,6 +16,7 @@ const meses = [
 ];
 
 export default function AuditHandHygieneConsumptionNew() {
+  const [setor, setSetor] = useState("");
   const [responsavel, setResponsavel] = useState("");
   const [mes, setMes] = useState("");
   const [ano, setAno] = useState(new Date().getFullYear().toString());
@@ -108,7 +109,7 @@ export default function AuditHandHygieneConsumptionNew() {
             <Label className="font-medium">Nome do Responsável pelo Preenchimento</Label>
             <Input value={responsavel} onChange={e => setResponsavel(e.target.value)} placeholder="Nome completo" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="font-medium">Mês de Referência *</Label>
               <Select value={mes} onValueChange={setMes}>
@@ -124,6 +125,17 @@ export default function AuditHandHygieneConsumptionNew() {
                 <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
                 <SelectContent>
                   {anos.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-medium">Setor de Referência *</Label>
+              <Select value={setor} onValueChange={setSetor}>
+                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UTI Adulto">UTI Adulto</SelectItem>
+                  <SelectItem value="UTI Pediátrica">UTI Pediátrica</SelectItem>
+                  <SelectItem value="UTI Neonatal">UTI Neonatal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
