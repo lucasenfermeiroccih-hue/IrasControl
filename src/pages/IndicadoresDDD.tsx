@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,9 @@ import {
 import { toast } from "sonner";
 import {
   Save, Calculator, Trash2, History, RotateCcw, Pencil, FileText,
-  Filter, X,
+  Filter, X, Loader2,
 } from "lucide-react";
 import { antimicrobianosBase } from "@/data/antimicrobianos-ddd";
-import { salvarRegistroDDD, listarRegistrosDDD, excluirRegistroDDD, DDDRegistroSalvo } from "@/lib/ddd-storage";
 import { exportPdf } from "@/lib/pdf-export";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -37,6 +36,29 @@ const unidadesPacienteDia = [
 
 const DASH = "—";
 
+interface DDDRecordFromDB {
+  id: string;
+  profissional: string;
+  data_vigilancia: string;
+  mes_vigilancia: string;
+  ano_vigilancia: number;
+  paciente_dia: Record<string, number>;
+  compilado_utis: number;
+  created_at: string;
+  ddd_record_lines: {
+    antimicrobiano_id: number;
+    nome: string;
+    apresentacao: string;
+    mg_por_unidade: number;
+    quantidade: number;
+    total_mg: number;
+    total_g: number;
+    ddd_padrao: number;
+    valor_ab: number | null;
+    indicador: number | null;
+  }[];
+}
+
 export default function IndicadoresDDD() {
   const { hospitalId } = useHospitalContext();
   const [profissional, setProfissional] = useState("");
@@ -44,33 +66,53 @@ export default function IndicadoresDDD() {
   const [mesVigilancia, setMesVigilancia] = useState("");
   const [anoVigilancia, setAnoVigilancia] = useState(new Date().getFullYear());
   const [showHistory, setShowHistory] = useState(false);
-  const [registrosSalvos, setRegistrosSalvos] = useState<DDDRegistroSalvo[]>(() => listarRegistrosDDD());
+  const [registrosSalvos, setRegistrosSalvos] = useState<DDDRecordFromDB[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<DDDRegistroSalvo | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DDDRecordFromDB | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // History filters
   const [filtroMes, setFiltroMes] = useState("");
   const [filtroAno, setFiltroAno] = useState("");
   const [filtroSetor, setFiltroSetor] = useState("");
   const hasFilters = filtroMes || filtroAno || filtroSetor;
-
   const clearFilters = () => { setFiltroMes(""); setFiltroAno(""); setFiltroSetor(""); };
+
+  const fetchHistory = useCallback(async () => {
+    if (!hospitalId) return;
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from("ddd_records")
+      .select("*, ddd_record_lines(*)")
+      .eq("hospital_id", hospitalId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setLoadingHistory(false);
+    if (error) { console.error(error); return; }
+    setRegistrosSalvos((data as any) || []);
+  }, [hospitalId]);
+
+  useEffect(() => {
+    if (showHistory) fetchHistory();
+  }, [showHistory, fetchHistory]);
 
   const filteredRegistros = useMemo(() => {
     return registrosSalvos.filter(reg => {
-      if (filtroMes && reg.mesVigilancia !== filtroMes) return false;
-      if (filtroAno && String(reg.anoVigilancia) !== filtroAno) return false;
+      if (filtroMes && reg.mes_vigilancia !== filtroMes) return false;
+      if (filtroAno && String(reg.ano_vigilancia) !== filtroAno) return false;
       if (filtroSetor) {
-        const hasSetor = Object.entries(reg.pacienteDia).some(([k, v]) => k === filtroSetor && v > 0);
+        const pd = (reg.paciente_dia || {}) as Record<string, number>;
+        const hasSetor = Object.entries(pd).some(([k, v]) => k === filtroSetor && v > 0);
         if (!hasSetor) return false;
       }
       return true;
     });
   }, [registrosSalvos, filtroMes, filtroAno, filtroSetor]);
 
-  const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.anoVigilancia)))].sort(), [registrosSalvos]);
+  const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.ano_vigilancia)))].sort(), [registrosSalvos]);
 
   const [pacienteDia, setPacienteDia] = useState<Record<string, number>>(
     Object.fromEntries(unidadesPacienteDia.map(u => [u, 0]))
