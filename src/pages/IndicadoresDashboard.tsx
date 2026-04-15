@@ -17,7 +17,7 @@ import {
 import { mesesOptions, setorOptions } from "@/data/indicadores-config";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-import { exportPdf } from "@/lib/pdf-export";
+
 
 const COLORS = [
   "hsl(168 66% 34%)", "hsl(217 91% 60%)", "hsl(0 72% 51%)",
