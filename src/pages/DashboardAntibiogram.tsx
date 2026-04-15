@@ -495,22 +495,21 @@ export default function DashboardAntibiogram() {
         </CardContent>
       </Card>
 
-      {/* AI Generated Insights */}
-      {aiInsights && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardHeader className="p-3 md:p-6 pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" /> Insights de IA
-              </CardTitle>
-              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setAiInsights(null)}>✕</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6 pt-0">
-            <div className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{aiInsights}</div>
-          </CardContent>
-        </Card>
-      )}
+      {/* AI Generated Insights Dialog */}
+      <Dialog open={!!aiInsights} onOpenChange={(o) => !o && setAiInsights(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Insights de IA — Antibiograma
+            </DialogTitle>
+            <DialogDescription>Análise inteligente do perfil de sensibilidade microbiana</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            <div className="text-sm whitespace-pre-wrap leading-relaxed p-3 rounded-lg border bg-muted/30">{aiInsights}</div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <TemporalAnalysis filtered={filtered} />
 
