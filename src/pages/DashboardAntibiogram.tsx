@@ -208,15 +208,24 @@ export default function DashboardAntibiogram() {
 
   const handleExportReportPDF = () => {
     if (!reportResult) return;
+    const escHtml = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const printWindow = window.open("", "_blank");
     if (printWindow) {
+      // Escape first, then apply safe markdown-to-HTML transforms
+      const sanitized = escHtml(reportResult)
+        .replace(/\n/g, "<br/>")
+        .replace(/#{3}\s(.+)/g, "<h3>$1</h3>")
+        .replace(/#{2}\s(.+)/g, "<h2>$1</h2>")
+        .replace(/#{1}\s(.+)/g, "<h1>$1</h1>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>");
       printWindow.document.write(`
         <html><head><title>Relatório Microbiológico</title>
         <style>body{font-family:Arial,sans-serif;padding:40px;line-height:1.6;max-width:800px;margin:0 auto}
         h1,h2,h3{color:#1a5c4c}table{border-collapse:collapse;width:100%}
         th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f0fdf4}
         @media print{body{padding:20px}}</style></head>
-        <body>${reportResult.replace(/\n/g, "<br/>").replace(/#{3}\s(.+)/g, "<h3>$1</h3>").replace(/#{2}\s(.+)/g, "<h2>$1</h2>").replace(/#{1}\s(.+)/g, "<h1>$1</h1>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>")}</body></html>
+        <body>${sanitized}</body></html>
       `);
       printWindow.document.close();
       printWindow.print();

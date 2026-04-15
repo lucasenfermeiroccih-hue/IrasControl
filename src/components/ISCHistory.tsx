@@ -123,20 +123,22 @@ export default function ISCHistory({ onEdit }: Props) {
     toast.info("Registro carregado para edição.");
   };
 
+  const escHtml = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
   const handleExportPdf = (rec: any) => {
     const reg = dbToISCRegistro(rec);
     const mesNome = reg.mes ? meses[Number(reg.mes) - 1] || reg.mes : "—";
     const clinicas = Object.keys(reg.indicadores);
     const printWindow = window.open("", "_blank");
     if (printWindow) {
-      printWindow.document.write(`<html><head><title>ISC - ${reg.nomeProfissional} - ${mesNome}/${reg.ano}</title>
+      printWindow.document.write(`<html><head><title>ISC - ${escHtml(reg.nomeProfissional)} - ${escHtml(mesNome)}/${escHtml(reg.ano)}</title>
         <style>body{font-family:Arial,sans-serif;padding:40px;font-size:13px;color:#333}h1{font-size:18px;color:#0d9488;margin-bottom:4px}h2{font-size:14px;color:#666;margin-bottom:20px;font-weight:normal}.section{margin-bottom:16px}.section-title{font-weight:bold;font-size:14px;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px}.row{display:flex;justify-content:space-between;padding:2px 0}.label{color:#666}.value{font-weight:600}.taxa{color:#0d9488}</style></head><body>
-        <h1>Indicadores ISC</h1><h2>${reg.nomeProfissional} — ${mesNome}/${reg.ano}</h2>
+        <h1>Indicadores ISC</h1><h2>${escHtml(reg.nomeProfissional)} — ${escHtml(mesNome)}/${escHtml(reg.ano)}</h2>
         ${clinicas.map(clinica => {
           const d = reg.indicadores[clinica];
           const taxaResp = d.totalCirurgias > 0 ? ((d.contatosAtendidos / d.totalCirurgias) * 100).toFixed(1) : "0.0";
           const taxaISC = d.totalCirurgias > 0 ? ((d.iscConfirmada / d.totalCirurgias) * 100).toFixed(1) : "0.0";
-          return `<div class="section"><div class="section-title">${clinica}</div>
+          return `<div class="section"><div class="section-title">${escHtml(clinica)}</div>
             <div class="row"><span class="label">Total Cirurgias</span><span class="value">${d.totalCirurgias}</span></div>
             <div class="row"><span class="label">Contatos Atendidos</span><span class="value">${d.contatosAtendidos}</span></div>
             <div class="row"><span class="label">Taxa de Resposta</span><span class="value taxa">${taxaResp}%</span></div>
