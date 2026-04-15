@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
 export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  // Redirect already-authenticated users
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate("/select-hospital", { replace: true });
+      }
+    });
+  }, [navigate]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetMode, setResetMode] = useState(false);

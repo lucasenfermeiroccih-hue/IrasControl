@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +53,17 @@ const plans = [
 const logos = ["Hospital São Lucas", "Hospital Albert Sabin", "Santa Casa de Misericórdia", "Hospital Regional", "Clínica São José"];
 
 export default function Index() {
+  const navigate = useNavigate();
+
+  // Redirect already-authenticated users to dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate("/select-hospital", { replace: true });
+      }
+    });
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
