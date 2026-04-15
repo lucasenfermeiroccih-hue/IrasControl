@@ -165,42 +165,46 @@ export default function DashboardDDD() {
       {!isEmpty && (
         <>
           {/* Filtros */}
-          <div className="flex flex-wrap items-end gap-3">
-            <DashboardFilters
-              dia={filtroDia} setDia={setFiltroDia}
-              mes={filtroMes} setMes={setFiltroMes}
-              ano={filtroAno} setAno={setFiltroAno}
-              setor={filtroUnidade} setSetor={setFiltroUnidade}
-              sectors={unidades.map(String)}
-              years={anos.map(String)}
-            />
-            <div className="space-y-1">
-              <label className="text-[10px] text-muted-foreground">Antimicrobiano</label>
-              <select
-                className="h-8 w-[200px] rounded-md border border-input bg-background px-2 text-xs"
-                value={filtroAtm}
-                onChange={(e) => setFiltroAtm(e.target.value)}
-              >
-                <option value="all">Todos</option>
-                {antimicrobianos.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5"
-              onClick={() => {
-                setFiltroDia([]);
-                setFiltroMes([]);
-                setFiltroAno([]);
-                setFiltroUnidade([]);
-                setFiltroAtm("all");
-              }}
-            >
-              <X className="h-3.5 w-3.5" />
-              Limpar Filtros
-            </Button>
-          </div>
+          <Card className="border-dashed">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <DashboardFilters
+                  dia={filtroDia} setDia={setFiltroDia}
+                  mes={filtroMes} setMes={setFiltroMes}
+                  ano={filtroAno} setAno={setFiltroAno}
+                  setor={filtroUnidade} setSetor={setFiltroUnidade}
+                  sectors={unidades.map(String)}
+                  years={anos.map(String)}
+                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Antimicrobiano</label>
+                  <select
+                    className="h-9 w-[220px] rounded-md border border-input bg-background px-3 text-sm"
+                    value={filtroAtm}
+                    onChange={(e) => setFiltroAtm(e.target.value)}
+                  >
+                    <option value="all">Todos</option>
+                    {antimicrobianos.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-2 self-end"
+                  onClick={() => {
+                    setFiltroDia([]);
+                    setFiltroMes([]);
+                    setFiltroAno([]);
+                    setFiltroUnidade([]);
+                    setFiltroAtm("all");
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                  Limpar Filtros
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* KPIs */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

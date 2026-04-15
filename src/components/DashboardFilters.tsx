@@ -123,22 +123,22 @@ export default function DashboardFilters({
   const totalActive = (dia?.length || 0) + mes.length + ano.length + setor.length;
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
+    <div className="flex flex-wrap items-end gap-4">
+      <div className="flex items-center gap-2 text-muted-foreground self-end pb-1.5">
         <Filter className="h-4 w-4" />
-        <span className="text-xs font-medium hidden sm:inline">Filtros:</span>
+        <span className="text-sm font-medium hidden sm:inline">Filtros:</span>
         {totalActive > 0 && (
-          <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+          <Badge variant="secondary" className="text-xs h-5.5 px-2">
             {totalActive}
           </Badge>
         )}
       </div>
       {setDia && dia !== undefined && (
-        <MultiSelect label="Dia" selected={dia} onChange={setDia} options={defaultDays} width="w-[100px]" />
+        <MultiSelect label="Dia" selected={dia} onChange={setDia} options={defaultDays} width="w-[110px]" />
       )}
-      <MultiSelect label="Mês" selected={mes} onChange={setMes} options={meses} width="w-[140px]" />
-      <MultiSelect label="Ano" selected={ano} onChange={setAno} options={years} width="w-[110px]" />
-      <MultiSelect label="Setor" selected={setor} onChange={setSetor} options={sectors} width="w-[160px]" />
+      <MultiSelect label="Mês" selected={mes} onChange={setMes} options={meses} width="w-[160px]" />
+      <MultiSelect label="Ano" selected={ano} onChange={setAno} options={years} width="w-[120px]" />
+      <MultiSelect label="Setor" selected={setor} onChange={setSetor} options={sectors} width="w-[180px]" />
     </div>
   );
 }
