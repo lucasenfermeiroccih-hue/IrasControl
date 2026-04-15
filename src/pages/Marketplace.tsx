@@ -24,7 +24,7 @@ interface Extension {
   features: string[];
 }
 
-const mockExtensions: Extension[] = [
+const extensions: Extension[] = [
   { id: "1", name: "Módulo ANVISA Reporter", description: "Geração automática de relatórios no formato ANVISA para notificação de IRAS e surtos.", category: "Relatórios", rating: 4.8, downloads: 1250, price: "R$ 299/mês", icon: FileText, installed: true, author: "IRASControl Labs", version: "2.3.1", features: ["Relatórios mensais automáticos", "Formato SINAIS/ANVISA", "Exportação PDF e XML", "Histórico de envios"] },
   { id: "2", name: "Painel de Resistência Antimicrobiana", description: "Dashboard avançado para monitoramento de perfis de resistência com mapas de calor.", category: "Analytics", rating: 4.6, downloads: 890, price: "R$ 199/mês", icon: Microscope, installed: true, author: "BioData Analytics", version: "1.8.0", features: ["Mapa de calor por microorganismo", "Tendências temporais", "Alertas de surto", "Integração com LIS"] },
   { id: "3", name: "Preditor de Surto IA", description: "Inteligência artificial para detecção precoce de surtos hospitalares com base em dados epidemiológicos.", category: "IA", rating: 4.9, downloads: 650, price: "R$ 499/mês", icon: BarChart3, installed: false, author: "IRASControl Labs", version: "3.0.0", features: ["Detecção precoce de clusters", "Score de probabilidade", "Alertas preditivos", "Modelo treinado com dados brasileiros"] },
