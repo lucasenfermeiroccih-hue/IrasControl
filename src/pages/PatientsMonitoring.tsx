@@ -55,6 +55,7 @@ interface MockPatient {
   dataAlta: string; doencasBase: string; motivoInternacao: string; dataNascimento: string;
   sexo: string; dataAdmissao: string; especialidade: string; diagnostico: string;
   status: PatientStatus;
+  tipoAlta?: string;
   infeccaoMaterna?: string;
   irasTransplacentaria?: string;
   pesoRN?: string;
@@ -65,6 +66,43 @@ interface MockPatient {
   apgar?: string;
   idadeGestacional?: string;
   dataInternacaoRN?: string;
+}
+
+// Per-patient extra data stored in localStorage
+interface PatientExtraData {
+  dispInvasivos?: { cvcInsercao: string; cvcRetirada: string; svuInsercao: string; svuRetirada: string; vmInsercao: string; vmRetirada: string };
+  antibioticos?: { id: string; nome: string; dataInicio: string; dataFim: string }[];
+}
+
+const PATIENTS_STORAGE_KEY = "irascontrol_patients";
+const PATIENTS_EXTRA_KEY = "irascontrol_patients_extra";
+
+function loadPatients(): MockPatient[] {
+  try {
+    const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return mockPatients as MockPatient[];
+}
+
+function persistPatients(patients: MockPatient[]) {
+  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
+}
+
+function loadPatientExtra(patientId: string): PatientExtraData {
+  try {
+    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
+    return all[patientId] || {};
+  } catch {}
+  return {};
+}
+
+function savePatientExtra(patientId: string, data: PatientExtraData) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PATIENTS_EXTRA_KEY) || "{}");
+    all[patientId] = data;
+    localStorage.setItem(PATIENTS_EXTRA_KEY, JSON.stringify(all));
+  } catch {}
 }
 
 const especialidades = [
