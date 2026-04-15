@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2, Download } from "lucide-react";
+import { TrendingUp, Pill, Building2, BarChart3, AlertCircle, Loader2, Download, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDDDDashboard } from "@/hooks/useDDDDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
