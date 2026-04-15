@@ -12,12 +12,12 @@ export function RequireSuperAdmin() {
     if (!isReady || !user) return;
 
     const check = async () => {
-      const { data: isSuperAdmin } = await supabase.rpc("has_role", {
-        _user_id: user.id,
-        _role: "super_admin",
-      });
+      const [{ data: isSuperAdmin }, { data: isHospitalAdmin }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" }),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "hospital_admin" }),
+      ]);
 
-      setStatus(isSuperAdmin ? "authorized" : "unauthorized");
+      setStatus(isSuperAdmin || isHospitalAdmin ? "authorized" : "unauthorized");
     };
 
     check();
