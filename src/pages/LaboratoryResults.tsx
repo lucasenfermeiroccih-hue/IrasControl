@@ -224,7 +224,7 @@ const LaboratoryResults = () => {
         .from("lab_results")
         .insert({
           hospital_id: hospitalId,
-          patient_id: formData.patient_id,
+          patient_id: formData.patient_id || null,
           sample_type: formData.sample_type,
           collection_date: formData.collection_date,
           result_date: formData.result_date || null,
