@@ -471,6 +471,7 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 4: Permanência / ATB ====== */}
         <TabsContent value="permanencia" className="space-y-4">
+          <div ref={tabRefs.permanencia} className="space-y-4 bg-background p-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <KpiCard label="Tempo Médio de Permanência" value={tempoPermanencia} unit="dias" icon={Timer} color="hsl(168,66%,34%)" />
             <KpiCard label="Taxa Uso Antibióticos" value={taxaUsoAtb} unit="%" icon={Syringe} color="hsl(217,91%,60%)" />
@@ -508,6 +509,7 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          </div>
         </TabsContent>
       </Tabs>
 
