@@ -216,12 +216,14 @@ export default function IndicadoresISC() {
       loadRegistro(pendingRegistro);
       toast.info("Registro anterior carregado para edição.");
     }
+    sessionStorage.setItem("isc_resume_dismissed", "1");
     setShowResumeDialog(false);
     setPendingRegistro(null);
   };
 
   const handleNewRecord = () => {
     setRegistroId(generateISCId());
+    sessionStorage.setItem("isc_resume_dismissed", "1");
     setShowResumeDialog(false);
     setPendingRegistro(null);
   };
