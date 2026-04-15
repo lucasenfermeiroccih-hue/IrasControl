@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-
+import { useAuthReady } from "@/hooks/useAuthReady";
 const ROLE_LABELS: Record<string, string> = {
   hospital_admin: "Administrador",
   nurse_ccih: "Enfermeiro(a) CCIH",
@@ -61,6 +61,7 @@ interface HospitalUser {
 }
 
 export default function HospitalUsers() {
+  const { user: authUser, isReady } = useAuthReady();
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [hospitalName, setHospitalName] = useState("");
   const [users, setUsers] = useState<HospitalUser[]>([]);
@@ -85,20 +86,20 @@ export default function HospitalUsers() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
+    if (!isReady || !authUser) return;
     loadHospitalAndUsers();
-  }, []);
+  }, [isReady, authUser]);
 
   const loadHospitalAndUsers = async () => {
+    if (!authUser) return;
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setCurrentUserId(user.id);
+      setCurrentUserId(authUser.id);
 
       const { data: membership } = await supabase
         .from("hospital_users")
         .select("hospital_id")
-        .eq("user_id", user.id)
+        .eq("user_id", authUser.id)
         .limit(1)
         .maybeSingle();
 
