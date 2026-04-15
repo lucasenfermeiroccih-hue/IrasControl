@@ -117,9 +117,35 @@ const STEPS = [
   { key: "conclusao", label: "Conclusão", icon: CheckCircle2 },
 ] as const;
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    let yearNum = parseInt(y);
+    if (yearNum < 100) yearNum += 2000;
+    const dayNum = parseInt(d);
+    const monthNum = parseInt(m);
+    if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return null;
+    const result = new Date(Date.UTC(yearNum, monthNum - 1, dayNum));
+    if (result.getUTCDate() !== dayNum || result.getUTCMonth() !== monthNum - 1) return null;
+    return result;
+  }
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const result = new Date(Date.UTC(+iso[1], +iso[2] - 1, +iso[3]));
+    if (result.getUTCDate() !== +iso[3] || result.getUTCMonth() !== +iso[2] - 1) return null;
+    return result;
+  }
+  return null;
+}
+
 function daysFromDate(dateStr: string) {
-  if (!dateStr) return 0;
-  return Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000));
+  const d = parseDate(dateStr);
+  if (!d) return 0;
+  const now = new Date();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.floor((todayUTC - d.getTime()) / 86400000));
 }
 
 function calcAge(birth: string) {
