@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       user_id: userId,
-      magic_link: linkData?.properties?.action_link || null,
+      email_sent: !!linkData?.properties?.action_link,
     });
   } catch (err) {
     return json({ success: false, error: err.message || "Erro interno do servidor" });
