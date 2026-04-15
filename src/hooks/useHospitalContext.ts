@@ -1,18 +1,21 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 export function useHospitalContext() {
+  const { user, isReady } = useAuthReady();
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [hospitalName, setHospitalName] = useState<string>("");
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setUserId(user.id);
+    if (!isReady) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
+    const fetch = async () => {
       // Use selected hospital from localStorage, or fall back to first
       const selectedId = localStorage.getItem("selected_hospital_id");
 
@@ -46,7 +49,7 @@ export function useHospitalContext() {
       setLoading(false);
     };
     fetch();
-  }, []);
+  }, [user, isReady]);
 
-  return { hospitalId, hospitalName, userId, loading };
+  return { hospitalId, hospitalName, userId: user?.id ?? null, loading };
 }
