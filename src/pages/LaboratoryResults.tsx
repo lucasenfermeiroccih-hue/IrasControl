@@ -380,12 +380,14 @@ const LaboratoryResults = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Paciente *</Label>
-                <Select value={formData.patient_id} onValueChange={v => setFormData(p => ({ ...p, patient_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
+                <Input placeholder="Nome do paciente" value={formData.patient_name} onChange={e => setFormData(p => ({ ...p, patient_name: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unidade de Internação</Label>
+                <Select value={formData.unidade_internacao} onValueChange={v => { setFormData(p => ({ ...p, unidade_internacao: v })); if (v !== "UTI Neonatal" && v !== "Alojamento Conjunto") { setIrasTransplacentaria(""); setVdrlMae(""); setVdrlRN(""); setVdrlReagente(""); setCmvReagente(""); } }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                   <SelectContent>
-                    {patients.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.full_name} {p.medical_record ? `(${p.medical_record})` : ""}</SelectItem>
-                    ))}
+                    {UNIDADES_INTERNACAO.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -422,6 +424,63 @@ const LaboratoryResults = () => {
                 </Select>
               </div>
             </div>
+
+            {/* IRAS Transplacentária — only for UTI Neonatal / Alojamento Conjunto */}
+            {(formData.unidade_internacao === "UTI Neonatal" || formData.unidade_internacao === "Alojamento Conjunto") && (
+              <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-4">
+                <h4 className="font-semibold flex items-center gap-2 text-sm"><Baby className="h-4 w-4 text-primary" /> IRAS Transplacentária</h4>
+                <Select value={irasTransplacentaria} onValueChange={v => { setIrasTransplacentaria(v); if (v !== "Sífilis") { setVdrlMae(""); setVdrlRN(""); setVdrlReagente(""); } if (v !== "Citomegalovírus") { setCmvReagente(""); } }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a IRAS Transplacentária" /></SelectTrigger>
+                  <SelectContent>
+                    {IRAS_TRANSPLACENTARIA_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                {/* Sífilis — VDRL fields */}
+                {irasTransplacentaria === "Sífilis" && (
+                  <div className="p-3 rounded-lg border bg-amber-50 border-amber-200 space-y-3">
+                    <h5 className="font-medium flex items-center gap-2 text-sm"><Syringe className="h-4 w-4 text-amber-600" /> VDRL — Sífilis</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">VDRL Quantitativo da Mãe</Label>
+                        <Input placeholder="Ex: 1:8" value={vdrlMae} onChange={e => setVdrlMae(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">VDRL Quantitativo do RN</Label>
+                        <Input placeholder="Ex: 1:4" value={vdrlRN} onChange={e => setVdrlRN(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Resultado</Label>
+                        <Select value={vdrlReagente} onValueChange={setVdrlReagente}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Reagente">Reagente</SelectItem>
+                            <SelectItem value="Não Reagente">Não Reagente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Citomegalovírus — Reagente/Não Reagente */}
+                {irasTransplacentaria === "Citomegalovírus" && (
+                  <div className="p-3 rounded-lg border bg-blue-50 border-blue-200 space-y-3">
+                    <h5 className="font-medium text-sm">Citomegalovírus — Resultado</h5>
+                    <div className="w-full max-w-xs space-y-1">
+                      <Label className="text-xs">Resultado do Exame</Label>
+                      <Select value={cmvReagente} onValueChange={setCmvReagente}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Reagente">Reagente</SelectItem>
+                          <SelectItem value="Não Reagente">Não Reagente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Observações</Label>
