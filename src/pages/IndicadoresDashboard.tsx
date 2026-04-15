@@ -289,7 +289,7 @@ export default function IndicadoresDashboard() {
       </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="infeccao" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="infeccao" className="flex-1 min-w-[120px] text-xs gap-1.5"><Bug className="h-3.5 w-3.5" />Infecção</TabsTrigger>
           <TabsTrigger value="dispositivos" className="flex-1 min-w-[120px] text-xs gap-1.5"><Syringe className="h-3.5 w-3.5" />Dispositivos</TabsTrigger>
@@ -299,7 +299,7 @@ export default function IndicadoresDashboard() {
 
         {/* ====== TAB 1: Infecção ====== */}
         <TabsContent value="infeccao" className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div ref={tabRefs.infeccao} className="space-y-4">
             <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
             <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
             <KpiCard label="Nº de Infecções" value={agg.numInfeccoes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
