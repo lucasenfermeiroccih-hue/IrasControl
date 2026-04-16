@@ -120,6 +120,10 @@ export default function PatientsMonitoring() {
   const { patients, loading: patientsLoading, createPatient, updatePatient, dischargePatient: dischargePatientFn } = usePatientMonitoring();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [filterMes, setFilterMes] = useState<string[]>([]);
+  const [filterAno, setFilterAno] = useState<string[]>([]);
+  const [filterSetor, setFilterSetor] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [dischargeConfirmOpen, setDischargeConfirmOpen] = useState(false);
