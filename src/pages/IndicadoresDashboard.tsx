@@ -392,8 +392,11 @@ export default function IndicadoresDashboard() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
-                <Card className="lg:col-span-2">
-                  <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle></CardHeader>
+                <Card ref={chartRefs.taxaLetalidadeMes} className="lg:col-span-2">
+                  <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm">Taxa de Letalidade por Mês (%)</CardTitle>
+                    <ChartActions chartRef={chartRefs.taxaLetalidadeMes} chartTitle="Taxa Letalidade" metaValue={metas.taxaLetalidade} onMetaChange={v => setMeta("taxaLetalidade", v)} metaUnit="%" />
+                  </CardHeader>
                   <CardContent className="p-3 pt-2">
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={monthlyData}>
@@ -402,6 +405,7 @@ export default function IndicadoresDashboard() {
                         <YAxis tick={{ fontSize: 10 }} width={35} />
                         <Tooltip />
                         <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
+                        {metas.taxaLetalidade !== undefined && <ReferenceLine y={metas.taxaLetalidade} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxaLetalidade}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
