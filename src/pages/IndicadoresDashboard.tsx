@@ -436,8 +436,11 @@ export default function IndicadoresDashboard() {
 
           {monthlyData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Nº Infecção por Dispositivo / Mês</CardTitle></CardHeader>
+              <Card ref={chartRefs.infeccaoDispositivo}>
+                <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Nº Infecção por Dispositivo / Mês</CardTitle>
+                  <ChartActions chartRef={chartRefs.infeccaoDispositivo} chartTitle="Infecção por Dispositivo" metaValue={metas.infeccaoDisp} onMetaChange={v => setMeta("infeccaoDisp", v)} />
+                </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={monthlyData}>
@@ -449,12 +452,16 @@ export default function IndicadoresDashboard() {
                       <Bar dataKey="infeccaoCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} />
                       <Bar dataKey="infeccaoSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
                       <Bar dataKey="infeccaoVM" name="VM" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} />
+                      {metas.infeccaoDisp !== undefined && <ReferenceLine y={metas.infeccaoDisp} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.infeccaoDisp}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Infecção por Dispositivo (‰)</CardTitle></CardHeader>
+              <Card ref={chartRefs.taxaInfDispositivo}>
+                <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Taxa de Infecção por Dispositivo (‰)</CardTitle>
+                  <ChartActions chartRef={chartRefs.taxaInfDispositivo} chartTitle="Taxa Inf Dispositivo" metaValue={metas.taxaInfDisp} onMetaChange={v => setMeta("taxaInfDisp", v)} metaUnit="‰" />
+                </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={220}>
                     <LineChart data={monthlyData}>
@@ -466,6 +473,7 @@ export default function IndicadoresDashboard() {
                       <Line type="monotone" dataKey="taxaInfCVC" name="CVC ‰" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
                       <Line type="monotone" dataKey="taxaInfSVD" name="SVD ‰" stroke="hsl(168 66% 34%)" strokeWidth={2} dot={{ r: 3 }} />
                       <Line type="monotone" dataKey="taxaInfVM" name="VM ‰" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
+                      {metas.taxaInfDisp !== undefined && <ReferenceLine y={metas.taxaInfDisp} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxaInfDisp}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
