@@ -317,9 +317,24 @@ export default function PatientsMonitoring() {
       });
       setInfeccaoMaternaDetail(pat.infeccaoMaterna || "");
       setIrasTransplacentariaDetail(pat.irasTransplacentaria || "");
-      // Reset devices/antibiotics (will be loaded from Supabase in future)
-      setDispInvasivos({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
-      setAntibioticos([]);
+
+      // Restore persisted tab data from clinical_data
+      const cd = (pat as any)._clinicalData || {};
+      setDispositivos(cd.dispositivos || { cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+      setAntibioticos(cd.antibioticos || []);
+      setEvolucao(cd.evolucao || { evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
+      setSinaisVitais(cd.sinaisVitais || { temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
+      setSinaisVitaisHistorico(cd.sinaisVitaisHistorico || []);
+      setIras(cd.iras || { temIras: "", numeroIras: "", quaisIras: "", dataFechamento: "" });
+      setConclusao(cd.conclusao || { classificacao: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
+      setCriteriosSelecionados(cd.criteriosSelecionados || []);
+      setJustificativa(cd.justificativa || "");
+      setOcorrencia(cd.ocorrencia || { unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
+      setLabPanel(cd.labPanel || []);
+      setExames(cd.exames || { hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
+      setVdrl(cd.vdrl || { vdrlMae: "", vdrlRN: "", vdrlLiquor: "" });
+      setResponsavel(cd.responsavel || "");
     }
     setSelectedId(patientId);
     setCurrentStep(0);
@@ -333,8 +348,17 @@ export default function PatientsMonitoring() {
 
   const handleSave = async () => {
     if (!selected || !selectedId) return;
-    await updatePatient(selectedId, selected);
-    toast.success("Dados salvos com sucesso!");
+    const ok = await updatePatient(selectedId, {
+      ...selected,
+      // Store all tab data inside clinical_data via a special key
+      _tabData: {
+        dispositivos, dispInvasivos, antibioticos, evolucao,
+        sinaisVitais, sinaisVitaisHistorico, iras, conclusao,
+        criteriosSelecionados, justificativa, ocorrencia,
+        labPanel, exames, vdrl, responsavel,
+      },
+    } as any);
+    if (ok) toast.success("Dados salvos com sucesso!");
   };
 
   const cvcDays = dispInvasivos.cvcInsercao ? calcDiasUso(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada) : null;
