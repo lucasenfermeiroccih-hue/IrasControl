@@ -35,7 +35,7 @@ export interface PatientRecord {
 }
 
 // Map DB row to UI model
-function dbToPatient(row: any): PatientRecord {
+function dbToPatient(row: any): PatientRecord & { _clinicalData?: any } {
   const cd = row.clinical_data || {};
   return {
     id: row.id,
@@ -66,6 +66,7 @@ function dbToPatient(row: any): PatientRecord {
     apgar: cd.apgar || "",
     idadeGestacional: cd.idadeGestacional || "",
     dataInternacaoRN: cd.dataInternacaoRN || "",
+    _clinicalData: cd,
   };
 }
 
