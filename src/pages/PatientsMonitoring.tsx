@@ -1269,7 +1269,33 @@ export default function PatientsMonitoring() {
         <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {/* ─── Empty State ─────────────────────────────────── */}
+      {/* ─── Filters ──────────────────────────────────────── */}
+      <div className="flex flex-wrap items-end gap-4">
+        <DashboardFilters
+          mes={filterMes}
+          setMes={setFilterMes}
+          ano={filterAno}
+          setAno={setFilterAno}
+          setor={filterSetor}
+          setSetor={setFilterSetor}
+          sectors={allSectors.length > 0 ? allSectors : undefined}
+        />
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Status</label>
+          <Select value={filterStatus.length === 1 ? filterStatus[0] : "all"} onValueChange={v => setFilterStatus(v === "all" ? [] : [v])}>
+            <SelectTrigger className="h-9 w-[150px] text-sm">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {statusOptions.map(s => (
+                <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {patients.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
