@@ -552,8 +552,11 @@ export default function IndicadoresDashboard() {
 
           {monthlyData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Tempo Médio de Permanência por Mês (dias)</CardTitle></CardHeader>
+              <Card ref={chartRefs.tempoPermanencia}>
+                <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Tempo Médio de Permanência por Mês (dias)</CardTitle>
+                  <ChartActions chartRef={chartRefs.tempoPermanencia} chartTitle="Tempo Permanência" metaValue={metas.permanencia} onMetaChange={v => setMeta("permanencia", v)} metaUnit="dias" />
+                </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={monthlyData}>
@@ -562,12 +565,16 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={40} />
                       <Tooltip />
                       <Bar dataKey="tempoPermanencia" name="Permanência" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
+                      {metas.permanencia !== undefined && <ReferenceLine y={metas.permanencia} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.permanencia}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="p-4 pb-0"><CardTitle className="text-sm">Taxa de Uso de Antibióticos por Mês (%)</CardTitle></CardHeader>
+              <Card ref={chartRefs.taxaUsoAtb}>
+                <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Taxa de Uso de Antibióticos por Mês (%)</CardTitle>
+                  <ChartActions chartRef={chartRefs.taxaUsoAtb} chartTitle="Taxa Uso ATB" metaValue={metas.usoAtb} onMetaChange={v => setMeta("usoAtb", v)} metaUnit="%" />
+                </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={240}>
                     <LineChart data={monthlyData}>
@@ -576,6 +583,7 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={40} />
                       <Tooltip />
                       <Line type="monotone" dataKey="taxaUsoAtb" name="Uso ATB %" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 4 }} />
+                      {metas.usoAtb !== undefined && <ReferenceLine y={metas.usoAtb} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.usoAtb}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
