@@ -16,7 +16,7 @@ import DashboardFilters from "@/components/DashboardFilters";
 import {
   Stethoscope, Search, Users, AlertTriangle, Activity, Thermometer,
   Plus, Pencil, LogOut, Clock, Save, Eye, FileText, ShieldAlert, Syringe,
-  ClipboardList, ChevronLeft, CheckCircle2, Trash2, LogIn
+  ClipboardList, ChevronLeft, CheckCircle2, Trash2, LogIn, Skull
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
