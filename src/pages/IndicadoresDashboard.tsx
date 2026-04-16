@@ -4,6 +4,7 @@ import {
   Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown,
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import ChartActions from "@/components/ChartActions";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
