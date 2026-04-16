@@ -1244,7 +1244,7 @@ export default function PatientsMonitoring() {
       </div>
 
       {/* ─── KPIs ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div>
           <div><p className="text-xs text-muted-foreground">Ativos</p><p className="text-2xl font-bold">{activeCount}</p></div>
@@ -1254,8 +1254,12 @@ export default function PatientsMonitoring() {
           <div><p className="text-xs text-muted-foreground">Total</p><p className="text-2xl font-bold">{patients.length}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-accent"><Skull className="h-5 w-5 text-destructive" /></div>
+          <div><p className="text-xs text-muted-foreground">Óbitos</p><p className="text-2xl font-bold text-destructive">{patients.filter(p => p.status === "deceased").length}</p></div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent"><Clock className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">MDR</p><p className="text-2xl font-bold text-destructive">{labPanel.filter(l => l.mdr).length}</p></div>
+          <div><p className="text-xs text-muted-foreground">Transferidos</p><p className="text-2xl font-bold">{patients.filter(p => p.status === "transferred").length}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent"><Activity className="h-5 w-5 text-primary" /></div>
