@@ -153,13 +153,23 @@ export function usePatientMonitoring() {
     return newPatient;
   };
 
-  const updatePatient = async (id: string, updates: Partial<PatientRecord>) => {
+  const updatePatient = async (id: string, updates: Partial<PatientRecord> & { _tabData?: any }) => {
     if (!hospitalId) return false;
     const current = patients.find(p => p.id === id);
     if (!current) return false;
-    const merged = { ...current, ...updates };
+
+    const { _tabData, ...patientUpdates } = updates;
+    const merged = { ...current, ...patientUpdates };
     const dbData = patientToDb(merged, hospitalId);
-    delete (dbData as any).hospital_id; // don't update hospital_id
+    delete (dbData as any).hospital_id;
+
+    // Merge tab data into clinical_data if provided
+    if (_tabData) {
+      dbData.clinical_data = {
+        ...(dbData.clinical_data as any || {}),
+        ..._tabData,
+      };
+    }
     
     const { error } = await supabase
       .from("patients")
@@ -171,7 +181,9 @@ export function usePatientMonitoring() {
       toast.error("Erro ao atualizar: " + error.message);
       return false;
     }
-    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    // Update local state with merged clinical data
+    const updatedClinicalData = _tabData ? { _clinicalData: { ...((current as any)._clinicalData || {}), ..._tabData } } : {};
+    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...patientUpdates, ...updatedClinicalData } : p));
     return true;
   };
 
