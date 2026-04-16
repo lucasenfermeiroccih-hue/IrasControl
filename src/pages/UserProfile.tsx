@@ -136,9 +136,9 @@ export default function UserProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) { toast.error("Formato inválido. Use JPG, PNG ou WebP."); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error("A imagem deve ter no máximo 2MB."); return; }
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff", "image/svg+xml"];
+    if (!validTypes.includes(file.type)) { toast.error("Formato inválido. Use JPG, PNG, WebP, GIF, BMP, TIFF ou SVG."); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("A imagem deve ter no máximo 10MB."); return; }
 
     setUploadingAvatar(true);
     const { data: { user } } = await supabase.auth.getUser();
