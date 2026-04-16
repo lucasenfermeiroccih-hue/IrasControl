@@ -1,0 +1,133 @@
+import { useState, useRef } from "react";
+import { Image, FileDown, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+interface ChartActionsProps {
+  chartRef: React.RefObject<HTMLDivElement>;
+  chartTitle: string;
+  metaValue?: number;
+  onMetaChange?: (value: number | undefined) => void;
+  metaUnit?: string;
+}
+
+export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaChange, metaUnit = "" }: ChartActionsProps) {
+  const [metaOpen, setMetaOpen] = useState(false);
+  const [metaInput, setMetaInput] = useState("");
+
+  const exportJPG = async () => {
+    if (!chartRef.current) return;
+    try {
+      const canvas = await html2canvas(chartRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const link = document.createElement("a");
+      link.download = `${chartTitle.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } catch (e) {
+      console.error("Erro ao exportar JPG:", e);
+    }
+  };
+
+  const exportPDF = async () => {
+    if (!chartRef.current) return;
+    try {
+      const canvas = await html2canvas(chartRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "l" : "p", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+      const usableW = pageW - margin * 2;
+      const ratio = canvas.height / canvas.width;
+      const imgW = usableW;
+      const imgH = imgW * ratio;
+      pdf.setFontSize(12);
+      pdf.text(chartTitle, margin, margin + 5);
+      pdf.setFontSize(8);
+      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 10);
+      pdf.addImage(imgData, "PNG", margin, margin + 14, imgW, imgH);
+      pdf.save(`${chartTitle.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (e) {
+      console.error("Erro ao exportar PDF:", e);
+    }
+  };
+
+  const openMeta = () => {
+    setMetaInput(metaValue !== undefined ? String(metaValue) : "");
+    setMetaOpen(true);
+  };
+
+  const saveMeta = () => {
+    const val = parseFloat(metaInput);
+    onMetaChange?.(isNaN(val) ? undefined : val);
+    setMetaOpen(false);
+  };
+
+  return (
+    <>
+      <TooltipProvider delayDuration={200}>
+        <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportJPG}>
+                <Image className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p className="text-xs">Exportar JPG</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportPDF}>
+                <FileDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p className="text-xs">Exportar PDF</p></TooltipContent>
+          </Tooltip>
+          {onMetaChange && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openMeta}>
+                  <Target className={`h-3.5 w-3.5 ${metaValue !== undefined ? "text-primary" : "text-muted-foreground"}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p className="text-xs">Definir Meta</p></TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TooltipProvider>
+
+      <Dialog open={metaOpen} onOpenChange={setMetaOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Definir Meta — {chartTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Valor da meta {metaUnit ? `(${metaUnit})` : ""}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={metaInput}
+                onChange={e => setMetaInput(e.target.value)}
+                placeholder="Ex: 10"
+              />
+            </div>
+            {metaValue !== undefined && (
+              <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => { onMetaChange?.(undefined); setMetaOpen(false); }}>
+                Remover meta
+              </Button>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setMetaOpen(false)}>Cancelar</Button>
+            <Button size="sm" onClick={saveMeta}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
