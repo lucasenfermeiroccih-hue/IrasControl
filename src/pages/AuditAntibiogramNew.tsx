@@ -201,35 +201,52 @@ export default function AuditAntibiogramNew() {
     }
     setSaving(true);
 
-    const { data: labResult, error: labError } = await supabase
-      .from("lab_results")
-      .insert({
-        hospital_id: hospitalId,
-        collection_date: collectionDate,
-        organism,
-        sample_type: sampleMaterial,
-        sample_category: sampleCategory,
-        sample_material: sampleMaterial,
-        sample_location_enabled: locationEnabled,
-        sample_location_detail: locationEnabled === "sim" ? locationDetail : null,
-        esbl,
-        carbapenemase,
-        carbapenemase_type: carbapenemase === "sim" ? carbapenemaseType : null,
-        status: "completed" as any,
-        notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId}`,
-        created_by: userId,
-      } as any)
-      .select("id")
-      .single();
+    const labPayload = {
+      hospital_id: hospitalId,
+      collection_date: collectionDate,
+      organism,
+      sample_type: sampleMaterial,
+      sample_category: sampleCategory,
+      sample_material: sampleMaterial,
+      sample_location_enabled: locationEnabled,
+      sample_location_detail: locationEnabled === "sim" ? locationDetail : null,
+      esbl,
+      carbapenemase,
+      carbapenemase_type: carbapenemase === "sim" ? carbapenemaseType : null,
+      status: "completed" as const,
+      notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId}`,
+    };
 
-    if (labError || !labResult) {
-      toast.error("Erro ao salvar: " + (labError?.message || ""));
-      setSaving(false);
-      return;
+    let labResultId = editingId;
+
+    if (editingId) {
+      const { error: updateError } = await supabase
+        .from("lab_results")
+        .update(labPayload as any)
+        .eq("id", editingId);
+      if (updateError) {
+        toast.error("Erro ao atualizar: " + updateError.message);
+        setSaving(false);
+        return;
+      }
+      // Replace antibiogram results
+      await supabase.from("antibiogram_results").delete().eq("lab_result_id", editingId);
+    } else {
+      const { data: labResult, error: labError } = await supabase
+        .from("lab_results")
+        .insert({ ...labPayload, created_by: userId } as any)
+        .select("id")
+        .single();
+      if (labError || !labResult) {
+        toast.error("Erro ao salvar: " + (labError?.message || ""));
+        setSaving(false);
+        return;
+      }
+      labResultId = labResult.id;
     }
 
     const abResults = results.filter(r => r.antibiotic).map(r => ({
-      lab_result_id: labResult.id,
+      lab_result_id: labResultId!,
       antibiotic: r.antibiotic,
       sensitivity: r.sir === "NT" || !r.sir ? "NT" : r.sir,
       sir_category: r.sir || "NT",
@@ -246,13 +263,55 @@ export default function AuditAntibiogramNew() {
       }
     }
 
-    toast.success(`Antibiograma registrado! ${detectedPhenotypes.length > 0 ? "⚠️ Fenótipos críticos detectados!" : ""}`);
+    toast.success(`Antibiograma ${editingId ? "atualizado" : "registrado"}! ${detectedPhenotypes.length > 0 ? "⚠️ Fenótipos críticos detectados!" : ""}`);
     setSaving(false);
+    setEditingId(null);
+    setRefreshKey(k => k + 1);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
     setOrganism(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
     setResults([]);
     window.scrollTo(0, 0);
+  };
+
+  const loadForEdit = (record: AntibiogramRecord) => {
+    setEditingId(record.id);
+    setCollectionDate(record.collection_date || "");
+    setOrganism(record.organism || "");
+    setSampleCategory(record.sample_category || "");
+    setSampleMaterial(record.sample_material || "");
+    setLocationEnabled((record.sample_location_enabled as any) || "na");
+    setLocationDetail(record.sample_location_detail || "");
+    setEsbl((record.esbl as any) || "ignorado");
+    setCarbapenemase((record.carbapenemase as any) || "ignorado");
+    setCarbapenemaseType(record.carbapenemase_type || "");
+    // Parse notes for sector/sampleId/patientId
+    const notes = record.notes || "";
+    const setorMatch = notes.match(/Setor:\s*([^|]+)/);
+    const amostraMatch = notes.match(/Amostra:\s*([^|]+)/);
+    const pacMatch = notes.match(/Paciente:\s*([^|]+)/);
+    setSector(setorMatch ? setorMatch[1].trim() : "");
+    setSampleId(amostraMatch ? amostraMatch[1].trim() : "");
+    setPatientId(pacMatch ? pacMatch[1].trim() : "");
+    // Load antibiogram rows
+    const rows: AntibioticResult[] = (record.results || []).map(r => ({
+      id: newId(),
+      antibiotic: r.antibiotic,
+      method: r.notes || "",
+      micValue: r.mic_value != null ? String(r.mic_value) : "",
+      sir: ((r.sir_category || r.sensitivity) as SIR) || "",
+    }));
+    setResults(rows);
+    toast.info("Registro carregado para edição.");
+    window.scrollTo(0, 0);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
+    setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
+    setOrganism(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setResults([]);
   };
 
   return (
