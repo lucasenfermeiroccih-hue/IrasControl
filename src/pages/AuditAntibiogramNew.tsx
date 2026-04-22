@@ -156,9 +156,46 @@ export default function AuditAntibiogramNew() {
       toast.error("Preencha data, categoria, material e microrganismo.");
       return;
     }
+    if (locationEnabled === "sim" && !locationDetail) {
+      toast.error("Informe o local anatômico da amostra.");
+      return;
+    }
+    if (esbl === "sim") {
+      // ESBL marked yes — require evidence (at least one 3rd gen cephalosporin tested as R or I)
+      const hasEsblEvidence = results.some(r =>
+        ["Ceftazidima", "Ceftriaxona", "Cefepima", "Aztreonam"].includes(r.antibiotic) &&
+        (r.sir === "R" || r.sir === "I")
+      );
+      if (!hasEsblEvidence) {
+        toast.error("ESBL = Sim requer ao menos um cefalosporina de 3ª/4ª geração testada como R ou I.");
+        return;
+      }
+    }
+    if (carbapenemase === "sim" && !carbapenemaseType) {
+      toast.error("Carbapenemase = Sim exige selecionar o tipo (KPC, NDM, etc.).");
+      return;
+    }
     if (results.length === 0) {
       toast.error("Adicione pelo menos um antimicrobiano.");
       return;
+    }
+    // Validate each row: antibiotic required, MIC numeric & positive when provided
+    for (const r of results) {
+      if (!r.antibiotic) {
+        toast.error("Selecione o antimicrobiano em todas as linhas (ou remova-as).");
+        return;
+      }
+      if (r.micValue !== "") {
+        const n = Number(r.micValue);
+        if (isNaN(n) || n <= 0 || !isFinite(n)) {
+          toast.error(`MIC inválido para ${r.antibiotic}. Use um número positivo.`);
+          return;
+        }
+        if (!r.method) {
+          toast.error(`Informe o método de teste para ${r.antibiotic}.`);
+          return;
+        }
+      }
     }
     setSaving(true);
 
