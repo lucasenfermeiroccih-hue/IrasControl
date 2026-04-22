@@ -81,6 +81,8 @@ export default function AuditAntibiogramNew() {
   const navigate = useNavigate();
   const { hospitalId, userId } = useHospitalContext();
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Identificação
   const [collectionDate, setCollectionDate] = useState("");
