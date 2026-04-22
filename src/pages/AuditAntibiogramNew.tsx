@@ -262,11 +262,11 @@ export default function AuditAntibiogramNew() {
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
             <div>
-              <h1 className="text-2xl font-bold">Registro de Antibiograma</h1>
+              <h1 className="text-2xl font-bold">{editingId ? "Editar Antibiograma" : "Registro de Antibiograma"}</h1>
               <p className="text-muted-foreground text-sm">Perfil de sensibilidade — BrCAST/EUCAST</p>
             </div>
           </div>
-          <AuditHistory auditType="antibiogram" />
+          <AntibiogramHistory refreshKey={refreshKey} onEdit={(record) => loadForEdit(record)} />
         </div>
 
         <Card>
