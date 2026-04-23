@@ -320,8 +320,8 @@ export default function PatientsMonitoring() {
 
       // Restore persisted tab data from clinical_data
       const cd = (pat as any)._clinicalData || {};
-      setDispositivos(cd.dispositivos || { cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
-      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+      setDispositivos(cd.dispositivos || { cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
       setAntibioticos(cd.antibioticos || []);
       setEvolucao(cd.evolucao || { evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
       setSinaisVitais(cd.sinaisVitais || { temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
