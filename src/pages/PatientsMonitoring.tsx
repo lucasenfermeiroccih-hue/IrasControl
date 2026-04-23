@@ -149,7 +149,7 @@ export default function PatientsMonitoring() {
 
   // Section states
   const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
-  const [dispositivos, setDispositivos] = useState({ cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+  const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
   const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
   const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
   type SinaisVitaisEntry = typeof sinaisVitais & { data: string; hora: string };
@@ -164,7 +164,7 @@ export default function PatientsMonitoring() {
   const [criteriosSelecionados, setCriteriosSelecionados] = useState<string[]>([]);
   const [justificativa, setJustificativa] = useState("");
   const [ocorrencia, setOcorrencia] = useState({ unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
-  const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+  const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
   const [labPanel, setLabPanel] = useState<LabEntry[]>([]);
   const [newLabOpen, setNewLabOpen] = useState(false);
   const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
@@ -320,8 +320,8 @@ export default function PatientsMonitoring() {
 
       // Restore persisted tab data from clinical_data
       const cd = (pat as any)._clinicalData || {};
-      setDispositivos(cd.dispositivos || { cvc: "", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
-      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+      setDispositivos(cd.dispositivos || { cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
       setAntibioticos(cd.antibioticos || []);
       setEvolucao(cd.evolucao || { evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
       setSinaisVitais(cd.sinaisVitais || { temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
@@ -362,6 +362,7 @@ export default function PatientsMonitoring() {
   };
 
   const cvcDays = dispInvasivos.cvcInsercao ? calcDiasUso(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada) : null;
+  const cvpDays = dispInvasivos.cvpInsercao ? calcDiasUso(dispInvasivos.cvpInsercao, dispInvasivos.cvpRetirada) : null;
   const svuDays = dispInvasivos.svuInsercao ? calcDiasUso(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada) : null;
   const vmDays = dispInvasivos.vmInsercao ? calcDiasUso(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada) : null;
   const tqtDays = dispInvasivos.tqtInsercao ? calcDiasUso(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada) : null;
@@ -684,6 +685,7 @@ export default function PatientsMonitoring() {
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos — Controle Diário</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <DeviceSelect label="Cateter Venoso Central" disabled={readOnly} value={dispositivos.cvc} onChange={v => setDispositivos(p => ({ ...p, cvc: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
+                  <DeviceSelect label="Cateter Venoso Periférico" disabled={readOnly} value={dispositivos.cvp} onChange={v => setDispositivos(p => ({ ...p, cvp: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Cateter Arterial Periférico" disabled={readOnly} value={dispositivos.cateterArterial} onChange={v => setDispositivos(p => ({ ...p, cateterArterial: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Cateter de Hemodiálise" disabled={readOnly} value={dispositivos.cateterHemodialise} onChange={v => setDispositivos(p => ({ ...p, cateterHemodialise: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
                   <DeviceSelect label="Ventilação Mecânica" disabled={readOnly} value={dispositivos.ventilacao} onChange={v => setDispositivos(p => ({ ...p, ventilacao: v }))} options={["Sim", "Não"]} />
@@ -702,6 +704,7 @@ export default function PatientsMonitoring() {
                   <div className="space-y-4">
                     {([
                       ["CVC", dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada, cvcDays, "cvcInsercao", "cvcRetirada"],
+                      ["CVP (Cateter Venoso Periférico)", dispInvasivos.cvpInsercao, dispInvasivos.cvpRetirada, cvpDays, "cvpInsercao", "cvpRetirada"],
                       ["SVD", dispInvasivos.svuInsercao, dispInvasivos.svuRetirada, svuDays, "svuInsercao", "svuRetirada"],
                       ["VM", dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, vmDays, "vmInsercao", "vmRetirada"],
                       ["TQT", dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, tqtDays, "tqtInsercao", "tqtRetirada"],
