@@ -6,7 +6,17 @@ const corsHeaders = {
 };
 
 // Roles that a hospital_admin is allowed to assign
-const ALLOWED_ROLES = ["nurse_ccih", "doctor", "lab_tech", "viewer"] as const;
+const ALLOWED_ROLES = [
+  "hospital_admin",
+  "nurse_ccih",
+  "doctor",
+  "doctor_scih",
+  "nurse_tech_scih",
+  "lab_tech",
+  "biologist",
+  "administrative",
+  "viewer",
+] as const;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -52,10 +62,14 @@ Deno.serve(async (req) => {
     }
 
     // 3. Parse request body
-    const { email, full_name, phone, hospital_id, role } = await req.json();
+    const { email, full_name, phone, hospital_id, role, password } = await req.json();
 
     if (!email || !full_name || !hospital_id || !role) {
       return json({ success: false, error: "Preencha todos os campos obrigatórios: nome, e-mail, hospital e perfil" });
+    }
+
+    if (!password || typeof password !== "string" || password.length < 6) {
+      return json({ success: false, error: "Senha deve ter pelo menos 6 caracteres" });
     }
 
     // 4. Validate role
@@ -115,9 +129,10 @@ Deno.serve(async (req) => {
 
       userId = existingUser.id;
     } else {
-      // Create the user
+      // Create the user with the provided password
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
         email,
+        password,
         email_confirm: true,
         user_metadata: { full_name, phone: phone || null },
       });
@@ -178,16 +193,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 11. Generate magic link
-    const { data: linkData } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    });
+    // 11. If user already existed (was just linked), update their password too
+    if (existingUser) {
+      await adminClient.auth.admin.updateUserById(userId, { password });
+    }
 
     return json({
       success: true,
       user_id: userId,
-      email_sent: !!linkData?.properties?.action_link,
     });
   } catch (err) {
     return json({ success: false, error: err.message || "Erro interno do servidor" });

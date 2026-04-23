@@ -30,7 +30,11 @@ const ROLE_LABELS: Record<string, string> = {
   hospital_admin: "Administrador",
   nurse_ccih: "Enfermeiro(a) CCIH",
   doctor: "Médico(a)",
+  doctor_scih: "Médico(a) SCIH",
+  nurse_tech_scih: "Téc. Enf. SCIH",
   lab_tech: "Técnico Lab.",
+  biologist: "Biólogo(a)",
+  administrative: "Administrativo",
   viewer: "Visualizador",
 };
 
@@ -38,17 +42,22 @@ const ROLE_COLORS: Record<string, string> = {
   hospital_admin: "bg-primary/10 text-primary border-primary/30",
   nurse_ccih: "bg-blue-500/10 text-blue-600 border-blue-500/30",
   doctor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+  doctor_scih: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30",
+  nurse_tech_scih: "bg-blue-500/10 text-blue-700 border-blue-500/30",
   lab_tech: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  biologist: "bg-purple-500/10 text-purple-600 border-purple-500/30",
+  administrative: "bg-slate-500/10 text-slate-600 border-slate-500/30",
   viewer: "bg-muted text-muted-foreground border-border",
 };
 
 const ASSIGNABLE_ROLES = [
+  { value: "hospital_admin", label: "Administrador" },
   { value: "nurse_ccih", label: "Enfermeiro(a) CCIH" },
   { value: "doctor", label: "Médico(a)" },
   { value: "doctor_scih", label: "Médico(a) SCIH" },
   { value: "nurse_tech_scih", label: "Téc. de Enfermagem SCIH" },
   { value: "lab_tech", label: "Técnico de Laboratório" },
-  { value: "biologist", label: "Bióloga" },
+  { value: "biologist", label: "Bióloga(o)" },
   { value: "administrative", label: "Administrativo" },
   { value: "viewer", label: "Visualizador" },
 ];
@@ -71,7 +80,7 @@ export default function HospitalUsers() {
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ full_name: "", email: "", phone: "", role: "" });
+  const [createForm, setCreateForm] = useState({ full_name: "", email: "", phone: "", role: "", password: "", confirm_password: "" });
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -169,6 +178,14 @@ export default function HospitalUsers() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    if (!createForm.password || createForm.password.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    if (createForm.password !== createForm.confirm_password) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
     setCreating(true);
     const { data, error } = await supabase.functions.invoke("create-hospital-user", {
       body: {
@@ -177,6 +194,7 @@ export default function HospitalUsers() {
         phone: createForm.phone || null,
         hospital_id: hospitalId,
         role: createForm.role,
+        password: createForm.password,
       },
     });
     setCreating(false);
@@ -189,7 +207,7 @@ export default function HospitalUsers() {
       return;
     }
     toast.success("Usuário criado com sucesso!");
-    setCreateForm({ full_name: "", email: "", phone: "", role: "" });
+    setCreateForm({ full_name: "", email: "", phone: "", role: "", password: "", confirm_password: "" });
     setCreateOpen(false);
     await fetchUsers(hospitalId);
   };
@@ -320,7 +338,7 @@ export default function HospitalUsers() {
               <DialogHeader>
                 <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
                 <DialogDescription>
-                  O usuário receberá um e-mail com link de acesso para definir sua senha.
+                  Defina nome, e-mail, perfil e a senha de acesso do novo usuário.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
@@ -359,6 +377,28 @@ export default function HospitalUsers() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Senha *</Label>
+                    <Input
+                      type="password"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                      placeholder="Mínimo 6 caracteres"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirmar Senha *</Label>
+                    <Input
+                      type="password"
+                      value={createForm.confirm_password}
+                      onChange={(e) => setCreateForm({ ...createForm, confirm_password: e.target.value })}
+                      placeholder="Repita a senha"
+                      autoComplete="new-password"
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
