@@ -193,16 +193,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 11. Generate magic link
-    const { data: linkData } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    });
+    // 11. If user already existed (was just linked), update their password too
+    if (existingUser) {
+      await adminClient.auth.admin.updateUserById(userId, { password });
+    }
 
     return json({
       success: true,
       user_id: userId,
-      email_sent: !!linkData?.properties?.action_link,
     });
   } catch (err) {
     return json({ success: false, error: err.message || "Erro interno do servidor" });
