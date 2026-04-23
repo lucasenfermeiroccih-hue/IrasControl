@@ -5,7 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ALLOWED_ROLES = ["nurse_ccih", "doctor", "lab_tech", "viewer"] as const;
+const ALLOWED_ROLES = [
+  "hospital_admin",
+  "nurse_ccih",
+  "doctor",
+  "doctor_scih",
+  "nurse_tech_scih",
+  "lab_tech",
+  "biologist",
+  "administrative",
+  "viewer",
+] as const;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
