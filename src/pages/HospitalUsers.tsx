@@ -311,30 +311,30 @@ export default function HospitalUsers() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gerenciar Usuários</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gerenciar Usuários</h1>
+          <p className="text-sm text-muted-foreground mt-1 truncate">
             {hospitalName && (
               <>Hospital: <span className="font-medium text-foreground">{hospitalName}</span></>
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={loadHospitalAndUsers}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={loadHospitalAndUsers} className="flex-1 sm:flex-initial">
             <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
 
           {/* Create Dialog */}
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="flex-1 sm:flex-initial">
                 <UserPlus className="h-4 w-4 mr-1" /> Novo Usuário
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
                 <DialogDescription>
@@ -350,22 +350,24 @@ export default function HospitalUsers() {
                     placeholder="Dr. Maria Silva"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>E-mail *</Label>
-                  <Input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                    placeholder="maria@hospital.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    placeholder="(11) 99999-0000"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>E-mail *</Label>
+                    <Input
+                      type="email"
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                      placeholder="maria@hospital.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone</Label>
+                    <Input
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                      placeholder="(11) 99999-0000"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Perfil de Acesso *</Label>
@@ -401,9 +403,9 @@ export default function HospitalUsers() {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateUser} disabled={creating}>
+              <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => setCreateOpen(false)} className="w-full sm:w-auto">Cancelar</Button>
+                <Button onClick={handleCreateUser} disabled={creating} className="w-full sm:w-auto">
                   {creating && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                   Criar Usuário
                 </Button>
@@ -426,7 +428,7 @@ export default function HospitalUsers() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
           {users.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -434,105 +436,132 @@ export default function HospitalUsers() {
               <p className="text-xs mt-1">Clique em "Novo Usuário" para começar.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => {
-                  const profile = u.profiles;
-                  const roles = u.user_roles || [];
-                  const isSelf = u.user_id === currentUserId;
-                  const isAdmin = isAdminRole(u);
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead className="hidden md:table-cell">E-mail</TableHead>
+                    <TableHead className="hidden lg:table-cell">Telefone</TableHead>
+                    <TableHead className="hidden sm:table-cell">Perfil</TableHead>
+                    <TableHead className="hidden lg:table-cell">Tipo</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((u) => {
+                    const profile = u.profiles;
+                    const roles = u.user_roles || [];
+                    const isSelf = u.user_id === currentUserId;
+                    const isAdmin = isAdminRole(u);
 
-                  return (
-                    <TableRow key={u.user_id}>
-                      <TableCell className="font-medium">
-                        {profile?.full_name || "—"}
-                        {isSelf && (
-                          <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
-                            Você
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {profile?.email || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {profile?.phone || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {roles.map((r, i) => (
-                            <Badge
-                              key={i}
-                              variant="outline"
-                              className={`text-xs ${ROLE_COLORS[r.role] || ""}`}
-                            >
-                              {ROLE_LABELS[r.role] || r.role}
+                    return (
+                      <TableRow key={u.user_id}>
+                        <TableCell className="font-medium align-top">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="break-all">{profile?.full_name || "—"}</span>
+                            {isSelf && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                Você
+                              </Badge>
+                            )}
+                            {u.is_primary_admin && (
+                              <Badge variant="outline" className="lg:hidden text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                                Admin
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Mobile-only: e-mail, telefone e perfil empilhados */}
+                          <div className="md:hidden mt-1 space-y-1">
+                            <p className="text-xs text-muted-foreground break-all">{profile?.email || "—"}</p>
+                            {profile?.phone && (
+                              <p className="text-xs text-muted-foreground">{profile.phone}</p>
+                            )}
+                            <div className="flex flex-wrap gap-1 sm:hidden">
+                              {roles.map((r, i) => (
+                                <Badge
+                                  key={i}
+                                  variant="outline"
+                                  className={`text-[10px] ${ROLE_COLORS[r.role] || ""}`}
+                                >
+                                  {ROLE_LABELS[r.role] || r.role}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground break-all">
+                          {profile?.email || "—"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          {profile?.phone || "—"}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {roles.map((r, i) => (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                className={`text-xs ${ROLE_COLORS[r.role] || ""}`}
+                              >
+                                {ROLE_LABELS[r.role] || r.role}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {u.is_primary_admin && (
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                              Admin Principal
                             </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {u.is_primary_admin && (
-                          <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                            Admin Principal
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!u.is_primary_admin && !isSelf && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {!isAdmin && (
-                                <DropdownMenuItem onClick={() => openEditDialog(u)}>
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Editar
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {!u.is_primary_admin && !isSelf && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {!isAdmin && (
+                                  <DropdownMenuItem onClick={() => openEditDialog(u)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => openConfirmDialog(u, "deactivate")}
+                                >
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Desativar
                                 </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => openConfirmDialog(u, "deactivate")}
-                              >
-                                <UserX className="h-4 w-4 mr-2" />
-                                Desativar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => openConfirmDialog(u, "activate")}
-                              >
-                                <UserCheck className="h-4 w-4 mr-2" />
-                                Reativar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                                <DropdownMenuItem
+                                  onClick={() => openConfirmDialog(u, "activate")}
+                                >
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Reativar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
             <DialogDescription>
@@ -550,22 +579,24 @@ export default function HospitalUsers() {
                 onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                placeholder="usuario@hospital.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                placeholder="(11) 99999-0000"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="usuario@hospital.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="(11) 99999-0000"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Nova Senha</Label>
@@ -574,6 +605,7 @@ export default function HospitalUsers() {
                 value={editForm.password}
                 onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                 placeholder="Deixe vazio para manter a senha atual"
+                autoComplete="new-password"
               />
               <p className="text-xs text-muted-foreground">Mínimo 6 caracteres. Deixe vazio para não alterar.</p>
             </div>
@@ -589,9 +621,9 @@ export default function HospitalUsers() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleEditUser} disabled={editing}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(false)} className="w-full sm:w-auto">Cancelar</Button>
+            <Button onClick={handleEditUser} disabled={editing} className="w-full sm:w-auto">
               {editing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               Salvar Alterações
             </Button>
