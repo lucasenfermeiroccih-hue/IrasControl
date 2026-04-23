@@ -80,7 +80,7 @@ export default function HospitalUsers() {
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ full_name: "", email: "", phone: "", role: "" });
+  const [createForm, setCreateForm] = useState({ full_name: "", email: "", phone: "", role: "", password: "", confirm_password: "" });
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
