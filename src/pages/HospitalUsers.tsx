@@ -30,7 +30,11 @@ const ROLE_LABELS: Record<string, string> = {
   hospital_admin: "Administrador",
   nurse_ccih: "Enfermeiro(a) CCIH",
   doctor: "Médico(a)",
+  doctor_scih: "Médico(a) SCIH",
+  nurse_tech_scih: "Téc. Enf. SCIH",
   lab_tech: "Técnico Lab.",
+  biologist: "Biólogo(a)",
+  administrative: "Administrativo",
   viewer: "Visualizador",
 };
 
@@ -38,17 +42,22 @@ const ROLE_COLORS: Record<string, string> = {
   hospital_admin: "bg-primary/10 text-primary border-primary/30",
   nurse_ccih: "bg-blue-500/10 text-blue-600 border-blue-500/30",
   doctor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+  doctor_scih: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30",
+  nurse_tech_scih: "bg-blue-500/10 text-blue-700 border-blue-500/30",
   lab_tech: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  biologist: "bg-purple-500/10 text-purple-600 border-purple-500/30",
+  administrative: "bg-slate-500/10 text-slate-600 border-slate-500/30",
   viewer: "bg-muted text-muted-foreground border-border",
 };
 
 const ASSIGNABLE_ROLES = [
+  { value: "hospital_admin", label: "Administrador" },
   { value: "nurse_ccih", label: "Enfermeiro(a) CCIH" },
   { value: "doctor", label: "Médico(a)" },
   { value: "doctor_scih", label: "Médico(a) SCIH" },
   { value: "nurse_tech_scih", label: "Téc. de Enfermagem SCIH" },
   { value: "lab_tech", label: "Técnico de Laboratório" },
-  { value: "biologist", label: "Bióloga" },
+  { value: "biologist", label: "Bióloga(o)" },
   { value: "administrative", label: "Administrativo" },
   { value: "viewer", label: "Visualizador" },
 ];
