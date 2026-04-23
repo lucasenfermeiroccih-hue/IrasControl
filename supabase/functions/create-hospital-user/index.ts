@@ -62,10 +62,14 @@ Deno.serve(async (req) => {
     }
 
     // 3. Parse request body
-    const { email, full_name, phone, hospital_id, role } = await req.json();
+    const { email, full_name, phone, hospital_id, role, password } = await req.json();
 
     if (!email || !full_name || !hospital_id || !role) {
       return json({ success: false, error: "Preencha todos os campos obrigatórios: nome, e-mail, hospital e perfil" });
+    }
+
+    if (!password || typeof password !== "string" || password.length < 6) {
+      return json({ success: false, error: "Senha deve ter pelo menos 6 caracteres" });
     }
 
     // 4. Validate role
