@@ -338,7 +338,7 @@ export default function HospitalUsers() {
               <DialogHeader>
                 <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
                 <DialogDescription>
-                  O usuário receberá um e-mail com link de acesso para definir sua senha.
+                  Defina nome, e-mail, perfil e a senha de acesso do novo usuário.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
@@ -377,6 +377,28 @@ export default function HospitalUsers() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Senha *</Label>
+                    <Input
+                      type="password"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                      placeholder="Mínimo 6 caracteres"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirmar Senha *</Label>
+                    <Input
+                      type="password"
+                      value={createForm.confirm_password}
+                      onChange={(e) => setCreateForm({ ...createForm, confirm_password: e.target.value })}
+                      placeholder="Repita a senha"
+                      autoComplete="new-password"
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
