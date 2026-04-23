@@ -129,9 +129,10 @@ Deno.serve(async (req) => {
 
       userId = existingUser.id;
     } else {
-      // Create the user
+      // Create the user with the provided password
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
         email,
+        password,
         email_confirm: true,
         user_metadata: { full_name, phone: phone || null },
       });
