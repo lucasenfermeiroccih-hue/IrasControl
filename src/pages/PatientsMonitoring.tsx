@@ -685,6 +685,7 @@ export default function PatientsMonitoring() {
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos — Controle Diário</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <DeviceSelect label="Cateter Venoso Central" disabled={readOnly} value={dispositivos.cvc} onChange={v => setDispositivos(p => ({ ...p, cvc: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
+                  <DeviceSelect label="Cateter Venoso Periférico" disabled={readOnly} value={dispositivos.cvp} onChange={v => setDispositivos(p => ({ ...p, cvp: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Cateter Arterial Periférico" disabled={readOnly} value={dispositivos.cateterArterial} onChange={v => setDispositivos(p => ({ ...p, cateterArterial: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Cateter de Hemodiálise" disabled={readOnly} value={dispositivos.cateterHemodialise} onChange={v => setDispositivos(p => ({ ...p, cateterHemodialise: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
                   <DeviceSelect label="Ventilação Mecânica" disabled={readOnly} value={dispositivos.ventilacao} onChange={v => setDispositivos(p => ({ ...p, ventilacao: v }))} options={["Sim", "Não"]} />
