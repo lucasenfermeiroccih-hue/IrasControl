@@ -178,6 +178,14 @@ export default function HospitalUsers() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    if (!createForm.password || createForm.password.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    if (createForm.password !== createForm.confirm_password) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
     setCreating(true);
     const { data, error } = await supabase.functions.invoke("create-hospital-user", {
       body: {
@@ -186,6 +194,7 @@ export default function HospitalUsers() {
         phone: createForm.phone || null,
         hospital_id: hospitalId,
         role: createForm.role,
+        password: createForm.password,
       },
     });
     setCreating(false);
@@ -198,7 +207,7 @@ export default function HospitalUsers() {
       return;
     }
     toast.success("Usuário criado com sucesso!");
-    setCreateForm({ full_name: "", email: "", phone: "", role: "" });
+    setCreateForm({ full_name: "", email: "", phone: "", role: "", password: "", confirm_password: "" });
     setCreateOpen(false);
     await fetchUsers(hospitalId);
   };
