@@ -704,6 +704,7 @@ export default function PatientsMonitoring() {
                   <div className="space-y-4">
                     {([
                       ["CVC", dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada, cvcDays, "cvcInsercao", "cvcRetirada"],
+                      ["CVP (Cateter Venoso Periférico)", dispInvasivos.cvpInsercao, dispInvasivos.cvpRetirada, cvpDays, "cvpInsercao", "cvpRetirada"],
                       ["SVD", dispInvasivos.svuInsercao, dispInvasivos.svuRetirada, svuDays, "svuInsercao", "svuRetirada"],
                       ["VM", dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, vmDays, "vmInsercao", "vmRetirada"],
                       ["TQT", dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, tqtDays, "tqtInsercao", "tqtRetirada"],
