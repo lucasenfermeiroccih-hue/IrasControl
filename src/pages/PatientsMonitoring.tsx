@@ -60,7 +60,7 @@ interface AntibioticEntry {
   dataFim: string;
 }
 
-const exameOptions = ["Hemocultura", "Urocultura", "Cultura de secreção traqueal", "Cultura de ferida operatória", "Cultura de ponta de cateter", "Líquor", "Outro"];
+const exameOptions = ["Hemocultura", "Urocultura", "Cultura de secreção traqueal", "Cultura de ferida operatória", "Cultura de ponta de cateter", "Líquor", "Líquido", "Swab retal", "Swab nasal", "Outro"];
 
 const fatoresRiscoOptions = [
   "Idade > 65 anos", "Diabetes mellitus", "Imunossupressão",
@@ -148,7 +148,7 @@ export default function PatientsMonitoring() {
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
 
   // Section states
-  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
+  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "" });
   const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
   const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
   const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
@@ -332,7 +332,7 @@ export default function PatientsMonitoring() {
       setJustificativa(cd.justificativa || "");
       setOcorrencia(cd.ocorrencia || { unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
       setLabPanel(cd.labPanel || []);
-      setExames(cd.exames || { hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "" });
+      setExames(cd.exames || { hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "" });
       setVdrl(cd.vdrl || { vdrlMae: "", vdrlRN: "", vdrlLiquor: "" });
       setResponsavel(cd.responsavel || "");
     }
@@ -571,6 +571,8 @@ export default function PatientsMonitoring() {
                   ["urocultura", "Urocultura", "uroculturaObs"],
                   ["culturaTraqueal", "Cultura de secreção traqueal", "culturaTraquealObs"],
                   ["culturaFerida", "Cultura de ferida operatória", "culturaFeridaObs"],
+                  ["swabRetal", "Swab retal", "swabRetalObs"],
+                  ["swabNasal", "Swab nasal", "swabNasalObs"],
                 ] as const).map(([key, label, obsKey]) => (
                   <div key={key} className="p-4 rounded-lg border bg-muted/30">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
