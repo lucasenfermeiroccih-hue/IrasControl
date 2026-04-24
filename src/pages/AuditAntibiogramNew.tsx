@@ -401,11 +401,27 @@ export default function AuditAntibiogramNew() {
             <div className="space-y-2">
               <Label>Microrganismo *</Label>
               <ComboboxSearch
-                options={microorganismsList}
-                value={organism}
-                onValueChange={setOrganism}
+                options={[...microorganismsList, "Outros (descrever)"]}
+                value={organismCustom ? "Outros (descrever)" : organism}
+                onValueChange={(v) => {
+                  if (v === "Outros (descrever)") {
+                    setOrganismCustom(true);
+                    setOrganism("");
+                  } else {
+                    setOrganismCustom(false);
+                    setOrganism(v);
+                  }
+                }}
                 placeholder="Digite para buscar microrganismo"
               />
+              {organismCustom && (
+                <Input
+                  className="mt-2"
+                  placeholder="Descreva o microrganismo"
+                  value={organism}
+                  onChange={e => setOrganism(e.target.value)}
+                />
+              )}
             </div>
 
             <Separator />
