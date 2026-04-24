@@ -301,6 +301,7 @@ export default function AuditAntibiogramNew() {
       method: r.notes || "",
       micValue: r.mic_value != null ? String(r.mic_value) : "",
       sir: ((r.sir_category || r.sensitivity) as SIR) || "",
+      isCustom: r.antibiotic ? !commonAntibiotics.includes(r.antibiotic) : false,
     }));
     setResults(rows);
     toast.info("Registro carregado para edição.");
