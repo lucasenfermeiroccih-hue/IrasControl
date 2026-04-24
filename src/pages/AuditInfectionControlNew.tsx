@@ -33,7 +33,7 @@ const categories: CategoryDef[] = [
     { id: "cvd3", description: "Bolsa coletora abaixo do nível da bexiga" }, { id: "cvd4", description: "Fixação adequada" },
     { id: "cvd5", description: "Higiene do meato uretral realizada" },
   ]},
-  { key: "cvc", title: "Cateter Venoso Central", description: "Prevenção de IPCS", items: [
+  { key: "cvc", title: "Cateter Venoso Central/Periférico", description: "Prevenção de IPCS", items: [
     { id: "cvc1", description: "Curativo oclusivo limpo, seco e com data" }, { id: "cvc2", description: "Necessidade avaliada diariamente" },
     { id: "cvc3", description: "Conexões desinfectadas antes do manuseio" }, { id: "cvc4", description: "Troca de curativos conforme protocolo" },
     { id: "cvc5", description: "Registro de data de inserção" },
