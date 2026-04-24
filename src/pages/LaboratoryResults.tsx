@@ -38,7 +38,7 @@ const IRAS_TRANSPLACENTARIA_OPTIONS = [
 
 const SAMPLE_TYPES = [
   "Sangue (Hemocultura)", "Urina (Urocultura)", "Secreção traqueal",
-  "Líquor", "Líquido pleural", "Líquido ascítico", "Ponta de cateter",
+  "Líquor", "Líquido pleural", "Líquido ascítico", "Líquido", "Ponta de cateter",
   "Swab retal", "Swab nasal", "Ferida operatória", "Escarro", "Fezes", "Outro"
 ];
 
