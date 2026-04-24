@@ -156,8 +156,11 @@ export default function AuditAntibiogramNew() {
   const detectedPhenotypes = criticalPhenotypes.filter(p => p.trigger(organism, results));
 
   const handleSave = async () => {
-    if (!collectionDate || !organism || !sampleCategory || !sampleMaterial || !hospitalId) {
-      toast.error("Preencha data, categoria, material e microrganismo.");
+    const organismTrim = organism.trim();
+    if (!collectionDate || !organismTrim || !sampleCategory || !sampleMaterial || !hospitalId) {
+      toast.error(organismCustom && !organismTrim
+        ? "Descreva o microrganismo no campo 'Outros'."
+        : "Preencha data, categoria, material e microrganismo.");
       return;
     }
     if (locationEnabled === "sim" && !locationDetail) {
@@ -206,7 +209,7 @@ export default function AuditAntibiogramNew() {
     const labPayload = {
       hospital_id: hospitalId,
       collection_date: collectionDate,
-      organism,
+      organism: organismTrim,
       sample_type: sampleMaterial,
       sample_category: sampleCategory,
       sample_material: sampleMaterial,
