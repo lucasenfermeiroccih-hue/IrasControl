@@ -370,6 +370,7 @@ export default function PatientsMonitoring() {
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
     const diasInternacao = daysFromDate(selected.dataInternacaoHospitalar);
+    const diasCTI = selected.dataInternacaoCTI ? daysFromDate(selected.dataInternacaoCTI) : null;
     return (
       <div className="pb-24">
         {/* ─── Sticky Patient Header ─────────────────────── */}
@@ -390,7 +391,7 @@ export default function PatientsMonitoring() {
               <Button variant={viewMode === "view" ? "default" : "outline"} size="sm" onClick={() => setViewMode("view")}><Eye className="h-4 w-4 mr-1" />Visualizar</Button>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-1 text-xs ml-10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-4 gap-y-1 text-xs ml-10">
             <div><span className="text-muted-foreground">Pront:</span> <span className="font-medium">{selected.prontuario}</span></div>
             <div><span className="text-muted-foreground">Unidade:</span> <span className="font-medium">{selected.unidade}</span></div>
             <div><span className="text-muted-foreground">Leito:</span> <span className="font-medium">{selected.leito}</span></div>
@@ -400,6 +401,12 @@ export default function PatientsMonitoring() {
             <div>
               <span className="text-muted-foreground">Internação:</span>{" "}
               <span className={`font-semibold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao}d</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">CTI:</span>{" "}
+              <span className={`font-semibold ${diasCTI !== null && diasCTI > 7 ? "text-destructive" : "text-foreground"}`}>
+                {diasCTI !== null ? `${diasCTI}d` : "—"}
+              </span>
             </div>
           </div>
           {/* Tab Navigation (no progress bar) */}
@@ -550,11 +557,22 @@ export default function PatientsMonitoring() {
                     </div>
                   </>
                 )}
-                <div className="mt-5 flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tempo de Internação</p>
-                    <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tempo de Internação Hospitalar</p>
+                      <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tempo de Internação no CTI</p>
+                      <p className={`text-xl font-bold ${diasCTI !== null && diasCTI > 7 ? "text-destructive" : "text-foreground"}`}>
+                        {diasCTI !== null ? `${diasCTI} dias` : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1364,6 +1382,7 @@ export default function PatientsMonitoring() {
                   <TableHead>Setor</TableHead>
                   <TableHead>Leito</TableHead>
                   <TableHead>Dias Int.</TableHead>
+                  <TableHead>Dias CTI</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
