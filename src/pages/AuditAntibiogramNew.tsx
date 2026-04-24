@@ -332,7 +332,8 @@ export default function AuditAntibiogramNew() {
 
         <Card>
           <CardHeader><CardTitle className="text-lg">Identificação da Coleta</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Identificação Paciente</Label><Input placeholder="Código ou iniciais" value={patientId} onChange={e => setPatientId(e.target.value)} /></div>
             <div className="space-y-2"><Label>Data da Coleta *</Label><Input type="date" value={collectionDate} onChange={e => setCollectionDate(e.target.value)} /></div>
             <div className="space-y-2"><Label>ID da Amostra</Label><Input placeholder="LAB-2026-0042" value={sampleId} onChange={e => setSampleId(e.target.value)} /></div>
             <div className="space-y-2">
