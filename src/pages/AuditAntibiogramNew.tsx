@@ -271,7 +271,7 @@ export default function AuditAntibiogramNew() {
     setRefreshKey(k => k + 1);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganism(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganism(""); setOrganismCustom(false); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
     setResults([]);
     window.scrollTo(0, 0);
   };
@@ -280,6 +280,7 @@ export default function AuditAntibiogramNew() {
     setEditingId(record.id);
     setCollectionDate(record.collection_date || "");
     setOrganism(record.organism || "");
+    setOrganismCustom(record.organism ? !microorganismsList.includes(record.organism) : false);
     setSampleCategory(record.sample_category || "");
     setSampleMaterial(record.sample_material || "");
     setLocationEnabled((record.sample_location_enabled as any) || "na");
@@ -313,7 +314,7 @@ export default function AuditAntibiogramNew() {
     setEditingId(null);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganism(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganism(""); setOrganismCustom(false); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
     setResults([]);
   };
 
