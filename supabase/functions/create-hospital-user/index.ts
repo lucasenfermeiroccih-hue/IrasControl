@@ -203,6 +203,6 @@ Deno.serve(async (req) => {
       user_id: userId,
     });
   } catch (err) {
-    return json({ success: false, error: err.message || "Erro interno do servidor" });
+    return json({ success: false, error: (err instanceof Error ? err.message : String(err)) || "Erro interno do servidor" });
   }
 });
