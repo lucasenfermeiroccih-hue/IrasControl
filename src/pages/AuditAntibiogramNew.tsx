@@ -156,8 +156,11 @@ export default function AuditAntibiogramNew() {
   const detectedPhenotypes = criticalPhenotypes.filter(p => p.trigger(organism, results));
 
   const handleSave = async () => {
-    if (!collectionDate || !organism || !sampleCategory || !sampleMaterial || !hospitalId) {
-      toast.error("Preencha data, categoria, material e microrganismo.");
+    const organismTrim = organism.trim();
+    if (!collectionDate || !organismTrim || !sampleCategory || !sampleMaterial || !hospitalId) {
+      toast.error(organismCustom && !organismTrim
+        ? "Descreva o microrganismo no campo 'Outros'."
+        : "Preencha data, categoria, material e microrganismo.");
       return;
     }
     if (locationEnabled === "sim" && !locationDetail) {
@@ -185,8 +188,10 @@ export default function AuditAntibiogramNew() {
     }
     // Validate each row: antibiotic required, MIC numeric & positive when provided
     for (const r of results) {
-      if (!r.antibiotic) {
-        toast.error("Selecione o antimicrobiano em todas as linhas (ou remova-as).");
+      if (!r.antibiotic.trim()) {
+        toast.error(r.isCustom
+          ? "Descreva o antimicrobiano selecionado como 'Outros'."
+          : "Selecione o antimicrobiano em todas as linhas (ou remova-as).");
         return;
       }
       if (r.micValue !== "") {
@@ -206,7 +211,7 @@ export default function AuditAntibiogramNew() {
     const labPayload = {
       hospital_id: hospitalId,
       collection_date: collectionDate,
-      organism,
+      organism: organismTrim,
       sample_type: sampleMaterial,
       sample_category: sampleCategory,
       sample_material: sampleMaterial,
@@ -247,9 +252,9 @@ export default function AuditAntibiogramNew() {
       labResultId = labResult.id;
     }
 
-    const abResults = results.filter(r => r.antibiotic).map(r => ({
+    const abResults = results.filter(r => r.antibiotic.trim()).map(r => ({
       lab_result_id: labResultId!,
-      antibiotic: r.antibiotic,
+      antibiotic: r.antibiotic.trim(),
       sensitivity: r.sir === "NT" || !r.sir ? "NT" : r.sir,
       sir_category: r.sir || "NT",
       mic_value: r.micValue ? Number(r.micValue) : null,
