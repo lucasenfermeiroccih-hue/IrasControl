@@ -1389,10 +1389,11 @@ export default function PatientsMonitoring() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
                 )}
                 {filtered.map(p => {
                   const dias = daysFromDate(p.dataInternacaoHospitalar);
+                  const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
                   return (
                     <TableRow key={p.id}>
                       <TableCell>
@@ -1403,6 +1404,11 @@ export default function PatientsMonitoring() {
                       <TableCell>{p.leito}</TableCell>
                       <TableCell>
                         <span className={`font-semibold ${dias > 14 ? "text-destructive" : ""}`}>{dias}d</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-semibold ${diasCti !== null && diasCti > 7 ? "text-destructive" : ""}`}>
+                          {diasCti !== null ? `${diasCti}d` : "—"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge variant={p.status === "active" ? "default" : "secondary"}>
@@ -1439,6 +1445,7 @@ export default function PatientsMonitoring() {
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum paciente.</p>}
             {filtered.map(p => {
               const dias = daysFromDate(p.dataInternacaoHospitalar);
+              const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
               return (
                 <div key={p.id} className="border border-border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -1450,10 +1457,11 @@ export default function PatientsMonitoring() {
                       {p.status === "active" ? "Internado" : "Alta"}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span>{p.unidade}</span>
                     <span>Leito {p.leito}</span>
-                    <span className={`font-semibold ${dias > 14 ? "text-destructive" : "text-foreground"}`}>{dias}d</span>
+                    <span>Int.: <strong className={`${dias > 14 ? "text-destructive" : "text-foreground"}`}>{dias}d</strong></span>
+                    <span>CTI: <strong className={`${diasCti !== null && diasCti > 7 ? "text-destructive" : "text-foreground"}`}>{diasCti !== null ? `${diasCti}d` : "—"}</strong></span>
                   </div>
                   <div className="flex gap-2 pt-1 border-t border-border">
                     <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEditId(p.id)}>
@@ -1710,6 +1718,8 @@ export default function PatientsMonitoring() {
                     <Field label="Admissão" value={viewPatient.dataAdmissao} />
                     <Field label="Int. Hospitalar" value={viewPatient.dataInternacaoHospitalar} />
                     <Field label="Dias Internação" value={`${daysFromDate(viewPatient.dataInternacaoHospitalar)} dias`} />
+                    <Field label="Int. CTI" value={viewPatient.dataInternacaoCTI || "—"} />
+                    <Field label="Dias CTI" value={viewPatient.dataInternacaoCTI ? `${daysFromDate(viewPatient.dataInternacaoCTI)} dias` : "—"} />
                     <Field label="Especialidade" value={viewPatient.especialidade} />
                     <Field label="Diagnóstico" value={viewPatient.diagnostico} className="sm:col-span-2" />
                     <Field label="Doenças de base" value={viewPatient.doencasBase} className="sm:col-span-2" />
