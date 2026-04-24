@@ -391,12 +391,6 @@ export default function AuditAntibiogramNew() {
               )}
             </div>
 
-            <Separator />
-
-            <div className="space-y-2">
-              <Label>Identificação Paciente</Label>
-              <Input placeholder="Código ou iniciais" value={patientId} onChange={e => setPatientId(e.target.value)} />
-            </div>
           </CardContent>
         </Card>
 
