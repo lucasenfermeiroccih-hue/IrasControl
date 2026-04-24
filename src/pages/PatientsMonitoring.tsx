@@ -370,6 +370,7 @@ export default function PatientsMonitoring() {
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
     const diasInternacao = daysFromDate(selected.dataInternacaoHospitalar);
+    const diasCTI = selected.dataInternacaoCTI ? daysFromDate(selected.dataInternacaoCTI) : null;
     return (
       <div className="pb-24">
         {/* ─── Sticky Patient Header ─────────────────────── */}
@@ -390,7 +391,7 @@ export default function PatientsMonitoring() {
               <Button variant={viewMode === "view" ? "default" : "outline"} size="sm" onClick={() => setViewMode("view")}><Eye className="h-4 w-4 mr-1" />Visualizar</Button>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-1 text-xs ml-10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-4 gap-y-1 text-xs ml-10">
             <div><span className="text-muted-foreground">Pront:</span> <span className="font-medium">{selected.prontuario}</span></div>
             <div><span className="text-muted-foreground">Unidade:</span> <span className="font-medium">{selected.unidade}</span></div>
             <div><span className="text-muted-foreground">Leito:</span> <span className="font-medium">{selected.leito}</span></div>
@@ -400,6 +401,12 @@ export default function PatientsMonitoring() {
             <div>
               <span className="text-muted-foreground">Internação:</span>{" "}
               <span className={`font-semibold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao}d</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">CTI:</span>{" "}
+              <span className={`font-semibold ${diasCTI !== null && diasCTI > 7 ? "text-destructive" : "text-foreground"}`}>
+                {diasCTI !== null ? `${diasCTI}d` : "—"}
+              </span>
             </div>
           </div>
           {/* Tab Navigation (no progress bar) */}
@@ -550,11 +557,22 @@ export default function PatientsMonitoring() {
                     </div>
                   </>
                 )}
-                <div className="mt-5 flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tempo de Internação</p>
-                    <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tempo de Internação Hospitalar</p>
+                      <p className={`text-xl font-bold ${diasInternacao > 14 ? "text-destructive" : "text-foreground"}`}>{diasInternacao} dias</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 w-fit">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tempo de Internação no CTI</p>
+                      <p className={`text-xl font-bold ${diasCTI !== null && diasCTI > 7 ? "text-destructive" : "text-foreground"}`}>
+                        {diasCTI !== null ? `${diasCTI} dias` : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1364,16 +1382,18 @@ export default function PatientsMonitoring() {
                   <TableHead>Setor</TableHead>
                   <TableHead>Leito</TableHead>
                   <TableHead>Dias Int.</TableHead>
+                  <TableHead>Dias CTI</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
                 )}
                 {filtered.map(p => {
                   const dias = daysFromDate(p.dataInternacaoHospitalar);
+                  const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
                   return (
                     <TableRow key={p.id}>
                       <TableCell>
@@ -1384,6 +1404,11 @@ export default function PatientsMonitoring() {
                       <TableCell>{p.leito}</TableCell>
                       <TableCell>
                         <span className={`font-semibold ${dias > 14 ? "text-destructive" : ""}`}>{dias}d</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-semibold ${diasCti !== null && diasCti > 7 ? "text-destructive" : ""}`}>
+                          {diasCti !== null ? `${diasCti}d` : "—"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge variant={p.status === "active" ? "default" : "secondary"}>
@@ -1420,6 +1445,7 @@ export default function PatientsMonitoring() {
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum paciente.</p>}
             {filtered.map(p => {
               const dias = daysFromDate(p.dataInternacaoHospitalar);
+              const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
               return (
                 <div key={p.id} className="border border-border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -1431,10 +1457,11 @@ export default function PatientsMonitoring() {
                       {p.status === "active" ? "Internado" : "Alta"}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span>{p.unidade}</span>
                     <span>Leito {p.leito}</span>
-                    <span className={`font-semibold ${dias > 14 ? "text-destructive" : "text-foreground"}`}>{dias}d</span>
+                    <span>Int.: <strong className={`${dias > 14 ? "text-destructive" : "text-foreground"}`}>{dias}d</strong></span>
+                    <span>CTI: <strong className={`${diasCti !== null && diasCti > 7 ? "text-destructive" : "text-foreground"}`}>{diasCti !== null ? `${diasCti}d` : "—"}</strong></span>
                   </div>
                   <div className="flex gap-2 pt-1 border-t border-border">
                     <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEditId(p.id)}>
@@ -1691,6 +1718,8 @@ export default function PatientsMonitoring() {
                     <Field label="Admissão" value={viewPatient.dataAdmissao} />
                     <Field label="Int. Hospitalar" value={viewPatient.dataInternacaoHospitalar} />
                     <Field label="Dias Internação" value={`${daysFromDate(viewPatient.dataInternacaoHospitalar)} dias`} />
+                    <Field label="Int. CTI" value={viewPatient.dataInternacaoCTI || "—"} />
+                    <Field label="Dias CTI" value={viewPatient.dataInternacaoCTI ? `${daysFromDate(viewPatient.dataInternacaoCTI)} dias` : "—"} />
                     <Field label="Especialidade" value={viewPatient.especialidade} />
                     <Field label="Diagnóstico" value={viewPatient.diagnostico} className="sm:col-span-2" />
                     <Field label="Doenças de base" value={viewPatient.doencasBase} className="sm:col-span-2" />
