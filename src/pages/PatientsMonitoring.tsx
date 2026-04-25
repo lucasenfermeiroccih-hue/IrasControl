@@ -164,7 +164,14 @@ export default function PatientsMonitoring() {
   const [criteriosSelecionados, setCriteriosSelecionados] = useState<string[]>([]);
   const [justificativa, setJustificativa] = useState("");
   const [ocorrencia, setOcorrencia] = useState({ unidadeSetor: "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
-  const [dispInvasivos, setDispInvasivos] = useState({ cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+  const [dispInvasivos, setDispInvasivos] = useState({
+    cvcInsercao: "", cvcRetirada: "", cvcTroca: "Não", cvcNovaInsercao: "", cvcNovaRetirada: "",
+    cvpInsercao: "", cvpRetirada: "", cvpTroca: "Não", cvpNovaInsercao: "", cvpNovaRetirada: "",
+    svuInsercao: "", svuRetirada: "", svuTroca: "Não", svuNovaInsercao: "", svuNovaRetirada: "",
+    vmInsercao: "", vmRetirada: "", vmTroca: "Não", vmNovaInsercao: "", vmNovaRetirada: "",
+    tqtInsercao: "", tqtRetirada: "", tqtTroca: "Não", tqtNovaInsercao: "", tqtNovaRetirada: "",
+    hemoInsercao: "", hemoRetirada: "", hemoTroca: "Não", hemoNovaInsercao: "", hemoNovaRetirada: "",
+  });
   const [labPanel, setLabPanel] = useState<LabEntry[]>([]);
   const [newLabOpen, setNewLabOpen] = useState(false);
   const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
