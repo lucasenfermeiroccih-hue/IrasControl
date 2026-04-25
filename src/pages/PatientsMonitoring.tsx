@@ -380,6 +380,7 @@ export default function PatientsMonitoring() {
   const svuDays = dispInvasivos.svuInsercao ? calcDiasUso(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada) : null;
   const vmDays = dispInvasivos.vmInsercao ? calcDiasUso(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada) : null;
   const tqtDays = dispInvasivos.tqtInsercao ? calcDiasUso(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada) : null;
+  const hemoDays = dispInvasivos.hemoInsercao ? calcDiasUso(dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada) : null;
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
