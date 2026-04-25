@@ -328,7 +328,14 @@ export default function PatientsMonitoring() {
       // Restore persisted tab data from clinical_data
       const cd = (pat as any)._clinicalData || {};
       setDispositivos(cd.dispositivos || { cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
-      setDispInvasivos(cd.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "", tqtInsercao: "", tqtRetirada: "" });
+      setDispInvasivos(cd.dispInvasivos || {
+        cvcInsercao: "", cvcRetirada: "", cvcTroca: "Não", cvcNovaInsercao: "", cvcNovaRetirada: "",
+        cvpInsercao: "", cvpRetirada: "", cvpTroca: "Não", cvpNovaInsercao: "", cvpNovaRetirada: "",
+        svuInsercao: "", svuRetirada: "", svuTroca: "Não", svuNovaInsercao: "", svuNovaRetirada: "",
+        vmInsercao: "", vmRetirada: "", vmTroca: "Não", vmNovaInsercao: "", vmNovaRetirada: "",
+        tqtInsercao: "", tqtRetirada: "", tqtTroca: "Não", tqtNovaInsercao: "", tqtNovaRetirada: "",
+        hemoInsercao: "", hemoRetirada: "", hemoTroca: "Não", hemoNovaInsercao: "", hemoNovaRetirada: "",
+      });
       setAntibioticos(cd.antibioticos || []);
       setEvolucao(cd.evolucao || { evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
       setSinaisVitais(cd.sinaisVitais || { temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
