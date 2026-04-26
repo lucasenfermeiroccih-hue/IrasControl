@@ -124,3 +124,15 @@
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   }
 }
+
+/* Chart fullscreen mode (used by ChartActions Maximize button) */
+.chart-fullscreen {
+  background: hsl(var(--background));
+  padding: 1.5rem;
+  overflow: auto;
+}
+.chart-fullscreen .recharts-responsive-container,
+.chart-fullscreen :where(.recharts-wrapper) {
+  height: calc(100vh - 6rem) !important;
+  width: 100% !important;
+}
