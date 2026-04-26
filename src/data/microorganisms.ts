@@ -111,6 +111,7 @@ export const MICROORGANISMS: string[] = [
   "Vibrio cholerae",
   "Yersinia pestis",
   "Zika virus",
+  "Outros",
 ];
 
 // Legacy alias kept for backward compatibility with existing imports

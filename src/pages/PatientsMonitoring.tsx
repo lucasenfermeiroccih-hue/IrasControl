@@ -1289,11 +1289,19 @@ export default function PatientsMonitoring() {
                 <Label className="font-medium">Microrganismo</Label>
                 <ComboboxSearch
                   options={MICROORGANISMS}
-                  value={newLab.microrganismo}
-                  onValueChange={v => setNewLab(p => ({ ...p, microrganismo: v }))}
+                  value={MICROORGANISMS.includes(newLab.microrganismo) ? newLab.microrganismo : (newLab.microrganismo ? "Outros" : "")}
+                  onValueChange={v => setNewLab(p => ({ ...p, microrganismo: v === "Outros" ? "" : v, _outros: v === "Outros" } as any))}
                   placeholder="Selecione o microrganismo"
                   emptyText="Nenhum microrganismo encontrado"
                 />
+                {((newLab as any)._outros || (newLab.microrganismo && !MICROORGANISMS.includes(newLab.microrganismo))) && (
+                  <Input
+                    value={newLab.microrganismo}
+                    onChange={e => setNewLab(p => ({ ...p, microrganismo: e.target.value } as any))}
+                    placeholder="Descreva o microrganismo"
+                    autoFocus
+                  />
+                )}
               </div>
               <div className="space-y-2"><Label className="font-medium">Perfil de Sensibilidade</Label><Input value={newLab.sensibilidade} onChange={e => setNewLab(p => ({ ...p, sensibilidade: e.target.value }))} placeholder="Ex: MRSA, ESBL, Sensível..." /></div>
               <div className="flex items-center gap-2">
