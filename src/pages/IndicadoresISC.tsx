@@ -41,6 +41,8 @@ interface ISCRegistro {
   ano: string;
   indicadores: Record<string, {
     totalCirurgias: number;
+    retornoAmbulatorio: number;
+    retornoWhatsapp: number;
     contatosAtendidos: number;
     reinternacoes: number;
     iscConfirmada: number;
@@ -62,6 +64,8 @@ const sitioOptions = ["ISC superficial", "ISC profunda", "ISC de cavidade/órgã
 
 interface ClinicaData {
   totalCirurgias: number;
+  retornoAmbulatorio: number;
+  retornoWhatsapp: number;
   contatosAtendidos: number;
   reinternacoes: number;
   iscConfirmada: number;
@@ -130,6 +134,8 @@ const createInitialExtras = (): ProcedimentosExtras =>
 
 const emptyClinicaData = (): ClinicaData => ({
   totalCirurgias: 0,
+  retornoAmbulatorio: 0,
+  retornoWhatsapp: 0,
   contatosAtendidos: 0,
   reinternacoes: 0,
   iscConfirmada: 0,
@@ -157,6 +163,8 @@ const calcTaxa = (num: number, den: number) =>
 
 const indicadorRows = [
   { key: "totalCirurgias", label: "Total de Cirurgias", type: "number" },
+  { key: "retornoAmbulatorio", label: "Retorno Ambulatório", type: "number" },
+  { key: "retornoWhatsapp", label: "Retorno WhatsApp", type: "number" },
   { key: "contatosAtendidos", label: "Contatos Telefônicos Atendidos", type: "number" },
   { key: "taxaResposta", label: "Taxa de Resposta (%)", type: "calculated" },
   { key: "reinternacoes", label: "Reinternações", type: "number" },
@@ -223,6 +231,8 @@ export default function IndicadoresISC() {
     for (const c of clinicasVisiveis) {
       const d = data[c] || emptyClinicaData();
       t.totalCirurgias += d.totalCirurgias;
+      t.retornoAmbulatorio += d.retornoAmbulatorio;
+      t.retornoWhatsapp += d.retornoWhatsapp;
       t.contatosAtendidos += d.contatosAtendidos;
       t.reinternacoes += d.reinternacoes;
       t.iscConfirmada += d.iscConfirmada;
@@ -264,7 +274,7 @@ export default function IndicadoresISC() {
       const indicators = clinicasVisiveis
         .filter((c) => {
           const d = data[c];
-          return d && (d.totalCirurgias > 0 || d.iscConfirmada > 0 || d.contatosAtendidos > 0 || d.reinternacoes > 0);
+          return d && (d.totalCirurgias > 0 || d.iscConfirmada > 0 || d.contatosAtendidos > 0 || d.retornoAmbulatorio > 0 || d.retornoWhatsapp > 0 || d.reinternacoes > 0);
         })
         .map((c) => ({
           isc_record_id: iscRecord.id,
@@ -323,7 +333,7 @@ export default function IndicadoresISC() {
     if (row.type === "calculated") {
       const val =
         row.key === "taxaResposta"
-          ? calcTaxa(d.contatosAtendidos, d.totalCirurgias)
+          ? calcTaxa(d.contatosAtendidos + d.retornoAmbulatorio + d.retornoWhatsapp, d.totalCirurgias)
           : calcTaxa(d.iscConfirmada, d.totalCirurgias);
       return <span className="font-semibold text-primary">{val}%</span>;
     }
