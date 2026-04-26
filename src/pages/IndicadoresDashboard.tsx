@@ -439,7 +439,11 @@ export default function IndicadoresDashboard() {
               <Card ref={chartRefs.infeccaoDispositivo}>
                 <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm">Nº Infecção por Dispositivo / Mês</CardTitle>
-                  <ChartActions chartRef={chartRefs.infeccaoDispositivo} chartTitle="Infecção por Dispositivo" metaValue={metas.infeccaoDisp} onMetaChange={v => setMeta("infeccaoDisp", v)} />
+                  <ChartActions chartRef={chartRefs.infeccaoDispositivo} chartTitle="Infecção por Dispositivo" metaFields={[
+                    { key: "infCVC", label: "Meta CVC", value: metas.infCVC, onChange: v => setMeta("infCVC", v) },
+                    { key: "infSVD", label: "Meta SVD", value: metas.infSVD, onChange: v => setMeta("infSVD", v) },
+                    { key: "infVM",  label: "Meta VM",  value: metas.infVM,  onChange: v => setMeta("infVM", v) },
+                  ]} />
                 </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={220}>
@@ -452,7 +456,9 @@ export default function IndicadoresDashboard() {
                       <Bar dataKey="infeccaoCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} />
                       <Bar dataKey="infeccaoSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
                       <Bar dataKey="infeccaoVM" name="VM" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} />
-                      {metas.infeccaoDisp !== undefined && <ReferenceLine y={metas.infeccaoDisp} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.infeccaoDisp}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
+                      {metas.infCVC !== undefined && <ReferenceLine y={metas.infCVC} stroke="hsl(217 91% 60%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta CVC: ${metas.infCVC}`, position: "right", fontSize: 10, fill: "hsl(217 91% 60%)" }} />}
+                      {metas.infSVD !== undefined && <ReferenceLine y={metas.infSVD} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta SVD: ${metas.infSVD}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
+                      {metas.infVM !== undefined && <ReferenceLine y={metas.infVM} stroke="hsl(38 92% 50%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta VM: ${metas.infVM}`, position: "right", fontSize: 10, fill: "hsl(38 92% 50%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -460,7 +466,11 @@ export default function IndicadoresDashboard() {
               <Card ref={chartRefs.taxaInfDispositivo}>
                 <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm">Taxa de Infecção por Dispositivo (‰)</CardTitle>
-                  <ChartActions chartRef={chartRefs.taxaInfDispositivo} chartTitle="Taxa Inf Dispositivo" metaValue={metas.taxaInfDisp} onMetaChange={v => setMeta("taxaInfDisp", v)} metaUnit="‰" />
+                  <ChartActions chartRef={chartRefs.taxaInfDispositivo} chartTitle="Taxa Inf Dispositivo" metaUnit="‰" metaFields={[
+                    { key: "taxaInfCVC", label: "Meta CVC", value: metas.taxaInfCVC, onChange: v => setMeta("taxaInfCVC", v) },
+                    { key: "taxaInfSVD", label: "Meta SVD", value: metas.taxaInfSVD, onChange: v => setMeta("taxaInfSVD", v) },
+                    { key: "taxaInfVM",  label: "Meta VM",  value: metas.taxaInfVM,  onChange: v => setMeta("taxaInfVM", v) },
+                  ]} />
                 </CardHeader>
                 <CardContent className="p-3 pt-2">
                   <ResponsiveContainer width="100%" height={220}>
@@ -473,7 +483,9 @@ export default function IndicadoresDashboard() {
                       <Line type="monotone" dataKey="taxaInfCVC" name="CVC ‰" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
                       <Line type="monotone" dataKey="taxaInfSVD" name="SVD ‰" stroke="hsl(168 66% 34%)" strokeWidth={2} dot={{ r: 3 }} />
                       <Line type="monotone" dataKey="taxaInfVM" name="VM ‰" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
-                      {metas.taxaInfDisp !== undefined && <ReferenceLine y={metas.taxaInfDisp} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxaInfDisp}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
+                      {metas.taxaInfCVC !== undefined && <ReferenceLine y={metas.taxaInfCVC} stroke="hsl(217 91% 60%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta CVC: ${metas.taxaInfCVC}‰`, position: "right", fontSize: 10, fill: "hsl(217 91% 60%)" }} />}
+                      {metas.taxaInfSVD !== undefined && <ReferenceLine y={metas.taxaInfSVD} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta SVD: ${metas.taxaInfSVD}‰`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
+                      {metas.taxaInfVM !== undefined && <ReferenceLine y={metas.taxaInfVM} stroke="hsl(38 92% 50%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta VM: ${metas.taxaInfVM}‰`, position: "right", fontSize: 10, fill: "hsl(38 92% 50%)" }} />}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
