@@ -8,17 +8,31 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+interface MetaField {
+  key: string;
+  label: string;
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}
+
 interface ChartActionsProps {
   chartRef: React.RefObject<HTMLDivElement>;
   chartTitle: string;
   metaValue?: number;
   onMetaChange?: (value: number | undefined) => void;
   metaUnit?: string;
+  /** Optional: define multiple metas (e.g. one per device). When provided, overrides single metaValue/onMetaChange. */
+  metaFields?: MetaField[];
 }
 
-export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaChange, metaUnit = "" }: ChartActionsProps) {
+export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaChange, metaUnit = "", metaFields }: ChartActionsProps) {
+  const multi = metaFields && metaFields.length > 0;
+  const hasAnyMeta = multi
+    ? metaFields!.some(f => f.value !== undefined)
+    : metaValue !== undefined;
   const [metaOpen, setMetaOpen] = useState(false);
   const [metaInput, setMetaInput] = useState("");
+  const [multiInputs, setMultiInputs] = useState<Record<string, string>>({});
 
   const exportJPG = async () => {
     if (!chartRef.current) return;
