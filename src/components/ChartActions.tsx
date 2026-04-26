@@ -101,10 +101,42 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
     setMetaOpen(false);
   };
 
+  // Fullscreen support: toggles native browser fullscreen on the chart container
+  const [isFs, setIsFs] = useState(false);
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const el = chartRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) {
+        el.classList.add("chart-fullscreen");
+        await el.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+        el.classList.remove("chart-fullscreen");
+      }
+    } catch (e) {
+      console.error("Erro ao alternar tela cheia:", e);
+    }
+  };
+
   return (
     <>
       <TooltipProvider delayDuration={200}>
         <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFullscreen}>
+                <Maximize2 className={`h-3.5 w-3.5 ${isFs ? "text-primary" : "text-muted-foreground"}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p className="text-xs">{isFs ? "Sair da tela cheia" : "Ampliar (tela cheia)"}</p></TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportJPG}>
