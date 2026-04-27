@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import {
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
   TrendingDown, TrendingUp, Sparkles, FileText, Inbox, Loader2, Download,
+  MessageCircle, CalendarDays,
 } from "lucide-react";
 import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
