@@ -627,9 +627,20 @@ export default function DashboardISC() {
           </div>
 
           {/* Tabs — Contatos absolutos por mês */}
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={refContatos as any}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Contatos por Mês — Números Absolutos</CardTitle>
+              <div data-html2canvas-ignore="true">
+                <ChartActions
+                  chartRef={refContatos}
+                  chartTitle="Contatos por Mês"
+                  metaFields={[
+                    { key: "telefonico", label: "Meta Telefônico", value: metas.contatos_tel, onChange: setMeta("contatos_tel") },
+                    { key: "ambulatorio", label: "Meta Ambulatório", value: metas.contatos_amb, onChange: setMeta("contatos_amb") },
+                    { key: "whatsapp", label: "Meta WhatsApp", value: metas.contatos_wpp, onChange: setMeta("contatos_wpp") },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="telefonico" className="w-full">
@@ -646,6 +657,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_tel !== undefined && (
+                        <ReferenceLine y={metas.contatos_tel} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_tel}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -657,6 +671,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_amb !== undefined && (
+                        <ReferenceLine y={metas.contatos_amb} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_amb}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -668,6 +685,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_wpp !== undefined && (
+                        <ReferenceLine y={metas.contatos_wpp} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_wpp}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -677,8 +697,13 @@ export default function DashboardISC() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Cirurgias por Clínica</CardTitle></CardHeader>
+            <Card ref={refClinica as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Cirurgias por Clínica</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refClinica} chartTitle="Cirurgias por Clínica" metaValue={metas.clinica} onMetaChange={setMeta("clinica")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barClinicaData}>
@@ -691,13 +716,21 @@ export default function DashboardISC() {
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Bar>
+                    {metas.clinica !== undefined && (
+                      <ReferenceLine y={metas.clinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.clinica}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle></CardHeader>
+            <Card ref={refEvolucao as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refEvolucao} chartTitle="Evolução Taxa ISC" metaUnit="%" metaValue={metas.evolucao} onMetaChange={setMeta("evolucao")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lineData}>
@@ -706,13 +739,21 @@ export default function DashboardISC() {
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
                     <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    {metas.evolucao !== undefined && (
+                      <ReferenceLine y={metas.evolucao} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.evolucao}%`, position: "right", fontSize: 11 }} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle></CardHeader>
+            <Card ref={refTipoISC as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refTipoISC} chartTitle="Distribuição por Tipo de ISC" metaValue={metas.tipoIsc} onMetaChange={setMeta("tipoIsc")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -728,8 +769,13 @@ export default function DashboardISC() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Clínica</CardTitle></CardHeader>
+            <Card ref={refReintClinica as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Reinternações por Clínica</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refReintClinica} chartTitle="Reinternações por Clínica" metaValue={metas.reintClinica} onMetaChange={setMeta("reintClinica")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barReintData}>
@@ -738,6 +784,9 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    {metas.reintClinica !== undefined && (
+                      <ReferenceLine y={metas.reintClinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintClinica}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -746,8 +795,13 @@ export default function DashboardISC() {
 
           {/* Novos gráficos mensais e cirúrgicos */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Mês</CardTitle></CardHeader>
+            <Card ref={refReintMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Reinternações por Mês</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refReintMes} chartTitle="Reinternações por Mês" metaValue={metas.reintMes} onMetaChange={setMeta("reintMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={reinternacoesMensais}>
@@ -756,13 +810,21 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    {metas.reintMes !== undefined && (
+                      <ReferenceLine y={metas.reintMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintMes}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">ISC Confirmadas por Mês</CardTitle></CardHeader>
+            <Card ref={refIscMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">ISC Confirmadas por Mês</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refIscMes} chartTitle="ISC Confirmadas por Mês" metaValue={metas.iscMes} onMetaChange={setMeta("iscMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={iscMensais}>
@@ -771,13 +833,21 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    {metas.iscMes !== undefined && (
+                      <ReferenceLine y={metas.iscMes} stroke="hsl(var(--primary))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.iscMes}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Sítio de Cirurgia</CardTitle></CardHeader>
+            <Card ref={refSitio as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Sítio de Cirurgia</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refSitio} chartTitle="Sítio de Cirurgia" metaValue={metas.sitio} onMetaChange={setMeta("sitio")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -798,8 +868,13 @@ export default function DashboardISC() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Taxa de ISC por Mês (%)</CardTitle></CardHeader>
+            <Card ref={refTaxaIscMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Taxa de ISC por Mês (%)</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refTaxaIscMes} chartTitle="Taxa de ISC por Mês" metaUnit="%" metaValue={metas.taxaIscMes} onMetaChange={setMeta("taxaIscMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lineData}>
@@ -808,14 +883,22 @@ export default function DashboardISC() {
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
                     <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    {metas.taxaIscMes !== undefined && (
+                      <ReferenceLine y={metas.taxaIscMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.taxaIscMes}%`, position: "right", fontSize: 11 }} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Total de Cirurgias por Mês — por Especialidade</CardTitle></CardHeader>
+          <Card ref={refEspecialidade as any}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Total de Cirurgias por Mês — por Especialidade</CardTitle>
+              <div data-html2canvas-ignore="true">
+                <ChartActions chartRef={refEspecialidade} chartTitle="Cirurgias por Especialidade" metaValue={metas.especialidade} onMetaChange={setMeta("especialidade")} />
+              </div>
+            </CardHeader>
             <CardContent className="h-[360px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cirurgiasEspecialidadeMes.rows}>
@@ -833,6 +916,9 @@ export default function DashboardISC() {
                       radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                     />
                   ))}
+                  {metas.especialidade !== undefined && (
+                    <ReferenceLine y={metas.especialidade} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.especialidade}`, position: "right", fontSize: 11 }} />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
