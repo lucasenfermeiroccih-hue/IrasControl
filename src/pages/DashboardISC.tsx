@@ -25,6 +25,9 @@ import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
+import ChartActions from "@/components/ChartActions";
+import { ReferenceLine } from "recharts";
+import { FileSpreadsheet } from "lucide-react";
 
 const mesesNomes = [
   "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -78,6 +81,22 @@ export default function DashboardISC() {
   const [aiReport, setAiReport] = useState("");
   const [exportingPdf, setExportingPdf] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // Refs e metas para cada gráfico
+  const refContatos = useRef<HTMLDivElement>(null);
+  const refClinica = useRef<HTMLDivElement>(null);
+  const refEvolucao = useRef<HTMLDivElement>(null);
+  const refTipoISC = useRef<HTMLDivElement>(null);
+  const refReintClinica = useRef<HTMLDivElement>(null);
+  const refReintMes = useRef<HTMLDivElement>(null);
+  const refIscMes = useRef<HTMLDivElement>(null);
+  const refSitio = useRef<HTMLDivElement>(null);
+  const refTaxaIscMes = useRef<HTMLDivElement>(null);
+  const refEspecialidade = useRef<HTMLDivElement>(null);
+
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (k: string) => (v: number | undefined) =>
+    setMetas((prev) => ({ ...prev, [k]: v }));
 
   const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
   const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
@@ -357,6 +376,95 @@ export default function DashboardISC() {
     }
   };
 
+  // Exporta KPIs + séries usadas nos gráficos em CSV (com filtros aplicados)
+  const exportCsv = () => {
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows: string[][] = [];
+
+    rows.push(["Dashboard ISC — Exportação CSV"]);
+    rows.push(["Gerado em", new Date().toLocaleString("pt-BR")]);
+    rows.push(["Filtros aplicados"]);
+    rows.push(["Mês", mesFiltro]);
+    rows.push(["Ano", anoFiltro]);
+    rows.push(["Setor/Clínica", setorFiltro]);
+    rows.push(["Profissional", profFiltro]);
+    rows.push(["Período inicial", periodoInicio || "—"]);
+    rows.push(["Período final", periodoFim || "—"]);
+    rows.push([]);
+
+    rows.push(["KPIs"]);
+    rows.push(["Indicador", "Valor"]);
+    rows.push(["Total Cirurgias", String(kpis.totalCirurgias)]);
+    rows.push(["Contatos Telefônicos", String(kpis.totalContatos)]);
+    rows.push(["Retorno Ambulatório", String(kpis.totalRetAmb)]);
+    rows.push(["Retorno WhatsApp", String(kpis.totalRetWpp)]);
+    rows.push(["Total Respostas", String(kpis.totalRespostas)]);
+    rows.push(["Taxa de Resposta (%)", kpis.taxaResposta.toFixed(2)]);
+    rows.push(["Reinternações", String(kpis.totalReinternacoes)]);
+    rows.push(["ISC Confirmadas", String(kpis.totalISC)]);
+    rows.push(["Taxa de ISC (%)", kpis.taxaISC.toFixed(2)]);
+    rows.push([]);
+
+    rows.push(["Contatos por Mês — Números Absolutos"]);
+    rows.push(["Mês/Ano", "Telefônico", "Ambulatório", "WhatsApp"]);
+    contatosMensais.forEach((d) => rows.push([d.name, String(d.telefonico), String(d.ambulatorio), String(d.whatsapp)]));
+    rows.push([]);
+
+    rows.push(["Cirurgias por Clínica"]);
+    rows.push(["Clínica", "Cirurgias"]);
+    barClinicaData.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["Evolução Mensal — Taxa de ISC (%)"]);
+    rows.push(["Mês/Ano", "Taxa ISC (%)"]);
+    lineData.forEach((d) => rows.push([d.name, String(d.taxa)]));
+    rows.push([]);
+
+    rows.push(["Distribuição por Tipo de ISC"]);
+    rows.push(["Tipo", "Quantidade"]);
+    pieData.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["Reinternações por Clínica"]);
+    rows.push(["Clínica", "Reinternações"]);
+    barReintData.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["Reinternações por Mês"]);
+    rows.push(["Mês/Ano", "Reinternações"]);
+    reinternacoesMensais.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["ISC Confirmadas por Mês"]);
+    rows.push(["Mês/Ano", "ISC Confirmadas"]);
+    iscMensais.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["Sítio de Cirurgia"]);
+    rows.push(["Sítio", "Cirurgias"]);
+    sitioData.forEach((d) => rows.push([d.name, String(d.value)]));
+    rows.push([]);
+
+    rows.push(["Total de Cirurgias por Mês — por Especialidade"]);
+    rows.push(["Mês/Ano", ...cirurgiasEspecialidadeMes.especialidades]);
+    cirurgiasEspecialidadeMes.rows.forEach((row) => {
+      rows.push([row.name, ...cirurgiasEspecialidadeMes.especialidades.map((e) => String(row[e] ?? 0))]);
+    });
+
+    const csv = "\uFEFF" + rows.map((r) => r.map(esc).join(";")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dashboard-isc-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado com sucesso!");
+  };
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -384,6 +492,14 @@ export default function DashboardISC() {
             if (clinicaStats.length > 0) { const worst = clinicaStats.sort((a, b) => b.taxaISC - a.taxaISC)[0]; ins.push(`🏥 Clínica com maior taxa: ${worst.name} (${worst.taxaISC.toFixed(1)}%).`); }
             return ins;
           }} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportCsv}
+            disabled={!hasData}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Exportar CSV
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -511,9 +627,20 @@ export default function DashboardISC() {
           </div>
 
           {/* Tabs — Contatos absolutos por mês */}
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={refContatos as any}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Contatos por Mês — Números Absolutos</CardTitle>
+              <div data-html2canvas-ignore="true">
+                <ChartActions
+                  chartRef={refContatos}
+                  chartTitle="Contatos por Mês"
+                  metaFields={[
+                    { key: "telefonico", label: "Meta Telefônico", value: metas.contatos_tel, onChange: setMeta("contatos_tel") },
+                    { key: "ambulatorio", label: "Meta Ambulatório", value: metas.contatos_amb, onChange: setMeta("contatos_amb") },
+                    { key: "whatsapp", label: "Meta WhatsApp", value: metas.contatos_wpp, onChange: setMeta("contatos_wpp") },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="telefonico" className="w-full">
@@ -530,6 +657,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_tel !== undefined && (
+                        <ReferenceLine y={metas.contatos_tel} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_tel}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -541,6 +671,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_amb !== undefined && (
+                        <ReferenceLine y={metas.contatos_amb} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_amb}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -552,6 +685,9 @@ export default function DashboardISC() {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                      {metas.contatos_wpp !== undefined && (
+                        <ReferenceLine y={metas.contatos_wpp} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_wpp}`, position: "right", fontSize: 11 }} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </TabsContent>
@@ -561,8 +697,13 @@ export default function DashboardISC() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Cirurgias por Clínica</CardTitle></CardHeader>
+            <Card ref={refClinica as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Cirurgias por Clínica</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refClinica} chartTitle="Cirurgias por Clínica" metaValue={metas.clinica} onMetaChange={setMeta("clinica")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barClinicaData}>
@@ -575,13 +716,21 @@ export default function DashboardISC() {
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Bar>
+                    {metas.clinica !== undefined && (
+                      <ReferenceLine y={metas.clinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.clinica}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle></CardHeader>
+            <Card ref={refEvolucao as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Evolução Mensal — Taxa de ISC (%)</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refEvolucao} chartTitle="Evolução Taxa ISC" metaUnit="%" metaValue={metas.evolucao} onMetaChange={setMeta("evolucao")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lineData}>
@@ -590,13 +739,21 @@ export default function DashboardISC() {
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
                     <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    {metas.evolucao !== undefined && (
+                      <ReferenceLine y={metas.evolucao} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.evolucao}%`, position: "right", fontSize: 11 }} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle></CardHeader>
+            <Card ref={refTipoISC as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Distribuição por Tipo de ISC</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refTipoISC} chartTitle="Distribuição por Tipo de ISC" metaValue={metas.tipoIsc} onMetaChange={setMeta("tipoIsc")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -612,8 +769,13 @@ export default function DashboardISC() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Clínica</CardTitle></CardHeader>
+            <Card ref={refReintClinica as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Reinternações por Clínica</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refReintClinica} chartTitle="Reinternações por Clínica" metaValue={metas.reintClinica} onMetaChange={setMeta("reintClinica")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barReintData}>
@@ -622,6 +784,9 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    {metas.reintClinica !== undefined && (
+                      <ReferenceLine y={metas.reintClinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintClinica}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -630,8 +795,13 @@ export default function DashboardISC() {
 
           {/* Novos gráficos mensais e cirúrgicos */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Mês</CardTitle></CardHeader>
+            <Card ref={refReintMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Reinternações por Mês</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refReintMes} chartTitle="Reinternações por Mês" metaValue={metas.reintMes} onMetaChange={setMeta("reintMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={reinternacoesMensais}>
@@ -640,13 +810,21 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    {metas.reintMes !== undefined && (
+                      <ReferenceLine y={metas.reintMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintMes}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">ISC Confirmadas por Mês</CardTitle></CardHeader>
+            <Card ref={refIscMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">ISC Confirmadas por Mês</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refIscMes} chartTitle="ISC Confirmadas por Mês" metaValue={metas.iscMes} onMetaChange={setMeta("iscMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={iscMensais}>
@@ -655,13 +833,21 @@ export default function DashboardISC() {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    {metas.iscMes !== undefined && (
+                      <ReferenceLine y={metas.iscMes} stroke="hsl(var(--primary))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.iscMes}`, position: "right", fontSize: 11 }} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Sítio de Cirurgia</CardTitle></CardHeader>
+            <Card ref={refSitio as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Sítio de Cirurgia</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refSitio} chartTitle="Sítio de Cirurgia" metaValue={metas.sitio} onMetaChange={setMeta("sitio")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -682,8 +868,13 @@ export default function DashboardISC() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Taxa de ISC por Mês (%)</CardTitle></CardHeader>
+            <Card ref={refTaxaIscMes as any}>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Taxa de ISC por Mês (%)</CardTitle>
+                <div data-html2canvas-ignore="true">
+                  <ChartActions chartRef={refTaxaIscMes} chartTitle="Taxa de ISC por Mês" metaUnit="%" metaValue={metas.taxaIscMes} onMetaChange={setMeta("taxaIscMes")} />
+                </div>
+              </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lineData}>
@@ -692,14 +883,22 @@ export default function DashboardISC() {
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
                     <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    {metas.taxaIscMes !== undefined && (
+                      <ReferenceLine y={metas.taxaIscMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.taxaIscMes}%`, position: "right", fontSize: 11 }} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Total de Cirurgias por Mês — por Especialidade</CardTitle></CardHeader>
+          <Card ref={refEspecialidade as any}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Total de Cirurgias por Mês — por Especialidade</CardTitle>
+              <div data-html2canvas-ignore="true">
+                <ChartActions chartRef={refEspecialidade} chartTitle="Cirurgias por Especialidade" metaValue={metas.especialidade} onMetaChange={setMeta("especialidade")} />
+              </div>
+            </CardHeader>
             <CardContent className="h-[360px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cirurgiasEspecialidadeMes.rows}>
@@ -717,6 +916,9 @@ export default function DashboardISC() {
                       radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                     />
                   ))}
+                  {metas.especialidade !== undefined && (
+                    <ReferenceLine y={metas.especialidade} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.especialidade}`, position: "right", fontSize: 11 }} />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
