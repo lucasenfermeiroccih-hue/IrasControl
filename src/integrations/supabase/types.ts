@@ -967,6 +967,8 @@ export type Database = {
           isc_record_id: string
           procedimento: string
           reinternacoes: number
+          retorno_ambulatorio: number
+          retorno_whatsapp: number
           sitio: string | null
           total_cirurgias: number
         }
@@ -978,6 +980,8 @@ export type Database = {
           isc_record_id: string
           procedimento: string
           reinternacoes?: number
+          retorno_ambulatorio?: number
+          retorno_whatsapp?: number
           sitio?: string | null
           total_cirurgias?: number
         }
@@ -989,6 +993,8 @@ export type Database = {
           isc_record_id?: string
           procedimento?: string
           reinternacoes?: number
+          retorno_ambulatorio?: number
+          retorno_whatsapp?: number
           sitio?: string | null
           total_cirurgias?: number
         }

@@ -281,6 +281,8 @@ export default function IndicadoresISC() {
           procedimento: c,
           total_cirurgias: data[c].totalCirurgias,
           contatos_atendidos: data[c].contatosAtendidos,
+          retorno_ambulatorio: data[c].retornoAmbulatorio,
+          retorno_whatsapp: data[c].retornoWhatsapp,
           reinternacoes: data[c].reinternacoes,
           isc_confirmada: data[c].iscConfirmada,
           sitio: data[c].sitio || null,

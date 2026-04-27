@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "./useHospitalContext";
 
@@ -9,6 +9,8 @@ interface FlatRecord {
   clinica: string;
   totalCirurgias: number;
   contatosAtendidos: number;
+  retornoAmbulatorio: number;
+  retornoWhatsapp: number;
   reinternacoes: number;
   iscConfirmada: number;
   sitio: string;
@@ -51,6 +53,8 @@ export function useISCDashboard() {
             clinica: ind.procedimento,
             totalCirurgias: ind.total_cirurgias,
             contatosAtendidos: ind.contatos_atendidos,
+            retornoAmbulatorio: (ind as any).retorno_ambulatorio ?? 0,
+            retornoWhatsapp: (ind as any).retorno_whatsapp ?? 0,
             reinternacoes: ind.reinternacoes,
             iscConfirmada: ind.isc_confirmada,
             sitio: ind.sitio || "",

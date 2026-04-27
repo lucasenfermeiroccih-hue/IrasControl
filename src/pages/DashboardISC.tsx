@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import {
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
   TrendingDown, TrendingUp, Sparkles, FileText, Inbox, Loader2, Download,
+  MessageCircle, CalendarDays,
 } from "lucide-react";
 import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -88,11 +90,14 @@ export default function DashboardISC() {
   const kpis = useMemo(() => {
     const totalCirurgias = filtered.reduce((s, r) => s + r.totalCirurgias, 0);
     const totalContatos = filtered.reduce((s, r) => s + r.contatosAtendidos, 0);
+    const totalRetAmb = filtered.reduce((s, r) => s + (r.retornoAmbulatorio || 0), 0);
+    const totalRetWpp = filtered.reduce((s, r) => s + (r.retornoWhatsapp || 0), 0);
     const totalReinternacoes = filtered.reduce((s, r) => s + r.reinternacoes, 0);
     const totalISC = filtered.reduce((s, r) => s + r.iscConfirmada, 0);
-    const taxaResposta = totalCirurgias > 0 ? (totalContatos / totalCirurgias) * 100 : 0;
+    const totalRespostas = totalContatos + totalRetAmb + totalRetWpp;
+    const taxaResposta = totalCirurgias > 0 ? (totalRespostas / totalCirurgias) * 100 : 0;
     const taxaISC = totalCirurgias > 0 ? (totalISC / totalCirurgias) * 100 : 0;
-    return { totalCirurgias, totalContatos, taxaResposta, totalReinternacoes, totalISC, taxaISC };
+    return { totalCirurgias, totalContatos, totalRetAmb, totalRetWpp, totalRespostas, taxaResposta, totalReinternacoes, totalISC, taxaISC };
   }, [filtered]);
 
   const barClinicaData = useMemo(() => {
@@ -133,6 +138,74 @@ export default function DashboardISC() {
     const map: Record<string, number> = {};
     filtered.forEach((r) => { map[r.clinica] = (map[r.clinica] || 0) + r.reinternacoes; });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Helper para chave mês/ano ordenada
+  const sortMesAno = ([a]: [string, any], [b]: [string, any]) => {
+    const [mA, yA] = a.split("/").map(Number);
+    const [mB, yB] = b.split("/").map(Number);
+    return yA * 100 + mA - (yB * 100 + mB);
+  };
+
+  // Contatos absolutos por mês (telefônicos, ambulatório, whatsapp)
+  const contatosMensais = useMemo(() => {
+    const map: Record<string, { telefonico: number; ambulatorio: number; whatsapp: number }> = {};
+    filtered.forEach((r) => {
+      const key = `${r.mes}/${r.ano}`;
+      if (!map[key]) map[key] = { telefonico: 0, ambulatorio: 0, whatsapp: 0 };
+      map[key].telefonico += r.contatosAtendidos;
+      map[key].ambulatorio += r.retornoAmbulatorio || 0;
+      map[key].whatsapp += r.retornoWhatsapp || 0;
+    });
+    return Object.entries(map).sort(sortMesAno).map(([name, v]) => ({ name, ...v }));
+  }, [filtered]);
+
+  // Reinternações por mês
+  const reinternacoesMensais = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach((r) => {
+      const key = `${r.mes}/${r.ano}`;
+      map[key] = (map[key] || 0) + r.reinternacoes;
+    });
+    return Object.entries(map).sort(sortMesAno).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // ISC absolutas por mês
+  const iscMensais = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach((r) => {
+      const key = `${r.mes}/${r.ano}`;
+      map[key] = (map[key] || 0) + r.iscConfirmada;
+    });
+    return Object.entries(map).sort(sortMesAno).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Sítio cirúrgico (distribuição por sítio entre as cirurgias com sítio informado)
+  const sitioData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach((r) => {
+      if (r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.totalCirurgias;
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Cirurgias por especialidade (clinica) por mês — empilhado
+  const cirurgiasEspecialidadeMes = useMemo(() => {
+    const especialidades = [...new Set(filtered.map(r => r.clinica))];
+    const mapMes: Record<string, Record<string, number>> = {};
+    filtered.forEach((r) => {
+      const key = `${r.mes}/${r.ano}`;
+      if (!mapMes[key]) mapMes[key] = {};
+      mapMes[key][r.clinica] = (mapMes[key][r.clinica] || 0) + r.totalCirurgias;
+    });
+    const rows = Object.entries(mapMes)
+      .sort(sortMesAno)
+      .map(([name, vals]) => {
+        const row: Record<string, any> = { name };
+        especialidades.forEach(e => { row[e] = vals[e] || 0; });
+        return row;
+      });
+    return { rows, especialidades };
   }, [filtered]);
 
   const clinicaStats = useMemo(() => {
@@ -278,10 +351,12 @@ export default function DashboardISC() {
       {!hasData || filtered.length === 0 ? <EmptyState /> : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-8">
             {[
               { label: "Total Cirurgias", value: kpis.totalCirurgias, icon: <Stethoscope className="h-5 w-5 text-primary" /> },
-              { label: "Contatos Atendidos", value: kpis.totalContatos, icon: <Phone className="h-5 w-5 text-primary" /> },
+              { label: "Contatos Telefônicos", value: kpis.totalContatos, icon: <Phone className="h-5 w-5 text-primary" /> },
+              { label: "Retorno Ambulatório", value: kpis.totalRetAmb, icon: <CalendarDays className="h-5 w-5 text-primary" /> },
+              { label: "Retorno WhatsApp", value: kpis.totalRetWpp, icon: <MessageCircle className="h-5 w-5 text-primary" /> },
               { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
               { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
               { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
@@ -301,6 +376,55 @@ export default function DashboardISC() {
               </Card>
             ))}
           </div>
+
+          {/* Tabs — Contatos absolutos por mês */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Contatos por Mês — Números Absolutos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="telefonico" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 max-w-xl">
+                  <TabsTrigger value="telefonico">Telefônico</TabsTrigger>
+                  <TabsTrigger value="ambulatorio">Ambulatório</TabsTrigger>
+                  <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                </TabsList>
+                <TabsContent value="telefonico" className="h-[320px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={contatosMensais}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </TabsContent>
+                <TabsContent value="ambulatorio" className="h-[320px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={contatosMensais}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </TabsContent>
+                <TabsContent value="whatsapp" className="h-[320px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={contatosMensais}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
 
           {/* Charts */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -370,6 +494,100 @@ export default function DashboardISC() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Novos gráficos mensais e cirúrgicos */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Reinternações por Mês</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={reinternacoesMensais}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">ISC Confirmadas por Mês</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={iscMensais}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Sítio de Cirurgia</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sitioData} cx="50%" cy="50%" outerRadius={100}
+                      dataKey="value" nameKey="name"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine
+                    >
+                      {sitioData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Taxa de ISC por Mês (%)</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={lineData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis unit="%" />
+                    <Tooltip formatter={(v: number) => `${v}%`} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Total de Cirurgias por Mês — por Especialidade</CardTitle></CardHeader>
+            <CardContent className="h-[360px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cirurgiasEspecialidadeMes.rows}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => (
+                    <Bar
+                      key={esp}
+                      dataKey={esp}
+                      stackId="esp"
+                      fill={COLORS[i % COLORS.length]}
+                      radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                    />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
           {/* Insights */}
           <Card>
