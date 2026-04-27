@@ -282,6 +282,81 @@ export default function DashboardISC() {
     </Card>
   );
 
+  const exportDashboardPdf = async () => {
+    if (!dashboardRef.current) return;
+    setExportingPdf(true);
+    toast.info("Gerando PDF do dashboard...");
+    try {
+      // Aguarda um tick para o badge de "exportando" não aparecer no canvas
+      await new Promise((r) => setTimeout(r, 100));
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: dashboardRef.current.scrollWidth,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const usableW = pageW - margin * 2;
+      const ratio = canvas.height / canvas.width;
+      const fullH = usableW * ratio;
+
+      // Cabeçalho
+      pdf.setFontSize(14);
+      pdf.text("Dashboard ISC — Infecção de Sítio Cirúrgico", margin, margin + 5);
+      pdf.setFontSize(9);
+      const periodoLabel = periodoInicio || periodoFim
+        ? `Período: ${periodoInicio || "início"} até ${periodoFim || "atual"}`
+        : "Período: todos";
+      pdf.text(`${periodoLabel}  •  Gerado em ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 11);
+
+      const headerOffset = margin + 16;
+      const availableH = pageH - headerOffset - margin;
+
+      if (fullH <= availableH) {
+        pdf.addImage(imgData, "PNG", margin, headerOffset, usableW, fullH);
+      } else {
+        // Quebra em múltiplas páginas usando recortes do canvas
+        const pxPerMm = canvas.width / usableW;
+        const sliceHpx = availableH * pxPerMm;
+        let yPx = 0;
+        let firstPage = true;
+        while (yPx < canvas.height) {
+          const hPx = Math.min(sliceHpx, canvas.height - yPx);
+          const sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = hPx;
+          const ctx = sliceCanvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+            ctx.drawImage(canvas, 0, yPx, canvas.width, hPx, 0, 0, canvas.width, hPx);
+          }
+          const sliceImg = sliceCanvas.toDataURL("image/png");
+          if (!firstPage) {
+            pdf.addPage();
+            pdf.setFontSize(9);
+            pdf.text(`Dashboard ISC — continuação`, margin, margin + 5);
+          }
+          pdf.addImage(sliceImg, "PNG", margin, firstPage ? headerOffset : margin + 8, usableW, hPx / pxPerMm);
+          yPx += hPx;
+          firstPage = false;
+        }
+      }
+
+      pdf.save(`dashboard-isc-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF gerado com sucesso!");
+    } catch (e) {
+      console.error("Erro ao exportar PDF:", e);
+      toast.error("Erro ao gerar PDF.");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
