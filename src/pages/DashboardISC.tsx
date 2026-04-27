@@ -441,6 +441,43 @@ export default function DashboardISC() {
               </Select>
             </div>
           </div>
+
+          {/* Período (mês inicial / final) */}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label>Período — Mês inicial</Label>
+              <Input
+                type="month"
+                value={periodoInicio}
+                onChange={(e) => setPeriodoInicio(e.target.value)}
+                max={periodoFim || undefined}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Período — Mês final</Label>
+              <Input
+                type="month"
+                value={periodoFim}
+                onChange={(e) => setPeriodoFim(e.target.value)}
+                min={periodoInicio || undefined}
+              />
+            </div>
+            <div className="space-y-1.5 flex flex-col justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPeriodoInicio(""); setPeriodoFim(""); }}
+                disabled={!periodoInicio && !periodoFim}
+              >
+                Limpar período
+              </Button>
+            </div>
+          </div>
+          {(periodoInicio || periodoFim) && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Exibindo dados de <strong>{periodoInicio || "início"}</strong> até <strong>{periodoFim || "atual"}</strong>.
+            </p>
+          )}
         </CardContent>
       </Card>
 
