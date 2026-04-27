@@ -25,6 +25,9 @@ import { useISCDashboard } from "@/hooks/useISCDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { generateSmartInsights, generateStructuredReport, type SmartInsight } from "@/lib/isc-report-engine";
+import ChartActions from "@/components/ChartActions";
+import { ReferenceLine } from "recharts";
+import { FileSpreadsheet } from "lucide-react";
 
 const mesesNomes = [
   "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
