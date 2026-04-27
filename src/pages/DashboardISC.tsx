@@ -366,13 +366,13 @@ export default function DashboardISC() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6" ref={dashboardRef}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard ISC</h1>
           <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Visão analítica</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap" data-html2canvas-ignore="true">
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
             ins.push(`📊 ${kpis.totalCirurgias} cirurgias com ${kpis.totalISC} ISC confirmadas (Taxa: ${kpis.taxaISC.toFixed(1)}%).`);
@@ -384,17 +384,16 @@ export default function DashboardISC() {
             if (clinicaStats.length > 0) { const worst = clinicaStats.sort((a, b) => b.taxaISC - a.taxaISC)[0]; ins.push(`🏥 Clínica com maior taxa: ${worst.name} (${worst.taxaISC.toFixed(1)}%).`); }
             return ins;
           }} />
-          <Button variant="outline" size="sm" onClick={() => {
-            if (!hospitalId) return;
-            exportPdf({
-              type: "isc", hospitalId,
-              data: {
-                kpis: { totalSurgeries: kpis.totalCirurgias, totalISC: kpis.totalISC, iscRate: kpis.taxaISC.toFixed(1) },
-                indicators: filtered.map(r => ({ procedimento: r.clinica, total_cirurgias: r.totalCirurgias, isc_confirmada: r.iscConfirmada })),
-              },
-              filenamePrefix: "isc",
-            });
-          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportDashboardPdf}
+            disabled={exportingPdf || !hasData}
+          >
+            {exportingPdf
+              ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Gerando...</>
+              : <><Download className="h-4 w-4 mr-1" />Exportar PDF</>}
+          </Button>
         </div>
       </div>
 
