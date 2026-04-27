@@ -82,6 +82,22 @@ export default function DashboardISC() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
+  // Refs e metas para cada gráfico
+  const refContatos = useRef<HTMLDivElement>(null);
+  const refClinica = useRef<HTMLDivElement>(null);
+  const refEvolucao = useRef<HTMLDivElement>(null);
+  const refTipoISC = useRef<HTMLDivElement>(null);
+  const refReintClinica = useRef<HTMLDivElement>(null);
+  const refReintMes = useRef<HTMLDivElement>(null);
+  const refIscMes = useRef<HTMLDivElement>(null);
+  const refSitio = useRef<HTMLDivElement>(null);
+  const refTaxaIscMes = useRef<HTMLDivElement>(null);
+  const refEspecialidade = useRef<HTMLDivElement>(null);
+
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (k: string) => (v: number | undefined) =>
+    setMetas((prev) => ({ ...prev, [k]: v }));
+
   const anos = useMemo(() => [...new Set(allRecords.map((r) => String(r.ano)))].sort(), [allRecords]);
   const profissionais = useMemo(() => [...new Set(allRecords.map((r) => r.profissional))].sort(), [allRecords]);
   const clinicas = useMemo(() => [...new Set(allRecords.map((r) => r.clinica))].sort(), [allRecords]);
