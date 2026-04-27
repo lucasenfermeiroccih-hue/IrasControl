@@ -90,11 +90,14 @@ export default function DashboardISC() {
   const kpis = useMemo(() => {
     const totalCirurgias = filtered.reduce((s, r) => s + r.totalCirurgias, 0);
     const totalContatos = filtered.reduce((s, r) => s + r.contatosAtendidos, 0);
+    const totalRetAmb = filtered.reduce((s, r) => s + (r.retornoAmbulatorio || 0), 0);
+    const totalRetWpp = filtered.reduce((s, r) => s + (r.retornoWhatsapp || 0), 0);
     const totalReinternacoes = filtered.reduce((s, r) => s + r.reinternacoes, 0);
     const totalISC = filtered.reduce((s, r) => s + r.iscConfirmada, 0);
-    const taxaResposta = totalCirurgias > 0 ? (totalContatos / totalCirurgias) * 100 : 0;
+    const totalRespostas = totalContatos + totalRetAmb + totalRetWpp;
+    const taxaResposta = totalCirurgias > 0 ? (totalRespostas / totalCirurgias) * 100 : 0;
     const taxaISC = totalCirurgias > 0 ? (totalISC / totalCirurgias) * 100 : 0;
-    return { totalCirurgias, totalContatos, taxaResposta, totalReinternacoes, totalISC, taxaISC };
+    return { totalCirurgias, totalContatos, totalRetAmb, totalRetWpp, totalRespostas, taxaResposta, totalReinternacoes, totalISC, taxaISC };
   }, [filtered]);
 
   const barClinicaData = useMemo(() => {
