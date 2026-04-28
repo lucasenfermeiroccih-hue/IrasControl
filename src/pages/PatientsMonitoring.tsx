@@ -186,7 +186,7 @@ export default function PatientsMonitoring() {
   const [responsavel, setResponsavel] = useState("");
   const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
   const [newAtbOpen, setNewAtbOpen] = useState(false);
-  const [newAtb, setNewAtb] = useState({ nome: "", dataInicio: "", dataFim: "" });
+  const [newAtb, setNewAtb] = useState({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
   const [editingAtbId, setEditingAtbId] = useState<string | null>(null);
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
@@ -207,13 +207,19 @@ export default function PatientsMonitoring() {
     return Math.max(0, Math.ceil((end - d1.getTime()) / 86400000));
   };
 
+  const resolveAtbNome = () => {
+    if (newAtb.nome === "Outros") return newAtb.nomeOutros.trim();
+    return newAtb.nome;
+  };
+
   const handleAddAtb = () => {
-    if (!newAtb.nome || !newAtb.dataInicio) {
+    const nomeFinal = resolveAtbNome();
+    if (!nomeFinal || !newAtb.dataInicio) {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
-    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setAntibioticos(prev => [...prev, { id: crypto.randomUUID(), nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim }]);
+    setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico adicionado");
@@ -221,17 +227,18 @@ export default function PatientsMonitoring() {
 
   const handleEditAtb = (atb: AntibioticEntry) => {
     setEditingAtbId(atb.id);
-    setNewAtb({ nome: atb.nome, dataInicio: atb.dataInicio, dataFim: atb.dataFim });
+    setNewAtb({ nome: atb.nome, nomeOutros: "", dataInicio: atb.dataInicio, dataFim: atb.dataFim });
     setNewAtbOpen(true);
   };
 
   const handleSaveEditAtb = () => {
-    if (!newAtb.nome || !newAtb.dataInicio) {
+    const nomeFinal = resolveAtbNome();
+    if (!nomeFinal || !newAtb.dataInicio) {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, ...newAtb } : a));
-    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim } : a));
+    setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico atualizado");
