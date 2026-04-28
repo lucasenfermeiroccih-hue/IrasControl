@@ -191,7 +191,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
               Histórico de Auditorias
             </DialogTitle>
           </DialogHeader>
-        <CardContent className="space-y-4">
+        <div className="space-y-4">
           {/* Filters */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
