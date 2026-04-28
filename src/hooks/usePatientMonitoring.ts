@@ -215,6 +215,38 @@ export function usePatientMonitoring() {
     return true;
   };
 
+  const deletePatient = async (id: string) => {
+    const { error } = await supabase.from("patients").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir paciente: " + error.message);
+      return false;
+    }
+    setPatients(prev => prev.filter(p => p.id !== id));
+    toast.success("Paciente excluído com sucesso!");
+    return true;
+  };
+
+  const changePatientStatus = async (id: string, newStatus: PatientRecord["status"], dischargeType?: string) => {
+    const updates: any = { status: newStatus };
+    if (newStatus !== "active") {
+      updates.discharge_date = new Date().toISOString().slice(0, 10);
+      if (dischargeType) updates.discharge_type = dischargeType;
+    } else {
+      updates.discharge_date = null;
+      updates.discharge_type = null;
+    }
+    const { error } = await supabase.from("patients").update(updates).eq("id", id);
+    if (error) {
+      toast.error("Erro ao alterar status: " + error.message);
+      return false;
+    }
+    setPatients(prev => prev.map(p => p.id === id
+      ? { ...p, status: newStatus, dataAlta: updates.discharge_date || "", tipoAlta: updates.discharge_type || "" }
+      : p));
+    toast.success("Status atualizado!");
+    return true;
+  };
+
   return {
     patients,
     loading: loading || ctxLoading,
@@ -223,6 +255,8 @@ export function usePatientMonitoring() {
     createPatient,
     updatePatient,
     dischargePatient,
+    deletePatient,
+    changePatientStatus,
     refetch: fetchPatients,
   };
 }
