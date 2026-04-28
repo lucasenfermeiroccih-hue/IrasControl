@@ -1498,6 +1498,16 @@ export default function PatientsMonitoring() {
                               <LogOut className="h-3.5 w-3.5" />
                             </Button>
                           )}
+                          {isAdmin && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); }} title="Alterar status (admin)">
+                                <RefreshCw className="h-3.5 w-3.5 text-warning" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(p.id)} title="Excluir paciente (admin)">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
