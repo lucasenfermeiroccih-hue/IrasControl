@@ -214,6 +214,8 @@ export default function AuditAntibiogramNew() {
     }
     // Validate each row: antibiotic required, MIC numeric & positive when provided
     for (const r of results) {
+      // Skip the empty "Outros" placeholder row entirely (no method/MIC/SIR and no name)
+      if (r.isCustom && !r.antibiotic.trim() && !r.method && !r.micValue && !r.sir) continue;
       if (!r.antibiotic.trim()) {
         toast.error(r.isCustom
           ? "Descreva o antimicrobiano selecionado como 'Outros'."
