@@ -155,30 +155,22 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
     setOrganismoFiltro("Todos");
   };
 
-  if (!open) {
-    return (
+  return (
+    <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-2">
         <History className="h-4 w-4" />
         Histórico
       </Button>
-    );
-  }
 
-  return (
-    <>
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
               Histórico de Antibiogramas
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
