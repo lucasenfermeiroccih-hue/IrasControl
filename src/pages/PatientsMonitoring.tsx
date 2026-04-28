@@ -383,12 +383,18 @@ export default function PatientsMonitoring() {
     if (ok) toast.success("Dados salvos com sucesso!");
   };
 
-  const cvcDays = dispInvasivos.cvcInsercao ? calcDiasUso(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada) : null;
-  const cvpDays = dispInvasivos.cvpInsercao ? calcDiasUso(dispInvasivos.cvpInsercao, dispInvasivos.cvpRetirada) : null;
-  const svuDays = dispInvasivos.svuInsercao ? calcDiasUso(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada) : null;
-  const vmDays = dispInvasivos.vmInsercao ? calcDiasUso(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada) : null;
-  const tqtDays = dispInvasivos.tqtInsercao ? calcDiasUso(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada) : null;
-  const hemoDays = dispInvasivos.hemoInsercao ? calcDiasUso(dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada) : null;
+  const calcTotalDays = (ins: string, ret: string, novaIns: string, novaRet: string) => {
+    if (!ins) return null;
+    const first = calcDiasUso(ins, ret);
+    const second = novaIns ? calcDiasUso(novaIns, novaRet) : 0;
+    return first + second;
+  };
+  const cvcDays = calcTotalDays(dispInvasivos.cvcInsercao, dispInvasivos.cvcRetirada, dispInvasivos.cvcNovaInsercao, dispInvasivos.cvcNovaRetirada);
+  const cvpDays = calcTotalDays(dispInvasivos.cvpInsercao, dispInvasivos.cvpRetirada, dispInvasivos.cvpNovaInsercao, dispInvasivos.cvpNovaRetirada);
+  const svuDays = calcTotalDays(dispInvasivos.svuInsercao, dispInvasivos.svuRetirada, dispInvasivos.svuNovaInsercao, dispInvasivos.svuNovaRetirada);
+  const vmDays = calcTotalDays(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, dispInvasivos.vmNovaInsercao, dispInvasivos.vmNovaRetirada);
+  const tqtDays = calcTotalDays(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, dispInvasivos.tqtNovaInsercao, dispInvasivos.tqtNovaRetirada);
+  const hemoDays = calcTotalDays(dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada, dispInvasivos.hemoNovaInsercao, dispInvasivos.hemoNovaRetirada);
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
