@@ -26,12 +26,28 @@ const sectors = [
 ];
 
 const commonAntibiotics = [
-  "Amicacina", "Ampicilina", "Aztreonam", "Cefepima", "Ceftazidima",
-  "Ceftriaxona", "Ciprofloxacino", "Clindamicina", "Colistina",
-  "Daptomicina", "Ertapenem", "Gentamicina", "Imipenem",
-  "Levofloxacino", "Linezolida", "Meropenem", "Oxacilina",
-  "Piperacilina/Tazobactam", "Polimixina B", "Sulfametoxazol/Trimetoprima",
-  "Teicoplanina", "Tigeciclina", "Vancomicina",
+  "Amicacina",
+  "Amoxicilina/Ácido Clavulânico",
+  "Ampicilina",
+  "Aztreonam",
+  "Cefepima",
+  "Ceftazidima",
+  "Ceftazidima/Avibactam",
+  "Ceftolozano/Tazobactam",
+  "Ceftriaxona",
+  "Cefuroxima",
+  "Ciprofloxacina",
+  "Ertapenem",
+  "Estreptomicina de Alto Nível",
+  "Gentamicina",
+  "Gentamicina de Alto Nível",
+  "Linezolida",
+  "Meropenem",
+  "Piperacilina/Tazobactam",
+  "Polimixina B",
+  "Teicoplanina",
+  "Tigeciclina",
+  "Vancomicina",
 ];
 
 const testMethods = ["Disco-difusão (Kirby-Bauer)", "CIM (Concentração Inibitória Mínima)"];
