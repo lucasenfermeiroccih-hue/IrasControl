@@ -26,12 +26,28 @@ const sectors = [
 ];
 
 const commonAntibiotics = [
-  "Amicacina", "Ampicilina", "Aztreonam", "Cefepima", "Ceftazidima",
-  "Ceftriaxona", "Ciprofloxacino", "Clindamicina", "Colistina",
-  "Daptomicina", "Ertapenem", "Gentamicina", "Imipenem",
-  "Levofloxacino", "Linezolida", "Meropenem", "Oxacilina",
-  "Piperacilina/Tazobactam", "Polimixina B", "Sulfametoxazol/Trimetoprima",
-  "Teicoplanina", "Tigeciclina", "Vancomicina",
+  "Amicacina",
+  "Amoxicilina/Ácido Clavulânico",
+  "Ampicilina",
+  "Aztreonam",
+  "Cefepima",
+  "Ceftazidima",
+  "Ceftazidima/Avibactam",
+  "Ceftolozano/Tazobactam",
+  "Ceftriaxona",
+  "Cefuroxima",
+  "Ciprofloxacina",
+  "Ertapenem",
+  "Estreptomicina de Alto Nível",
+  "Gentamicina",
+  "Gentamicina de Alto Nível",
+  "Linezolida",
+  "Meropenem",
+  "Piperacilina/Tazobactam",
+  "Polimixina B",
+  "Teicoplanina",
+  "Tigeciclina",
+  "Vancomicina",
 ];
 
 const testMethods = ["Disco-difusão (Kirby-Bauer)", "CIM (Concentração Inibitória Mínima)"];
@@ -107,7 +123,17 @@ export default function AuditAntibiogramNew() {
   const [carbapenemaseType, setCarbapenemaseType] = useState("");
 
   // Resultados
-  const [results, setResults] = useState<AntibioticResult[]>([]);
+  const buildDefaultResults = (): AntibioticResult[] => [
+    ...commonAntibiotics.map(a => ({
+      id: newId(),
+      antibiotic: a,
+      method: "",
+      micValue: "",
+      sir: "" as SIR,
+    })),
+    { id: newId(), antibiotic: "", method: "", micValue: "", sir: "" as SIR, isCustom: true },
+  ];
+  const [results, setResults] = useState<AntibioticResult[]>(() => buildDefaultResults());
 
   const materialOptions = useMemo(
     () => (sampleCategory ? materialsByCategory[sampleCategory] ?? [] : []),
@@ -188,6 +214,8 @@ export default function AuditAntibiogramNew() {
     }
     // Validate each row: antibiotic required, MIC numeric & positive when provided
     for (const r of results) {
+      // Skip the empty "Outros" placeholder row entirely (no method/MIC/SIR and no name)
+      if (r.isCustom && !r.antibiotic.trim() && !r.method && !r.micValue && !r.sir) continue;
       if (!r.antibiotic.trim()) {
         toast.error(r.isCustom
           ? "Descreva o antimicrobiano selecionado como 'Outros'."
@@ -277,7 +305,7 @@ export default function AuditAntibiogramNew() {
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
     setOrganism(""); setOrganismCustom(false); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
-    setResults([]);
+    setResults(buildDefaultResults());
     window.scrollTo(0, 0);
   };
 
@@ -320,7 +348,7 @@ export default function AuditAntibiogramNew() {
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
     setOrganism(""); setOrganismCustom(false); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
-    setResults([]);
+    setResults(buildDefaultResults());
   };
 
   return (
