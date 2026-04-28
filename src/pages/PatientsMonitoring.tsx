@@ -186,7 +186,7 @@ export default function PatientsMonitoring() {
   const [responsavel, setResponsavel] = useState("");
   const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
   const [newAtbOpen, setNewAtbOpen] = useState(false);
-  const [newAtb, setNewAtb] = useState({ nome: "", dataInicio: "", dataFim: "" });
+  const [newAtb, setNewAtb] = useState({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
   const [editingAtbId, setEditingAtbId] = useState<string | null>(null);
 
   const tempFloat = parseFloat(sinaisVitais.temperatura);
@@ -207,13 +207,19 @@ export default function PatientsMonitoring() {
     return Math.max(0, Math.ceil((end - d1.getTime()) / 86400000));
   };
 
+  const resolveAtbNome = () => {
+    if (newAtb.nome === "Outros") return newAtb.nomeOutros.trim();
+    return newAtb.nome;
+  };
+
   const handleAddAtb = () => {
-    if (!newAtb.nome || !newAtb.dataInicio) {
+    const nomeFinal = resolveAtbNome();
+    if (!nomeFinal || !newAtb.dataInicio) {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => [...prev, { ...newAtb, id: crypto.randomUUID() }]);
-    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setAntibioticos(prev => [...prev, { id: crypto.randomUUID(), nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim }]);
+    setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico adicionado");
@@ -221,17 +227,18 @@ export default function PatientsMonitoring() {
 
   const handleEditAtb = (atb: AntibioticEntry) => {
     setEditingAtbId(atb.id);
-    setNewAtb({ nome: atb.nome, dataInicio: atb.dataInicio, dataFim: atb.dataFim });
+    setNewAtb({ nome: atb.nome, nomeOutros: "", dataInicio: atb.dataInicio, dataFim: atb.dataFim });
     setNewAtbOpen(true);
   };
 
   const handleSaveEditAtb = () => {
-    if (!newAtb.nome || !newAtb.dataInicio) {
+    const nomeFinal = resolveAtbNome();
+    if (!nomeFinal || !newAtb.dataInicio) {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, ...newAtb } : a));
-    setNewAtb({ nome: "", dataInicio: "", dataFim: "" });
+    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim } : a));
+    setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
     toast.success("Antibiótico atualizado");
@@ -1040,7 +1047,7 @@ export default function PatientsMonitoring() {
               </Card>
 
               {/* Dialog para adicionar antibiótico */}
-              <Dialog open={newAtbOpen} onOpenChange={v => { setNewAtbOpen(v); if (!v) { setEditingAtbId(null); setNewAtb({ nome: "", dataInicio: "", dataFim: "" }); } }}>
+              <Dialog open={newAtbOpen} onOpenChange={v => { setNewAtbOpen(v); if (!v) { setEditingAtbId(null); setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" }); } }}>
                 <DialogContent className="max-w-md">
                   <DialogHeader><DialogTitle>{editingAtbId ? "Editar Antibiótico" : "Adicionar Antibiótico"}</DialogTitle></DialogHeader>
                   <div className="space-y-4">
@@ -1062,13 +1069,23 @@ export default function PatientsMonitoring() {
                             "Doxiciclina","Minociclina","Tigeciclina","Eravaciclina",
                             "Sulfametoxazol-trimetoprim","Sulfadiazina","Metronidazol","Tinidazol",
                             "Cloranfenicol","Fosfomicina","Nitrofurantoína","Rifampicina","Rifabutina",
-                            "Mupirocina","Polimixina B","Colistina","Fidaxomicina","Bacitracina"
+                            "Mupirocina","Polimixina B","Colistina","Fidaxomicina","Bacitracina","Outros"
                           ].map(atb => (
                             <SelectItem key={atb} value={atb}>{atb}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    {newAtb.nome === "Outros" && (
+                      <div className="space-y-2">
+                        <Label className="font-medium">Descreva o antibiótico *</Label>
+                        <Input
+                          placeholder="Digite o nome do antibiótico"
+                          value={newAtb.nomeOutros || ""}
+                          onChange={e => setNewAtb(p => ({ ...p, nomeOutros: e.target.value }))}
+                        />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label className="font-medium">Data de Início *</Label>
                       <Input type="date" value={newAtb.dataInicio} onChange={e => setNewAtb(p => ({ ...p, dataInicio: e.target.value }))} />
@@ -1084,7 +1101,7 @@ export default function PatientsMonitoring() {
                     )}
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => { setNewAtbOpen(false); setEditingAtbId(null); setNewAtb({ nome: "", dataInicio: "", dataFim: "" }); }}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => { setNewAtbOpen(false); setEditingAtbId(null); setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" }); }}>Cancelar</Button>
                     <Button onClick={editingAtbId ? handleSaveEditAtb : handleAddAtb}>{editingAtbId ? "Salvar" : "Adicionar"}</Button>
                   </DialogFooter>
                 </DialogContent>
