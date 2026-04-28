@@ -1575,6 +1575,71 @@ export default function PatientsMonitoring() {
       </>
       )}
 
+      {/* ─── DELETE CONFIRMATION (admin) ─────────────────── */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(o) => !o && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir paciente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e removerá todos os dados de {patients.find(p => p.id === deleteConfirmId)?.nome || "este paciente"}.
+              Não é possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteConfirmId) {
+                  const ok = await deletePatient(deleteConfirmId);
+                  if (ok) setDeleteConfirmId(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── CHANGE STATUS (admin) ───────────────────────── */}
+      <AlertDialog open={!!statusChangeId} onOpenChange={(o) => !o && setStatusChangeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alterar status do paciente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecione o novo status para {patients.find(p => p.id === statusChangeId)?.nome || "o paciente"}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-xs">Novo status</Label>
+            <Select value={newStatus} onValueChange={(v) => setNewStatus(v as PatientRecord["status"])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Internado</SelectItem>
+                <SelectItem value="discharged">Alta</SelectItem>
+                <SelectItem value="transferred">Transferido</SelectItem>
+                <SelectItem value="deceased">Óbito</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (statusChangeId) {
+                  const dischargeMap: Record<string, string> = { discharged: "Alta", transferred: "Transferência", deceased: "Óbito" };
+                  const ok = await changePatientStatus(statusChangeId, newStatus, dischargeMap[newStatus]);
+                  if (ok) setStatusChangeId(null);
+                }
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
       <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
