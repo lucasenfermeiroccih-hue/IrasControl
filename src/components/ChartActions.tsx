@@ -102,29 +102,27 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
     setMetaOpen(false);
   };
 
-  // Fullscreen support: toggles native browser fullscreen on the chart container
+  // Fullscreen via overlay (Dialog-like) — mais confiável que fullscreen nativo
   const [isFs, setIsFs] = useState(false);
-  useEffect(() => {
-    const onChange = () => setIsFs(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
 
-  const toggleFullscreen = async () => {
-    const el = chartRef.current;
-    if (!el) return;
-    try {
-      if (!document.fullscreenElement) {
-        el.classList.add("chart-fullscreen");
-        await el.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-        el.classList.remove("chart-fullscreen");
+  useEffect(() => {
+    if (!isFs) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsFs(false);
       }
-    } catch (e) {
-      console.error("Erro ao alternar tela cheia:", e);
-    }
-  };
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isFs]);
+
+  const toggleFullscreen = () => setIsFs(v => !v);
 
   return (
     <>
