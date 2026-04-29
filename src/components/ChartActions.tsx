@@ -104,6 +104,7 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
 
   // Fullscreen via overlay (Dialog-like) — mais confiável que fullscreen nativo
   const [isFs, setIsFs] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     if (!isFs) return;
@@ -111,6 +112,12 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
       if (e.key === "Escape") {
         e.preventDefault();
         setIsFs(false);
+      } else if (e.key === "+" || e.key === "=") {
+        setZoom(z => Math.min(2.5, +(z + 0.1).toFixed(2)));
+      } else if (e.key === "-" || e.key === "_") {
+        setZoom(z => Math.max(0.5, +(z - 0.1).toFixed(2)));
+      } else if (e.key === "0") {
+        setZoom(1);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -121,6 +128,9 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
       document.body.style.overflow = prevOverflow;
     };
   }, [isFs]);
+
+  // Reset zoom when closing
+  useEffect(() => { if (!isFs) setZoom(1); }, [isFs]);
 
   const toggleFullscreen = () => setIsFs(v => !v);
 
