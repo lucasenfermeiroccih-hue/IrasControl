@@ -254,9 +254,9 @@ export default function PatientsMonitoring() {
 
   const allSectors = Array.from(new Set(patients.map(p => p.unidade).filter(Boolean)));
 
-  const filtered = patients.filter(p => {
+  // Base filter: aplica mês/ano/setor/busca (sem status) — usado para os KPIs
+  const filteredForKpis = patients.filter(p => {
     if (search && !p.nome.toLowerCase().includes(search.toLowerCase()) && !p.prontuario.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterStatus.length > 0 && !filterStatus.includes(p.status)) return false;
     if (filterSetor.length > 0 && !filterSetor.includes(p.unidade)) return false;
     const admDate = p.dataAdmissao || p.dataInternacaoHospitalar;
     if (admDate) {
@@ -268,7 +268,15 @@ export default function PatientsMonitoring() {
     }
     return true;
   });
-  const activeCount = patients.filter(p => p.status === "active").length;
+  const filtered = filteredForKpis.filter(p => {
+    if (filterStatus.length > 0 && !filterStatus.includes(p.status)) return false;
+    return true;
+  });
+  const activeCount = filteredForKpis.filter(p => p.status === "active").length;
+  const totalCount = filteredForKpis.length;
+  const deceasedCount = filteredForKpis.filter(p => p.status === "deceased").length;
+  const transferredCount = filteredForKpis.filter(p => p.status === "transferred").length;
+  const dischargedCount = filteredForKpis.filter(p => p.status === "discharged").length;
 
   const handleNewPatient = async () => {
     if (!newForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
