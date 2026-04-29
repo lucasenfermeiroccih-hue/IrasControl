@@ -34,23 +34,59 @@ function safeDiv(n: number, d: number, mult: number) {
   return d === 0 ? 0 : Math.round((n / d) * mult * 100) / 100;
 }
 
-function KpiCard({ label, value, unit, icon: Icon, color }: {
+function KpiCard({ label, value, unit, icon: Icon, color, description, expandable = false }: {
   label: string; value: number; unit: string; icon: any; color: string;
+  description?: string; expandable?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0`} style={{ backgroundColor: `${color}20` }}>
-          <Icon className="h-5 w-5" style={{ color }} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
-          <p className="text-xl font-bold text-foreground">
-            {value.toFixed(2)}<span className="text-xs font-normal text-muted-foreground ml-0.5">{unit}</span>
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="relative overflow-hidden group">
+        {expandable && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-muted transition"
+            aria-label={`Ampliar ${label}`}
+          >
+            <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        )}
+        <CardContent className="p-4 flex items-start gap-3">
+          <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
+            <Icon className="h-5 w-5" style={{ color }} />
+          </div>
+          <div className="min-w-0 flex-1 pr-6">
+            <p className="text-xs font-medium text-muted-foreground leading-snug break-words">{label}</p>
+            <p className="text-xl font-bold text-foreground mt-0.5">
+              {value.toFixed(2)}<span className="text-xs font-normal text-muted-foreground ml-0.5">{unit}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {expandable && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
+                  <Icon className="h-5 w-5" style={{ color }} />
+                </div>
+                <span className="text-base">{label}</span>
+              </DialogTitle>
+              {description && <DialogDescription className="text-sm pt-1">{description}</DialogDescription>}
+            </DialogHeader>
+            <div className="py-6 text-center">
+              <p className="text-5xl font-bold" style={{ color }}>
+                {value.toFixed(2)}
+                <span className="text-xl font-normal text-muted-foreground ml-1">{unit}</span>
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
