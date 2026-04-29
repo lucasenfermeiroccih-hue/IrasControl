@@ -94,7 +94,7 @@ export default function AdminSettings() {
       <div className="flex items-center gap-3">
         <Settings className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Configurações</h1>
           <p className="text-sm text-muted-foreground">Administração do sistema, usuários e preferências</p>
         </div>
       </div>

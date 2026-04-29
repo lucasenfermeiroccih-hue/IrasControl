@@ -146,7 +146,7 @@ export default function Forms() {
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Formulários</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Formulários</h1>
           <p className="text-muted-foreground">Gerencie templates de formulários de auditoria e vigilância</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -191,22 +191,22 @@ export default function Forms() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 text-center">
           <FolderOpen className="h-5 w-5 mx-auto text-primary mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</p>
           <p className="text-xs text-muted-foreground">Total Formulários</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <CheckCircle2 className="h-5 w-5 mx-auto text-emerald-500 mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.ativos}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.ativos}</p>
           <p className="text-xs text-muted-foreground">Ativos</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <Edit className="h-5 w-5 mx-auto text-amber-500 mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.rascunhos}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.rascunhos}</p>
           <p className="text-xs text-muted-foreground">Rascunhos</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <ClipboardCheck className="h-5 w-5 mx-auto text-primary mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.preenchimentos.toLocaleString()}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.preenchimentos.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground">Preenchimentos</p>
         </CardContent></Card>
       </div>

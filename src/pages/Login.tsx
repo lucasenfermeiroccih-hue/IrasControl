@@ -74,7 +74,7 @@ export default function Login() {
           <CardHeader className="text-center">
             <Link to="/" className="mx-auto mb-4 flex items-center gap-2">
               <Shield className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
+              <span className="text-xl md:text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
             </Link>
             <CardTitle className="text-xl">Redefinir senha</CardTitle>
             <CardDescription>Informe seu e-mail para receber o link de redefinição</CardDescription>
@@ -111,7 +111,7 @@ export default function Login() {
         <CardHeader className="text-center">
           <Link to="/" className="mx-auto mb-4 flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
+            <span className="text-xl md:text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
           </Link>
           <CardTitle className="text-xl">Bem-vindo de volta</CardTitle>
           <CardDescription>Acesse sua conta para continuar</CardDescription>

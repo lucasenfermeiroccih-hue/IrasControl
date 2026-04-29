@@ -66,7 +66,7 @@ export default function AuditHandHygieneNew() {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
           <div>
-            <h1 className="text-2xl font-bold">Auditoria de Higienização das Mãos</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Auditoria de Higienização das Mãos</h1>
             <p className="text-muted-foreground text-sm">Registro de conformidade dos 5 momentos da higiene</p>
           </div>
         </div>

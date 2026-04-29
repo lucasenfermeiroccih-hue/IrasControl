@@ -71,16 +71,16 @@ export default function CRM() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="h-7 w-7 text-primary" />
-          <div><h1 className="text-2xl font-bold text-foreground">CRM</h1><p className="text-sm text-muted-foreground">Gestão de relacionamento com instituições</p></div>
+          <div><h1 className="text-xl md:text-2xl font-bold text-foreground">CRM</h1><p className="text-sm text-muted-foreground">Gestão de relacionamento com instituições</p></div>
         </div>
         <Button onClick={() => setShowNewContact(true)}><Plus className="h-4 w-4 mr-1" />Novo Contato</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Contatos</p><p className="text-2xl font-bold">{contacts.length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><Star className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Clientes Ativos</p><p className="text-2xl font-bold">{clienteCount}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><TrendingUp className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Em Negociação</p><p className="text-2xl font-bold">{contacts.filter((c: any) => c.stage === "negociação").length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><TrendingUp className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Leads</p><p className="text-2xl font-bold">{contacts.filter((c: any) => c.stage === "lead").length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Contatos</p><p className="text-xl md:text-2xl font-bold">{contacts.length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><Star className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Clientes Ativos</p><p className="text-xl md:text-2xl font-bold">{clienteCount}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><TrendingUp className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Em Negociação</p><p className="text-xl md:text-2xl font-bold">{contacts.filter((c: any) => c.stage === "negociação").length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><TrendingUp className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Leads</p><p className="text-xl md:text-2xl font-bold">{contacts.filter((c: any) => c.stage === "lead").length}</p></div></CardContent></Card>
       </div>
 
       <Card>

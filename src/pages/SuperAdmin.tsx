@@ -154,7 +154,7 @@ export default function SuperAdmin() {
       <div className="flex items-center gap-3">
         <Shield className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Super Admin</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Super Admin</h1>
           <p className="text-sm text-muted-foreground">Gestão de hospitais e administradores do sistema multi-tenant</p>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Building2 className="h-8 w-8 text-primary" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.length}</p>
               <p className="text-xs text-muted-foreground">Hospitais Cadastrados</p>
             </div>
           </CardContent>
@@ -174,7 +174,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Activity className="h-8 w-8 text-emerald-500" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.filter(h => h.status === "active").length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.filter(h => h.status === "active").length}</p>
               <p className="text-xs text-muted-foreground">Hospitais Ativos</p>
             </div>
           </CardContent>
@@ -183,7 +183,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Users className="h-8 w-8 text-blue-500" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.filter(h => h.status === "pending").length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.filter(h => h.status === "pending").length}</p>
               <p className="text-xs text-muted-foreground">Pendentes</p>
             </div>
           </CardContent>

@@ -61,9 +61,9 @@ export default function DashboardHygiene() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard — Higienização das Mãos</h1>
           <p className="text-sm text-muted-foreground">Indicadores de adesão aos 5 momentos da OMS</p>
         </div>
         <div className="flex items-center gap-2">
@@ -91,7 +91,7 @@ export default function DashboardHygiene() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{k.label}</p>
-                <p className="text-2xl font-bold">{k.value}</p>
+                <p className="text-xl md:text-2xl font-bold">{k.value}</p>
               </div>
             </CardContent>
           </Card>

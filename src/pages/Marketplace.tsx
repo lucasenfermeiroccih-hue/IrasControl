@@ -55,15 +55,15 @@ export default function Marketplace() {
       <div className="flex items-center gap-3">
         <ShoppingBag className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Marketplace</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Marketplace</h1>
           <p className="text-sm text-muted-foreground">Extensões e módulos para potencializar o IRASControl</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Puzzle className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Disponíveis</p><p className="text-2xl font-bold">{extensions.length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><CheckCircle className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Instalados</p><p className="text-2xl font-bold">{extensions.filter((e) => e.installed).length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><Star className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Melhor Avaliação</p><p className="text-2xl font-bold">4.9</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Puzzle className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Disponíveis</p><p className="text-xl md:text-2xl font-bold">{extensions.length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><CheckCircle className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Instalados</p><p className="text-xl md:text-2xl font-bold">{extensions.filter((e) => e.installed).length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><Star className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Melhor Avaliação</p><p className="text-xl md:text-2xl font-bold">4.9</p></div></CardContent></Card>
       </div>
 
       <div className="flex flex-col md:flex-row gap-3">

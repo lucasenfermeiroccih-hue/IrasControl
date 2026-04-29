@@ -276,7 +276,7 @@ const LaboratoryResults = () => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Resultados Laboratoriais</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Resultados Laboratoriais</h1>
           <p className="text-muted-foreground">Culturas, antibiogramas e perfil de resistência</p>
         </div>
         <div className="flex gap-2">
@@ -292,9 +292,9 @@ const LaboratoryResults = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6 text-center"><FlaskConical className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Clock className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Microscope className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-2xl font-bold">{kpis.completos}</p><p className="text-sm text-muted-foreground">Completos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><FlaskConical className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Clock className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Microscope className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.completos}</p><p className="text-sm text-muted-foreground">Completos</p></CardContent></Card>
       </div>
 
       <div className="flex flex-wrap gap-3">
