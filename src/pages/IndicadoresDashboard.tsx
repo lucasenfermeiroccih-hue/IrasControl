@@ -4,6 +4,7 @@ import {
   Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown,
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import SmartInsightsPanel from "@/components/SmartInsightsPanel";
 import ChartActions from "@/components/ChartActions";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
