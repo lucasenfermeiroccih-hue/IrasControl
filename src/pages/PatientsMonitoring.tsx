@@ -1269,7 +1269,46 @@ export default function PatientsMonitoring() {
           </DialogContent>
         </Dialog>
 
-        {/* EDIT IDENTIFICATION MODAL é renderizado uma única vez na list-view (mais abaixo) */}
+        {/* ─── EDIT IDENTIFICATION MODAL ────────────────────── */}
+        <Dialog open={editIdOpen} onOpenChange={setEditIdOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Editar Identificação do Paciente</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-2"><Label className="font-medium">Nome Completo *</Label><Input value={editIdForm.nome} onChange={e => setEditIdForm(p => ({ ...p, nome: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Prontuário</Label><Input value={editIdForm.prontuario} onChange={e => setEditIdForm(p => ({ ...p, prontuario: e.target.value }))} /></div>
+              <div className="space-y-2">
+                <Label>Sexo</Label>
+                <Select value={editIdForm.sexo} onValueChange={v => setEditIdForm(p => ({ ...p, sexo: v }))}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent><SelectItem value="M">Masculino</SelectItem><SelectItem value="F">Feminino</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Data Nascimento</Label><Input type="date" value={editIdForm.dataNascimento} onChange={e => setEditIdForm(p => ({ ...p, dataNascimento: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Unidade</Label><Input value={editIdForm.unidade} onChange={e => setEditIdForm(p => ({ ...p, unidade: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Leito</Label><Input value={editIdForm.leito} onChange={e => setEditIdForm(p => ({ ...p, leito: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Origem</Label><Input value={editIdForm.origem} onChange={e => setEditIdForm(p => ({ ...p, origem: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Data Int. Hospitalar</Label><Input type="date" value={editIdForm.dataInternacaoHospitalar} onChange={e => setEditIdForm(p => ({ ...p, dataInternacaoHospitalar: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Data Int. CTI</Label><Input type="date" value={editIdForm.dataInternacaoCTI} onChange={e => setEditIdForm(p => ({ ...p, dataInternacaoCTI: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Data de Admissão</Label><Input type="date" value={editIdForm.dataAdmissao} onChange={e => setEditIdForm(p => ({ ...p, dataAdmissao: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Data da Alta</Label><Input type="date" value={editIdForm.dataAlta} onChange={e => setEditIdForm(p => ({ ...p, dataAlta: e.target.value }))} /></div>
+              <div className="space-y-2">
+                <Label>Especialidade Clínica</Label>
+                <Select value={editIdForm.especialidade} onValueChange={v => setEditIdForm(p => ({ ...p, especialidade: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{especialidades.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2 space-y-2"><Label>Diagnóstico</Label><Input value={editIdForm.diagnostico} onChange={e => setEditIdForm(p => ({ ...p, diagnostico: e.target.value }))} /></div>
+              <div className="sm:col-span-2 space-y-2"><Label>Doenças de base</Label><Input value={editIdForm.doencasBase} onChange={e => setEditIdForm(p => ({ ...p, doencasBase: e.target.value }))} /></div>
+              <div className="sm:col-span-2 space-y-2"><Label>Motivo da internação</Label><Input value={editIdForm.motivoInternacao} onChange={e => setEditIdForm(p => ({ ...p, motivoInternacao: e.target.value }))} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditIdOpen(false)}>Cancelar</Button>
+              <Button onClick={saveEditId}>Salvar Alterações</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {/* ─── NEW LAB EXAM MODAL ──────────────────────────── */}
         <Dialog open={newLabOpen} onOpenChange={setNewLabOpen}>
