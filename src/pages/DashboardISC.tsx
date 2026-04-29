@@ -221,6 +221,51 @@ export default function DashboardISC() {
     return Object.entries(map).sort(sortMesAno).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
+  // Médias anuais — taxa de ISC média mensal (geral e por sítio cirúrgico)
+  // Para cada mês com dados, calcula taxa = (ISC / cirurgias) × 100, e tira a média dos meses.
+  const mediaAnualISC = useMemo(() => {
+    // Geral por mês
+    const porMes: Record<string, { cirurgias: number; isc: number }> = {};
+    filtered.forEach((r) => {
+      const k = `${r.mes}/${r.ano}`;
+      if (!porMes[k]) porMes[k] = { cirurgias: 0, isc: 0 };
+      porMes[k].cirurgias += r.totalCirurgias;
+      porMes[k].isc += r.iscConfirmada;
+    });
+    const taxasMensais = Object.values(porMes)
+      .filter((v) => v.cirurgias > 0)
+      .map((v) => (v.isc / v.cirurgias) * 100);
+    const taxaMediaGeral = taxasMensais.length
+      ? taxasMensais.reduce((a, b) => a + b, 0) / taxasMensais.length
+      : 0;
+
+    // Por sítio cirúrgico
+    const porSitioMes: Record<string, Record<string, { cirurgias: number; isc: number }>> = {};
+    filtered.forEach((r) => {
+      if (!r.sitio) return;
+      const k = `${r.mes}/${r.ano}`;
+      if (!porSitioMes[r.sitio]) porSitioMes[r.sitio] = {};
+      if (!porSitioMes[r.sitio][k]) porSitioMes[r.sitio][k] = { cirurgias: 0, isc: 0 };
+      porSitioMes[r.sitio][k].cirurgias += r.totalCirurgias;
+      porSitioMes[r.sitio][k].isc += r.iscConfirmada;
+    });
+    const porSitio = Object.entries(porSitioMes).map(([sitio, mapMes]) => {
+      const taxas = Object.values(mapMes)
+        .filter((v) => v.cirurgias > 0)
+        .map((v) => (v.isc / v.cirurgias) * 100);
+      const media = taxas.length ? taxas.reduce((a, b) => a + b, 0) / taxas.length : 0;
+      const totalCirurgias = Object.values(mapMes).reduce((s, v) => s + v.cirurgias, 0);
+      const totalISC = Object.values(mapMes).reduce((s, v) => s + v.isc, 0);
+      return { sitio, media, mesesComDados: taxas.length, totalCirurgias, totalISC };
+    }).sort((a, b) => b.media - a.media);
+
+    return {
+      taxaMediaGeral,
+      mesesComDados: taxasMensais.length,
+      porSitio,
+    };
+  }, [filtered]);
+
   // Sítio cirúrgico (distribuição por sítio entre as cirurgias com sítio informado)
   const sitioData = useMemo(() => {
     const map: Record<string, number> = {};
