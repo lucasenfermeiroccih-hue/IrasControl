@@ -311,7 +311,7 @@ export default function CasesInvestigationAnalytics() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
             Indicadores e Relatórios Gerais
           </h1>
@@ -422,7 +422,7 @@ export default function CasesInvestigationAnalytics() {
                 <item.icon className={cn("h-4 w-4", item.color)} />
                 <p className="text-xs text-muted-foreground">{item.label}</p>
               </div>
-              <p className="text-2xl font-bold mt-1">{statusCounts[item.key]}</p>
+              <p className="text-xl sm:text-2xl font-bold mt-1">{statusCounts[item.key]}</p>
             </CardContent>
           </Card>
         ))}
@@ -436,7 +436,7 @@ export default function CasesInvestigationAnalytics() {
               <Target className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground">Total de Casos</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{kpis.totalCases}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{kpis.totalCases}</p>
           </CardContent>
         </Card>
         <Card>
@@ -445,7 +445,7 @@ export default function CasesInvestigationAnalytics() {
               <TrendingUp className="h-4 w-4 text-destructive" />
               <p className="text-xs text-muted-foreground">Taxa Confirmação</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{kpis.rateConfirmed}%</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{kpis.rateConfirmed}%</p>
           </CardContent>
         </Card>
         <Card>
@@ -454,7 +454,7 @@ export default function CasesInvestigationAnalytics() {
               <Stethoscope className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground">Relacionados a Dispositivo</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{kpis.deviceRelated} ({kpis.rateDevice}%)</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{kpis.deviceRelated} ({kpis.rateDevice}%)</p>
           </CardContent>
         </Card>
         <Card>
@@ -463,7 +463,7 @@ export default function CasesInvestigationAnalytics() {
               <Clock className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground">Tempo Médio Resposta</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{avgResponseTime !== null ? `${avgResponseTime} dias` : "—"}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{avgResponseTime !== null ? `${avgResponseTime} dias` : "—"}</p>
           </CardContent>
         </Card>
       </div>
@@ -476,7 +476,7 @@ export default function CasesInvestigationAnalytics() {
               <Heart className="h-4 w-4 text-destructive" />
               <p className="text-xs text-muted-foreground">Óbitos</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{outcomes.obitos}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{outcomes.obitos}</p>
           </CardContent>
         </Card>
         <Card>
@@ -485,7 +485,7 @@ export default function CasesInvestigationAnalytics() {
               <CheckCircle className="h-4 w-4 text-success" />
               <p className="text-xs text-muted-foreground">Altas</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{outcomes.altas}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{outcomes.altas}</p>
           </CardContent>
         </Card>
         <Card>
@@ -494,7 +494,7 @@ export default function CasesInvestigationAnalytics() {
               <Pill className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground">Prescrições Antimicrobianos</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{totalPrescriptions}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{totalPrescriptions}</p>
           </CardContent>
         </Card>
         <Card>
@@ -503,7 +503,7 @@ export default function CasesInvestigationAnalytics() {
               <Activity className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground">Dispositivos (CVC/SVD/VM)</p>
             </div>
-            <p className="text-2xl font-bold mt-1">{deviceDensity.cvc} / {deviceDensity.svd} / {deviceDensity.vm}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1">{deviceDensity.cvc} / {deviceDensity.svd} / {deviceDensity.vm}</p>
           </CardContent>
         </Card>
       </div>
