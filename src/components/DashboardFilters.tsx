@@ -39,12 +39,14 @@ function MultiSelect({
   onChange,
   options,
   width = "w-[160px]",
+  hideLabel = false,
 }: {
   label: string;
   selected: string[];
   onChange: (v: string[]) => void;
   options: string[];
   width?: string;
+  hideLabel?: boolean;
 }) {
   const allSelected = selected.length === 0;
 
@@ -63,8 +65,8 @@ function MultiSelect({
       : `${selected.length} selecionados`;
 
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <div className={hideLabel ? "" : "space-y-1.5"}>
+      {!hideLabel && <Label className="text-xs font-medium text-muted-foreground">{label}</Label>}
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -123,24 +125,33 @@ export default function DashboardFilters({
   const totalActive = (dia?.length || 0) + mes.length + ano.length + setor.length;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Filter className="h-4 w-4" />
-        <span className="text-sm font-medium">Filtros</span>
-        {totalActive > 0 && (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+      {setDia && dia !== undefined && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Dia</label>
+          <MultiSelect label="Dia" selected={dia} onChange={setDia} options={defaultDays} width="w-full" hideLabel />
+        </div>
+      )}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Mês</label>
+        <MultiSelect label="Mês" selected={mes} onChange={setMes} options={meses} width="w-full" hideLabel />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Ano</label>
+        <MultiSelect label="Ano" selected={ano} onChange={setAno} options={years} width="w-full" hideLabel />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Setor</label>
+        <MultiSelect label="Setor" selected={setor} onChange={setSetor} options={sectors} width="w-full" hideLabel />
+      </div>
+      {totalActive > 0 && (
+        <div className="col-span-2 sm:col-span-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <Filter className="h-3.5 w-3.5" />
           <Badge variant="secondary" className="text-xs px-2">
-            {totalActive} {totalActive === 1 ? "ativo" : "ativos"}
+            {totalActive} {totalActive === 1 ? "filtro ativo" : "filtros ativos"}
           </Badge>
-        )}
-      </div>
-      <div className="flex flex-wrap items-end gap-3">
-        {setDia && dia !== undefined && (
-          <MultiSelect label="Dia" selected={dia} onChange={setDia} options={defaultDays} width="w-[110px]" />
-        )}
-        <MultiSelect label="Mês" selected={mes} onChange={setMes} options={meses} width="w-[160px]" />
-        <MultiSelect label="Ano" selected={ano} onChange={setAno} options={years} width="w-[120px]" />
-        <MultiSelect label="Setor" selected={setor} onChange={setSetor} options={sectors} width="w-[200px]" />
-      </div>
+        </div>
+      )}
     </div>
   );
 }
