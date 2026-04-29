@@ -515,10 +515,10 @@ export default function AuditAntibiogramNew() {
         )}
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">Resultados</CardTitle>
+                <CardTitle className="text-base sm:text-lg">Resultados</CardTitle>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -530,9 +530,9 @@ export default function AuditAntibiogramNew() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <CardDescription>Antimicrobianos testados — MIC e categoria S/I/R/NT</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Antimicrobianos testados — MIC e categoria S/I/R/NT</CardDescription>
             </div>
-            <Button size="sm" onClick={addRow} className="gap-1"><Plus className="h-4 w-4" />Adicionar</Button>
+            <Button size="sm" onClick={addRow} className="gap-1 self-start sm:self-auto"><Plus className="h-4 w-4" />Adicionar</Button>
           </CardHeader>
           <CardContent>
             {results.length === 0 ? (
