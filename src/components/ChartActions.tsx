@@ -124,6 +124,27 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
 
   const toggleFullscreen = () => setIsFs(v => !v);
 
+  // Move the chart node into the fullscreen overlay while open, then restore
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const overlayHost = document.getElementById("chart-fs-host");
+    if (isFs && overlayHost) {
+      const placeholder = document.createComment("chart-fs-placeholder");
+      el.parentNode?.insertBefore(placeholder, el);
+      overlayHost.appendChild(el);
+      el.classList.add("chart-fullscreen");
+      // Trigger resize so Recharts/ResponsiveContainer recalculates
+      window.dispatchEvent(new Event("resize"));
+      return () => {
+        el.classList.remove("chart-fullscreen");
+        placeholder.parentNode?.insertBefore(el, placeholder);
+        placeholder.parentNode?.removeChild(placeholder);
+        window.dispatchEvent(new Event("resize"));
+      };
+    }
+  }, [isFs, chartRef]);
+
   return (
     <>
       <TooltipProvider delayDuration={200}>
