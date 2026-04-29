@@ -244,6 +244,65 @@ export default function IndicadoresDashboard() {
   );
   const taxaUsoAtb = safeDiv(agg.numAntibioticosUtilizados, pacienteExposto, 100);
 
+  // ====== Médias anuais ======
+  // Agrupa registros do ano selecionado (ignorando filtro de mês) por mês para calcular médias mensais
+  const yearlyMonthly = useMemo(() => {
+    const baseRecords = records.filter((r: any) => {
+      if (anoFiltro !== "Todos" && String(r.ano_vigilancia) !== anoFiltro) return false;
+      if (setorFiltro !== "Todos" && r.setor !== setorFiltro) return false;
+      return true;
+    });
+    return mesesOptions.map((mes) => {
+      const recs = baseRecords.filter((r: any) => r.mes_vigilancia === mes);
+      if (!recs.length) return null;
+      const m: any = {
+        numInfeccoes: 0, numPacienteDiaTotal: 0, numObitosInfeccao: 0, numPacientesInfeccaoHospitalar: 0,
+        utilizacaoCVC: 0, infeccaoCVC: 0, utilizacaoVM: 0, infeccaoVM: 0, utilizacaoSVD: 0, infeccaoSVD: 0,
+        numAdmissoes: 0, numPacientesUtiInicio: 0, numDiasUtiInicio: 0, numDiasUtiSubsequente: 0,
+      };
+      recs.forEach((r: any) => { const v = r.inputs || {}; Object.keys(m).forEach(k => { m[k] += (v[k] || 0); }); });
+      return {
+        taxaInfeccao: safeDiv(m.numInfeccoes, m.numPacienteDiaTotal, 1000),
+        taxaLetalidade: safeDiv(m.numObitosInfeccao, m.numPacientesInfeccaoHospitalar, 100),
+        taxaInfCVC: safeDiv(m.infeccaoCVC, m.utilizacaoCVC, 1000),
+        taxaInfVM: safeDiv(m.infeccaoVM, m.utilizacaoVM, 1000),
+        taxaInfSVD: safeDiv(m.infeccaoSVD, m.utilizacaoSVD, 1000),
+        taxaInfDispositivo: safeDiv(
+          m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
+          m.utilizacaoCVC + m.utilizacaoVM + m.utilizacaoSVD,
+          1000,
+        ),
+        infeccoesDispositivo: m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
+        numInfeccoes: m.numInfeccoes,
+        numObitos: m.numObitosInfeccao,
+        tempoPermanencia: safeDiv(
+          m.numPacientesUtiInicio + m.numPacienteDiaTotal + m.numDiasUtiSubsequente,
+          m.numDiasUtiInicio + m.numAdmissoes, 1
+        ),
+      };
+    }).filter(Boolean) as any[];
+  }, [records, anoFiltro, setorFiltro]);
+
+  const mean = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  const mediaAnual = useMemo(() => {
+    const m = yearlyMonthly;
+    return {
+      taxaInfeccao: mean(m.map(x => x.taxaInfeccao)),
+      taxaLetalidade: mean(m.map(x => x.taxaLetalidade)),
+      taxaInfDispositivo: mean(m.map(x => x.taxaInfDispositivo)),
+      taxaInfPAV: mean(m.map(x => x.taxaInfVM)),
+      taxaInfSVD: mean(m.map(x => x.taxaInfSVD)),
+      taxaInfCVC: mean(m.map(x => x.taxaInfCVC)),
+      tempoPermanencia: mean(m.map(x => x.tempoPermanencia)),
+      infeccoesDispositivoMes: mean(m.map(x => x.infeccoesDispositivo)),
+      obitosMes: mean(m.map(x => x.numObitos)),
+      infeccoesMes: mean(m.map(x => x.numInfeccoes)),
+      mesesComDados: m.length,
+    };
+  }, [yearlyMonthly]);
+
+
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   if (records.length === 0) return (
