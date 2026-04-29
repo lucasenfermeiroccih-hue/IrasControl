@@ -43,9 +43,9 @@ export default function DashboardDispenser() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard — Vigilância de Dispensers</h1>
           <p className="text-sm text-muted-foreground">Monitoramento de insumos e conformidade de dispensadores</p>
         </div>
         <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export default function DashboardDispenser() {
           <Card key={k.label}>
             <CardContent className="flex items-center gap-4 pt-6">
               <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${k.bg}`}><k.icon className={`h-6 w-6 ${k.color}`} /></div>
-              <div><p className="text-sm text-muted-foreground">{k.label}</p><p className="text-2xl font-bold">{k.value}</p></div>
+              <div><p className="text-sm text-muted-foreground">{k.label}</p><p className="text-xl md:text-2xl font-bold">{k.value}</p></div>
             </CardContent>
           </Card>
         ))}

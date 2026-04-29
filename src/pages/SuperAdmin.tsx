@@ -154,7 +154,7 @@ export default function SuperAdmin() {
       <div className="flex items-center gap-3">
         <Shield className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Super Admin</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Super Admin</h1>
           <p className="text-sm text-muted-foreground">Gestão de hospitais e administradores do sistema multi-tenant</p>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Building2 className="h-8 w-8 text-primary" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.length}</p>
               <p className="text-xs text-muted-foreground">Hospitais Cadastrados</p>
             </div>
           </CardContent>
@@ -174,7 +174,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Activity className="h-8 w-8 text-emerald-500" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.filter(h => h.status === "active").length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.filter(h => h.status === "active").length}</p>
               <p className="text-xs text-muted-foreground">Hospitais Ativos</p>
             </div>
           </CardContent>
@@ -183,7 +183,7 @@ export default function SuperAdmin() {
           <CardContent className="flex items-center gap-3 p-4">
             <Users className="h-8 w-8 text-blue-500" />
             <div>
-              <p className="text-2xl font-bold">{hospitals.filter(h => h.status === "pending").length}</p>
+              <p className="text-xl md:text-2xl font-bold">{hospitals.filter(h => h.status === "pending").length}</p>
               <p className="text-xs text-muted-foreground">Pendentes</p>
             </div>
           </CardContent>
@@ -211,45 +211,47 @@ export default function SuperAdmin() {
               <p className="text-sm">Clique em "Novo Hospital" para começar</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hospital</TableHead>
-                  <TableHead className="hidden md:table-cell">CNES</TableHead>
-                  <TableHead className="hidden md:table-cell">Tipo</TableHead>
-                  <TableHead className="hidden lg:table-cell">Cidade/UF</TableHead>
-                  <TableHead className="hidden lg:table-cell">Leitos</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {hospitals.map((h) => (
-                  <TableRow key={h.id}>
-                    <TableCell>
-                      <p className="font-medium text-sm">{h.name}</p>
-                      <p className="text-xs text-muted-foreground">{h.contact_email}</p>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">{h.cnes || "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">{typeLabels[h.type] || h.type}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm">
-                      {h.city && h.state ? `${h.city}/${h.state}` : h.city || h.state || "—"}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm">{h.bed_count || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={statusColors[h.status]}>
-                        {statusLabels[h.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => openAdminDialog(h.id)}>
-                        <Users className="h-4 w-4 mr-1" />Admin
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hospital</TableHead>
+                    <TableHead className="hidden md:table-cell">CNES</TableHead>
+                    <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                    <TableHead className="hidden lg:table-cell">Cidade/UF</TableHead>
+                    <TableHead className="hidden lg:table-cell">Leitos</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {hospitals.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell>
+                        <p className="font-medium text-sm">{h.name}</p>
+                        <p className="text-xs text-muted-foreground">{h.contact_email}</p>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{h.cnes || "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{typeLabels[h.type] || h.type}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">
+                        {h.city && h.state ? `${h.city}/${h.state}` : h.city || h.state || "—"}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{h.bed_count || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={statusColors[h.status]}>
+                          {statusLabels[h.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" onClick={() => openAdminDialog(h.id)}>
+                          <Users className="h-4 w-4 mr-1" />Admin
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -71,16 +71,16 @@ export default function CRM() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="h-7 w-7 text-primary" />
-          <div><h1 className="text-2xl font-bold text-foreground">CRM</h1><p className="text-sm text-muted-foreground">Gestão de relacionamento com instituições</p></div>
+          <div><h1 className="text-xl md:text-2xl font-bold text-foreground">CRM</h1><p className="text-sm text-muted-foreground">Gestão de relacionamento com instituições</p></div>
         </div>
         <Button onClick={() => setShowNewContact(true)}><Plus className="h-4 w-4 mr-1" />Novo Contato</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Contatos</p><p className="text-2xl font-bold">{contacts.length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><Star className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Clientes Ativos</p><p className="text-2xl font-bold">{clienteCount}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><TrendingUp className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Em Negociação</p><p className="text-2xl font-bold">{contacts.filter((c: any) => c.stage === "negociação").length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><TrendingUp className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Leads</p><p className="text-2xl font-bold">{contacts.filter((c: any) => c.stage === "lead").length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Contatos</p><p className="text-xl md:text-2xl font-bold">{contacts.length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-500/10"><Star className="h-5 w-5 text-emerald-500" /></div><div><p className="text-xs text-muted-foreground">Clientes Ativos</p><p className="text-xl md:text-2xl font-bold">{clienteCount}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-yellow-500/10"><TrendingUp className="h-5 w-5 text-yellow-500" /></div><div><p className="text-xs text-muted-foreground">Em Negociação</p><p className="text-xl md:text-2xl font-bold">{contacts.filter((c: any) => c.stage === "negociação").length}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><TrendingUp className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Leads</p><p className="text-xl md:text-2xl font-bold">{contacts.filter((c: any) => c.stage === "lead").length}</p></div></CardContent></Card>
       </div>
 
       <Card>
@@ -103,29 +103,31 @@ export default function CRM() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Instituição</TableHead>
-                <TableHead className="hidden md:table-cell">Contato</TableHead>
-                <TableHead>Estágio</TableHead>
-                <TableHead className="hidden md:table-cell">Valor</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((c: any) => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedContact(c)}>
-                  <TableCell><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-muted-foreground">{c.company}</p></TableCell>
-                  <TableCell className="hidden md:table-cell"><p className="text-sm">{c.role}</p><p className="text-xs text-muted-foreground">{c.email}</p></TableCell>
-                  <TableCell><Badge variant="outline" className={stageConfig[c.stage]?.color || ""}>{stageConfig[c.stage]?.label || c.stage}</Badge></TableCell>
-                  <TableCell className="hidden md:table-cell text-sm font-medium">{c.value || "—"}</TableCell>
-                  <TableCell className="text-right"><Button size="sm" variant="ghost">Detalhes</Button></TableCell>
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Instituição</TableHead>
+                  <TableHead className="hidden md:table-cell">Contato</TableHead>
+                  <TableHead>Estágio</TableHead>
+                  <TableHead className="hidden md:table-cell">Valor</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum contato encontrado</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((c: any) => (
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedContact(c)}>
+                    <TableCell><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-muted-foreground">{c.company}</p></TableCell>
+                    <TableCell className="hidden md:table-cell"><p className="text-sm">{c.role}</p><p className="text-xs text-muted-foreground">{c.email}</p></TableCell>
+                    <TableCell><Badge variant="outline" className={stageConfig[c.stage]?.color || ""}>{stageConfig[c.stage]?.label || c.stage}</Badge></TableCell>
+                    <TableCell className="hidden md:table-cell text-sm font-medium">{c.value || "—"}</TableCell>
+                    <TableCell className="text-right"><Button size="sm" variant="ghost">Detalhes</Button></TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum contato encontrado</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

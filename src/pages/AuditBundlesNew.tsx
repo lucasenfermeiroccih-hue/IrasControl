@@ -161,7 +161,7 @@ export default function AuditBundlesNew() {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
           <div>
-            <h1 className="text-2xl font-bold">Auditoria de Bundles</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Auditoria de Bundles</h1>
             <p className="text-muted-foreground text-sm">Registro de conformidade de protocolos de cateter</p>
           </div>
         </div>
@@ -334,7 +334,7 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center p-3 rounded-lg border">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-bold" style={{ color }}>{value.toFixed(1)}%</p>
+      <p className="text-xl md:text-2xl font-bold" style={{ color }}>{value.toFixed(1)}%</p>
     </div>
   );
 }

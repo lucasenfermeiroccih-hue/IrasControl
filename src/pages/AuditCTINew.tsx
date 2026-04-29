@@ -124,7 +124,7 @@ export default function AuditCTINew() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-          <div><h1 className="text-2xl font-bold">Auditoria de Infraestrutura — CTI</h1><p className="text-muted-foreground text-sm">Registro de conformidade de setores críticos</p></div>
+          <div><h1 className="text-xl md:text-2xl font-bold">Auditoria de Infraestrutura — CTI</h1><p className="text-muted-foreground text-sm">Registro de conformidade de setores críticos</p></div>
         </div>
         <AuditHistory auditType="cti_infrastructure" />
       </div>
@@ -176,10 +176,10 @@ export default function AuditCTINew() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Resumo</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Conformidade</p><p className="text-2xl font-bold" style={{ color: stats.rate >= 80 ? "hsl(var(--success))" : stats.rate >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }}>{stats.rate.toFixed(1)}%</p></div>
+          <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Conformidade</p><p className="text-xl md:text-2xl font-bold" style={{ color: stats.rate >= 80 ? "hsl(var(--success))" : stats.rate >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }}>{stats.rate.toFixed(1)}%</p></div>
           <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Conformes</p><p className="text-2xl font-bold text-success">{stats.conformes}</p></div>
           <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Não Conformes</p><p className="text-2xl font-bold text-destructive">{stats.naoConformes}</p></div>
-          <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Progresso</p><p className="text-2xl font-bold">{stats.answered}/{allItems.length}</p></div>
+          <div className="text-center p-3 rounded-lg border"><p className="text-xs text-muted-foreground">Progresso</p><p className="text-xl md:text-2xl font-bold">{stats.answered}/{allItems.length}</p></div>
         </CardContent>
       </Card>
 

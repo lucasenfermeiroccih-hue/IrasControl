@@ -100,7 +100,7 @@ export default function SelectHospital() {
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Shield className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
+            <span className="text-xl md:text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
           </div>
           <h1 className="text-xl font-bold">Selecionar Hospital</h1>
           <p className="text-sm text-muted-foreground">

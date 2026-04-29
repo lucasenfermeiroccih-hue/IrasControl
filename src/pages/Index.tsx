@@ -231,7 +231,7 @@ export default function Index() {
       {/* Free Trial CTA */}
       <section className="border-t bg-primary py-20 text-primary-foreground">
         <div className="container text-center">
-          <h2 className="text-3xl font-bold">Experimente grátis por 30 dias</h2>
+          <h2 className="text-2xl md:text-3xl font-bold">Experimente grátis por 30 dias</h2>
           <p className="mx-auto mt-4 max-w-xl text-primary-foreground/80">
             Cadastre seu hospital e usuário no plano gratuito. Acesso completo a todas as funcionalidades por 30 dias, sem cartão de crédito.
           </p>

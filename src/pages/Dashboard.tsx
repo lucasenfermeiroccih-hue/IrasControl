@@ -194,12 +194,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard Principal</h1>
-          <p className="text-sm text-muted-foreground">Visão consolidada da situação epidemiológica</p>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard Principal</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Visão consolidada da situação epidemiológica</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-1" /> PDF
           </Button>
@@ -221,16 +221,16 @@ export default function Dashboard() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
-            <CardContent className="flex items-center gap-4 pt-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${kpi.bg}`}>
-                <kpi.icon className={`h-6 w-6 ${kpi.color}`} />
+            <CardContent className="flex items-center gap-3 sm:gap-4 pt-4 sm:pt-6">
+              <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg ${kpi.bg} shrink-0`}>
+                <kpi.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${kpi.color}`} />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{kpi.label}</p>
-                <p className="text-2xl font-bold">{kpi.value}</p>
+              <div className="min-w-0">
+                <p className="text-[11px] sm:text-sm text-muted-foreground truncate">{kpi.label}</p>
+                <p className="text-lg sm:text-2xl font-bold">{kpi.value}</p>
               </div>
             </CardContent>
           </Card>

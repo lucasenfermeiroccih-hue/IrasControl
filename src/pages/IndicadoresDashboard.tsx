@@ -398,8 +398,8 @@ export default function IndicadoresDashboard() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
               <Select value={mesFiltro} onValueChange={setMesFiltro}>
@@ -427,6 +427,8 @@ export default function IndicadoresDashboard() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
             <Button variant="outline" size="sm" className="h-9 gap-1.5">
               <Filter className="h-3.5 w-3.5" />Filtrar
             </Button>

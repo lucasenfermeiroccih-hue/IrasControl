@@ -146,7 +146,7 @@ export default function Forms() {
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Formulários</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Formulários</h1>
           <p className="text-muted-foreground">Gerencie templates de formulários de auditoria e vigilância</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -191,22 +191,22 @@ export default function Forms() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 text-center">
           <FolderOpen className="h-5 w-5 mx-auto text-primary mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</p>
           <p className="text-xs text-muted-foreground">Total Formulários</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <CheckCircle2 className="h-5 w-5 mx-auto text-emerald-500 mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.ativos}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.ativos}</p>
           <p className="text-xs text-muted-foreground">Ativos</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <Edit className="h-5 w-5 mx-auto text-amber-500 mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.rascunhos}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.rascunhos}</p>
           <p className="text-xs text-muted-foreground">Rascunhos</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <ClipboardCheck className="h-5 w-5 mx-auto text-primary mb-1" />
-          <p className="text-2xl font-bold text-foreground">{stats.preenchimentos.toLocaleString()}</p>
+          <p className="text-xl md:text-2xl font-bold text-foreground">{stats.preenchimentos.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground">Preenchimentos</p>
         </CardContent></Card>
       </div>
@@ -256,73 +256,77 @@ export default function Forms() {
           <TabsContent value="todos">
             <Card>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead className="text-center">Campos</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-center">Preench.</TableHead>
-                      <TableHead>Última Edição</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-sm">{t.nome}</span>
-                            {t.obrigatorio && <Badge variant="outline" className="text-xs">Obrigatório</Badge>}
-                          </div>
-                        </TableCell>
-                        <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
-                        <TableCell className="text-center">{t.campos}</TableCell>
-                        <TableCell>{statusBadge(t.status)}</TableCell>
-                        <TableCell className="text-center">{t.preenchimentos}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{t.updated_at}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button size="icon" variant="ghost" title="Duplicar" onClick={() => handleDuplicate(t)}><Copy className="h-4 w-4" /></Button>
-                            {t.status !== "arquivado" ? (
-                              <Button size="icon" variant="ghost" title="Arquivar" onClick={() => handleUpdateStatus(t.id, "arquivado")}><Trash2 className="h-4 w-4" /></Button>
-                            ) : (
-                              <Button size="icon" variant="ghost" title="Ativar" onClick={() => handleUpdateStatus(t.id, "ativo")}><CheckCircle2 className="h-4 w-4" /></Button>
-                            )}
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead className="text-center">Campos</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Preench.</TableHead>
+                        <TableHead>Última Edição</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium text-sm">{t.nome}</span>
+                              {t.obrigatorio && <Badge variant="outline" className="text-xs">Obrigatório</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
+                          <TableCell className="text-center">{t.campos}</TableCell>
+                          <TableCell>{statusBadge(t.status)}</TableCell>
+                          <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{t.updated_at}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button size="icon" variant="ghost" title="Duplicar" onClick={() => handleDuplicate(t)}><Copy className="h-4 w-4" /></Button>
+                              {t.status !== "arquivado" ? (
+                                <Button size="icon" variant="ghost" title="Arquivar" onClick={() => handleUpdateStatus(t.id, "arquivado")}><Trash2 className="h-4 w-4" /></Button>
+                              ) : (
+                                <Button size="icon" variant="ghost" title="Ativar" onClick={() => handleUpdateStatus(t.id, "ativo")}><CheckCircle2 className="h-4 w-4" /></Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="obrigatorios">
             <Card>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-center">Preench.</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.filter(f => f.obrigatorio).map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-medium text-sm">{t.nome}</TableCell>
-                        <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
-                        <TableCell>{statusBadge(t.status)}</TableCell>
-                        <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Preench.</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.filter(f => f.obrigatorio).map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="font-medium text-sm">{t.nome}</TableCell>
+                          <TableCell><Badge variant="secondary" className="text-xs">{t.categoria}</Badge></TableCell>
+                          <TableCell>{statusBadge(t.status)}</TableCell>
+                          <TableCell className="text-center">{t.preenchimentos}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -175,7 +175,7 @@ export default function HygieneConsumptionDashboard() {
                   <FileText className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Formulários Analisados</p>
-                    <p className="text-2xl font-bold">{totalFormularios}</p>
+                    <p className="text-xl md:text-2xl font-bold">{totalFormularios}</p>
                   </div>
                 </div>
               </CardContent>
@@ -186,7 +186,7 @@ export default function HygieneConsumptionDashboard() {
                   <Activity className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Taxa Conformidade (Adesão)</p>
-                    <p className="text-2xl font-bold">{taxaGeral}%</p>
+                    <p className="text-xl md:text-2xl font-bold">{taxaGeral}%</p>
                     <Badge variant={typeof taxaGeral === "string" && parseFloat(taxaGeral) >= 80 ? "default" : "destructive"} className="mt-1 text-xs">
                       {typeof taxaGeral === "string" && parseFloat(taxaGeral) >= 80 ? "Conforme" : "Atenção"}
                     </Badge>
@@ -200,7 +200,7 @@ export default function HygieneConsumptionDashboard() {
                   <Droplets className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Consumo Total (ML)</p>
-                    <p className="text-2xl font-bold">{(totalAlcool + totalSabonete).toLocaleString("pt-BR")}</p>
+                    <p className="text-xl md:text-2xl font-bold">{(totalAlcool + totalSabonete).toLocaleString("pt-BR")}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">Álcool: {totalAlcool.toLocaleString("pt-BR")} · Sabonete: {totalSabonete.toLocaleString("pt-BR")}</p>
                   </div>
                 </div>
@@ -212,7 +212,7 @@ export default function HygieneConsumptionDashboard() {
                   <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Consumo / Paciente-Dia</p>
-                    <p className="text-2xl font-bold">{consumoPD} <span className="text-sm font-normal text-muted-foreground">ML/PD</span></p>
+                    <p className="text-xl md:text-2xl font-bold">{consumoPD} <span className="text-sm font-normal text-muted-foreground">ML/PD</span></p>
                   </div>
                 </div>
               </CardContent>

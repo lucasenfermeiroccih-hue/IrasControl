@@ -53,7 +53,7 @@ export default function AgentLibrary() {
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Biblioteca de Agentes IA</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Biblioteca de Agentes IA</h1>
             <p className="text-sm text-muted-foreground">
               Escolha um agente para análise inteligente dos seus dados
             </p>

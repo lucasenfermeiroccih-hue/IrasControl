@@ -144,3 +144,43 @@
   width: 100% !important;
   min-height: 500px;
 }
+
+/* ===== Responsive helpers (mobile / tablet) ===== */
+
+/* Tabelas dentro de Cards: scroll horizontal automático em telas pequenas */
+@media (max-width: 768px) {
+  [data-slot="card"] table {
+    font-size: 0.75rem;
+  }
+  [data-slot="card"] table th,
+  [data-slot="card"] table td {
+    padding: 0.5rem 0.5rem;
+    white-space: nowrap;
+  }
+}
+
+/* Recharts: evitar overflow horizontal em mobile */
+.recharts-responsive-container {
+  max-width: 100% !important;
+}
+
+/* Reduzir padding de Cards em mobile pequeno */
+@media (max-width: 640px) {
+  [data-slot="card-header"] { padding: 0.75rem 1rem !important; }
+  [data-slot="card-content"] { padding: 0.75rem 1rem !important; }
+  [data-slot="card-footer"] { padding: 0.75rem 1rem !important; }
+}
+
+/* Esconder elementos só em telas muito pequenas */
+@media (max-width: 480px) {
+  .hide-xs { display: none !important; }
+}
+
+/* Dialog content: scroll automático em mobile */
+@media (max-width: 640px) {
+  [role="dialog"] > div[class*="max-w"] {
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+}
+

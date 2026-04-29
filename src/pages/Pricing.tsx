@@ -392,7 +392,7 @@ export default function Pricing() {
           </DialogHeader>
           {selectedPlan && (
             <div className="space-y-2 py-2">
-              <p className="text-2xl font-bold">
+              <p className="text-xl md:text-2xl font-bold">
                 {formatDisplayPrice(selectedPlan.price)}
                 <span className="text-base font-normal text-muted-foreground">{selectedPlan.period}</span>
               </p>

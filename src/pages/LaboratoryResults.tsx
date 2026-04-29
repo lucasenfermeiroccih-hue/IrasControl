@@ -276,7 +276,7 @@ const LaboratoryResults = () => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Resultados Laboratoriais</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Resultados Laboratoriais</h1>
           <p className="text-muted-foreground">Culturas, antibiogramas e perfil de resistência</p>
         </div>
         <div className="flex gap-2">
@@ -292,9 +292,9 @@ const LaboratoryResults = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6 text-center"><FlaskConical className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Clock className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Microscope className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-2xl font-bold">{kpis.completos}</p><p className="text-sm text-muted-foreground">Completos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><FlaskConical className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Clock className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Microscope className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.completos}</p><p className="text-sm text-muted-foreground">Completos</p></CardContent></Card>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -315,33 +315,35 @@ const LaboratoryResults = () => {
       <Card>
         <CardHeader><CardTitle className="text-lg">Resultados ({filtered.length})</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Setor</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Microorganismo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Coleta</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum resultado laboratorial.</TableCell></TableRow>}
-              {filtered.map(r => (
-                <TableRow key={r.id}>
-                  <TableCell><div className="font-medium">{(r.patient as any)?.full_name || "—"}</div><div className="text-xs text-muted-foreground">{(r.patient as any)?.medical_record || ""}</div></TableCell>
-                  <TableCell>{(r.patient as any)?.sector || "—"}</TableCell>
-                  <TableCell className="text-sm">{r.sample_type || "—"}</TableCell>
-                  <TableCell><span className="text-sm">{r.organism || "—"}</span></TableCell>
-                  <TableCell><Badge variant={r.status === "pending" ? "outline" : "secondary"}>{r.status === "pending" ? "Pendente" : "Completo"}</Badge></TableCell>
-                  <TableCell className="text-sm">{r.collection_date}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => setDetail(r)}><Eye className="h-4 w-4" /></Button></TableCell>
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Microorganismo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Coleta</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum resultado laboratorial.</TableCell></TableRow>}
+                {filtered.map(r => (
+                  <TableRow key={r.id}>
+                    <TableCell><div className="font-medium">{(r.patient as any)?.full_name || "—"}</div><div className="text-xs text-muted-foreground">{(r.patient as any)?.medical_record || ""}</div></TableCell>
+                    <TableCell>{(r.patient as any)?.sector || "—"}</TableCell>
+                    <TableCell className="text-sm">{r.sample_type || "—"}</TableCell>
+                    <TableCell><span className="text-sm">{r.organism || "—"}</span></TableCell>
+                    <TableCell><Badge variant={r.status === "pending" ? "outline" : "secondary"}>{r.status === "pending" ? "Pendente" : "Completo"}</Badge></TableCell>
+                    <TableCell className="text-sm">{r.collection_date}</TableCell>
+                    <TableCell><Button variant="ghost" size="sm" onClick={() => setDetail(r)}><Eye className="h-4 w-4" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

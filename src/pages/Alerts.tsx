@@ -81,8 +81,8 @@ const Alerts = () => {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Alertas</h1><p className="text-muted-foreground">Central de alertas e notificações</p></div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div><h1 className="text-xl md:text-2xl font-bold">Alertas</h1><p className="text-muted-foreground">Central de alertas e notificações</p></div>
         <div className="flex gap-2">
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
@@ -99,10 +99,10 @@ const Alerts = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6 text-center"><Bell className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-2" /><p className="text-2xl font-bold">{kpis.criticos}</p><p className="text-sm text-muted-foreground">Críticos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><CheckCircle className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-2xl font-bold">{kpis.resolvidos}</p><p className="text-sm text-muted-foreground">Resolvidos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><ShieldAlert className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Bell className="mx-auto h-8 w-8 text-primary mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.total}</p><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-destructive mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.criticos}</p><p className="text-sm text-muted-foreground">Críticos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><CheckCircle className="mx-auto h-8 w-8 text-success mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.resolvidos}</p><p className="text-sm text-muted-foreground">Resolvidos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><ShieldAlert className="mx-auto h-8 w-8 text-warning mb-2" /><p className="text-xl md:text-2xl font-bold">{kpis.pendentes}</p><p className="text-sm text-muted-foreground">Pendentes</p></CardContent></Card>
       </div>
 
       <div className="flex flex-wrap gap-3">

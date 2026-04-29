@@ -57,9 +57,9 @@ export default function DashboardBundles() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard — Bundles CVC/SVD</h1>
           <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
         </div>
         <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function DashboardBundles() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{k.label}</p>
-                <p className="text-2xl font-bold">{k.value}</p>
+                <p className="text-xl md:text-2xl font-bold">{k.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -131,28 +131,30 @@ export default function DashboardBundles() {
         <Card>
           <CardHeader><CardTitle className="text-base">Detalhamento por Setor</CardTitle></CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Setor</TableHead>
-                  <TableHead className="text-center">Conformidade (%)</TableHead>
-                  <TableHead className="text-center">Auditorias</TableHead>
-                  <TableHead className="text-center">Não Conformes</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.sectorData.map((r) => (
-                  <TableRow key={r.name}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-center">{r.compliance}%</TableCell>
-                    <TableCell className="text-center">{r.audits}</TableCell>
-                    <TableCell className="text-center">{r.nonCompliant}</TableCell>
-                    <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+            <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Setor</TableHead>
+                    <TableHead className="text-center">Conformidade (%)</TableHead>
+                    <TableHead className="text-center">Auditorias</TableHead>
+                    <TableHead className="text-center">Não Conformes</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {stats.sectorData.map((r) => (
+                    <TableRow key={r.name}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="text-center">{r.compliance}%</TableCell>
+                      <TableCell className="text-center">{r.audits}</TableCell>
+                      <TableCell className="text-center">{r.nonCompliant}</TableCell>
+                      <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

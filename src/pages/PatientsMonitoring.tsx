@@ -1378,38 +1378,38 @@ export default function PatientsMonitoring() {
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       {/* ─── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Stethoscope className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Monitoramento de Pacientes</h1>
-            <p className="text-sm text-muted-foreground">Investigação de infecções — Controle diário</p>
+          <Stethoscope className="h-7 w-7 text-primary shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold text-foreground truncate">Monitoramento de Pacientes</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Investigação de infecções — Controle diário</p>
           </div>
         </div>
-        <Button size="sm" onClick={() => setNewPatientOpen(true)}><Plus className="h-4 w-4 mr-1" />Novo Paciente</Button>
+        <Button size="sm" onClick={() => setNewPatientOpen(true)} className="self-start sm:self-auto"><Plus className="h-4 w-4 mr-1" />Novo Paciente</Button>
       </div>
 
       {/* ─── KPIs ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">Ativos</p><p className="text-2xl font-bold">{activeCount}</p></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Ativos</p><p className="text-lg sm:text-2xl font-bold">{activeCount}</p></div>
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-destructive/10"><AlertTriangle className="h-5 w-5 text-destructive" /></div>
-          <div><p className="text-xs text-muted-foreground">Total</p><p className="text-2xl font-bold">{totalCount}</p></div>
+        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10 shrink-0"><AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Total</p><p className="text-lg sm:text-2xl font-bold">{totalCount}</p></div>
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-accent"><Skull className="h-5 w-5 text-destructive" /></div>
-          <div><p className="text-xs text-muted-foreground">Óbitos</p><p className="text-2xl font-bold text-destructive">{deceasedCount}</p></div>
+        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Skull className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Óbitos</p><p className="text-lg sm:text-2xl font-bold text-destructive">{deceasedCount}</p></div>
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-accent"><Clock className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">Transferidos</p><p className="text-2xl font-bold">{transferredCount}</p></div>
+        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Transferidos</p><p className="text-lg sm:text-2xl font-bold">{transferredCount}</p></div>
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-accent"><Activity className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-xs text-muted-foreground">Altas</p><p className="text-2xl font-bold">{dischargedCount}</p></div>
+        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Altas</p><p className="text-lg sm:text-2xl font-bold">{dischargedCount}</p></div>
         </CardContent></Card>
       </div>
 

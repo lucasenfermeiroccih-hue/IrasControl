@@ -60,7 +60,7 @@ export default function ResetPassword() {
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
+            <span className="text-xl md:text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
           </div>
           <CardTitle className="text-xl">Nova senha</CardTitle>
           <CardDescription>Defina sua nova senha abaixo</CardDescription>

@@ -522,7 +522,7 @@ export default function DashboardISC() {
     <div className="space-y-6 p-4 md:p-6" ref={dashboardRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard ISC</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Dashboard ISC</h1>
           <p className="text-muted-foreground">Infecção de Sítio Cirúrgico — Visão analítica</p>
         </div>
         <div className="flex gap-2 flex-wrap" data-html2canvas-ignore="true">

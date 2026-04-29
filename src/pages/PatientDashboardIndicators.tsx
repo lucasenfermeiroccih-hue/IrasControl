@@ -184,7 +184,7 @@ const PatientDashboardIndicators = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard de Indicadores Operacionais</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Dashboard de Indicadores Operacionais</h1>
           <p className="text-muted-foreground">Dados do Monitoramento de Pacientes — internações, desfechos, dispositivos e antimicrobianos</p>
         </div>
         <div className="flex gap-2">
@@ -393,7 +393,7 @@ function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-bold">{density}</p>
+        <p className="text-2xl md:text-3xl font-bold">{density}</p>
         <p className="text-xs text-muted-foreground">por 1.000 paciente-dia</p>
         <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t">
           <span>Dispositivo-dia: {deviceDays}</span>

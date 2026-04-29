@@ -306,7 +306,7 @@ export default function DashboardPrecautions() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Monitoramento de Precaução</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Monitoramento de Precaução</h1>
             <p className="text-muted-foreground text-sm">Checklist de conformidade — protocolos de precaução e isolamento</p>
           </div>
         </div>
@@ -551,7 +551,7 @@ export default function DashboardPrecautions() {
 
                 <div className="flex items-center gap-4 p-4 rounded-lg border bg-muted/30">
                   <div className="text-center">
-                    <p className="text-3xl font-bold" style={{ color: rs.pct >= 80 ? "hsl(142,71%,45%)" : rs.pct >= 50 ? "hsl(38,92%,50%)" : "hsl(0,84%,60%)" }}>
+                    <p className="text-2xl md:text-3xl font-bold" style={{ color: rs.pct >= 80 ? "hsl(142,71%,45%)" : rs.pct >= 50 ? "hsl(38,92%,50%)" : "hsl(0,84%,60%)" }}>
                       {rs.pct}%
                     </p>
                     <p className="text-xs text-muted-foreground">Conformidade</p>
