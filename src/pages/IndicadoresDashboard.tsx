@@ -437,52 +437,6 @@ export default function IndicadoresDashboard() {
         </CardContent>
       </Card>
 
-      {/* Médias Anuais */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Médias Anuais
-              <Badge variant="outline" className="text-[10px] ml-1">
-                {anoFiltro === "Todos" ? "Todos os anos" : anoFiltro}
-              </Badge>
-            </CardTitle>
-            <span className="text-[11px] text-muted-foreground">
-              Calculado sobre {mediaAnual.mesesComDados} {mediaAnual.mesesComDados === 1 ? "mês" : "meses"} com dados
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {mediaAnual.mesesComDados === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Sem dados para o período selecionado.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              <KpiCard expandable label="Média Anual da Taxa de Infecção Hospitalar" value={mediaAnual.taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)"
-                description="Média mensal da taxa de infecção hospitalar (infecções por 1.000 pacientes-dia) ao longo do ano selecionado." />
-              <KpiCard expandable label="Média Anual da Taxa de Letalidade" value={mediaAnual.taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)"
-                description="Média mensal do percentual de óbitos entre pacientes com infecção hospitalar." />
-              <KpiCard expandable label="Média Anual da Taxa de Infecção por Dispositivo" value={mediaAnual.taxaInfDispositivo} unit="‰" icon={Syringe} color="hsl(217,91%,60%)"
-                description="Média mensal da taxa consolidada de infecções relacionadas a dispositivos invasivos (CVC + VM + SVD) por 1.000 dias de uso." />
-              <KpiCard expandable label="Média Anual da Taxa de PAV (Pneumonia Associada à Ventilação)" value={mediaAnual.taxaInfPAV} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)"
-                description="Média mensal da taxa de pneumonia associada à ventilação mecânica (PAV) por 1.000 dias de VM." />
-              <KpiCard expandable label="Média Anual da Taxa de Infecção por SVD (Sonda Vesical de Demora)" value={mediaAnual.taxaInfSVD} unit="‰" icon={ShieldAlert} color="hsl(262,83%,58%)"
-                description="Média mensal da taxa de infecção urinária associada à sonda vesical de demora por 1.000 dias de SVD." />
-              <KpiCard expandable label="Média Anual da Taxa de Infecção por CVC (Cateter Venoso Central)" value={mediaAnual.taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(168,66%,34%)"
-                description="Média mensal da taxa de infecção primária de corrente sanguínea associada a CVC por 1.000 dias de cateter." />
-              <KpiCard expandable label="Média Anual do Tempo de Permanência" value={mediaAnual.tempoPermanencia} unit=" dias" icon={Timer} color="hsl(217,91%,60%)"
-                description="Média mensal do tempo médio de permanência dos pacientes (em dias)." />
-              <KpiCard expandable label="Média Mensal de Infecções por Dispositivo" value={mediaAnual.infeccoesDispositivoMes} unit="" icon={Syringe} color="hsl(0,72%,51%)"
-                description="Número médio mensal de infecções relacionadas a dispositivos invasivos (CVC + VM + SVD)." />
-              <KpiCard expandable label="Média Mensal de Óbitos por Infecção" value={mediaAnual.obitosMes} unit="" icon={Skull} color="hsl(262,83%,58%)"
-                description="Número médio mensal de óbitos associados a infecção hospitalar." />
-              <KpiCard expandable label="Média Mensal de Infecções Hospitalares" value={mediaAnual.infeccoesMes} unit="" icon={Thermometer} color="hsl(38,92%,50%)"
-                description="Número médio mensal de infecções hospitalares notificadas." />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
