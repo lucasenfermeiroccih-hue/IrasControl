@@ -170,32 +170,34 @@ export default function AdminSettings() {
           <p className="text-sm text-muted-foreground">{users.length} usuários vinculados</p>
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead className="hidden md:table-cell">Perfil</TableHead>
-                    <TableHead>Admin</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map(u => (
-                    <TableRow key={u.user_id}>
-                      <TableCell>
-                        <p className="font-medium text-sm">{u.profile?.full_name || "—"}</p>
-                        <p className="text-xs text-muted-foreground">{u.profile?.email || "—"}</p>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{roleLabels[u.role || "viewer"] || u.role}</TableCell>
-                      <TableCell>
-                        {u.is_primary_admin && <Badge className="bg-primary text-primary-foreground">Admin</Badge>}
-                      </TableCell>
+              <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead className="hidden md:table-cell">Perfil</TableHead>
+                      <TableHead>Admin</TableHead>
                     </TableRow>
-                  ))}
-                  {users.length === 0 && (
-                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Nenhum usuário</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map(u => (
+                      <TableRow key={u.user_id}>
+                        <TableCell>
+                          <p className="font-medium text-sm">{u.profile?.full_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{u.profile?.email || "—"}</p>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{roleLabels[u.role || "viewer"] || u.role}</TableCell>
+                        <TableCell>
+                          {u.is_primary_admin && <Badge className="bg-primary text-primary-foreground">Admin</Badge>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {users.length === 0 && (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Nenhum usuário</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

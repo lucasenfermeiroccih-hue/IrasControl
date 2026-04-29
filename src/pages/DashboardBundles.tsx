@@ -131,28 +131,30 @@ export default function DashboardBundles() {
         <Card>
           <CardHeader><CardTitle className="text-base">Detalhamento por Setor</CardTitle></CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Setor</TableHead>
-                  <TableHead className="text-center">Conformidade (%)</TableHead>
-                  <TableHead className="text-center">Auditorias</TableHead>
-                  <TableHead className="text-center">Não Conformes</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.sectorData.map((r) => (
-                  <TableRow key={r.name}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-center">{r.compliance}%</TableCell>
-                    <TableCell className="text-center">{r.audits}</TableCell>
-                    <TableCell className="text-center">{r.nonCompliant}</TableCell>
-                    <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+            <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Setor</TableHead>
+                    <TableHead className="text-center">Conformidade (%)</TableHead>
+                    <TableHead className="text-center">Auditorias</TableHead>
+                    <TableHead className="text-center">Não Conformes</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {stats.sectorData.map((r) => (
+                    <TableRow key={r.name}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="text-center">{r.compliance}%</TableCell>
+                      <TableCell className="text-center">{r.audits}</TableCell>
+                      <TableCell className="text-center">{r.nonCompliant}</TableCell>
+                      <TableCell className="text-center">{getStatusBadge(r.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

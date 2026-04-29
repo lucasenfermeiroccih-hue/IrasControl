@@ -103,29 +103,31 @@ export default function CRM() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Instituição</TableHead>
-                <TableHead className="hidden md:table-cell">Contato</TableHead>
-                <TableHead>Estágio</TableHead>
-                <TableHead className="hidden md:table-cell">Valor</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((c: any) => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedContact(c)}>
-                  <TableCell><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-muted-foreground">{c.company}</p></TableCell>
-                  <TableCell className="hidden md:table-cell"><p className="text-sm">{c.role}</p><p className="text-xs text-muted-foreground">{c.email}</p></TableCell>
-                  <TableCell><Badge variant="outline" className={stageConfig[c.stage]?.color || ""}>{stageConfig[c.stage]?.label || c.stage}</Badge></TableCell>
-                  <TableCell className="hidden md:table-cell text-sm font-medium">{c.value || "—"}</TableCell>
-                  <TableCell className="text-right"><Button size="sm" variant="ghost">Detalhes</Button></TableCell>
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Instituição</TableHead>
+                  <TableHead className="hidden md:table-cell">Contato</TableHead>
+                  <TableHead>Estágio</TableHead>
+                  <TableHead className="hidden md:table-cell">Valor</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum contato encontrado</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((c: any) => (
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedContact(c)}>
+                    <TableCell><p className="font-medium text-sm">{c.name}</p><p className="text-xs text-muted-foreground">{c.company}</p></TableCell>
+                    <TableCell className="hidden md:table-cell"><p className="text-sm">{c.role}</p><p className="text-xs text-muted-foreground">{c.email}</p></TableCell>
+                    <TableCell><Badge variant="outline" className={stageConfig[c.stage]?.color || ""}>{stageConfig[c.stage]?.label || c.stage}</Badge></TableCell>
+                    <TableCell className="hidden md:table-cell text-sm font-medium">{c.value || "—"}</TableCell>
+                    <TableCell className="text-right"><Button size="sm" variant="ghost">Detalhes</Button></TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum contato encontrado</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
