@@ -543,100 +543,174 @@ export default function AuditAntibiogramNew() {
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[180px]">Antimicrobiano</TableHead>
-                      <TableHead className="min-w-[180px]">Método</TableHead>
-                      <TableHead className="min-w-[100px]">MIC</TableHead>
-                      <TableHead className="min-w-[280px]">
-                        <div className="flex items-center gap-1">
-                          Categoria
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button" className="text-muted-foreground hover:text-foreground">
-                                <HelpCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm whitespace-pre-line">
-                              {SIR_HELP_TEXT}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.map(row => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <Select
-                            value={row.isCustom ? "__OUTROS__" : row.antibiotic}
-                            onValueChange={v => {
-                              if (v === "__OUTROS__") {
-                                setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: true, antibiotic: "" } : r));
-                              } else {
-                                setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: false, antibiotic: v } : r));
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                              <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {row.isCustom && (
-                            <Input
-                              className="h-9 mt-2"
-                              placeholder="Descreva o antimicrobiano"
-                              value={row.antibiotic}
-                              onChange={e => updateRow(row.id, "antibiotic", e.target.value)}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Select value={row.method} onValueChange={v => handleMethodChange(row.id, v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Método" /></SelectTrigger>
-                            <SelectContent>{testMethods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number" min="0" step="0.1"
-                            placeholder={row.method.startsWith("Disco") ? "mm" : "µg/mL"}
-                            className="h-9" value={row.micValue}
-                            onChange={e => handleMicChange(row.id, e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <ToggleGroup
-                            type="single"
-                            value={row.sir}
-                            onValueChange={v => v && updateRow(row.id, "sir", v)}
-                            className="justify-start flex-wrap gap-1"
-                          >
-                            <ToggleGroupItem value="S" className="h-8 px-2 text-xs data-[state=on]:bg-success data-[state=on]:text-success-foreground" title="Sensível Dose Padrão">S</ToggleGroupItem>
-                            <ToggleGroupItem value="I" className="h-8 px-2 text-xs data-[state=on]:bg-warning data-[state=on]:text-warning-foreground" title="Sensível Aumentado Exposição">I</ToggleGroupItem>
-                            <ToggleGroupItem value="R" className="h-8 px-2 text-xs data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground" title="Resistente">R</ToggleGroupItem>
-                            <ToggleGroupItem value="NT" className="h-8 px-2 text-xs" title="Não testado">NT</ToggleGroupItem>
-                          </ToggleGroup>
-                          {row.sir && (
-                            <span className="text-[10px] text-muted-foreground mt-1 block">{sirLabel[row.sir]}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeRow(row.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
+              <>
+                {/* Mobile: stacked cards */}
+                <div className="md:hidden space-y-3">
+                  {results.map(row => (
+                    <div key={row.id} className="border rounded-lg p-3 space-y-3 bg-card">
+                      <div className="flex items-start justify-between gap-2">
+                        <Label className="text-xs font-semibold text-muted-foreground">Antimicrobiano</Label>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 -mt-1 -mr-1" onClick={() => removeRow(row.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <Select
+                        value={row.isCustom ? "__OUTROS__" : row.antibiotic}
+                        onValueChange={v => {
+                          if (v === "__OUTROS__") {
+                            setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: true, antibiotic: "" } : r));
+                          } else {
+                            setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: false, antibiotic: v } : r));
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                          <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {row.isCustom && (
+                        <Input
+                          className="h-9"
+                          placeholder="Descreva o antimicrobiano"
+                          value={row.antibiotic}
+                          onChange={e => updateRow(row.id, "antibiotic", e.target.value)}
+                        />
+                      )}
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-muted-foreground">Método</Label>
+                        <Select value={row.method} onValueChange={v => handleMethodChange(row.id, v)}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Método" /></SelectTrigger>
+                          <SelectContent>{testMethods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-muted-foreground">MIC</Label>
+                        <Input
+                          type="number" min="0" step="0.1"
+                          placeholder={row.method.startsWith("Disco") ? "mm" : "µg/mL"}
+                          className="h-9" value={row.micValue}
+                          onChange={e => handleMicChange(row.id, e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-muted-foreground">Categoria</Label>
+                        <ToggleGroup
+                          type="single"
+                          value={row.sir}
+                          onValueChange={v => v && updateRow(row.id, "sir", v)}
+                          className="justify-start flex-wrap gap-1"
+                        >
+                          <ToggleGroupItem value="S" className="h-8 px-2 text-xs data-[state=on]:bg-success data-[state=on]:text-success-foreground" title="Sensível Dose Padrão">S</ToggleGroupItem>
+                          <ToggleGroupItem value="I" className="h-8 px-2 text-xs data-[state=on]:bg-warning data-[state=on]:text-warning-foreground" title="Sensível Aumentado Exposição">I</ToggleGroupItem>
+                          <ToggleGroupItem value="R" className="h-8 px-2 text-xs data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground" title="Resistente">R</ToggleGroupItem>
+                          <ToggleGroupItem value="NT" className="h-8 px-2 text-xs" title="Não testado">NT</ToggleGroupItem>
+                        </ToggleGroup>
+                        {row.sir && (
+                          <span className="text-[10px] text-muted-foreground block">{sirLabel[row.sir]}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Tablet/Desktop: table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[180px]">Antimicrobiano</TableHead>
+                        <TableHead className="min-w-[180px]">Método</TableHead>
+                        <TableHead className="min-w-[100px]">MIC</TableHead>
+                        <TableHead className="min-w-[280px]">
+                          <div className="flex items-center gap-1">
+                            Categoria
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" className="text-muted-foreground hover:text-foreground">
+                                  <HelpCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-sm whitespace-pre-line">
+                                {SIR_HELP_TEXT}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {results.map(row => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <Select
+                              value={row.isCustom ? "__OUTROS__" : row.antibiotic}
+                              onValueChange={v => {
+                                if (v === "__OUTROS__") {
+                                  setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: true, antibiotic: "" } : r));
+                                } else {
+                                  setResults(p => p.map(r => r.id === row.id ? { ...r, isCustom: false, antibiotic: v } : r));
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                                <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {row.isCustom && (
+                              <Input
+                                className="h-9 mt-2"
+                                placeholder="Descreva o antimicrobiano"
+                                value={row.antibiotic}
+                                onChange={e => updateRow(row.id, "antibiotic", e.target.value)}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Select value={row.method} onValueChange={v => handleMethodChange(row.id, v)}>
+                              <SelectTrigger className="h-9"><SelectValue placeholder="Método" /></SelectTrigger>
+                              <SelectContent>{testMethods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number" min="0" step="0.1"
+                              placeholder={row.method.startsWith("Disco") ? "mm" : "µg/mL"}
+                              className="h-9" value={row.micValue}
+                              onChange={e => handleMicChange(row.id, e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <ToggleGroup
+                              type="single"
+                              value={row.sir}
+                              onValueChange={v => v && updateRow(row.id, "sir", v)}
+                              className="justify-start flex-wrap gap-1"
+                            >
+                              <ToggleGroupItem value="S" className="h-8 px-2 text-xs data-[state=on]:bg-success data-[state=on]:text-success-foreground" title="Sensível Dose Padrão">S</ToggleGroupItem>
+                              <ToggleGroupItem value="I" className="h-8 px-2 text-xs data-[state=on]:bg-warning data-[state=on]:text-warning-foreground" title="Sensível Aumentado Exposição">I</ToggleGroupItem>
+                              <ToggleGroupItem value="R" className="h-8 px-2 text-xs data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground" title="Resistente">R</ToggleGroupItem>
+                              <ToggleGroupItem value="NT" className="h-8 px-2 text-xs" title="Não testado">NT</ToggleGroupItem>
+                            </ToggleGroup>
+                            {row.sir && (
+                              <span className="text-[10px] text-muted-foreground mt-1 block">{sirLabel[row.sir]}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeRow(row.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
