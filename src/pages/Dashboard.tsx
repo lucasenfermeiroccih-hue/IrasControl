@@ -263,14 +263,40 @@ export default function Dashboard() {
           <CardHeader><CardTitle className="text-base">Conformidade Geral</CardTitle></CardHeader>
           <CardContent>
             {fAudits.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}%`}>
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={100}
+                      dataKey="value"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
+                      startAngle={90}
+                      endAngle={-270}
+                    >
+                      {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => `${v}%`} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-3xl font-bold text-foreground">{complianceRate}%</span>
+                  <span className="text-xs text-muted-foreground">Conforme</span>
+                </div>
+                <div className="flex items-center justify-center gap-6 mt-2">
+                  {pieData.map((entry) => (
+                    <div key={entry.name} className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                      <span className="text-xs text-muted-foreground">{entry.name}</span>
+                      <span className="text-xs font-semibold text-foreground">{entry.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-10">Nenhuma auditoria registrada ainda.</p>
             )}
