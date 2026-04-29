@@ -128,11 +128,18 @@
 /* Chart fullscreen mode (used by ChartActions Maximize button) */
 .chart-fullscreen {
   background: hsl(var(--background));
-  padding: 1.5rem;
-  overflow: auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.chart-fullscreen > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .chart-fullscreen .recharts-responsive-container,
 .chart-fullscreen :where(.recharts-wrapper) {
-  height: calc(100vh - 6rem) !important;
+  height: 100% !important;
   width: 100% !important;
+  min-height: 400px;
 }

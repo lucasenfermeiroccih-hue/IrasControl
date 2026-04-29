@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { Image, FileDown, Target, Maximize2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Image, FileDown, Target, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -101,29 +102,48 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
     setMetaOpen(false);
   };
 
-  // Fullscreen support: toggles native browser fullscreen on the chart container
+  // Fullscreen via overlay (Dialog-like) — mais confiável que fullscreen nativo
   const [isFs, setIsFs] = useState(false);
-  useEffect(() => {
-    const onChange = () => setIsFs(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
 
-  const toggleFullscreen = async () => {
+  useEffect(() => {
+    if (!isFs) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsFs(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isFs]);
+
+  const toggleFullscreen = () => setIsFs(v => !v);
+
+  // Move the chart node into the fullscreen overlay while open, then restore
+  useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
-    try {
-      if (!document.fullscreenElement) {
-        el.classList.add("chart-fullscreen");
-        await el.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
+    const overlayHost = document.getElementById("chart-fs-host");
+    if (isFs && overlayHost) {
+      const placeholder = document.createComment("chart-fs-placeholder");
+      el.parentNode?.insertBefore(placeholder, el);
+      overlayHost.appendChild(el);
+      el.classList.add("chart-fullscreen");
+      // Trigger resize so Recharts/ResponsiveContainer recalculates
+      window.dispatchEvent(new Event("resize"));
+      return () => {
         el.classList.remove("chart-fullscreen");
-      }
-    } catch (e) {
-      console.error("Erro ao alternar tela cheia:", e);
+        placeholder.parentNode?.insertBefore(el, placeholder);
+        placeholder.parentNode?.removeChild(placeholder);
+        window.dispatchEvent(new Event("resize"));
+      };
     }
-  };
+  }, [isFs, chartRef]);
 
   return (
     <>
@@ -209,6 +229,27 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isFs && createPortal(
+        <div
+          className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${chartTitle} — tela cheia`}
+        >
+          <div className="flex items-center justify-between px-6 py-3 border-b bg-background">
+            <h2 className="text-base font-semibold truncate">{chartTitle}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">Pressione ESC para sair</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFs(false)} aria-label="Sair da tela cheia">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div id="chart-fs-host" className="flex-1 min-h-0 p-6 overflow-auto" />
+        </div>,
+        document.body
+      )}
     </>
   );
 }
