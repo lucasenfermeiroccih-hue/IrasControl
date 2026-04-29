@@ -89,11 +89,17 @@ export function useAntibiogramDashboard() {
           }));
 
         const organism = lab.organism || "Desconhecido";
+        // Sector pode estar nos notes (form de antibiograma salva "Setor: X | ...")
+        const notes = lab.notes || "";
+        const setorMatch = notes.match(/Setor:\s*([^|]+)/);
+        const sectorFromNotes = setorMatch ? setorMatch[1].trim() : "";
+        const sectorFromPatient = lab.patient_id ? (patientMap[lab.patient_id]?.sector || "") : "";
+        const sector = sectorFromNotes || sectorFromPatient || "Não informado";
         return {
           id: lab.id,
           collectionDate: lab.collection_date,
           sampleId: lab.id.slice(0, 8).toUpperCase(),
-          sector: lab.patient_id ? (patientMap[lab.patient_id]?.sector || "Não informado") : "Não informado",
+          sector,
           patientId: lab.patient_id || "",
           organism,
           site: lab.sample_type || "Não informado",
