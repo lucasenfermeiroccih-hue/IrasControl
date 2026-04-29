@@ -1572,27 +1572,27 @@ export default function PatientsMonitoring() {
                     <span>Int.: <strong className={`${dias > 14 ? "text-destructive" : "text-foreground"}`}>{dias}d</strong></span>
                     <span>CTI: <strong className={`${diasCti !== null && diasCti > 7 ? "text-destructive" : "text-foreground"}`}>{diasCti !== null ? `${diasCti}d` : "—"}</strong></span>
                   </div>
-                  <div className="flex gap-2 pt-1 border-t border-border">
-                    <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEditId(p.id)}>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => openEditId(p.id)}>
                       <Pencil className="h-3 w-3" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openViewPatient(p.id)}>
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => openViewPatient(p.id)}>
                       <Eye className="h-3 w-3" /> Ver
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => enterPatient(p.id)}>
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => enterPatient(p.id)}>
                       <LogIn className="h-3 w-3" /> Entrar
                     </Button>
                     {p.status === "active" && (
-                      <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => openDischargeConfirm(p.id)}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => openDischargeConfirm(p.id)}>
                         <LogOut className="h-3 w-3" /> Alta
                       </Button>
                     )}
                     {isAdmin && (
                       <>
-                        <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); }}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); }}>
                           <RefreshCw className="h-3 w-3" /> Status
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteConfirmId(p.id)}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteConfirmId(p.id)}>
                           <Trash2 className="h-3 w-3" /> Excluir
                         </Button>
                       </>
