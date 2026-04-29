@@ -400,13 +400,6 @@ export default function IndicadoresDashboard() {
         </CardContent>
       </Card>
 
-      {/* Smart Insights Panel */}
-      <SmartInsightsPanel
-        generateInsights={buildInsights}
-        pageTitle="Dashboard de Indicadores Epidemiológicos"
-        contextKey={insightsKey}
-      />
-
       {/* Médias Anuais */}
       <Card>
         <CardHeader className="pb-3">
