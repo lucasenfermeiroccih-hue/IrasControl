@@ -244,6 +244,65 @@ export default function IndicadoresDashboard() {
   );
   const taxaUsoAtb = safeDiv(agg.numAntibioticosUtilizados, pacienteExposto, 100);
 
+  // ====== Médias anuais ======
+  // Agrupa registros do ano selecionado (ignorando filtro de mês) por mês para calcular médias mensais
+  const yearlyMonthly = useMemo(() => {
+    const baseRecords = records.filter((r: any) => {
+      if (anoFiltro !== "Todos" && String(r.ano_vigilancia) !== anoFiltro) return false;
+      if (setorFiltro !== "Todos" && r.setor !== setorFiltro) return false;
+      return true;
+    });
+    return mesesOptions.map((mes) => {
+      const recs = baseRecords.filter((r: any) => r.mes_vigilancia === mes);
+      if (!recs.length) return null;
+      const m: any = {
+        numInfeccoes: 0, numPacienteDiaTotal: 0, numObitosInfeccao: 0, numPacientesInfeccaoHospitalar: 0,
+        utilizacaoCVC: 0, infeccaoCVC: 0, utilizacaoVM: 0, infeccaoVM: 0, utilizacaoSVD: 0, infeccaoSVD: 0,
+        numAdmissoes: 0, numPacientesUtiInicio: 0, numDiasUtiInicio: 0, numDiasUtiSubsequente: 0,
+      };
+      recs.forEach((r: any) => { const v = r.inputs || {}; Object.keys(m).forEach(k => { m[k] += (v[k] || 0); }); });
+      return {
+        taxaInfeccao: safeDiv(m.numInfeccoes, m.numPacienteDiaTotal, 1000),
+        taxaLetalidade: safeDiv(m.numObitosInfeccao, m.numPacientesInfeccaoHospitalar, 100),
+        taxaInfCVC: safeDiv(m.infeccaoCVC, m.utilizacaoCVC, 1000),
+        taxaInfVM: safeDiv(m.infeccaoVM, m.utilizacaoVM, 1000),
+        taxaInfSVD: safeDiv(m.infeccaoSVD, m.utilizacaoSVD, 1000),
+        taxaInfDispositivo: safeDiv(
+          m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
+          m.utilizacaoCVC + m.utilizacaoVM + m.utilizacaoSVD,
+          1000,
+        ),
+        infeccoesDispositivo: m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
+        numInfeccoes: m.numInfeccoes,
+        numObitos: m.numObitosInfeccao,
+        tempoPermanencia: safeDiv(
+          m.numPacientesUtiInicio + m.numPacienteDiaTotal + m.numDiasUtiSubsequente,
+          m.numDiasUtiInicio + m.numAdmissoes, 1
+        ),
+      };
+    }).filter(Boolean) as any[];
+  }, [records, anoFiltro, setorFiltro]);
+
+  const mean = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  const mediaAnual = useMemo(() => {
+    const m = yearlyMonthly;
+    return {
+      taxaInfeccao: mean(m.map(x => x.taxaInfeccao)),
+      taxaLetalidade: mean(m.map(x => x.taxaLetalidade)),
+      taxaInfDispositivo: mean(m.map(x => x.taxaInfDispositivo)),
+      taxaInfPAV: mean(m.map(x => x.taxaInfVM)),
+      taxaInfSVD: mean(m.map(x => x.taxaInfSVD)),
+      taxaInfCVC: mean(m.map(x => x.taxaInfCVC)),
+      tempoPermanencia: mean(m.map(x => x.tempoPermanencia)),
+      infeccoesDispositivoMes: mean(m.map(x => x.infeccoesDispositivo)),
+      obitosMes: mean(m.map(x => x.numObitos)),
+      infeccoesMes: mean(m.map(x => x.numInfeccoes)),
+      mesesComDados: m.length,
+    };
+  }, [yearlyMonthly]);
+
+
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   if (records.length === 0) return (
@@ -347,6 +406,42 @@ export default function IndicadoresDashboard() {
         pageTitle="Dashboard de Indicadores Epidemiológicos"
         contextKey={insightsKey}
       />
+
+      {/* Médias Anuais */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Médias Anuais
+              <Badge variant="outline" className="text-[10px] ml-1">
+                {anoFiltro === "Todos" ? "Todos os anos" : anoFiltro}
+              </Badge>
+            </CardTitle>
+            <span className="text-[11px] text-muted-foreground">
+              Calculado sobre {mediaAnual.mesesComDados} {mediaAnual.mesesComDados === 1 ? "mês" : "meses"} com dados
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {mediaAnual.mesesComDados === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Sem dados para o período selecionado.</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <KpiCard label="Méd. Anual Taxa Infecção" value={mediaAnual.taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
+              <KpiCard label="Méd. Anual Letalidade" value={mediaAnual.taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
+              <KpiCard label="Méd. Anual Inf. p/ Dispositivo" value={mediaAnual.taxaInfDispositivo} unit="‰" icon={Syringe} color="hsl(217,91%,60%)" />
+              <KpiCard label="Méd. Anual Taxa PAV (VM)" value={mediaAnual.taxaInfPAV} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)" />
+              <KpiCard label="Méd. Anual Taxa SVD" value={mediaAnual.taxaInfSVD} unit="‰" icon={ShieldAlert} color="hsl(262,83%,58%)" />
+              <KpiCard label="Méd. Anual Taxa CVC" value={mediaAnual.taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(168,66%,34%)" />
+              <KpiCard label="Méd. Anual T. Permanência" value={mediaAnual.tempoPermanencia} unit=" dias" icon={Timer} color="hsl(217,91%,60%)" />
+              <KpiCard label="Méd. Mensal Inf. p/ Dispositivo" value={mediaAnual.infeccoesDispositivoMes} unit="" icon={Syringe} color="hsl(0,72%,51%)" />
+              <KpiCard label="Méd. Mensal de Óbitos" value={mediaAnual.obitosMes} unit="" icon={Skull} color="hsl(262,83%,58%)" />
+              <KpiCard label="Méd. Mensal de Infecções" value={mediaAnual.infeccoesMes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
