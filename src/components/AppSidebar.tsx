@@ -183,9 +183,8 @@ export function AppSidebar() {
       <SidebarFooter className="p-3 space-y-2">
         {multiHospital && (
           <Button
-            variant="outline"
             size="sm"
-            className="w-full justify-start text-xs border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent"
+            className="w-full justify-start text-xs bg-warning text-warning-foreground hover:bg-warning/90 border-0"
             onClick={() => {
               localStorage.removeItem("selected_hospital_id");
               navigate("/select-hospital");
