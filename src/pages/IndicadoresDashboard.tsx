@@ -716,6 +716,13 @@ export default function IndicadoresDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Smart Insights Panel — final da página */}
+      <SmartInsightsPanel
+        generateInsights={buildInsights}
+        pageTitle="Dashboard de Indicadores Epidemiológicos"
+        contextKey={insightsKey}
+      />
     </div>
   );
 }
