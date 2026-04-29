@@ -39,12 +39,14 @@ function MultiSelect({
   onChange,
   options,
   width = "w-[160px]",
+  hideLabel = false,
 }: {
   label: string;
   selected: string[];
   onChange: (v: string[]) => void;
   options: string[];
   width?: string;
+  hideLabel?: boolean;
 }) {
   const allSelected = selected.length === 0;
 
@@ -63,8 +65,8 @@ function MultiSelect({
       : `${selected.length} selecionados`;
 
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <div className={hideLabel ? "" : "space-y-1.5"}>
+      {!hideLabel && <Label className="text-xs font-medium text-muted-foreground">{label}</Label>}
       <Popover>
         <PopoverTrigger asChild>
           <Button
