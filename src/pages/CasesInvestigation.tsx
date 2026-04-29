@@ -986,23 +986,74 @@ const CasesInvestigation = () => {
       </div>
 
       {/* ── Filters ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os Status</SelectItem>
-            <SelectItem value="open">Aberto</SelectItem>
-            <SelectItem value="investigating">Em Investigação</SelectItem>
-            <SelectItem value="confirmed">Confirmado</SelectItem>
-            <SelectItem value="discarded">Descartado</SelectItem>
-            <SelectItem value="closed">Encerrado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Card>
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Mês</label>
+              <Select value={filterMes} onValueChange={setFilterMes}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {mesesNomes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Ano</label>
+              <Select value={filterAno} onValueChange={setFilterAno}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {anosDisponiveis.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Setor</label>
+              <Select value={filterSetor} onValueChange={setFilterSetor}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {setores.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Evento</label>
+              <Select value={filterEvento} onValueChange={setFilterEvento}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {eventos.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os Status</SelectItem>
+                  <SelectItem value="open">Aberto</SelectItem>
+                  <SelectItem value="investigating">Em Investigação</SelectItem>
+                  <SelectItem value="confirmed">Confirmado</SelectItem>
+                  <SelectItem value="discarded">Descartado</SelectItem>
+                  <SelectItem value="closed">Encerrado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="ghost" size="sm" className="h-9 gap-1.5" onClick={clearFilters}>
+              <XCircle className="h-3.5 w-3.5" />Limpar
+            </Button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar paciente ou prontuário..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* ── Table ── */}
       <Card>
