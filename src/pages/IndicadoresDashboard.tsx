@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Activity, Download, Filter, X, Loader2, Heart, Skull, Bug, Timer,
-  Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown,
+  Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown, Maximize2,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import SmartInsightsPanel from "@/components/SmartInsightsPanel";
 import ChartActions from "@/components/ChartActions";
