@@ -229,6 +229,27 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isFs && createPortal(
+        <div
+          className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${chartTitle} — tela cheia`}
+        >
+          <div className="flex items-center justify-between px-6 py-3 border-b bg-background">
+            <h2 className="text-base font-semibold truncate">{chartTitle}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">Pressione ESC para sair</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFs(false)} aria-label="Sair da tela cheia">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div id="chart-fs-host" className="flex-1 min-h-0 p-6 overflow-auto" />
+        </div>,
+        document.body
+      )}
     </>
   );
 }
