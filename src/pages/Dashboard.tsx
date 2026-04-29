@@ -51,22 +51,62 @@ export default function Dashboard() {
     fetchAll();
   }, [hospitalId]);
 
+  // Map paciente -> sector para casos/labs que não têm sector próprio
+  const patientSectorMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    patients.forEach(p => { if (p.id) m[p.id] = p.sector || ""; });
+    return m;
+  }, [patients]);
+
+  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  const matchDate = (dateStr?: string | null) => {
+    if (mes.length === 0 && ano.length === 0) return true;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    if (mes.length > 0 && !mes.includes(meses[d.getMonth()])) return false;
+    if (ano.length > 0 && !ano.includes(String(d.getFullYear()))) return false;
+    return true;
+  };
+  const matchSector = (s?: string | null) => {
+    if (setor.length === 0) return true;
+    return !!s && setor.includes(s);
+  };
+
+  // Filtered datasets
+  const fPatients = useMemo(() =>
+    patients.filter(p => matchDate(p.admission_date) && matchSector(p.sector)),
+    [patients, mes, ano, setor]);
+  const fCases = useMemo(() =>
+    cases.filter(c => matchDate(c.detection_date) && matchSector(c.patient_id ? patientSectorMap[c.patient_id] : c.infection_site)),
+    [cases, mes, ano, setor, patientSectorMap]);
+  const fAudits = useMemo(() =>
+    audits.filter(a => matchDate(a.audit_date) && matchSector(a.sector)),
+    [audits, mes, ano, setor]);
+  const fAlerts = useMemo(() =>
+    alerts.filter(a => matchDate(a.created_at)),
+    [alerts, mes, ano]);
+  const fLabResults = useMemo(() =>
+    labResults.filter(r => matchDate(r.collection_date) && matchSector(r.patient_id ? patientSectorMap[r.patient_id] : null)),
+    [labResults, mes, ano, setor, patientSectorMap]);
+
   // Computed KPIs
-  const activePatients = patients.filter(p => p.status === "active");
-  const suspectCases = cases.filter(c => ["open", "investigating"].includes(c.status));
-  const confirmedCases = cases.filter(c => c.status === "confirmed");
+  const activePatients = fPatients.filter(p => p.status === "active");
+  const suspectCases = fCases.filter(c => ["open", "investigating"].includes(c.status));
+  const confirmedCases = fCases.filter(c => c.status === "confirmed");
   const complianceRate = useMemo(() => {
-    if (audits.length === 0) return 0;
-    const totalCompliant = audits.reduce((sum, a) => sum + (a.compliant_items || 0), 0);
-    const totalItems = audits.reduce((sum, a) => sum + (a.total_items || 0), 0);
+    if (fAudits.length === 0) return 0;
+    const totalCompliant = fAudits.reduce((sum, a) => sum + (a.compliant_items || 0), 0);
+    const totalItems = fAudits.reduce((sum, a) => sum + (a.total_items || 0), 0);
     return totalItems > 0 ? ((totalCompliant / totalItems) * 100).toFixed(1) : "0";
-  }, [audits]);
+  }, [fAudits]);
 
   // IRAS by sector
   const irasBySector = useMemo(() => {
     const map: Record<string, { total: number; confirmed: number }> = {};
-    cases.forEach(c => {
-      const sector = c.infection_site || "Outros";
+    fCases.forEach(c => {
+      const sector = (c.patient_id && patientSectorMap[c.patient_id]) || c.infection_site || "Outros";
       if (!map[sector]) map[sector] = { total: 0, confirmed: 0 };
       map[sector].total++;
       if (c.status === "confirmed") map[sector].confirmed++;
@@ -75,12 +115,12 @@ export default function Dashboard() {
       setor,
       taxa: d.total > 0 ? Number(((d.confirmed / Math.max(activePatients.length, 1)) * 100).toFixed(1)) : 0,
     })).sort((a, b) => b.taxa - a.taxa).slice(0, 6);
-  }, [cases, activePatients]);
+  }, [fCases, activePatients, patientSectorMap]);
 
   // Top organisms from lab
   const topMicro = useMemo(() => {
     const map: Record<string, number> = {};
-    labResults.forEach(r => {
+    fLabResults.forEach(r => {
       if (r.organism) {
         map[r.organism] = (map[r.organism] || 0) + 1;
       }
@@ -89,7 +129,7 @@ export default function Dashboard() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [labResults]);
+  }, [fLabResults]);
 
   const maxMicro = topMicro.length > 0 ? topMicro[0].count : 1;
 
