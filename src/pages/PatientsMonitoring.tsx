@@ -1420,7 +1420,7 @@ export default function PatientsMonitoring() {
       </div>
 
       {/* ─── Filters ──────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
         <DashboardFilters
           mes={filterMes}
           setMes={setFilterMes}
@@ -1430,10 +1430,10 @@ export default function PatientsMonitoring() {
           setSetor={setFilterSetor}
           sectors={allSectors.length > 0 ? allSectors : undefined}
         />
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 w-full sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground">Status</label>
           <Select value={filterStatus.length === 1 ? filterStatus[0] : "all"} onValueChange={v => setFilterStatus(v === "all" ? [] : [v])}>
-            <SelectTrigger className="h-9 w-[150px] text-sm">
+            <SelectTrigger className="h-9 w-full sm:w-[150px] text-sm">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
