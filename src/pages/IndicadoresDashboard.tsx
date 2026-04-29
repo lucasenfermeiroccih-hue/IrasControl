@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Activity, Download, Filter, X, Loader2, Heart, Skull, Bug, Timer,
-  Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown,
+  Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown, Maximize2,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import SmartInsightsPanel from "@/components/SmartInsightsPanel";
 import ChartActions from "@/components/ChartActions";
@@ -33,23 +34,59 @@ function safeDiv(n: number, d: number, mult: number) {
   return d === 0 ? 0 : Math.round((n / d) * mult * 100) / 100;
 }
 
-function KpiCard({ label, value, unit, icon: Icon, color }: {
+function KpiCard({ label, value, unit, icon: Icon, color, description, expandable = false }: {
   label: string; value: number; unit: string; icon: any; color: string;
+  description?: string; expandable?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0`} style={{ backgroundColor: `${color}20` }}>
-          <Icon className="h-5 w-5" style={{ color }} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
-          <p className="text-xl font-bold text-foreground">
-            {value.toFixed(2)}<span className="text-xs font-normal text-muted-foreground ml-0.5">{unit}</span>
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="relative overflow-hidden group">
+        {expandable && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-muted transition"
+            aria-label={`Ampliar ${label}`}
+          >
+            <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        )}
+        <CardContent className="p-4 flex items-start gap-3">
+          <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
+            <Icon className="h-5 w-5" style={{ color }} />
+          </div>
+          <div className="min-w-0 flex-1 pr-6">
+            <p className="text-xs font-medium text-muted-foreground leading-snug break-words">{label}</p>
+            <p className="text-xl font-bold text-foreground mt-0.5">
+              {value.toFixed(2)}<span className="text-xs font-normal text-muted-foreground ml-0.5">{unit}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {expandable && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
+                  <Icon className="h-5 w-5" style={{ color }} />
+                </div>
+                <span className="text-base">{label}</span>
+              </DialogTitle>
+              {description && <DialogDescription className="text-sm pt-1">{description}</DialogDescription>}
+            </DialogHeader>
+            <div className="py-6 text-center">
+              <p className="text-5xl font-bold" style={{ color }}>
+                {value.toFixed(2)}
+                <span className="text-xl font-normal text-muted-foreground ml-1">{unit}</span>
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
@@ -420,17 +457,27 @@ export default function IndicadoresDashboard() {
           {mediaAnual.mesesComDados === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Sem dados para o período selecionado.</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              <KpiCard label="Méd. Anual Taxa Infecção" value={mediaAnual.taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
-              <KpiCard label="Méd. Anual Letalidade" value={mediaAnual.taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)" />
-              <KpiCard label="Méd. Anual Inf. p/ Dispositivo" value={mediaAnual.taxaInfDispositivo} unit="‰" icon={Syringe} color="hsl(217,91%,60%)" />
-              <KpiCard label="Méd. Anual Taxa PAV (VM)" value={mediaAnual.taxaInfPAV} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)" />
-              <KpiCard label="Méd. Anual Taxa SVD" value={mediaAnual.taxaInfSVD} unit="‰" icon={ShieldAlert} color="hsl(262,83%,58%)" />
-              <KpiCard label="Méd. Anual Taxa CVC" value={mediaAnual.taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(168,66%,34%)" />
-              <KpiCard label="Méd. Anual T. Permanência" value={mediaAnual.tempoPermanencia} unit=" dias" icon={Timer} color="hsl(217,91%,60%)" />
-              <KpiCard label="Méd. Mensal Inf. p/ Dispositivo" value={mediaAnual.infeccoesDispositivoMes} unit="" icon={Syringe} color="hsl(0,72%,51%)" />
-              <KpiCard label="Méd. Mensal de Óbitos" value={mediaAnual.obitosMes} unit="" icon={Skull} color="hsl(262,83%,58%)" />
-              <KpiCard label="Méd. Mensal de Infecções" value={mediaAnual.infeccoesMes} unit="" icon={Thermometer} color="hsl(38,92%,50%)" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <KpiCard expandable label="Média Anual da Taxa de Infecção Hospitalar" value={mediaAnual.taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)"
+                description="Média mensal da taxa de infecção hospitalar (infecções por 1.000 pacientes-dia) ao longo do ano selecionado." />
+              <KpiCard expandable label="Média Anual da Taxa de Letalidade" value={mediaAnual.taxaLetalidade} unit="%" icon={Heart} color="hsl(330,81%,60%)"
+                description="Média mensal do percentual de óbitos entre pacientes com infecção hospitalar." />
+              <KpiCard expandable label="Média Anual da Taxa de Infecção por Dispositivo" value={mediaAnual.taxaInfDispositivo} unit="‰" icon={Syringe} color="hsl(217,91%,60%)"
+                description="Média mensal da taxa consolidada de infecções relacionadas a dispositivos invasivos (CVC + VM + SVD) por 1.000 dias de uso." />
+              <KpiCard expandable label="Média Anual da Taxa de PAV (Pneumonia Associada à Ventilação)" value={mediaAnual.taxaInfPAV} unit="‰" icon={ShieldAlert} color="hsl(38,92%,50%)"
+                description="Média mensal da taxa de pneumonia associada à ventilação mecânica (PAV) por 1.000 dias de VM." />
+              <KpiCard expandable label="Média Anual da Taxa de Infecção por SVD (Sonda Vesical de Demora)" value={mediaAnual.taxaInfSVD} unit="‰" icon={ShieldAlert} color="hsl(262,83%,58%)"
+                description="Média mensal da taxa de infecção urinária associada à sonda vesical de demora por 1.000 dias de SVD." />
+              <KpiCard expandable label="Média Anual da Taxa de Infecção por CVC (Cateter Venoso Central)" value={mediaAnual.taxaInfCVC} unit="‰" icon={ShieldAlert} color="hsl(168,66%,34%)"
+                description="Média mensal da taxa de infecção primária de corrente sanguínea associada a CVC por 1.000 dias de cateter." />
+              <KpiCard expandable label="Média Anual do Tempo de Permanência" value={mediaAnual.tempoPermanencia} unit=" dias" icon={Timer} color="hsl(217,91%,60%)"
+                description="Média mensal do tempo médio de permanência dos pacientes (em dias)." />
+              <KpiCard expandable label="Média Mensal de Infecções por Dispositivo" value={mediaAnual.infeccoesDispositivoMes} unit="" icon={Syringe} color="hsl(0,72%,51%)"
+                description="Número médio mensal de infecções relacionadas a dispositivos invasivos (CVC + VM + SVD)." />
+              <KpiCard expandable label="Média Mensal de Óbitos por Infecção" value={mediaAnual.obitosMes} unit="" icon={Skull} color="hsl(262,83%,58%)"
+                description="Número médio mensal de óbitos associados a infecção hospitalar." />
+              <KpiCard expandable label="Média Mensal de Infecções Hospitalares" value={mediaAnual.infeccoesMes} unit="" icon={Thermometer} color="hsl(38,92%,50%)"
+                description="Número médio mensal de infecções hospitalares notificadas." />
             </div>
           )}
         </CardContent>
