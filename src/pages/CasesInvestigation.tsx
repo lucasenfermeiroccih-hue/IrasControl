@@ -133,6 +133,10 @@ const CasesInvestigation = () => {
   const [detailCase, setDetailCase] = useState<InfectionCase | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [search, setSearch] = useState("");
+  const [filterMes, setFilterMes] = useState("Todos");
+  const [filterAno, setFilterAno] = useState(String(new Date().getFullYear()));
+  const [filterSetor, setFilterSetor] = useState("Todos");
+  const [filterEvento, setFilterEvento] = useState("Todos");
   const [editingCase, setEditingCase] = useState<InfectionCase | null>(null);
   const [saving, setSaving] = useState(false);
   const [prefilledBanner, setPrefilledBanner] = useState(false);
