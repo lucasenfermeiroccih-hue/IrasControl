@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -33,11 +34,11 @@ export default function DashboardAntibiogram() {
   const navigate = useNavigate();
   const { data: allData, loading: dataLoading } = useAntibiogramDashboard();
 
-  const [filtroSetor, setFiltroSetor] = useState("all");
-  const [filtroSite, setFiltroSite] = useState("all");
-  const [filtroOrg, setFiltroOrg] = useState("all");
-  const [filtroMes, setFiltroMes] = useState("all");
-  const [filtroAno, setFiltroAno] = useState("all");
+  const [filtroSetor, setFiltroSetor] = useState<string[]>([]);
+  const [filtroSite, setFiltroSite] = useState<string[]>([]);
+  const [filtroOrg, setFiltroOrg] = useState<string[]>([]);
+  const [filtroMes, setFiltroMes] = useState<string[]>([]);
+  const [filtroAno, setFiltroAno] = useState<string[]>([]);
 
   // Chart refs + metas
   const chartRefs = {
@@ -55,11 +56,11 @@ export default function DashboardAntibiogram() {
   const organismos = useMemo(() => [...new Set(allData.map(d => d.organism))].sort(), [allData]);
 
   const filtered = useMemo(() => allData.filter(d =>
-    (filtroSetor === "all" || d.sector === filtroSetor) &&
-    (filtroSite === "all" || d.site === filtroSite) &&
-    (filtroOrg === "all" || d.organism === filtroOrg) &&
-    (filtroMes === "all" || d.collectionDate?.substring(5, 7) === filtroMes) &&
-    (filtroAno === "all" || d.collectionDate?.substring(0, 4) === filtroAno)
+    (filtroSetor.length === 0 || filtroSetor.includes(d.sector)) &&
+    (filtroSite.length === 0 || filtroSite.includes(d.site)) &&
+    (filtroOrg.length === 0 || filtroOrg.includes(d.organism)) &&
+    (filtroMes.length === 0 || filtroMes.includes(d.collectionDate?.substring(5, 7) || "")) &&
+    (filtroAno.length === 0 || filtroAno.includes(d.collectionDate?.substring(0, 4) || ""))
   ), [allData, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno]);
 
   const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter((v): v is string => !!v))].sort(), [allData]);
@@ -309,55 +310,51 @@ export default function DashboardAntibiogram() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Mês</label>
-              <Select value={filtroMes} onValueChange={setFiltroMes}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => (
-                    <SelectItem key={m} value={m}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][i]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={filtroMes}
+                onChange={setFiltroMes}
+                options={["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => ({
+                  value: m,
+                  label: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][i],
+                }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Ano</label>
-              <Select value={filtroAno} onValueChange={setFiltroAno}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {anosDisp.map(a => <SelectItem key={a} value={a!}>{a}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={filtroAno}
+                onChange={setFiltroAno}
+                options={anosDisp.map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Setor</label>
-              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {setores.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Setor"
+                selected={filtroSetor}
+                onChange={setFiltroSetor}
+                options={setores.map(s => ({ value: s, label: s }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Material Biológico</label>
-              <Select value={filtroSite} onValueChange={setFiltroSite}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {sites.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Material Biológico"
+                selected={filtroSite}
+                onChange={setFiltroSite}
+                options={sites.map(s => ({ value: s, label: s }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Microrganismo</label>
-              <Select value={filtroOrg} onValueChange={setFiltroOrg}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {organismos.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Microrganismo"
+                selected={filtroOrg}
+                onChange={setFiltroOrg}
+                options={organismos.map(o => ({ value: o, label: o }))}
+              />
             </div>
           </div>
         </CardContent>
