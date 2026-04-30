@@ -206,9 +206,9 @@ export default function IndicadoresDashboard() {
   }, [records]);
 
   const filtered = useMemo(() => records.filter((r: any) => {
-    if (mesFiltro !== "Todos" && r.mes_vigilancia !== mesFiltro) return false;
-    if (anoFiltro !== "Todos" && String(r.ano_vigilancia) !== anoFiltro) return false;
-    if (setorFiltro !== "Todos" && r.setor !== setorFiltro) return false;
+    if (mesFiltro.length > 0 && !mesFiltro.includes(r.mes_vigilancia)) return false;
+    if (anoFiltro.length > 0 && !anoFiltro.includes(String(r.ano_vigilancia))) return false;
+    if (setorFiltro.length > 0 && !setorFiltro.includes(r.setor)) return false;
     return true;
   }), [records, mesFiltro, anoFiltro, setorFiltro]);
 
