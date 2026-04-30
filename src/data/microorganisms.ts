@@ -1,5 +1,9 @@
 // Curated list of clinically relevant microorganisms (deduplicated, sorted)
 export const MICROORGANISMS: string[] = [
+  "MRSA (Staphylococcus aureus resistente à meticilina)",
+  "ESBL (Beta-lactamase de espectro estendido)",
+  "ERC / KPC (Enterobactéria resistente a carbapenêmicos)",
+  "VRE (Enterococcus resistente à vancomicina)",
   "Acanthamoeba spp.",
   "Acinetobacter baumannii",
   "Adenovirus",
