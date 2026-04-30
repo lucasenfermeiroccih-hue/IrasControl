@@ -161,7 +161,7 @@ export default function DashboardAntibiogram() {
         antibioticosComMaiorResistencia: sirByAntibiotic.filter(a => a.resistRate > 30).map(a => `${a.name}: ${a.resistRate}%`),
         setores: sectorData.map(s => `${s.name}: ${s.value}`),
       };
-      const prompt = `Analise os dados de antibiograma e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
+      const prompt = `Analise os dados de exames/culturas e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
       const result = await sendToAgent("micro-report", "dashboard-insights", prompt);
       setAiInsights(result);
     } catch (error: any) {
@@ -196,7 +196,7 @@ export default function DashboardAntibiogram() {
         fenotiposDetectados: phenotypeDist.map(p => `${p.name}: ${p.value}`),
         filtros: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
       };
-      const prompt = `Gere um relatório completo de antibiograma e perfil de sensibilidade microbiológica para o período: ${periodLabels[reportPeriod]}. Inclua: resumo executivo, análise de resistência por antibiótico, distribuição de microrganismos, fenótipos de resistência detectados, tendências temporais, alertas de surto, e recomendações clínicas. Dados:\n\n${JSON.stringify(summaryData, null, 2)}`;
+      const prompt = `Gere um relatório completo de exames/culturas e perfil de sensibilidade microbiológica para o período: ${periodLabels[reportPeriod]}. Inclua: resumo executivo, análise de resistência por antibiótico, distribuição de microrganismos, fenótipos de resistência detectados, tendências temporais, alertas de surto, e recomendações clínicas. Dados:\n\n${JSON.stringify(summaryData, null, 2)}`;
       const result = await sendToAgent("micro-report", "dashboard-report", prompt);
       setReportResult(result);
     } catch (error: any) {
@@ -249,7 +249,7 @@ export default function DashboardAntibiogram() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-lg md:text-2xl font-bold font-heading">Dashboard Antibiograma</h1>
+            <h1 className="text-lg md:text-2xl font-bold font-heading">Dashboard Exames/Culturas</h1>
             <p className="text-xs md:text-sm text-muted-foreground">Perfil de sensibilidade microbiana</p>
           </div>
         </div>
@@ -510,7 +510,7 @@ export default function DashboardAntibiogram() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="h-5 w-5 text-primary" />
-              Insights de IA — Antibiograma
+              Insights de IA — Exames/Culturas
             </DialogTitle>
             <DialogDescription>Análise inteligente do perfil de sensibilidade microbiana</DialogDescription>
           </DialogHeader>
@@ -535,7 +535,7 @@ export default function DashboardAntibiogram() {
               Agente de Relatórios Microbiológicos
             </DialogTitle>
             <DialogDescription>
-              Gere relatórios completos de antibiograma e perfil de sensibilidade com IA
+              Gere relatórios completos de exames/culturas e perfil de sensibilidade com IA
             </DialogDescription>
           </DialogHeader>
 

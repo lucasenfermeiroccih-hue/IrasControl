@@ -277,7 +277,7 @@ const LaboratoryResults = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Resultados Laboratoriais</h1>
-          <p className="text-muted-foreground">Culturas, antibiogramas e perfil de resistência</p>
+          <p className="text-muted-foreground">Culturas, exames e perfil de resistência</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowInsights(true)} variant="outline" className="gap-2">
@@ -362,7 +362,7 @@ const LaboratoryResults = () => {
                 </div>
                 {detail.antibiogram_results?.length > 0 ? (
                   <div>
-                    <h4 className="font-semibold mb-2">Antibiograma</h4>
+                    <h4 className="font-semibold mb-2">Exames/Culturas</h4>
                     <div className="grid grid-cols-2 gap-1.5">
                       {detail.antibiogram_results.map((ab: any) => (
                         <div key={ab.id} className="flex items-center justify-between text-sm border rounded px-2 py-1">
@@ -373,7 +373,7 @@ const LaboratoryResults = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Antibiograma não disponível.</p>
+                  <p className="text-sm text-muted-foreground">Exame/Cultura não disponível.</p>
                 )}
               </div>
             </>
@@ -499,13 +499,13 @@ const LaboratoryResults = () => {
             {/* Antibiogram Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Antibiograma</Label>
+                <Label className="text-base font-semibold">Exames/Culturas</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addAntibiogramEntry} className="gap-1">
                   <Plus className="h-3 w-3" /> Adicionar
                 </Button>
               </div>
               {antibiogramEntries.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum antibiótico adicionado. Clique em "Adicionar" para incluir resultados do antibiograma.</p>
+                <p className="text-sm text-muted-foreground">Nenhum antibiótico adicionado. Clique em "Adicionar" para incluir resultados do exame/cultura.</p>
               )}
               {antibiogramEntries.map((entry, idx) => (
                 <div key={idx} className="flex items-end gap-2 p-3 border rounded-lg bg-muted/30">

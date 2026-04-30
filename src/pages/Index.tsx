@@ -14,7 +14,7 @@ const features = [
   { icon: Activity, title: "Monitoramento em Tempo Real", desc: "Acompanhe indicadores IRAS e taxas de infecção em dashboards interativos." },
   { icon: Bell, title: "Alertas Automáticos", desc: "Receba notificações instantâneas sobre surtos, culturas positivas e dispositivos vencidos." },
   { icon: ClipboardCheck, title: "Auditorias Digitais", desc: "Formulários inteligentes para bundles, higiene das mãos e vigilância de processos." },
-  { icon: Microscope, title: "Perfil Microbiológico", desc: "Antibiogramas com interpretação SIR automática e rastreamento de multirresistentes." },
+  { icon: Microscope, title: "Perfil Microbiológico", desc: "Exames e culturas com interpretação SIR automática e rastreamento de multirresistentes." },
   { icon: BarChart3, title: "Relatórios e IA", desc: "Insights preditivos e relatórios automatizados para a CCIH e diretoria." },
   { icon: Shield, title: "Stewardship de Antimicrobianos", desc: "Monitore DDD, custos e adequação das prescrições em tempo real." },
 ];

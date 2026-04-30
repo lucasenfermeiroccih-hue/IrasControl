@@ -40,7 +40,7 @@ const publicSections = [
       { title: "Vigilância de Processos", url: "/audits/infection-control/new", icon: MonitorCheck },
       { title: "Dispensers", url: "/audits/dispenser/new", icon: FlaskConical },
       { title: "Infraestrutura CTI", url: "/audits/infrastructure/cti/new", icon: Building2 },
-      { title: "Antibiograma", url: "/audits/antimicrobial-sensitivity/new", icon: Microscope },
+      { title: "Exames/Culturas", url: "/audits/antimicrobial-sensitivity/new", icon: Microscope },
     ],
   },
   {
@@ -69,7 +69,7 @@ const publicSections = [
       { title: "Indicadores", url: "/indicadores/dashboard", icon: TrendingUp },
       { title: "Dashboard ISC", url: "/dashboard-isc", icon: BarChart3 },
       { title: "Dashboard DDD", url: "/dashboard-ddd", icon: Pill },
-      { title: "Antibiograma", url: "/dashboard/antimicrobial-sensitivity", icon: Microscope },
+      { title: "Exames/Culturas", url: "/dashboard/antimicrobial-sensitivity", icon: Microscope },
       { title: "Consumo Higiene", url: "/hygiene/consumption-dashboard", icon: Droplets },
       { title: "Indicadores Pacientes", url: "/patients/dashboard-indicators", icon: Stethoscope },
     ],

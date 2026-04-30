@@ -482,7 +482,7 @@ const Reports = () => {
       insights.push(`Alerta: ${mrsaCount} isolados MRSA e ${kpcCount} KPC detectados. Monitorar protocolo de precauções de contato e descolonização.`);
     }
     if (distribution.length >= 3) {
-      insights.push(`Tendência: ${distribution.slice(0, 3).map(d => d.name).join(", ")} representam os patógenos dominantes. Considerar revisão do perfil de antibiograma institucional.`);
+      insights.push(`Tendência: ${distribution.slice(0, 3).map(d => d.name).join(", ")} representam os patógenos dominantes. Considerar revisão do perfil de sensibilidade institucional.`);
     }
     if (insights.length === 0) {
       insights.push("Dados insuficientes para gerar insights preditivos. Continue registrando resultados para análises mais robustas.");
