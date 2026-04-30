@@ -161,7 +161,7 @@ export default function DashboardAntibiogram() {
         antibioticosComMaiorResistencia: sirByAntibiotic.filter(a => a.resistRate > 30).map(a => `${a.name}: ${a.resistRate}%`),
         setores: sectorData.map(s => `${s.name}: ${s.value}`),
       };
-      const prompt = `Analise os dados de antibiograma e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
+      const prompt = `Analise os dados de exames/culturas e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
       const result = await sendToAgent("micro-report", "dashboard-insights", prompt);
       setAiInsights(result);
     } catch (error: any) {
