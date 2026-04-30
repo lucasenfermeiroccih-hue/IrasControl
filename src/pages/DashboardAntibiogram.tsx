@@ -510,7 +510,7 @@ export default function DashboardAntibiogram() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="h-5 w-5 text-primary" />
-              Insights de IA — Antibiograma
+              Insights de IA — Exames/Culturas
             </DialogTitle>
             <DialogDescription>Análise inteligente do perfil de sensibilidade microbiana</DialogDescription>
           </DialogHeader>
