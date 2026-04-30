@@ -403,14 +403,18 @@ export default function DashboardAntibiogram() {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
+          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle>
+            <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={sectorData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9 }} />
                 <Tooltip />
+                {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
                 <Bar dataKey="value" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
