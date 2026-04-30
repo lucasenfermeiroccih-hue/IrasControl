@@ -80,7 +80,7 @@ export function useReportsAnalytics(periodo: string) {
     }
     const auditTypeLabels: Record<string, string> = {
       hand_hygiene: "Higiene Mãos", bundles: "Bundles", infection_control: "Precauções",
-      dispenser: "Dispensers", cti_infrastructure: "Estrutura CTI", antibiogram: "Antibiograma",
+      dispenser: "Dispensers", cti_infrastructure: "Estrutura CTI", antibiogram: "Exames/Culturas",
     };
     const complianceRadar = Object.entries(auditTypeMap).map(([type, v]) => ({
       area: auditTypeLabels[type] || type,
