@@ -373,7 +373,7 @@ const LaboratoryResults = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Antibiograma não disponível.</p>
+                  <p className="text-sm text-muted-foreground">Exame/Cultura não disponível.</p>
                 )}
               </div>
             </>
