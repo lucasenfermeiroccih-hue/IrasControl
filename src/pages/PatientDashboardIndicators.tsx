@@ -156,33 +156,69 @@ const PatientDashboardIndicators = () => {
       if (from <= to) totalPatientDays += days;
     });
 
-    const calcDeviceDays = (type: string) => {
+    // Dispositivos: tenta primeiro tabela patient_devices; se vazio, soma de clinical_data.dispInvasivos
+    const calcDeviceDaysFromTable = (type: string) => {
       let total = 0;
       filteredDevices.filter(d => d.device_type === type).forEach(dev => {
-        const ins = new Date(dev.insertion_date);
-        const rem = dev.removal_date ? new Date(dev.removal_date) : new Date();
-        const from = ins > startOfMonth ? ins : startOfMonth;
-        const to = rem < endOfMonth ? rem : endOfMonth;
-        if (from <= to) total += Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1);
+        total += overlapDays(dev.insertion_date, dev.removal_date, startOfMonth, endOfMonth);
       });
       return total;
     };
 
-    const cvcDays = calcDeviceDays("cvc");
-    const svuDays = calcDeviceDays("svu");
-    const vmDays = calcDeviceDays("vm");
+    const calcDeviceDaysFromClinical = (insKey: string, remKey: string, novaInsKey: string, novaRemKey: string) => {
+      let total = 0;
+      filteredPatients.forEach(p => {
+        const di = p.clinical_data?.dispInvasivos;
+        if (!di) return;
+        total += overlapDays(di[insKey], di[remKey], startOfMonth, endOfMonth);
+        total += overlapDays(di[novaInsKey], di[novaRemKey], startOfMonth, endOfMonth);
+      });
+      return total;
+    };
 
-    const abCount = filteredPrescriptions.filter(rx => {
+    const cvcDays = calcDeviceDaysFromTable("cvc") +
+      calcDeviceDaysFromClinical("cvcInsercao", "cvcRetirada", "cvcNovaInsercao", "cvcNovaRetirada");
+    const svuDays = calcDeviceDaysFromTable("svu") +
+      calcDeviceDaysFromClinical("svuInsercao", "svuRetirada", "svuNovaInsercao", "svuNovaRetirada");
+    const vmDays = calcDeviceDaysFromTable("vm") +
+      calcDeviceDaysFromClinical("vmInsercao", "vmRetirada", "vmNovaInsercao", "vmNovaRetirada");
+
+    // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
+    const abFromTable = filteredPrescriptions.filter(rx => {
       if (!rx.start_date) return false;
       const d = new Date(rx.start_date);
       return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     }).length;
 
-    const extubations = filteredDevices.filter(d => {
+    let abFromClinical = 0;
+    filteredPatients.forEach(p => {
+      const atbs = p.clinical_data?.antibioticos;
+      if (!Array.isArray(atbs)) return;
+      atbs.forEach((a: any) => {
+        if (!a?.dataInicio) return;
+        const d = new Date(a.dataInicio);
+        if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) abFromClinical++;
+      });
+    });
+    const abCount = abFromTable + abFromClinical;
+
+    const extubationsTable = filteredDevices.filter(d => {
       if (d.device_type !== "vm" || !d.removal_date) return false;
       const rd = new Date(d.removal_date);
       return rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear;
     }).length;
+
+    let extubationsClinical = 0;
+    filteredPatients.forEach(p => {
+      const di = p.clinical_data?.dispInvasivos;
+      if (!di) return;
+      [di.vmRetirada, di.vmNovaRetirada].forEach((dt: string) => {
+        if (!dt) return;
+        const rd = new Date(dt);
+        if (rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear) extubationsClinical++;
+      });
+    });
+    const extubations = extubationsTable + extubationsClinical;
 
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
