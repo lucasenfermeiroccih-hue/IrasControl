@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -110,9 +111,9 @@ export default function IndicadoresDashboard() {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState(String(new Date().getFullYear()));
-  const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [mesFiltro, setMesFiltro] = useState<string[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string[]>([String(new Date().getFullYear())]);
+  const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("infeccao");
   const [exporting, setExporting] = useState(false);
 
@@ -167,7 +168,8 @@ export default function IndicadoresDashboard() {
       pdf.setFontSize(14);
       pdf.text(`Indicadores - ${tabNames[activeTab]}`, margin, margin + 5);
       pdf.setFontSize(9);
-      pdf.text(`Filtros: Mês=${mesFiltro} | Ano=${anoFiltro} | Setor=${setorFiltro}`, margin, margin + 11);
+      const fmt = (arr: string[]) => arr.length === 0 ? "Todos" : arr.join(", ");
+      pdf.text(`Filtros: Mês=${fmt(mesFiltro)} | Ano=${fmt(anoFiltro)} | Setor=${fmt(setorFiltro)}`, margin, margin + 11);
       pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 16);
 
       const startY = margin + 20;
@@ -204,9 +206,9 @@ export default function IndicadoresDashboard() {
   }, [records]);
 
   const filtered = useMemo(() => records.filter((r: any) => {
-    if (mesFiltro !== "Todos" && r.mes_vigilancia !== mesFiltro) return false;
-    if (anoFiltro !== "Todos" && String(r.ano_vigilancia) !== anoFiltro) return false;
-    if (setorFiltro !== "Todos" && r.setor !== setorFiltro) return false;
+    if (mesFiltro.length > 0 && !mesFiltro.includes(r.mes_vigilancia)) return false;
+    if (anoFiltro.length > 0 && !anoFiltro.includes(String(r.ano_vigilancia))) return false;
+    if (setorFiltro.length > 0 && !setorFiltro.includes(r.setor)) return false;
     return true;
   }), [records, mesFiltro, anoFiltro, setorFiltro]);
 
@@ -285,8 +287,8 @@ export default function IndicadoresDashboard() {
   // Agrupa registros do ano selecionado (ignorando filtro de mês) por mês para calcular médias mensais
   const yearlyMonthly = useMemo(() => {
     const baseRecords = records.filter((r: any) => {
-      if (anoFiltro !== "Todos" && String(r.ano_vigilancia) !== anoFiltro) return false;
-      if (setorFiltro !== "Todos" && r.setor !== setorFiltro) return false;
+      if (anoFiltro.length > 0 && !anoFiltro.includes(String(r.ano_vigilancia))) return false;
+      if (setorFiltro.length > 0 && !setorFiltro.includes(r.setor)) return false;
       return true;
     });
     return mesesOptions.map((mes) => {
@@ -354,7 +356,7 @@ export default function IndicadoresDashboard() {
     </div>
   );
 
-  const clearFilters = () => { setMesFiltro("Todos"); setAnoFiltro(String(new Date().getFullYear())); setSetorFiltro("Todos"); };
+  const clearFilters = () => { setMesFiltro([]); setAnoFiltro([String(new Date().getFullYear())]); setSetorFiltro([]); };
 
   const buildInsights = (): string[] => {
     const ins: string[] = [];
@@ -402,30 +404,30 @@ export default function IndicadoresDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
-              <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {mesesOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={mesFiltro}
+                onChange={setMesFiltro}
+                options={mesesOptions.map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Ano</label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{anosDisponiveis.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={anoFiltro}
+                onChange={setAnoFiltro}
+                options={anosDisponiveis.map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Setor</label>
-              <Select value={setorFiltro} onValueChange={setSetorFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {setorOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Setor"
+                selected={setorFiltro}
+                onChange={setSetorFiltro}
+                options={setorOptions.map(s => ({ value: s, label: s }))}
+              />
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
@@ -720,7 +722,7 @@ export default function IndicadoresDashboard() {
               <TrendingUp className="h-4 w-4 text-primary" />
               Médias Anuais
               <Badge variant="outline" className="text-[10px] ml-1">
-                {anoFiltro === "Todos" ? "Todos os anos" : anoFiltro}
+                {anoFiltro.length === 0 ? "Todos os anos" : anoFiltro.join(", ")}
               </Badge>
             </CardTitle>
             <span className="text-[11px] text-muted-foreground">
