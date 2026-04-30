@@ -303,7 +303,7 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
       <AlertDialog open={!!deleteId} onOpenChange={(o) => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir antibiograma</AlertDialogTitle>
+            <AlertDialogTitle>Excluir exame/cultura</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir este registro e todos os antimicrobianos associados? Esta ação não poderá ser desfeita.
             </AlertDialogDescription>
