@@ -116,10 +116,10 @@ export default function DashboardISC() {
     const ymIni = parseYM(periodoInicio);
     const ymFim = parseYM(periodoFim);
     return allRecords.filter((r) => {
-      if (anoFiltro !== "Todos" && String(r.ano) !== anoFiltro) return false;
-      if (mesFiltro !== "Todos" && r.mes !== mesesFiltro.indexOf(mesFiltro)) return false;
-      if (profFiltro !== "Todos" && r.profissional !== profFiltro) return false;
-      if (setorFiltro !== "Todos" && r.clinica !== setorFiltro) return false;
+      if (anoFiltro.length > 0 && !anoFiltro.includes(String(r.ano))) return false;
+      if (mesFiltro.length > 0 && !mesFiltro.some(m => r.mes === mesesFiltro.indexOf(m))) return false;
+      if (profFiltro.length > 0 && !profFiltro.includes(r.profissional)) return false;
+      if (setorFiltro.length > 0 && !setorFiltro.includes(r.clinica)) return false;
       const ym = toYearMonth(r.ano, r.mes);
       if (ymIni !== null && ym < ymIni) return false;
       if (ymFim !== null && ym > ymFim) return false;
