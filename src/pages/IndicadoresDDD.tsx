@@ -76,11 +76,11 @@ export default function IndicadoresDDD() {
   const [deleting, setDeleting] = useState(false);
 
   // History filters
-  const [filtroMes, setFiltroMes] = useState("");
-  const [filtroAno, setFiltroAno] = useState("");
-  const [filtroSetor, setFiltroSetor] = useState("");
-  const hasFilters = filtroMes || filtroAno || filtroSetor;
-  const clearFilters = () => { setFiltroMes(""); setFiltroAno(""); setFiltroSetor(""); };
+  const [filtroMes, setFiltroMes] = useState<string[]>([]);
+  const [filtroAno, setFiltroAno] = useState<string[]>([]);
+  const [filtroSetor, setFiltroSetor] = useState<string[]>([]);
+  const hasFilters = filtroMes.length > 0 || filtroAno.length > 0 || filtroSetor.length > 0;
+  const clearFilters = () => { setFiltroMes([]); setFiltroAno([]); setFiltroSetor([]); };
 
   const fetchHistory = useCallback(async () => {
     if (!hospitalId) return;
