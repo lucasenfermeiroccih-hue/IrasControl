@@ -102,6 +102,7 @@ export const MICROORGANISMS: string[] = [
   "Sporothrix schenckii",
   "Staphylococcus aureus",
   "Staphylococcus epidermidis",
+  "Staphylococcus haemolyticus",
   "Streptococcus agalactiae",
   "Streptococcus pneumoniae",
   "Streptococcus pyogenes",
