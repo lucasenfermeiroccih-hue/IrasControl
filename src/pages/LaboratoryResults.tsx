@@ -505,7 +505,7 @@ const LaboratoryResults = () => {
                 </Button>
               </div>
               {antibiogramEntries.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum antibiótico adicionado. Clique em "Adicionar" para incluir resultados do antibiograma.</p>
+                <p className="text-sm text-muted-foreground">Nenhum antibiótico adicionado. Clique em "Adicionar" para incluir resultados do exame/cultura.</p>
               )}
               {antibiogramEntries.map((entry, idx) => (
                 <div key={idx} className="flex items-end gap-2 p-3 border rounded-lg bg-muted/30">
