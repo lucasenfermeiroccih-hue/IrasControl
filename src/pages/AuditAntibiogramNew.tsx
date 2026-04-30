@@ -358,7 +358,7 @@ export default function AuditAntibiogramNew() {
           <div className="flex items-center gap-3 min-w-0">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0"><ArrowLeft className="h-5 w-5" /></Button>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{editingId ? "Editar Antibiograma" : "Registro de Antibiograma"}</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{editingId ? "Editar Exame/Cultura" : "Registro de Exame/Cultura"}</h1>
               <p className="text-muted-foreground text-xs sm:text-sm">Perfil de sensibilidade — BrCAST/EUCAST</p>
             </div>
           </div>
