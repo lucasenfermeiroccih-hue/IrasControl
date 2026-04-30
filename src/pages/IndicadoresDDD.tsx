@@ -102,11 +102,11 @@ export default function IndicadoresDDD() {
 
   const filteredRegistros = useMemo(() => {
     return registrosSalvos.filter(reg => {
-      if (filtroMes && reg.mes_vigilancia !== filtroMes) return false;
-      if (filtroAno && String(reg.ano_vigilancia) !== filtroAno) return false;
-      if (filtroSetor) {
+      if (filtroMes.length > 0 && !filtroMes.includes(reg.mes_vigilancia)) return false;
+      if (filtroAno.length > 0 && !filtroAno.includes(String(reg.ano_vigilancia))) return false;
+      if (filtroSetor.length > 0) {
         const pd = (reg.paciente_dia || {}) as Record<string, number>;
-        const hasSetor = Object.entries(pd).some(([k, v]) => k === filtroSetor && v > 0);
+        const hasSetor = Object.entries(pd).some(([k, v]) => filtroSetor.includes(k) && v > 0);
         if (!hasSetor) return false;
       }
       return true;
