@@ -722,7 +722,7 @@ export default function IndicadoresDashboard() {
               <TrendingUp className="h-4 w-4 text-primary" />
               Médias Anuais
               <Badge variant="outline" className="text-[10px] ml-1">
-                {anoFiltro === "Todos" ? "Todos os anos" : anoFiltro}
+                {anoFiltro.length === 0 ? "Todos os anos" : anoFiltro.join(", ")}
               </Badge>
             </CardTitle>
             <span className="text-[11px] text-muted-foreground">
