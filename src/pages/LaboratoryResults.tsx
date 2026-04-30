@@ -499,7 +499,7 @@ const LaboratoryResults = () => {
             {/* Antibiogram Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Antibiograma</Label>
+                <Label className="text-base font-semibold">Exames/Culturas</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addAntibiogramEntry} className="gap-1">
                   <Plus className="h-3 w-3" /> Adicionar
                 </Button>
