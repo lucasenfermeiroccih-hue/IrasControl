@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -54,9 +55,9 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState("Todos");
-  const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [mesFiltro, setMesFiltro] = useState<string[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string[]>([]);
+  const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -159,21 +160,21 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
 
   const filtered = useMemo(() => {
     return records.filter(r => {
-      if (anoFiltro !== "Todos" && !r.audit_date?.startsWith(anoFiltro)) return false;
-      if (mesFiltro !== "Todos") {
-        const monthIdx = meses.indexOf(mesFiltro);
+      if (anoFiltro.length > 0 && !anoFiltro.some(a => r.audit_date?.startsWith(a))) return false;
+      if (mesFiltro.length > 0) {
         const recMonth = r.audit_date ? new Date(r.audit_date + "T00:00:00").getMonth() : -1;
-        if (monthIdx !== recMonth) return false;
+        const allowed = mesFiltro.map(m => meses.indexOf(m));
+        if (!allowed.includes(recMonth)) return false;
       }
-      if (setorFiltro !== "Todos" && r.sector !== setorFiltro) return false;
+      if (setorFiltro.length > 0 && !setorFiltro.includes(r.sector || "")) return false;
       return true;
     });
   }, [records, mesFiltro, anoFiltro, setorFiltro]);
 
   const clearFilters = () => {
-    setMesFiltro("Todos");
-    setAnoFiltro("Todos");
-    setSetorFiltro("Todos");
+    setMesFiltro([]);
+    setAnoFiltro([]);
+    setSetorFiltro([]);
   };
 
   return (
@@ -196,31 +197,30 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
-              <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {meses.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={mesFiltro}
+                onChange={setMesFiltro}
+                options={meses.map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Ano</label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {anosDisponiveis.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={anoFiltro}
+                onChange={setAnoFiltro}
+                options={anosDisponiveis.filter(a => a !== "Todos").map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Setor</label>
-              <Select value={setorFiltro} onValueChange={setSetorFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {setoresDisponiveis.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Setor"
+                selected={setorFiltro}
+                onChange={setSetorFiltro}
+                options={setoresDisponiveis.filter(s => s !== "Todos").map(s => ({ value: s, label: s }))}
+              />
             </div>
             <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <Filter className="h-3 w-3" />Filtrar

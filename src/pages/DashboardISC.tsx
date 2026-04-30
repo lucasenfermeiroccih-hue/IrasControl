@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -70,10 +71,10 @@ const statusIcon = (rate: number) =>
 export default function DashboardISC() {
   const { hospitalId } = useHospitalContext();
   const { records: allRecords, loading: dataLoading } = useISCDashboard();
-  const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState("Todos");
-  const [profFiltro, setProfFiltro] = useState("Todos");
-  const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [mesFiltro, setMesFiltro] = useState<string[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string[]>([]);
+  const [profFiltro, setProfFiltro] = useState<string[]>([]);
+  const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   // Filtro de período (mês inicial/final). Formato YYYY-MM (compatível com <input type="month">)
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
@@ -115,10 +116,10 @@ export default function DashboardISC() {
     const ymIni = parseYM(periodoInicio);
     const ymFim = parseYM(periodoFim);
     return allRecords.filter((r) => {
-      if (anoFiltro !== "Todos" && String(r.ano) !== anoFiltro) return false;
-      if (mesFiltro !== "Todos" && r.mes !== mesesFiltro.indexOf(mesFiltro)) return false;
-      if (profFiltro !== "Todos" && r.profissional !== profFiltro) return false;
-      if (setorFiltro !== "Todos" && r.clinica !== setorFiltro) return false;
+      if (anoFiltro.length > 0 && !anoFiltro.includes(String(r.ano))) return false;
+      if (mesFiltro.length > 0 && !mesFiltro.some(m => r.mes === mesesFiltro.indexOf(m))) return false;
+      if (profFiltro.length > 0 && !profFiltro.includes(r.profissional)) return false;
+      if (setorFiltro.length > 0 && !setorFiltro.includes(r.clinica)) return false;
       const ym = toYearMonth(r.ano, r.mes);
       if (ymIni !== null && ym < ymIni) return false;
       if (ymFim !== null && ym > ymFim) return false;
@@ -432,10 +433,11 @@ export default function DashboardISC() {
     rows.push(["Dashboard ISC — Exportação CSV"]);
     rows.push(["Gerado em", new Date().toLocaleString("pt-BR")]);
     rows.push(["Filtros aplicados"]);
-    rows.push(["Mês", mesFiltro]);
-    rows.push(["Ano", anoFiltro]);
-    rows.push(["Setor/Clínica", setorFiltro]);
-    rows.push(["Profissional", profFiltro]);
+    const fmtArr = (a: string[]) => a.length === 0 ? "Todos" : a.join(", ");
+    rows.push(["Mês", fmtArr(mesFiltro)]);
+    rows.push(["Ano", fmtArr(anoFiltro)]);
+    rows.push(["Setor/Clínica", fmtArr(setorFiltro)]);
+    rows.push(["Profissional", fmtArr(profFiltro)]);
     rows.push(["Período inicial", periodoInicio || "—"]);
     rows.push(["Período final", periodoFim || "—"]);
     rows.push([]);
@@ -564,42 +566,39 @@ export default function DashboardISC() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Mês</Label>
-              <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {mesesFiltro.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={mesFiltro}
+                onChange={setMesFiltro}
+                options={mesesFiltro.filter(m => m !== "Todos").map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Ano</Label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {anos.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={anoFiltro}
+                onChange={setAnoFiltro}
+                options={anos.map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Setor / Clínica</Label>
-              <Select value={setorFiltro} onValueChange={setSetorFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {clinicas.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Setor / Clínica"
+                selected={setorFiltro}
+                onChange={setSetorFiltro}
+                options={clinicas.map(c => ({ value: c, label: c }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Profissional</Label>
-              <Select value={profFiltro} onValueChange={setProfFiltro}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {profissionais.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Profissional"
+                selected={profFiltro}
+                onChange={setProfFiltro}
+                options={profissionais.map(p => ({ value: p, label: p }))}
+              />
             </div>
           </div>
 
@@ -1021,7 +1020,7 @@ export default function DashboardISC() {
                   <TrendingUp className="h-4 w-4 text-primary" />
                   Médias Anuais das Taxas de ISC
                   <Badge variant="outline" className="text-[10px] ml-1">
-                    {anoFiltro === "Todos" ? "Todos os anos" : anoFiltro}
+                    {anoFiltro.length === 0 ? "Todos os anos" : anoFiltro.join(", ")}
                   </Badge>
                 </CardTitle>
                 <span className="text-[11px] text-muted-foreground">
