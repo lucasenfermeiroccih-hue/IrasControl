@@ -71,10 +71,10 @@ const statusIcon = (rate: number) =>
 export default function DashboardISC() {
   const { hospitalId } = useHospitalContext();
   const { records: allRecords, loading: dataLoading } = useISCDashboard();
-  const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState("Todos");
-  const [profFiltro, setProfFiltro] = useState("Todos");
-  const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [mesFiltro, setMesFiltro] = useState<string[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string[]>([]);
+  const [profFiltro, setProfFiltro] = useState<string[]>([]);
+  const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   // Filtro de período (mês inicial/final). Formato YYYY-MM (compatível com <input type="month">)
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
