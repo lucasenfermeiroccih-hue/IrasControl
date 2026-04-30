@@ -175,31 +175,30 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
-              <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {meses.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={mesFiltro}
+                onChange={setMesFiltro}
+                options={meses.map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Ano</label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {anosDisponiveis.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={anoFiltro}
+                onChange={setAnoFiltro}
+                options={anosDisponiveis.filter(a => a !== "Todos").map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Microrganismo</label>
-              <Select value={organismoFiltro} onValueChange={setOrganismoFiltro}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {organismosDisponiveis.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Microrganismo"
+                selected={organismoFiltro}
+                onChange={setOrganismoFiltro}
+                options={organismosDisponiveis.filter(o => o !== "Todos").map(o => ({ value: o, label: o }))}
+              />
             </div>
             <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <Filter className="h-3 w-3" />Filtrar
