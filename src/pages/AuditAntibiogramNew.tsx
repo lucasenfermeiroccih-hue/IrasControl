@@ -666,7 +666,12 @@ export default function AuditAntibiogramNew() {
                               <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                               <SelectContent>
                                 {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                                <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
+                                <SelectItem value="__OUTROS__">
+                                  <span className="flex items-center gap-2 text-primary font-medium">
+                                    <PlusCircle className="h-4 w-4" />
+                                    Cadastrar outro antibiótico
+                                  </span>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             {row.isCustom && (
