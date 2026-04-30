@@ -21,7 +21,7 @@ import { microorganismsList } from "@/data/microorganisms";
 
 const sectors = [
   "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
-  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner",
+  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner",
   "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto",
 ];
 
