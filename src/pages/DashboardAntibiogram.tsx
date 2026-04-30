@@ -56,11 +56,11 @@ export default function DashboardAntibiogram() {
   const organismos = useMemo(() => [...new Set(allData.map(d => d.organism))].sort(), [allData]);
 
   const filtered = useMemo(() => allData.filter(d =>
-    (filtroSetor === "all" || d.sector === filtroSetor) &&
-    (filtroSite === "all" || d.site === filtroSite) &&
-    (filtroOrg === "all" || d.organism === filtroOrg) &&
-    (filtroMes === "all" || d.collectionDate?.substring(5, 7) === filtroMes) &&
-    (filtroAno === "all" || d.collectionDate?.substring(0, 4) === filtroAno)
+    (filtroSetor.length === 0 || filtroSetor.includes(d.sector)) &&
+    (filtroSite.length === 0 || filtroSite.includes(d.site)) &&
+    (filtroOrg.length === 0 || filtroOrg.includes(d.organism)) &&
+    (filtroMes.length === 0 || filtroMes.includes(d.collectionDate?.substring(5, 7) || "")) &&
+    (filtroAno.length === 0 || filtroAno.includes(d.collectionDate?.substring(0, 4) || ""))
   ), [allData, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno]);
 
   const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter((v): v is string => !!v))].sort(), [allData]);
