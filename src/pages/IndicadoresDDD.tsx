@@ -403,24 +403,30 @@ export default function IndicadoresDDD() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1 min-w-[140px]">
                 <Label className="text-xs">Mês</Label>
-                <Select value={filtroMes} onValueChange={setFiltroMes}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>{meses.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  label="Mês"
+                  selected={filtroMes}
+                  onChange={setFiltroMes}
+                  options={meses.map(m => ({ value: m, label: m }))}
+                />
               </div>
               <div className="space-y-1 min-w-[100px]">
                 <Label className="text-xs">Ano</Label>
-                <Select value={filtroAno} onValueChange={setFiltroAno}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>{uniqueAnos.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  label="Ano"
+                  selected={filtroAno}
+                  onChange={setFiltroAno}
+                  options={uniqueAnos.map(a => ({ value: a, label: a }))}
+                />
               </div>
               <div className="space-y-1 min-w-[140px]">
                 <Label className="text-xs">Setor</Label>
-                <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>{unidadesPacienteDia.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  label="Setor"
+                  selected={filtroSetor}
+                  onChange={setFiltroSetor}
+                  options={unidadesPacienteDia.map(u => ({ value: u, label: u }))}
+                />
               </div>
               <div className="flex gap-1.5">
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" disabled={!hasFilters} onClick={() => {}}>
