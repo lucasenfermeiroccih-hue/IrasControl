@@ -404,30 +404,30 @@ export default function IndicadoresDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
-              <Select value={mesFiltro} onValueChange={setMesFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {mesesOptions.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Mês"
+                selected={mesFiltro}
+                onChange={setMesFiltro}
+                options={mesesOptions.map(m => ({ value: m, label: m }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Ano</label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{anosDisponiveis.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Ano"
+                selected={anoFiltro}
+                onChange={setAnoFiltro}
+                options={anosDisponiveis.map(a => ({ value: a, label: a }))}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Setor</label>
-              <Select value={setorFiltro} onValueChange={setSetorFiltro}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  {setorOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MultiSelectFilter
+                label="Setor"
+                selected={setorFiltro}
+                onChange={setSetorFiltro}
+                options={setorOptions.map(s => ({ value: s, label: s }))}
+              />
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
