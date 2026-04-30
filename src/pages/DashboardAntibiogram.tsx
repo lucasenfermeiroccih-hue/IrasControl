@@ -20,7 +20,9 @@ import {
   Sparkles, Bot, Loader2, Download,
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
-import { sendToAgent } from "@/lib/agent-service";
+import { supabase } from "@/integrations/supabase/client";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const CHART_COLORS = [
   "hsl(168,66%,34%)", "hsl(199,89%,48%)", "hsl(38,92%,50%)",
@@ -158,60 +160,128 @@ export default function DashboardAntibiogram() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportResult, setReportResult] = useState<string | null>(null);
 
-  const handleExportPDF = () => toast({ title: "Exportar PDF", description: "Funcionalidade será implementada com integração backend." });
-  const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Funcionalidade será implementada com integração backend." });
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
+  const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Em breve." });
+
+  // PDF Visual (screenshot dos gráficos via html2canvas)
+  const [pdfVisualLoading, setPdfVisualLoading] = useState(false);
+  const handleExportPDFVisual = async () => {
+    if (!dashboardRef.current) return;
+    setPdfVisualLoading(true);
+    try {
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: dashboardRef.current.scrollWidth,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const imgW = pdfW;
+      const imgH = (canvas.height * pdfW) / canvas.width;
+      let heightLeft = imgH;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+      heightLeft -= pdfH;
+      while (heightLeft > 0) {
+        position = heightLeft - imgH;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+        heightLeft -= pdfH;
+      }
+      pdf.save(`dashboard-antibiograma-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast({ title: "PDF Visual gerado", description: "Download iniciado." });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Falha ao gerar PDF visual.", variant: "destructive" });
+    } finally {
+      setPdfVisualLoading(false);
+    }
+  };
+
+  // PDF Estruturado server-side (com IA opcional)
+  const [pdfStructuredLoading, setPdfStructuredLoading] = useState(false);
+  const handleExportPDFStructured = async (includeAi = false) => {
+    setPdfStructuredLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Faça login para exportar.");
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/antibiogram-pdf`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          period: reportPeriod,
+          include_ai: includeAi,
+          ai_content: includeAi ? reportResult : undefined,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Erro ${resp.status}`);
+      }
+      const blob = await resp.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `relatorio-antibiograma-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast({ title: "PDF Relatório IA gerado", description: "Download iniciado." });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Falha ao gerar PDF.", variant: "destructive" });
+    } finally {
+      setPdfStructuredLoading(false);
+    }
+  };
+
+  // Insights via edge function (período curto, sem salvar como relatório completo)
   const handleAIInsights = async () => {
     setAiInsightsLoading(true);
     try {
-      const summaryData = {
-        totalExames: totalExams,
-        totalTestes: totalTests,
-        taxaResistencia: resistanceRate,
-        taxaSensibilidade: sensitivityRate,
-        fenotipos: phenotypeCount,
-        topOrganismos: orgCounts.slice(0, 5).map(o => `${o.name}: ${o.value}`),
-        antibioticosComMaiorResistencia: sirByAntibiotic.filter(a => a.resistRate > 30).map(a => `${a.name}: ${a.resistRate}%`),
-        setores: sectorData.map(s => `${s.name}: ${s.value}`),
-      };
-      const prompt = `Analise os dados de exames/culturas e perfil de sensibilidade microbiana do hospital e gere insights clínicos detalhados com recomendações:\n\n${JSON.stringify(summaryData, null, 2)}`;
-      const result = await sendToAgent("micro-report", "dashboard-insights", prompt);
-      setAiInsights(result);
-    } catch (error: any) {
-      toast({ title: "Erro", description: error.message || "Falha ao gerar insights de IA.", variant: "destructive" });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Faça login.");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-antibiogram-report`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ period: "ultimo-mes", save: false }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erro ao gerar insights");
+      setAiInsights(data.ai_content);
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Falha ao gerar insights.", variant: "destructive" });
     } finally {
       setAiInsightsLoading(false);
     }
   };
 
+  // Relatório IA completo (período escolhido pelo usuário)
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setReportResult(null);
     try {
-      const periodLabels: Record<string, string> = {
-        "ultimo-mes": "último mês",
-        "ultimos-3-meses": "últimos 3 meses",
-        "ultimos-6-meses": "últimos 6 meses",
-        "ultimo-ano": "último ano",
-      };
-      const summaryData = {
-        periodo: periodLabels[reportPeriod] || reportPeriod,
-        totalExames: totalExams,
-        totalTestes: totalTests,
-        taxaResistencia: resistanceRate,
-        taxaSensibilidade: sensitivityRate,
-        fenotipos: phenotypeCount,
-        taxaFenotipo: phenotypeRate,
-        topOrganismos: orgCounts.map(o => `${o.name}: ${o.value} isolados`),
-        perfilSIR: sirByAntibiotic.map(a => `${a.name}: S=${a.S} I=${a.I} R=${a.R} (${a.resistRate}% resistência)`),
-        setores: sectorData.map(s => `${s.name}: ${s.value} exames`),
-        tendenciaMensal: monthlyTrend.map(t => `${t.month}: ${t.taxaResistencia}% resistência (${t.exames} testes)`),
-        fenotiposDetectados: phenotypeDist.map(p => `${p.name}: ${p.value}`),
-        filtros: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
-      };
-      const prompt = `Gere um relatório completo de exames/culturas e perfil de sensibilidade microbiológica para o período: ${periodLabels[reportPeriod]}. Inclua: resumo executivo, análise de resistência por antibiótico, distribuição de microrganismos, fenótipos de resistência detectados, tendências temporais, alertas de surto, e recomendações clínicas. Dados:\n\n${JSON.stringify(summaryData, null, 2)}`;
-      const result = await sendToAgent("micro-report", "dashboard-report", prompt);
-      setReportResult(result);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Faça login.");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-antibiogram-report`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          period: reportPeriod,
+          filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
+      setReportResult(data.ai_content);
+      toast({ title: "Relatório gerado", description: "Salvo no histórico." });
     } catch (error: any) {
       toast({ title: "Erro", description: error.message || "Falha ao gerar relatório.", variant: "destructive" });
     } finally {
@@ -219,31 +289,7 @@ export default function DashboardAntibiogram() {
     }
   };
 
-  const handleExportReportPDF = () => {
-    if (!reportResult) return;
-    const escHtml = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      // Escape first, then apply safe markdown-to-HTML transforms
-      const sanitized = escHtml(reportResult)
-        .replace(/\n/g, "<br/>")
-        .replace(/#{3}\s(.+)/g, "<h3>$1</h3>")
-        .replace(/#{2}\s(.+)/g, "<h2>$1</h2>")
-        .replace(/#{1}\s(.+)/g, "<h1>$1</h1>")
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>");
-      printWindow.document.write(`
-        <html><head><title>Relatório Microbiológico</title>
-        <style>body{font-family:Arial,sans-serif;padding:40px;line-height:1.6;max-width:800px;margin:0 auto}
-        h1,h2,h3{color:#1a5c4c}table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f0fdf4}
-        @media print{body{padding:20px}}</style></head>
-        <body>${sanitized}</body></html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-    }
-  };
+  const handleExportReportPDF = () => handleExportPDFStructured(true);
 
   if (dataLoading) {
     return (
@@ -285,8 +331,11 @@ export default function DashboardAntibiogram() {
           >
             <Bot className="h-3.5 w-3.5 text-primary" /> Relatório IA
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5 text-xs">
-            <FileText className="h-3.5 w-3.5" /> PDF
+          <Button variant="outline" size="sm" onClick={handleExportPDFVisual} disabled={pdfVisualLoading} className="gap-1.5 text-xs">
+            {pdfVisualLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />} PDF Visual
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExportPDFStructured(false)} disabled={pdfStructuredLoading} className="gap-1.5 text-xs">
+            {pdfStructuredLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-primary" />} PDF Relatório
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5 text-xs">
             <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
@@ -294,6 +343,7 @@ export default function DashboardAntibiogram() {
         </div>
       </div>
 
+      <div ref={dashboardRef} className="space-y-4 md:space-y-6 bg-background">
       {/* Risk & Badges */}
       <div className="flex flex-wrap items-center gap-2">
         <Badge className={`${risk.color} gap-1 text-xs py-0.5 px-2`}>
@@ -586,6 +636,9 @@ export default function DashboardAntibiogram() {
           </ul>
         </CardContent>
       </Card>
+
+      </div>
+      {/* /dashboardRef */}
 
       {/* AI Generated Insights Dialog */}
       <Dialog open={!!aiInsights} onOpenChange={(o) => !o && setAiInsights(null)}>
