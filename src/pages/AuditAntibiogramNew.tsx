@@ -535,7 +535,9 @@ export default function AuditAntibiogramNew() {
               </div>
               <CardDescription className="text-xs sm:text-sm">Antimicrobianos testados — MIC e categoria S/I/R/NT</CardDescription>
             </div>
-            <Button size="sm" onClick={addRow} className="gap-1 self-start sm:self-auto"><Plus className="h-4 w-4" />Adicionar</Button>
+            <Button size="sm" onClick={addRow} className="gap-1.5 self-start sm:self-auto bg-primary hover:bg-primary/90 shadow-sm">
+              <PlusCircle className="h-4 w-4" />Adicionar antimicrobiano
+            </Button>
           </CardHeader>
           <CardContent>
             {results.length === 0 ? (
@@ -724,6 +726,13 @@ export default function AuditAntibiogramNew() {
                   </Table>
                 </div>
               </>
+            )}
+            {results.length > 0 && (
+              <div className="mt-4 flex justify-center">
+                <Button variant="outline" size="sm" onClick={addRow} className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10">
+                  <PlusCircle className="h-4 w-4" />Adicionar antimicrobiano
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
