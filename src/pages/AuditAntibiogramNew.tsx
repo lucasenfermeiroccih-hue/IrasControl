@@ -298,7 +298,7 @@ export default function AuditAntibiogramNew() {
       }
     }
 
-    toast.success(`Antibiograma ${editingId ? "atualizado" : "registrado"}! ${detectedPhenotypes.length > 0 ? "⚠️ Fenótipos críticos detectados!" : ""}`);
+    toast.success(`Exame/Cultura ${editingId ? "atualizado" : "registrado"}! ${detectedPhenotypes.length > 0 ? "⚠️ Fenótipos críticos detectados!" : ""}`);
     setSaving(false);
     setEditingId(null);
     setRefreshKey(k => k + 1);
