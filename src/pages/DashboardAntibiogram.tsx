@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import ChartActions from "@/components/ChartActions";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "@/hooks/use-toast";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
@@ -37,6 +38,17 @@ export default function DashboardAntibiogram() {
   const [filtroOrg, setFiltroOrg] = useState("all");
   const [filtroMes, setFiltroMes] = useState("all");
   const [filtroAno, setFiltroAno] = useState("all");
+
+  // Chart refs + metas
+  const chartRefs = {
+    setor: useRef<HTMLDivElement>(null),
+    organismos: useRef<HTMLDivElement>(null),
+    sirAntibiotico: useRef<HTMLDivElement>(null),
+    tendenciaMensal: useRef<HTMLDivElement>(null),
+    fenotipos: useRef<HTMLDivElement>(null),
+  };
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (k: string, v: number | undefined) => setMetas(prev => ({ ...prev, [k]: v }));
 
   const setores = useMemo(() => [...new Set(allData.map(d => d.sector))].sort(), [allData]);
   const sites = useMemo(() => [...new Set(allData.map(d => d.site))].sort(), [allData]);
@@ -391,22 +403,29 @@ export default function DashboardAntibiogram() {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
+          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle>
+            <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={sectorData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9 }} />
                 <Tooltip />
+                {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
                 <Bar dataKey="value" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Microrganismos Mais Frequentes</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
+          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base">Microrganismos Mais Frequentes</CardTitle>
+            <ChartActions chartRef={chartRefs.organismos} chartTitle="Microrganismos Mais Frequentes" />
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.organismos}>
             <div className="flex flex-col items-center gap-3">
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
@@ -426,6 +445,73 @@ export default function DashboardAntibiogram() {
                 ))}
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SIR by antibiotic */}
+      <Card>
+        <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle>
+          <ChartActions chartRef={chartRefs.sirAntibiotico} chartTitle="Perfil de Sensibilidade por Antibiótico" metaValue={metas.sirAntibiotico} onMetaChange={(v) => setMeta("sirAntibiotico", v)} metaUnit="testes" />
+        </CardHeader>
+        <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.sirAntibiotico}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={sirByAntibiotic}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 8 }} angle={-35} textAnchor="end" height={60} />
+              <YAxis tick={{ fontSize: 10 }} width={30} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {metas.sirAntibiotico !== undefined && <ReferenceLine y={metas.sirAntibiotico} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.sirAntibiotico}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+              <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
+              <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
+              <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Monthly trend + Phenotypes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base">Tendência Mensal de Resistência</CardTitle>
+            <ChartActions chartRef={chartRefs.tendenciaMensal} chartTitle="Tendência Mensal de Resistência" metaValue={metas.tendenciaMensal} onMetaChange={(v) => setMeta("tendenciaMensal", v)} metaUnit="%" />
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.tendenciaMensal}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={monthlyTrend}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                <YAxis unit="%" tick={{ fontSize: 10 }} width={35} />
+                <Tooltip formatter={(v: number) => `${v}%`} />
+                {metas.tendenciaMensal !== undefined && <ReferenceLine y={metas.tendenciaMensal} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.tendenciaMensal}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base">Fenótipos de Resistência</CardTitle>
+            <ChartActions chartRef={chartRefs.fenotipos} chartTitle="Fenótipos de Resistência" metaValue={metas.fenotipos} onMetaChange={(v) => setMeta("fenotipos", v)} metaUnit="casos" />
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.fenotipos}>
+            {phenotypeDist.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={phenotypeDist}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} width={25} />
+                  <Tooltip />
+                  {metas.fenotipos !== undefined && <ReferenceLine y={metas.fenotipos} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.fenotipos}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                  <Bar dataKey="value" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
