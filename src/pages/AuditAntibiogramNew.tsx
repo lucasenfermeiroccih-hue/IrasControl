@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, AlertTriangle, ShieldAlert, Loader2, HelpCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, AlertTriangle, ShieldAlert, Loader2, HelpCircle, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import AntibiogramHistory, { type AntibiogramRecord } from "@/components/AntibiogramHistory";
@@ -30,6 +30,7 @@ const commonAntibiotics = [
   "Amoxicilina/Ácido Clavulânico",
   "Ampicilina",
   "Aztreonam",
+  "Benzilpenicilina",
   "Cefepima",
   "Ceftazidima",
   "Ceftazidima/Avibactam",
@@ -37,12 +38,14 @@ const commonAntibiotics = [
   "Ceftriaxona",
   "Cefuroxima",
   "Ciprofloxacina",
+  "Clindamicina",
   "Ertapenem",
   "Estreptomicina de Alto Nível",
   "Gentamicina",
   "Gentamicina de Alto Nível",
   "Linezolida",
   "Meropenem",
+  "Oxacilina",
   "Piperacilina/Tazobactam",
   "Polimixina B",
   "Teicoplanina",
@@ -567,7 +570,12 @@ export default function AuditAntibiogramNew() {
                         <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
                           {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                          <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
+                          <SelectItem value="__OUTROS__">
+                            <span className="flex items-center gap-2 text-primary font-medium">
+                              <PlusCircle className="h-4 w-4" />
+                              Cadastrar outro antibiótico
+                            </span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {row.isCustom && (
@@ -658,7 +666,12 @@ export default function AuditAntibiogramNew() {
                               <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                               <SelectContent>
                                 {commonAntibiotics.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                                <SelectItem value="__OUTROS__">Outros (descrever)</SelectItem>
+                                <SelectItem value="__OUTROS__">
+                                  <span className="flex items-center gap-2 text-primary font-medium">
+                                    <PlusCircle className="h-4 w-4" />
+                                    Cadastrar outro antibiótico
+                                  </span>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             {row.isCustom && (
