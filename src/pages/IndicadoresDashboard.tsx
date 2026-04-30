@@ -356,7 +356,7 @@ export default function IndicadoresDashboard() {
     </div>
   );
 
-  const clearFilters = () => { setMesFiltro("Todos"); setAnoFiltro(String(new Date().getFullYear())); setSetorFiltro("Todos"); };
+  const clearFilters = () => { setMesFiltro([]); setAnoFiltro([String(new Date().getFullYear())]); setSetorFiltro([]); };
 
   const buildInsights = (): string[] => {
     const ins: string[] = [];
