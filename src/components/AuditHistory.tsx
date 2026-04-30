@@ -55,9 +55,9 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [mesFiltro, setMesFiltro] = useState("Todos");
-  const [anoFiltro, setAnoFiltro] = useState("Todos");
-  const [setorFiltro, setSetorFiltro] = useState("Todos");
+  const [mesFiltro, setMesFiltro] = useState<string[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string[]>([]);
+  const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
