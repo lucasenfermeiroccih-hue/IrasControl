@@ -177,6 +177,57 @@ export type Database = {
           },
         ]
       }
+      antibiogram_reports: {
+        Row: {
+          ai_content: string | null
+          created_at: string
+          created_by: string | null
+          filters: Json
+          hospital_id: string
+          id: string
+          period_end: string | null
+          period_label: string
+          period_start: string | null
+          report_type: string
+          resistance_rate: number | null
+          summary: Json
+          total_exams: number
+          updated_at: string
+        }
+        Insert: {
+          ai_content?: string | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          hospital_id: string
+          id?: string
+          period_end?: string | null
+          period_label: string
+          period_start?: string | null
+          report_type: string
+          resistance_rate?: number | null
+          summary?: Json
+          total_exams?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_content?: string | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          hospital_id?: string
+          id?: string
+          period_end?: string | null
+          period_label?: string
+          period_start?: string | null
+          report_type?: string
+          resistance_rate?: number | null
+          summary?: Json
+          total_exams?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       antibiogram_results: {
         Row: {
           antibiotic: string
