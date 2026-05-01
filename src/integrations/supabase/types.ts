@@ -1549,6 +1549,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      trigger_monthly_antibiogram_reports: {
+        Args: { _api_key: string; _function_url: string }
+        Returns: undefined
+      }
     }
     Enums: {
       alert_severity: "low" | "medium" | "high" | "critical"
