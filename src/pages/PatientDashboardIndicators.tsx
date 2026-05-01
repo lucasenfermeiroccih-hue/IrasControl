@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
-  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2
+  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2,
+  Pill, Microscope
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
