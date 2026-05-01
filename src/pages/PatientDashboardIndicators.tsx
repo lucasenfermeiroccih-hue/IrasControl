@@ -278,8 +278,50 @@ const PatientDashboardIndicators = () => {
       { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
-    return { specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays, abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData };
-  }, [filteredPatients, devices, prescriptions, month, year, currentYear]);
+    // Top 15 antibióticos mais utilizados (tabela + clinical_data)
+    const abCounter: Record<string, number> = {};
+    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
+    filteredPrescriptions.forEach(rx => {
+      const d = parseLocalDate(rx.start_date);
+      if (!d || !matchPeriod(d)) return;
+      const name = rx.drug_name ? normalize(String(rx.drug_name)) : null;
+      if (!name) return;
+      abCounter[name] = (abCounter[name] || 0) + 1;
+    });
+    filteredPatients.forEach(p => {
+      const atbs = p.clinical_data?.antibioticos;
+      if (!Array.isArray(atbs)) return;
+      atbs.forEach((a: any) => {
+        const d = parseLocalDate(a?.dataInicio);
+        if (!d || !matchPeriod(d)) return;
+        const name = a?.nome || a?.antibiotico || a?.droga;
+        if (!name) return;
+        const key = normalize(String(name));
+        abCounter[key] = (abCounter[key] || 0) + 1;
+      });
+    });
+    const topAntibiotics = Object.entries(abCounter)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    // Top 15 microrganismos do painel laboratorial
+    const filteredLabs = labResults.filter(l => patientIdSet.has(l.patient_id));
+    const orgCounter: Record<string, number> = {};
+    filteredLabs.forEach(l => {
+      const ref = parseLocalDate(l.result_date) || parseLocalDate(l.collection_date);
+      if (!ref || !matchPeriod(ref)) return;
+      const org = l.organism ? normalize(String(l.organism)) : null;
+      if (!org) return;
+      orgCounter[org] = (orgCounter[org] || 0) + 1;
+    });
+    const topOrganisms = Object.entries(orgCounter)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    return { specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays, abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData, topAntibiotics, topOrganisms };
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear]);
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
