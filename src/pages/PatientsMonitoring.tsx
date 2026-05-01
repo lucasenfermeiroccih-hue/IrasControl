@@ -772,7 +772,7 @@ export default function PatientsMonitoring() {
                   <DeviceSelect label="Cateter de Hemodiálise" disabled={readOnly} value={dispositivos.cateterHemodialise} onChange={v => setDispositivos(p => ({ ...p, cateterHemodialise: v }))} options={["Jugular", "Subclávia", "Femoral"]} />
                   <DeviceSelect label="Ventilação Mecânica" disabled={readOnly} value={dispositivos.ventilacao} onChange={v => setDispositivos(p => ({ ...p, ventilacao: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Cateter Vesical de Demora" disabled={readOnly} value={dispositivos.cateterVesical} onChange={v => setDispositivos(p => ({ ...p, cateterVesical: v }))} options={["Sim", "Não"]} />
-                  <DeviceSelect label="Sonda Nasogástrica/Nasoenteral" disabled={readOnly} value={dispositivos.sonda} onChange={v => setDispositivos(p => ({ ...p, sonda: v }))} options={["Sim", "Não"]} />
+                  <DeviceSelect label="Sonda Nasogástrica/Nasoenteral/Orogástrica" disabled={readOnly} value={dispositivos.sonda} onChange={v => setDispositivos(p => ({ ...p, sonda: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Drenos" disabled={readOnly} value={dispositivos.drenos} onChange={v => setDispositivos(p => ({ ...p, drenos: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="Ferida Operatória" disabled={readOnly} value={dispositivos.feridaOp} onChange={v => setDispositivos(p => ({ ...p, feridaOp: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="TQT (Traqueostomia)" disabled={readOnly} value={dispositivos.tqt} onChange={v => setDispositivos(p => ({ ...p, tqt: v }))} options={["Sim", "Não"]} />
