@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
-  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2
+  Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2,
+  Pill, Microscope
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
@@ -109,6 +110,7 @@ const PatientDashboardIndicators = () => {
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [labResults, setLabResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -125,12 +127,14 @@ const PatientDashboardIndicators = () => {
       // Manter compat: ainda lê devices/prescriptions das tabelas (caso existam)
       if (pts.length > 0) {
         const patIds = pts.map((p: any) => p.id);
-        const [devRes, rxRes] = await Promise.all([
+        const [devRes, rxRes, labRes] = await Promise.all([
           supabase.from("patient_devices").select("*").in("patient_id", patIds),
-          supabase.from("antimicrobial_prescriptions").select("id, start_date, patient_id").eq("hospital_id", hospitalId),
+          supabase.from("antimicrobial_prescriptions").select("id, start_date, patient_id, drug_name").eq("hospital_id", hospitalId),
+          supabase.from("lab_results").select("id, patient_id, organism, collection_date, result_date").eq("hospital_id", hospitalId),
         ]);
         setDevices(devRes.data || []);
         setPrescriptions(rxRes.data || []);
+        setLabResults(labRes.data || []);
       }
 
       setLoading(false);
@@ -274,8 +278,50 @@ const PatientDashboardIndicators = () => {
       { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
-    return { specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays, abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData };
-  }, [filteredPatients, devices, prescriptions, month, year, currentYear]);
+    // Top 15 antibióticos mais utilizados (tabela + clinical_data)
+    const abCounter: Record<string, number> = {};
+    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
+    filteredPrescriptions.forEach(rx => {
+      const d = parseLocalDate(rx.start_date);
+      if (!d || !matchPeriod(d)) return;
+      const name = rx.drug_name ? normalize(String(rx.drug_name)) : null;
+      if (!name) return;
+      abCounter[name] = (abCounter[name] || 0) + 1;
+    });
+    filteredPatients.forEach(p => {
+      const atbs = p.clinical_data?.antibioticos;
+      if (!Array.isArray(atbs)) return;
+      atbs.forEach((a: any) => {
+        const d = parseLocalDate(a?.dataInicio);
+        if (!d || !matchPeriod(d)) return;
+        const name = a?.nome || a?.antibiotico || a?.droga;
+        if (!name) return;
+        const key = normalize(String(name));
+        abCounter[key] = (abCounter[key] || 0) + 1;
+      });
+    });
+    const topAntibiotics = Object.entries(abCounter)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    // Top 15 microrganismos do painel laboratorial
+    const filteredLabs = labResults.filter(l => patientIdSet.has(l.patient_id));
+    const orgCounter: Record<string, number> = {};
+    filteredLabs.forEach(l => {
+      const ref = parseLocalDate(l.result_date) || parseLocalDate(l.collection_date);
+      if (!ref || !matchPeriod(ref)) return;
+      const org = l.organism ? normalize(String(l.organism)) : null;
+      if (!org) return;
+      orgCounter[org] = (orgCounter[org] || 0) + 1;
+    });
+    const topOrganisms = Object.entries(orgCounter)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    return { specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays, abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData, topAntibiotics, topOrganisms };
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear]);
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -444,6 +490,27 @@ const PatientDashboardIndicators = () => {
             <DensityCard title="Densidade VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <TopRankCard
+              title="Top 15 Antibióticos Mais Utilizados"
+              icon={Pill}
+              iconColor="text-orange-600"
+              data={indicators.topAntibiotics}
+              barColor="hsl(20, 70%, 50%)"
+              emptyText="Nenhum antibiótico registrado no período."
+              valueLabel="Prescrições"
+            />
+            <TopRankCard
+              title="Top 15 Microrganismos (Painel Laboratorial)"
+              icon={Microscope}
+              iconColor="text-purple-600"
+              data={indicators.topOrganisms}
+              barColor="hsl(270, 50%, 55%)"
+              emptyText="Nenhum microrganismo isolado no período."
+              valueLabel="Isolados"
+            />
+          </div>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Detalhamento por Especialidade</CardTitle>
@@ -518,6 +585,43 @@ function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
           <span>Dispositivo-dia: {deviceDays}</span>
           <span>Paciente-dia: {patientDays}</span>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, valueLabel }: {
+  title: string;
+  icon: any;
+  iconColor: string;
+  data: Array<{ name: string; value: number }>;
+  barColor: string;
+  emptyText: string;
+  valueLabel: string;
+}) {
+  const chartHeight = Math.max(220, data.length * 26);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${iconColor}`} />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {data.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-12">{emptyText}</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={140} interval={0} />
+              <Tooltip formatter={(v: number) => [v, valueLabel]} />
+              <Bar dataKey="value" name={valueLabel} fill={barColor} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );
