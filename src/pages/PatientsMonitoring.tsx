@@ -169,8 +169,8 @@ export default function PatientsMonitoring() {
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
 
   // Section states
-  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "" });
-  const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", liquor: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "", liquorObs: "" });
+  const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não", picc: "Não", cuv: "Não", cva: "Não" });
   const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
   const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
   type SinaisVitaisEntry = typeof sinaisVitais & { data: string; hora: string };
