@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
   Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
+import MultiSelectFilter from "@/components/MultiSelectFilter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
