@@ -199,9 +199,8 @@ const PatientDashboardIndicators = () => {
 
     // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
     const abFromTable = filteredPrescriptions.filter(rx => {
-      if (!rx.start_date) return false;
-      const d = new Date(rx.start_date);
-      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+      const d = parseLocalDate(rx.start_date);
+      return !!d && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     }).length;
 
     let abFromClinical = 0;
@@ -209,17 +208,16 @@ const PatientDashboardIndicators = () => {
       const atbs = p.clinical_data?.antibioticos;
       if (!Array.isArray(atbs)) return;
       atbs.forEach((a: any) => {
-        if (!a?.dataInicio) return;
-        const d = new Date(a.dataInicio);
-        if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) abFromClinical++;
+        const d = parseLocalDate(a?.dataInicio);
+        if (d && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) abFromClinical++;
       });
     });
     const abCount = abFromTable + abFromClinical;
 
     const extubationsTable = filteredDevices.filter(d => {
-      if (d.device_type !== "vm" || !d.removal_date) return false;
-      const rd = new Date(d.removal_date);
-      return rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear;
+      if (d.device_type !== "vm") return false;
+      const rd = parseLocalDate(d.removal_date);
+      return !!rd && rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear;
     }).length;
 
     let extubationsClinical = 0;
@@ -227,9 +225,8 @@ const PatientDashboardIndicators = () => {
       const di = p.clinical_data?.dispInvasivos;
       if (!di) return;
       [di.vmRetirada, di.vmNovaRetirada].forEach((dt: string) => {
-        if (!dt) return;
-        const rd = new Date(dt);
-        if (rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear) extubationsClinical++;
+        const rd = parseLocalDate(dt);
+        if (rd && rd.getMonth() === selectedMonth && rd.getFullYear() === selectedYear) extubationsClinical++;
       });
     });
     const extubations = extubationsTable + extubationsClinical;
