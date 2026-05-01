@@ -133,6 +133,17 @@ export default function PatientsMonitoring() {
   const [filterAno, setFilterAno] = useState<string[]>([]);
   const [filterSetor, setFilterSetor] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  type SortKey = "prontuario" | "leito" | "unidade" | "diasInt" | "diasCti";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [dischargeConfirmOpen, setDischargeConfirmOpen] = useState(false);
