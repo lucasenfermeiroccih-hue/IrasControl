@@ -322,7 +322,12 @@ const PatientDashboardIndicators = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">Número de Novas Admissões</p>
-                  <p className="text-xs text-muted-foreground/80">{MONTHS[Number(month)]} {year}{unit !== "all" ? ` · ${unit}` : ""}</p>
+                  <p className="text-xs text-muted-foreground/80">
+                    {month.length === 0 ? "Todos os meses" : month.length === 1 ? MONTHS[Number(month[0])] : `${month.length} meses`}
+                    {" · "}
+                    {year.length === 0 ? "Todos os anos" : year.join(", ")}
+                    {unit.length > 0 ? ` · ${unit.length === 1 ? unit[0] : `${unit.length} unidades`}` : ""}
+                  </p>
                 </div>
               </div>
               <p className="text-3xl font-bold text-primary font-heading">{indicators.totalAdmitted}</p>
