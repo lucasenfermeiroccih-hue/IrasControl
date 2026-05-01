@@ -169,8 +169,8 @@ export default function PatientsMonitoring() {
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
 
   // Section states
-  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "" });
-  const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
+  const [exames, setExames] = useState({ hemocultura: "Não", urocultura: "Não", culturaTraqueal: "Não", culturaFerida: "Não", swabRetal: "Não", swabNasal: "Não", liquor: "Não", hemoculturaObs: "", uroculturaObs: "", culturaTraquealObs: "", culturaFeridaObs: "", swabRetalObs: "", swabNasalObs: "", liquorObs: "" });
+  const [dispositivos, setDispositivos] = useState({ cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não", picc: "Não", cuv: "Não", cva: "Não" });
   const [evolucao, setEvolucao] = useState({ evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
   const [sinaisVitais, setSinaisVitais] = useState({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
   type SinaisVitaisEntry = typeof sinaisVitais & { data: string; hora: string };
@@ -192,6 +192,9 @@ export default function PatientsMonitoring() {
     vmInsercao: "", vmRetirada: "", vmTrocas: [] as Array<{ insercao: string; retirada: string }>,
     tqtInsercao: "", tqtRetirada: "", tqtTrocas: [] as Array<{ insercao: string; retirada: string }>,
     hemoInsercao: "", hemoRetirada: "", hemoTrocas: [] as Array<{ insercao: string; retirada: string }>,
+    piccInsercao: "", piccRetirada: "", piccTrocas: [] as Array<{ insercao: string; retirada: string }>,
+    cuvInsercao: "", cuvRetirada: "", cuvTrocas: [] as Array<{ insercao: string; retirada: string }>,
+    cvaInsercao: "", cvaRetirada: "", cvaTrocas: [] as Array<{ insercao: string; retirada: string }>,
   });
   const [labPanel, setLabPanel] = useState<LabEntry[]>([]);
   const [newLabOpen, setNewLabOpen] = useState(false);
@@ -456,6 +459,9 @@ export default function PatientsMonitoring() {
   const vmDays = calcTotalDays(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, dispInvasivos.vmTrocas);
   const tqtDays = calcTotalDays(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, dispInvasivos.tqtTrocas);
   const hemoDays = calcTotalDays(dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada, dispInvasivos.hemoTrocas);
+  const piccDays = calcTotalDays(dispInvasivos.piccInsercao, dispInvasivos.piccRetirada, dispInvasivos.piccTrocas);
+  const cuvDays = calcTotalDays(dispInvasivos.cuvInsercao, dispInvasivos.cuvRetirada, dispInvasivos.cuvTrocas);
+  const cvaDays = calcTotalDays(dispInvasivos.cvaInsercao, dispInvasivos.cvaRetirada, dispInvasivos.cvaTrocas);
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
@@ -681,7 +687,8 @@ export default function PatientsMonitoring() {
                   ["culturaFerida", "Cultura de ferida operatória", "culturaFeridaObs"],
                   ["swabRetal", "Swab retal", "swabRetalObs"],
                   ["swabNasal", "Swab nasal", "swabNasalObs"],
-                ] as const).map(([key, label, obsKey]) => (
+                  ...(selected?.unidade === "UTI Neonatal" ? [["liquor", "Liquor", "liquorObs"]] : []),
+                ] as unknown as Array<readonly [string, string, string]>).map(([key, label, obsKey]) => (
                   <div key={key} className="p-4 rounded-lg border bg-muted/30">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                       <div className="space-y-2">
@@ -811,6 +818,13 @@ export default function PatientsMonitoring() {
                   <DeviceSelect label="Ferida Operatória" disabled={readOnly} value={dispositivos.feridaOp} onChange={v => setDispositivos(p => ({ ...p, feridaOp: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="TQT (Traqueostomia)" disabled={readOnly} value={dispositivos.tqt} onChange={v => setDispositivos(p => ({ ...p, tqt: v }))} options={["Sim", "Não"]} />
                   <DeviceSelect label="VNI (Ventilação Não Invasiva)" disabled={readOnly} value={dispositivos.vni} onChange={v => setDispositivos(p => ({ ...p, vni: v }))} options={["Sim", "Não"]} />
+                  {selected?.unidade === "UTI Neonatal" && (
+                    <>
+                      <DeviceSelect label="Cateter de PICC" disabled={readOnly} value={dispositivos.picc} onChange={v => setDispositivos(p => ({ ...p, picc: v }))} options={["Sim", "Não"]} />
+                      <DeviceSelect label="Cateter Umbilical Venoso – CUV" disabled={readOnly} value={dispositivos.cuv} onChange={v => setDispositivos(p => ({ ...p, cuv: v }))} options={["Sim", "Não"]} />
+                      <DeviceSelect label="Cateter Umbilical Arterial – CVA" disabled={readOnly} value={dispositivos.cva} onChange={v => setDispositivos(p => ({ ...p, cva: v }))} options={["Sim", "Não"]} />
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -825,7 +839,12 @@ export default function PatientsMonitoring() {
                       ["VM", "vm", dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, dispInvasivos.vmTrocas, vmDays],
                       ["TQT", "tqt", dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, dispInvasivos.tqtTrocas, tqtDays],
                       ["Cateter de Hemodiálise", "hemo", dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada, dispInvasivos.hemoTrocas, hemoDays],
-                    ] as const).map(([label, prefix, insVal, retVal, trocas, days]) => {
+                      ...(selected?.unidade === "UTI Neonatal" ? [
+                        ["Cateter de PICC", "picc", dispInvasivos.piccInsercao, dispInvasivos.piccRetirada, dispInvasivos.piccTrocas, piccDays],
+                        ["Cateter Umbilical Venoso – CUV", "cuv", dispInvasivos.cuvInsercao, dispInvasivos.cuvRetirada, dispInvasivos.cuvTrocas, cuvDays],
+                        ["Cateter Umbilical Arterial – CVA", "cva", dispInvasivos.cvaInsercao, dispInvasivos.cvaRetirada, dispInvasivos.cvaTrocas, cvaDays],
+                      ] : []),
+                    ] as unknown as Array<readonly [string, string, string, string, Array<{ insercao: string; retirada: string }>, number | null]>).map(([label, prefix, insVal, retVal, trocas, days]) => {
                       const insKey = `${prefix}Insercao`;
                       const retKey = `${prefix}Retirada`;
                       const trocasKey = `${prefix}Trocas`;
