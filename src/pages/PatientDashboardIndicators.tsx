@@ -275,31 +275,30 @@ const PatientDashboardIndicators = () => {
             if (indicators.extubations > 0) ins.push(`✅ ${indicators.extubations} extubações realizadas com sucesso.`);
             return ins;
           }} />
-          <Select value={unit} onValueChange={setUnit}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Unidade" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as unidades</SelectItem>
-              {units.map(u => (
-                <SelectItem key={u} value={u}>{u}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m, i) => (
-                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={year} onValueChange={setYear}>
-            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(y => (
-                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter
+            label="Unidade"
+            placeholder="Todas as unidades"
+            selected={unit}
+            onChange={setUnit}
+            options={units.map(u => ({ value: u, label: u }))}
+            className="w-[180px]"
+          />
+          <MultiSelectFilter
+            label="Mês"
+            placeholder="Todos os meses"
+            selected={month}
+            onChange={setMonth}
+            options={MONTHS.map((m, i) => ({ value: String(i), label: m }))}
+            className="w-[160px]"
+          />
+          <MultiSelectFilter
+            label="Ano"
+            placeholder="Todos os anos"
+            selected={year}
+            onChange={setYear}
+            options={[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(y => ({ value: String(y), label: String(y) }))}
+            className="w-[120px]"
+          />
         </div>
       </div>
 
