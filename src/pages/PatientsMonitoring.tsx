@@ -1321,7 +1321,7 @@ export default function PatientsMonitoring() {
         {/* ─── NEW LAB EXAM MODAL ──────────────────────────── */}
         <Dialog open={newLabOpen} onOpenChange={setNewLabOpen}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>Cadastrar Exame Laboratorial</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingLabIndex !== null ? "Editar" : "Cadastrar"} Exame Laboratorial</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="font-medium">Tipo de Exame *</Label>
