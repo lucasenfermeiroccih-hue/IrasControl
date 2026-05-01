@@ -459,6 +459,9 @@ export default function PatientsMonitoring() {
   const vmDays = calcTotalDays(dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, dispInvasivos.vmTrocas);
   const tqtDays = calcTotalDays(dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, dispInvasivos.tqtTrocas);
   const hemoDays = calcTotalDays(dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada, dispInvasivos.hemoTrocas);
+  const piccDays = calcTotalDays(dispInvasivos.piccInsercao, dispInvasivos.piccRetirada, dispInvasivos.piccTrocas);
+  const cuvDays = calcTotalDays(dispInvasivos.cuvInsercao, dispInvasivos.cuvRetirada, dispInvasivos.cuvTrocas);
+  const cvaDays = calcTotalDays(dispInvasivos.cvaInsercao, dispInvasivos.cvaRetirada, dispInvasivos.cvaTrocas);
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
