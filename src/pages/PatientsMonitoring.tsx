@@ -182,6 +182,7 @@ export default function PatientsMonitoring() {
   });
   const [labPanel, setLabPanel] = useState<LabEntry[]>([]);
   const [newLabOpen, setNewLabOpen] = useState(false);
+  const [editingLabIndex, setEditingLabIndex] = useState<number | null>(null);
   const [newLab, setNewLab] = useState({ exame: "", data: "", microrganismo: "", sensibilidade: "", mdr: false });
   const [responsavel, setResponsavel] = useState("");
   const [antibioticos, setAntibioticos] = useState<AntibioticEntry[]>([]);
