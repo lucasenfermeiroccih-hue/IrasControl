@@ -216,9 +216,17 @@ export function usePatientMonitoring() {
   };
 
   const deletePatient = async (id: string) => {
-    const { error } = await supabase.from("patients").delete().eq("id", id);
+    const { data, error } = await supabase
+      .from("patients")
+      .delete()
+      .eq("id", id)
+      .select("id");
     if (error) {
       toast.error("Erro ao excluir paciente: " + error.message);
+      return false;
+    }
+    if (!data || data.length === 0) {
+      toast.error("Não foi possível excluir: você não tem permissão ou o paciente não existe mais.");
       return false;
     }
     setPatients(prev => prev.filter(p => p.id !== id));
