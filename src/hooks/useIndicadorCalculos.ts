@@ -60,8 +60,8 @@ export function useIndicadorCalculos(v: IndicadorInputs): IndicadorCalculados {
   return useMemo(() => {
     const pacienteExposto = (v.numAdmissoes || 0) + (v.numPacientesUtiInicio || 0);
 
-    const divisorPermanencia = (v.numDiasUtiInicio || 0) + (v.numAdmissoes || 0);
-    const numeradorPermanencia = (v.numPacientesUtiInicio || 0) + (v.numPacienteDiaTotal || 0) + (v.numDiasUtiSubsequente || 0);
+    const divisorPermanencia = (v.numPacientesUtiInicio || 0) + (v.numAdmissoes || 0);
+    const numeradorPermanencia = (v.numDiasUtiInicio || 0) + (v.numPacienteDiaTotal || 0) + (v.numDiasUtiSubsequente || 0);
 
     return {
       taxaSaidas: safeDiv(v.numInfeccoes, v.numSaidas, 100),
