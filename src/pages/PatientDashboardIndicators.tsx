@@ -70,9 +70,9 @@ const PatientDashboardIndicators = () => {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
-  const [year, setYear] = useState(String(currentYear));
-  const [month, setMonth] = useState(String(currentMonth));
-  const [unit, setUnit] = useState<string>("all");
+  const [year, setYear] = useState<string[]>([String(currentYear)]);
+  const [month, setMonth] = useState<string[]>([String(currentMonth)]);
+  const [unit, setUnit] = useState<string[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
