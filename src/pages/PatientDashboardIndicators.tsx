@@ -111,13 +111,16 @@ const PatientDashboardIndicators = () => {
   }, [patients]);
 
   const filteredPatients = useMemo(
-    () => unit === "all" ? patients : patients.filter(p => p.sector === unit),
+    () => unit.length === 0 ? patients : patients.filter(p => p.sector && unit.includes(p.sector)),
     [patients, unit]
   );
 
   const indicators = useMemo(() => {
-    const selectedMonth = Number(month);
-    const selectedYear = Number(year);
+    const selectedMonths = month.length === 0 ? null : month.map(Number);
+    const selectedYears = year.length === 0 ? null : year.map(Number);
+    const matchPeriod = (d: Date) =>
+      (!selectedMonths || selectedMonths.includes(d.getMonth())) &&
+      (!selectedYears || selectedYears.includes(d.getFullYear()));
     const patientIdSet = new Set(filteredPatients.map(p => p.id));
     const filteredDevices = devices.filter(d => patientIdSet.has(d.patient_id));
     const filteredPrescriptions = prescriptions.filter(rx => patientIdSet.has(rx.patient_id));
