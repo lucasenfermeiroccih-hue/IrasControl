@@ -839,7 +839,12 @@ export default function PatientsMonitoring() {
                       ["VM", "vm", dispInvasivos.vmInsercao, dispInvasivos.vmRetirada, dispInvasivos.vmTrocas, vmDays],
                       ["TQT", "tqt", dispInvasivos.tqtInsercao, dispInvasivos.tqtRetirada, dispInvasivos.tqtTrocas, tqtDays],
                       ["Cateter de Hemodiálise", "hemo", dispInvasivos.hemoInsercao, dispInvasivos.hemoRetirada, dispInvasivos.hemoTrocas, hemoDays],
-                    ] as const).map(([label, prefix, insVal, retVal, trocas, days]) => {
+                      ...(selected?.unidade === "UTI Neonatal" ? [
+                        ["Cateter de PICC", "picc", dispInvasivos.piccInsercao, dispInvasivos.piccRetirada, dispInvasivos.piccTrocas, piccDays],
+                        ["Cateter Umbilical Venoso – CUV", "cuv", dispInvasivos.cuvInsercao, dispInvasivos.cuvRetirada, dispInvasivos.cuvTrocas, cuvDays],
+                        ["Cateter Umbilical Arterial – CVA", "cva", dispInvasivos.cvaInsercao, dispInvasivos.cvaRetirada, dispInvasivos.cvaTrocas, cvaDays],
+                      ] : []),
+                    ] as unknown as Array<readonly [string, string, string, string, Array<{ insercao: string; retirada: string }>, number | null]>).map(([label, prefix, insVal, retVal, trocas, days]) => {
                       const insKey = `${prefix}Insercao`;
                       const retKey = `${prefix}Retirada`;
                       const trocasKey = `${prefix}Trocas`;
