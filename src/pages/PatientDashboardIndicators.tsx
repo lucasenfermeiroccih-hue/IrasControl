@@ -590,4 +590,41 @@ function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
   );
 }
 
+function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, valueLabel }: {
+  title: string;
+  icon: any;
+  iconColor: string;
+  data: Array<{ name: string; value: number }>;
+  barColor: string;
+  emptyText: string;
+  valueLabel: string;
+}) {
+  const chartHeight = Math.max(220, data.length * 26);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${iconColor}`} />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {data.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-12">{emptyText}</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={140} interval={0} />
+              <Tooltip formatter={(v: number) => [v, valueLabel]} />
+              <Bar dataKey="value" name={valueLabel} fill={barColor} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default PatientDashboardIndicators;
