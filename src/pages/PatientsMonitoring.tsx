@@ -281,10 +281,31 @@ export default function PatientsMonitoring() {
     }
     return true;
   });
-  const filtered = filteredForKpis.filter(p => {
+  const filteredUnsorted = filteredForKpis.filter(p => {
     if (filterStatus.length > 0 && !filterStatus.includes(p.status)) return false;
     return true;
   });
+  const filtered = (() => {
+    if (!sortKey) return filteredUnsorted;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const arr = [...filteredUnsorted];
+    arr.sort((a, b) => {
+      let va: any, vb: any;
+      if (sortKey === "diasInt") {
+        va = daysFromDate(a.dataInternacaoHospitalar);
+        vb = daysFromDate(b.dataInternacaoHospitalar);
+      } else if (sortKey === "diasCti") {
+        va = a.dataInternacaoCTI ? daysFromDate(a.dataInternacaoCTI) : -1;
+        vb = b.dataInternacaoCTI ? daysFromDate(b.dataInternacaoCTI) : -1;
+      } else {
+        va = String((a as any)[sortKey] ?? "");
+        vb = String((b as any)[sortKey] ?? "");
+        return va.localeCompare(vb, "pt-BR", { numeric: true }) * dir;
+      }
+      return (va - vb) * dir;
+    });
+    return arr;
+  })();
   const activeCount = filteredForKpis.filter(p => p.status === "active").length;
   const totalCount = filteredForKpis.length;
   const deceasedCount = filteredForKpis.filter(p => p.status === "deceased").length;
