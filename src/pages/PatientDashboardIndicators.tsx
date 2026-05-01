@@ -332,19 +332,13 @@ const PatientDashboardIndicators = () => {
           <h1 className="text-xl md:text-2xl font-bold">Dashboard de Indicadores Operacionais</h1>
           <p className="text-muted-foreground">Dados do Monitoramento de Pacientes — internações, desfechos, dispositivos e antimicrobianos</p>
         </div>
-        <div className="flex gap-2">
-          <DashboardAIInsights generateInsights={() => {
-            const ins: string[] = [];
-            ins.push(`📊 ${indicators.totalAdmitted} pacientes admitidos no período selecionado.`);
-            ins.push(`💀 ${indicators.deaths} óbitos e ${indicators.discharges} altas registradas.`);
-            ins.push(`🛏️ Total de ${indicators.totalPatientDays} paciente-dia.`);
-            if (indicators.cvcDays > 0) ins.push(`💉 CVC: ${indicators.cvcDays} dias-dispositivo.`);
-            if (indicators.svuDays > 0) ins.push(`🔧 SVD: ${indicators.svuDays} dias-dispositivo.`);
-            if (indicators.vmDays > 0) ins.push(`🌬️ VM: ${indicators.vmDays} dias-dispositivo.`);
-            if (indicators.abCount > 0) ins.push(`💊 ${indicators.abCount} antimicrobianos utilizados no período.`);
-            if (indicators.extubations > 0) ins.push(`✅ ${indicators.extubations} extubações realizadas com sucesso.`);
-            return ins;
-          }} />
+        <div className="flex gap-2 flex-wrap">
+          <PdfReportButton
+            indicators={indicators}
+            month={month}
+            year={year}
+            unit={unit}
+          />
           <MultiSelectFilter
             label="Unidade"
             placeholder="Todas as unidades"
