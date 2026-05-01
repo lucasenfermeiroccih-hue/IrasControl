@@ -654,4 +654,83 @@ function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, 
   );
 }
 
+function PdfReportButton({ indicators, month, year, unit }: {
+  indicators: any;
+  month: string[];
+  year: string[];
+  unit: string[];
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const monthsNames = month.length === 0 ? [] : month.map((m) => MONTHS[Number(m)]);
+      const yearsNum = year.length === 0 ? [] : year.map((y) => Number(y));
+
+      const payload = {
+        pageTitle: "Dashboard de Indicadores Operacionais",
+        filters: { months: monthsNames, years: yearsNum, units: unit },
+        metrics: {
+          totalAdmitted: indicators.totalAdmitted,
+          totalPatientDays: indicators.totalPatientDays,
+          deaths: indicators.deaths,
+          discharges: indicators.discharges,
+          cvcDays: indicators.cvcDays,
+          svuDays: indicators.svuDays,
+          vmDays: indicators.vmDays,
+          abCount: indicators.abCount,
+          extubations: indicators.extubations,
+        },
+        specialtyData: indicators.specialtyData.map((s: any) => ({
+          fullName: s.fullName,
+          internacoes: s.internacoes,
+        })),
+        topAntibiotics: indicators.topAntibiotics,
+        topOrganisms: indicators.topOrganisms,
+      };
+
+      toast.info("Gerando relatório com IA...");
+      const { data, error } = await supabase.functions.invoke("dashboard-pdf-report", {
+        body: payload,
+      });
+
+      if (error) throw error;
+      if (!data?.pdfBase64) throw new Error("Resposta inválida");
+
+      // Decode base64 to blob and download
+      const binary = atob(data.pdfBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio-indicadores-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Relatório PDF gerado!");
+    } catch (err: any) {
+      console.error("PDF error:", err);
+      const msg = err?.context?.statusCode === 429 || err?.message?.includes("429")
+        ? "Limite de requisições. Tente novamente em alguns minutos."
+        : err?.context?.statusCode === 402 || err?.message?.includes("402")
+        ? "Créditos de IA esgotados."
+        : err?.message || "Erro ao gerar PDF";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button variant="default" onClick={handleGenerate} disabled={loading} className="gap-2">
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+      Relatório PDF
+    </Button>
+  );
+}
+
 export default PatientDashboardIndicators;
