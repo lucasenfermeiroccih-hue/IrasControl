@@ -561,6 +561,9 @@ const PatientDashboardIndicators = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TopRankCard
+              chartRef={chartRefs.topAntibiotics}
+              metaValue={metas.topAntibiotics}
+              onMetaChange={v => setMeta("topAntibiotics", v)}
               title="Top 15 Antibióticos Mais Utilizados"
               icon={Pill}
               iconColor="text-orange-600"
@@ -570,6 +573,9 @@ const PatientDashboardIndicators = () => {
               valueLabel="Prescrições"
             />
             <TopRankCard
+              chartRef={chartRefs.topOrganisms}
+              metaValue={metas.topOrganisms}
+              onMetaChange={v => setMeta("topOrganisms", v)}
               title="Top 15 Microrganismos (Painel Laboratorial)"
               icon={Microscope}
               iconColor="text-purple-600"
