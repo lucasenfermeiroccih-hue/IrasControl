@@ -124,6 +124,17 @@ const PatientDashboardIndicators = () => {
     else { setSpecSortKey(k); setSpecSortDir("desc"); }
   };
 
+  // Refs e metas para ChartActions (export PDF/JPG, fullscreen, definir meta)
+  const chartRefs = {
+    specialty: useRef<HTMLDivElement>(null),
+    outcomes: useRef<HTMLDivElement>(null),
+    topAntibiotics: useRef<HTMLDivElement>(null),
+    topOrganisms: useRef<HTMLDivElement>(null),
+  };
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (key: string, val: number | undefined) =>
+    setMetas(prev => ({ ...prev, [key]: val }));
+
   useEffect(() => {
     if (!hospitalId || ctxLoading) { setLoading(false); return; }
     (async () => {
