@@ -352,13 +352,22 @@ export default function PatientsMonitoring() {
       // Restore persisted tab data from clinical_data
       const cd = (pat as any)._clinicalData || {};
       setDispositivos(cd.dispositivos || { cvc: "", cvp: "Não", cateterArterial: "Não", cateterHemodialise: "", ventilacao: "Não", cateterVesical: "Não", sonda: "Não", drenos: "Não", feridaOp: "Não", tqt: "Não", vni: "Não" });
-      setDispInvasivos(cd.dispInvasivos || {
-        cvcInsercao: "", cvcRetirada: "", cvcTroca: "Não", cvcNovaInsercao: "", cvcNovaRetirada: "",
-        cvpInsercao: "", cvpRetirada: "", cvpTroca: "Não", cvpNovaInsercao: "", cvpNovaRetirada: "",
-        svuInsercao: "", svuRetirada: "", svuTroca: "Não", svuNovaInsercao: "", svuNovaRetirada: "",
-        vmInsercao: "", vmRetirada: "", vmTroca: "Não", vmNovaInsercao: "", vmNovaRetirada: "",
-        tqtInsercao: "", tqtRetirada: "", tqtTroca: "Não", tqtNovaInsercao: "", tqtNovaRetirada: "",
-        hemoInsercao: "", hemoRetirada: "", hemoTroca: "Não", hemoNovaInsercao: "", hemoNovaRetirada: "",
+      // Migrate legacy single-swap shape into trocas[] for backward compatibility
+      const rawDi = cd.dispInvasivos || {};
+      const migrateKey = (k: string) => {
+        const trocas = Array.isArray(rawDi[`${k}Trocas`]) ? rawDi[`${k}Trocas`] : [];
+        if (trocas.length === 0 && (rawDi[`${k}NovaInsercao`] || rawDi[`${k}NovaRetirada`])) {
+          trocas.push({ insercao: rawDi[`${k}NovaInsercao`] || "", retirada: rawDi[`${k}NovaRetirada`] || "" });
+        }
+        return trocas;
+      };
+      setDispInvasivos({
+        cvcInsercao: rawDi.cvcInsercao || "", cvcRetirada: rawDi.cvcRetirada || "", cvcTrocas: migrateKey("cvc"),
+        cvpInsercao: rawDi.cvpInsercao || "", cvpRetirada: rawDi.cvpRetirada || "", cvpTrocas: migrateKey("cvp"),
+        svuInsercao: rawDi.svuInsercao || "", svuRetirada: rawDi.svuRetirada || "", svuTrocas: migrateKey("svu"),
+        vmInsercao: rawDi.vmInsercao || "", vmRetirada: rawDi.vmRetirada || "", vmTrocas: migrateKey("vm"),
+        tqtInsercao: rawDi.tqtInsercao || "", tqtRetirada: rawDi.tqtRetirada || "", tqtTrocas: migrateKey("tqt"),
+        hemoInsercao: rawDi.hemoInsercao || "", hemoRetirada: rawDi.hemoRetirada || "", hemoTrocas: migrateKey("hemo"),
       });
       setAntibioticos(cd.antibioticos || []);
       setEvolucao(cd.evolucao || { evolucaoInternacao: "", colonizacoes: "", antibioticoPrevio: "", culturasPreviaCTI: "", resultadoCulturasCTI: "", antibioticosCTI: "", dispositivosInvasivos: "", examesImagem: "", condutasDiarias: "" });
