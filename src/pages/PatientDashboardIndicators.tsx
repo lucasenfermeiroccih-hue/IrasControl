@@ -505,6 +505,37 @@ const PatientDashboardIndicators = () => {
             />
           </div>
 
+          <Card className="border-primary/20">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Insights Inteligentes (IA)
+              </CardTitle>
+              <DashboardAIInsights
+                pageTitle="Dashboard de Indicadores Operacionais"
+                generateInsights={() => {
+                  const ins: string[] = [];
+                  ins.push(`📊 ${indicators.totalAdmitted} pacientes admitidos no período selecionado.`);
+                  ins.push(`💀 ${indicators.deaths} óbitos e ${indicators.discharges} altas registradas.`);
+                  ins.push(`🛏️ Total de ${indicators.totalPatientDays} paciente-dia.`);
+                  if (indicators.cvcDays > 0) ins.push(`💉 CVC: ${indicators.cvcDays} dias-dispositivo.`);
+                  if (indicators.svuDays > 0) ins.push(`🔧 SVD: ${indicators.svuDays} dias-dispositivo.`);
+                  if (indicators.vmDays > 0) ins.push(`🌬️ VM: ${indicators.vmDays} dias-dispositivo.`);
+                  if (indicators.abCount > 0) ins.push(`💊 ${indicators.abCount} antimicrobianos utilizados no período.`);
+                  if (indicators.extubations > 0) ins.push(`✅ ${indicators.extubations} extubações realizadas com sucesso.`);
+                  if (indicators.topAntibiotics[0]) ins.push(`🥇 Antibiótico mais usado: ${indicators.topAntibiotics[0].name} (${indicators.topAntibiotics[0].value}x).`);
+                  if (indicators.topOrganisms[0]) ins.push(`🦠 Microrganismo mais isolado: ${indicators.topOrganisms[0].name} (${indicators.topOrganisms[0].value}x).`);
+                  return ins;
+                }}
+              />
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Clique em <strong>Insights IA</strong> para gerar análise inteligente do período. Use o botão <strong>Relatório PDF</strong> no topo para baixar um documento técnico completo gerado pela IA.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Detalhamento por Especialidade</CardTitle>
