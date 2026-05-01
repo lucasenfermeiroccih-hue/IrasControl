@@ -1569,11 +1569,31 @@ export default function PatientsMonitoring() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Paciente</TableHead>
-                  <TableHead>Prontuário</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead>Leito</TableHead>
-                  <TableHead>Dias Int.</TableHead>
-                  <TableHead>Dias CTI</TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSort("prontuario")} className="flex items-center gap-1 hover:text-primary font-medium">
+                      Prontuário <SortIcon active={sortKey === "prontuario"} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSort("unidade")} className="flex items-center gap-1 hover:text-primary font-medium">
+                      Setor <SortIcon active={sortKey === "unidade"} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSort("leito")} className="flex items-center gap-1 hover:text-primary font-medium">
+                      Leito <SortIcon active={sortKey === "leito"} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSort("diasInt")} className="flex items-center gap-1 hover:text-primary font-medium">
+                      Dias Int. <SortIcon active={sortKey === "diasInt"} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSort("diasCti")} className="flex items-center gap-1 hover:text-primary font-medium">
+                      Dias CTI <SortIcon active={sortKey === "diasCti"} dir={sortDir} />
+                    </button>
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
