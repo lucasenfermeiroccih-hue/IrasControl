@@ -1356,14 +1356,20 @@ export default function PatientsMonitoring() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setNewLabOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setNewLabOpen(false); setEditingLabIndex(null); }}>Cancelar</Button>
               <Button onClick={() => {
                 if (!newLab.exame) { toast.error("Selecione o tipo de exame"); return; }
                 if (!newLab.microrganismo.trim()) { toast.error("Informe o microrganismo"); return; }
-                setLabPanel(prev => [...prev, { ...newLab }]);
+                if (editingLabIndex !== null) {
+                  setLabPanel(prev => prev.map((l, idx) => idx === editingLabIndex ? { ...newLab } : l));
+                  toast.success("Exame atualizado!");
+                } else {
+                  setLabPanel(prev => [...prev, { ...newLab }]);
+                  toast.success("Exame cadastrado no painel laboratorial!");
+                }
                 setNewLabOpen(false);
-                toast.success("Exame cadastrado no painel laboratorial!");
-              }}>Cadastrar</Button>
+                setEditingLabIndex(null);
+              }}>{editingLabIndex !== null ? "Salvar" : "Cadastrar"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
