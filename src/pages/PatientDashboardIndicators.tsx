@@ -357,7 +357,7 @@ const PatientDashboardIndicators = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Stethoscope className="h-4 w-4 text-primary" />
-                  Internações por Especialidade — {MONTHS[Number(month)]} {year}
+                  Internações por Especialidade — {month.length === 0 ? "Todos os meses" : month.length === 1 ? MONTHS[Number(month[0])] : `${month.length} meses`} {year.length === 0 ? "" : year.join(", ")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
