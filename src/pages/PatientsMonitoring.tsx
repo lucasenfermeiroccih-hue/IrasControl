@@ -690,10 +690,16 @@ export default function PatientsMonitoring() {
                             </td>
                             <td className="p-3">
                               {!readOnly && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  onClick={() => { setLabPanel(prev => prev.filter((_, idx) => idx !== i)); toast.success("Exame removido do painel"); }}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                    onClick={() => { setEditingLabIndex(i); setNewLab({ ...lab }); setNewLabOpen(true); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    onClick={() => { setLabPanel(prev => prev.filter((_, idx) => idx !== i)); toast.success("Exame removido do painel"); }}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               )}
                             </td>
                           </tr>
