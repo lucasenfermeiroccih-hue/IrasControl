@@ -42,12 +42,24 @@ interface PatientRow {
   clinical_data: any;
 }
 
+// Parse "YYYY-MM-DD" (ou ISO) como data LOCAL, evitando deslocamento de fuso (UTC)
+function parseLocalDate(s?: string | null): Date | null {
+  if (!s) return null;
+  const datePart = String(s).slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+  if (!m) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
 // Calcula dias de sobreposição entre [insertion, removal] e [start, end] (mês selecionado)
 function overlapDays(insertion?: string, removal?: string, start?: Date, end?: Date) {
   if (!insertion || !start || !end) return 0;
-  const ins = new Date(insertion);
-  const rem = removal ? new Date(removal) : new Date();
-  if (isNaN(ins.getTime()) || isNaN(rem.getTime())) return 0;
+  const ins = parseLocalDate(insertion);
+  const rem = removal ? parseLocalDate(removal) : new Date();
+  if (!ins || !rem || isNaN(ins.getTime()) || isNaN(rem.getTime())) return 0;
   const from = ins > start ? ins : start;
   const to = rem < end ? rem : end;
   if (from > to) return 0;
