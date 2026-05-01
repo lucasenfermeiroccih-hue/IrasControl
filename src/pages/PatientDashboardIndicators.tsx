@@ -308,6 +308,8 @@ const PatientDashboardIndicators = () => {
       .slice(0, 15);
 
     // Top 15 microrganismos do painel laboratorial
+    // Fonte 1: tabela lab_results (caso exista)
+    // Fonte 2: clinical_data.labPanel (preenchido na página /patients/monitoring)
     const filteredLabs = labResults.filter(l => patientIdSet.has(l.patient_id));
     const orgCounter: Record<string, number> = {};
     filteredLabs.forEach(l => {
@@ -316,6 +318,27 @@ const PatientDashboardIndicators = () => {
       const org = l.organism ? normalize(String(l.organism)) : null;
       if (!org) return;
       orgCounter[org] = (orgCounter[org] || 0) + 1;
+    });
+    // Parse date in formats: dd/mm/yyyy, yyyy-mm-dd, ISO
+    const parseFlexibleDate = (s?: string | null): Date | null => {
+      if (!s) return null;
+      const str = String(s).trim();
+      const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
+      if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
+      return parseLocalDate(str);
+    };
+    filteredPatients.forEach(p => {
+      const labs = p.clinical_data?.labPanel;
+      if (!Array.isArray(labs)) return;
+      labs.forEach((lab: any) => {
+        const ref = parseFlexibleDate(lab?.data);
+        // Se não tiver data, considera o paciente: usa admissão como referência
+        const refDate = ref || parseLocalDate(getPatientPeriodStart(p));
+        if (!refDate || !matchPeriod(refDate)) return;
+        const org = lab?.microrganismo ? normalize(String(lab.microrganismo)) : null;
+        if (!org) return;
+        orgCounter[org] = (orgCounter[org] || 0) + 1;
+      });
     });
     const topOrganisms = Object.entries(orgCounter)
       .map(([name, value]) => ({ name, value }))
