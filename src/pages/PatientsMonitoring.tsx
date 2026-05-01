@@ -35,7 +35,7 @@ interface PatientExtraData {
 
 const especialidades = [
   "Clínica médica", "Cirurgia Geral", "Cirurgia Vascular", "Cirurgia Cardíaca",
-  "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Ortopédica",
+  "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Ortopédica", "Ginecologia",
 ];
 
 const tiposAlta = ["Óbito", "Alta", "Transferência"];
