@@ -341,6 +341,89 @@ export default function IndicadoresDashboard() {
     };
   }, [yearlyMonthly]);
 
+  // ====== Comparativo anual (Ano vs Ano) ======
+  // Ignora filtro de ano e mês — agrega por ano+mês para todos os anos disponíveis
+  const yearsCompare = useMemo(() => {
+    const baseRecords = records.filter((r: any) => {
+      if (setorFiltro.length > 0 && !setorFiltro.includes(r.setor)) return false;
+      return true;
+    });
+    const years = Array.from(new Set(baseRecords.map((r: any) => String(r.ano_vigilancia)))).sort();
+    const byYearMonth: Record<string, Record<string, any>> = {};
+    years.forEach((y) => {
+      byYearMonth[y] = {};
+      mesesOptions.forEach((mes) => {
+        const recs = baseRecords.filter((r: any) => String(r.ano_vigilancia) === y && r.mes_vigilancia === mes);
+        const m: any = {
+          numInfeccoes: 0, numPacienteDiaTotal: 0, numObitosInfeccao: 0, numPacientesInfeccaoHospitalar: 0,
+          utilizacaoCVC: 0, infeccaoCVC: 0, utilizacaoVM: 0, infeccaoVM: 0, utilizacaoSVD: 0, infeccaoSVD: 0,
+          numAntibioticosUtilizados: 0, numAdmissoes: 0, numPacientesUtiInicio: 0,
+          numDiasUtiInicio: 0, numDiasUtiSubsequente: 0,
+        };
+        recs.forEach((r: any) => { const v = r.inputs || {}; Object.keys(m).forEach((k) => { m[k] += (v[k] || 0); }); });
+        const pacExp = m.numAdmissoes + m.numPacientesUtiInicio;
+        byYearMonth[y][mes] = {
+          taxaInfeccao: safeDiv(m.numInfeccoes, m.numPacienteDiaTotal, 1000),
+          taxaLetalidade: safeDiv(m.numObitosInfeccao, m.numPacientesInfeccaoHospitalar, 100),
+          numInfeccoes: m.numInfeccoes,
+          taxaInfCVC: safeDiv(m.infeccaoCVC, m.utilizacaoCVC, 1000),
+          taxaInfVM: safeDiv(m.infeccaoVM, m.utilizacaoVM, 1000),
+          taxaInfSVD: safeDiv(m.infeccaoSVD, m.utilizacaoSVD, 1000),
+          infeccoesDispositivo: m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
+          tempoPermanencia: safeDiv(
+            m.numPacientesUtiInicio + m.numPacienteDiaTotal + m.numDiasUtiSubsequente,
+            m.numDiasUtiInicio + m.numAdmissoes, 1,
+          ),
+          taxaUsoAtb: safeDiv(m.numAntibioticosUtilizados, pacExp, 100),
+        };
+      });
+    });
+    const buildSeries = (metric: string) => mesesOptions.map((mes, idx) => {
+      const row: any = { mes: mesesAbrev[idx] };
+      years.forEach((y) => { row[y] = byYearMonth[y][mes][metric]; });
+      return row;
+    });
+    return { years, buildSeries };
+  }, [records, setorFiltro]);
+
+  const renderYearComparisonChart = (title: string, metric: string, unit: string) => {
+    if (yearsCompare.years.length < 1) return null;
+    const data = yearsCompare.buildSeries(metric);
+    return (
+      <Card>
+        <CardHeader className="p-4 pb-0">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            Comparativo Anual — {title}{unit ? ` (${unit})` : ""}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 pt-2">
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} width={40} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {yearsCompare.years.map((y, i) => (
+                <Line
+                  key={y}
+                  type="monotone"
+                  dataKey={y}
+                  name={y}
+                  stroke={COLORS[i % COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    );
+  };
+
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
