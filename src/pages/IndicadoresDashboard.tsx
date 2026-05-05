@@ -799,6 +799,8 @@ export default function IndicadoresDashboard() {
               </Card>
             </div>
           )}
+          {renderYearComparisonChart("Tempo de Permanência", "tempoPermanencia", "dias")}
+          {renderYearComparisonChart("Taxa de Uso de Antibióticos", "taxaUsoAtb", "%")}
           </div>
         </TabsContent>
       </Tabs>
