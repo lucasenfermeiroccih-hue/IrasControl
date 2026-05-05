@@ -757,12 +757,12 @@ function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, 
   metaValue?: number;
   onMetaChange?: (v: number | undefined) => void;
 }) {
-  const chartHeight = Math.max(240, data.length * 28);
+  const chartHeight = Math.max(280, data.length * 36);
   // Quebra labels longos em até 2 linhas para não sobrepor as barras
   const renderYTick = (props: any) => {
     const { x, y, payload } = props;
     const text = String(payload.value || "");
-    const max = 18;
+    const max = 22;
     const lines: string[] = [];
     if (text.length <= max) lines.push(text);
     else {
@@ -775,15 +775,16 @@ function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, 
         } else {
           cur = (cur + " " + w).trim();
         }
-        if (lines.length === 1 && cur.length > max) break;
+        if (lines.length === 2) break;
       }
-      if (cur && lines.length < 2) lines.push(cur.length > max ? cur.slice(0, max - 1) + "…" : cur);
-      else if (cur && lines.length >= 2) lines[1] = (lines[1] + " " + cur).slice(0, max - 1) + "…";
+      if (cur && lines.length < 3) lines.push(cur.length > max ? cur.slice(0, max - 1) + "…" : cur);
     }
+    const lineHeight = 12;
+    const startY = -((lines.length - 1) * lineHeight) / 2;
     return (
       <g transform={`translate(${x},${y})`}>
         {lines.map((ln, i) => (
-          <text key={i} x={-4} y={i * 11 - (lines.length - 1) * 5} textAnchor="end" fontSize={10} fill="hsl(var(--muted-foreground))">
+          <text key={i} x={-6} y={startY + i * lineHeight} dy={4} textAnchor="end" fontSize={10} fill="hsl(var(--muted-foreground))">
             {ln}
           </text>
         ))}
@@ -814,7 +815,7 @@ function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, 
             <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={renderYTick} width={120} interval={0} />
+              <YAxis type="category" dataKey="name" tick={renderYTick} width={150} interval={0} />
               <Tooltip formatter={(v: number) => [v, valueLabel]} />
               {metaValue !== undefined && (
                 <ReferenceLine x={metaValue} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metaValue}`, position: "top", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
