@@ -503,14 +503,14 @@ export default function DashboardAntibiogram() {
           <ChartActions chartRef={chartRefs.sirAntibiotico} chartTitle="Perfil de Sensibilidade por Antibiótico" metaValue={metas.sirAntibiotico} onMetaChange={(v) => setMeta("sirAntibiotico", v)} metaUnit="testes" />
         </CardHeader>
         <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.sirAntibiotico}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={sirByAntibiotic}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tick={{ fontSize: 8 }} angle={-35} textAnchor="end" height={60} />
-              <YAxis tick={{ fontSize: 10 }} width={30} />
+          <ResponsiveContainer width="100%" height={Math.max(320, sirByAntibiotic.length * 28)}>
+            <BarChart data={sirByAntibiotic} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={130} interval={0} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              {metas.sirAntibiotico !== undefined && <ReferenceLine y={metas.sirAntibiotico} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.sirAntibiotico}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+              {metas.sirAntibiotico !== undefined && <ReferenceLine x={metas.sirAntibiotico} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.sirAntibiotico}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
               <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
               <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
               <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
@@ -555,61 +555,6 @@ export default function DashboardAntibiogram() {
                   <YAxis tick={{ fontSize: 10 }} width={25} />
                   <Tooltip />
                   {metas.fenotipos !== undefined && <ReferenceLine y={metas.fenotipos} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.fenotipos}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                  <Bar dataKey="value" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* SIR by antibiotic */}
-      <Card>
-        <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle></CardHeader>
-        <CardContent className="p-2 md:p-6 pt-2">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={sirByAntibiotic}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tick={{ fontSize: 8 }} angle={-35} textAnchor="end" height={60} />
-              <YAxis tick={{ fontSize: 10 }} width={30} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
-              <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
-              <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Monthly trend + Phenotypes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Tendência Mensal de Resistência</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                <YAxis unit="%" tick={{ fontSize: 10 }} width={35} />
-                <Tooltip formatter={(v: number) => `${v}%`} />
-                <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0"><CardTitle className="text-sm md:text-base">Fenótipos de Resistência</CardTitle></CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
-            {phenotypeDist.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={phenotypeDist}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} width={25} />
-                  <Tooltip />
                   <Bar dataKey="value" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
