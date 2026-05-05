@@ -386,41 +386,19 @@ export default function IndicadoresDashboard() {
     return { years, buildSeries };
   }, [records, setorFiltro]);
 
-  const renderYearComparisonChart = (title: string, metric: string, unit: string) => {
+  const renderYearComparisonChart = (title: string, metric: string, unit: string, metaKey?: string) => {
     if (yearsCompare.years.length < 1) return null;
     const data = yearsCompare.buildSeries(metric);
+    const key = metaKey || `cmp_${metric}`;
     return (
-      <Card>
-        <CardHeader className="p-4 pb-0">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            Comparativo Anual — {title}{unit ? ` (${unit})` : ""}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-2">
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} width={40} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {yearsCompare.years.map((y, i) => (
-                <Line
-                  key={y}
-                  type="monotone"
-                  dataKey={y}
-                  name={y}
-                  stroke={COLORS[i % COLORS.length]}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  connectNulls
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <YearComparisonChart
+        title={title}
+        unit={unit}
+        years={yearsCompare.years}
+        data={data}
+        metaValue={metas[key]}
+        onMetaChange={(v) => setMeta(key, v)}
+      />
     );
   };
 
