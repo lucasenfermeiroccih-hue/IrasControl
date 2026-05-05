@@ -815,7 +815,7 @@ function TopRankCard({ title, icon: Icon, iconColor, data, barColor, emptyText, 
             <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={renderYTick} width={120} interval={0} />
+              <YAxis type="category" dataKey="name" tick={renderYTick} width={150} interval={0} />
               <Tooltip formatter={(v: number) => [v, valueLabel]} />
               {metaValue !== undefined && (
                 <ReferenceLine x={metaValue} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metaValue}`, position: "top", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
