@@ -1532,20 +1532,29 @@ export default function PatientsMonitoring() {
       </div>
 
       {/* ─── Filters ──────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
-        <DashboardFilters
-          mes={filterMes}
-          setMes={setFilterMes}
-          ano={filterAno}
-          setAno={setFilterAno}
-          setor={filterSetor}
-          setSetor={setFilterSetor}
-          sectors={allSectors.length > 0 ? allSectors : undefined}
-        />
-        <div className="space-y-1.5 w-full sm:w-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-end w-full">
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs font-medium text-muted-foreground">Mês</label>
+          <MultiSelectFilter label="Mês" selected={filterMes} onChange={setFilterMes}
+            options={["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map(m=>({value:m,label:m}))}
+            className="w-full" />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs font-medium text-muted-foreground">Ano</label>
+          <MultiSelectFilter label="Ano" selected={filterAno} onChange={setFilterAno}
+            options={[0,1,2].map(i=>{const y=String(new Date().getFullYear()-i);return{value:y,label:y};})}
+            className="w-full" />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs font-medium text-muted-foreground">Setor</label>
+          <MultiSelectFilter label="Setor" selected={filterSetor} onChange={setFilterSetor}
+            options={(allSectors.length > 0 ? allSectors : ["UTI Adulto","UTI Neonatal","UTI Pediátrica","Clínica Médica","Centro Cirúrgico","Emergência","Ambulatório"]).map(s=>({value:s,label:s}))}
+            className="w-full" />
+        </div>
+        <div className="space-y-1 min-w-0 col-span-2 sm:col-span-1">
           <label className="text-xs font-medium text-muted-foreground">Status</label>
           <Select value={filterStatus.length === 1 ? filterStatus[0] : "all"} onValueChange={v => setFilterStatus(v === "all" ? [] : [v])}>
-            <SelectTrigger className="h-9 w-full sm:w-[150px] text-sm">
+            <SelectTrigger className="h-9 w-full text-sm">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
