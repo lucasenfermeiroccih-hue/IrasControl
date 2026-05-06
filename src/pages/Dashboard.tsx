@@ -136,9 +136,10 @@ export default function Dashboard() {
   // Compliance pie
   const pieData = useMemo(() => {
     const rate = Number(complianceRate);
+    const nonConforme = Math.round((100 - rate) * 10) / 10;
     return [
       { name: "Conforme", value: rate, color: "hsl(142, 71%, 35%)" },
-      { name: "Não Conforme", value: 100 - rate, color: "hsl(0, 72%, 51%)" },
+      { name: "Não Conforme", value: nonConforme, color: "hsl(0, 72%, 51%)" },
     ];
   }, [complianceRate]);
 
