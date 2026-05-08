@@ -17,6 +17,7 @@ import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
+const auditors = ["Danubia Sant'anna", "Mariana Andrade", "Rosangela Mauricio", "Oseas Macedo", "Lucas Lemos", "Mara Rubia"];
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "";
 interface AuditItem { id: string; description: string; }
@@ -150,7 +151,7 @@ export default function AuditInfectionControlNew() {
           <div className="space-y-2"><Label>Setor *</Label><Select value={sector} onValueChange={setSector}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{sectors.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Turno *</Label><Select value={shift} onValueChange={setShift}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{shifts.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Leito</Label><Input placeholder="Ex: 12A" value={bed} onChange={e => setBed(e.target.value)} /></div>
-          <div className="space-y-2 md:col-span-2"><Label>Auditor *</Label><Input placeholder="Nome do auditor" value={auditor} onChange={e => setAuditor(e.target.value)} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Auditor *</Label><Select value={auditor} onValueChange={setAuditor}><SelectTrigger><SelectValue placeholder="Selecione o auditor" /></SelectTrigger><SelectContent>{auditors.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div>
         </CardContent>
       </Card>
 
