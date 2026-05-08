@@ -1824,7 +1824,7 @@ export default function PatientsMonitoring() {
       </AlertDialog>
 
       {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
-      <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
+      <Dialog open={newPatientOpen} onOpenChange={(v) => { setNewPatientOpen(v); if (!v) setNewForm(emptyNewForm); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Cadastrar Novo Paciente</DialogTitle></DialogHeader>
           <div className="space-y-4">
