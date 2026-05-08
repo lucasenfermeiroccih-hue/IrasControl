@@ -163,7 +163,9 @@ export default function PatientsMonitoring() {
   const [viewPatientOpen, setViewPatientOpen] = useState(false);
   const [viewPatientId, setViewPatientId] = useState<string | null>(null);
 
-  const [newForm, setNewForm] = useState({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
+  const emptyNewForm = { nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" };
+  const [newForm, setNewForm] = useState(emptyNewForm);
+  const [submittingNewPatient, setSubmittingNewPatient] = useState(false);
 
   const selected = selectedId ? patients.find(p => p.id === selectedId) || null : null;
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
@@ -317,24 +319,32 @@ export default function PatientsMonitoring() {
   const dischargedCount = filteredForKpis.filter(p => p.status === "discharged").length;
 
   const handleNewPatient = async () => {
+    if (submittingNewPatient) return;
     if (!newForm.nome.trim()) { toast.error("Nome é obrigatório"); return; }
-    await createPatient({
-      nome: newForm.nome,
-      unidade: newForm.unidade || "UTI 1 Adulto",
-      leito: newForm.leito || "—",
-      prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
-      dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
-      origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
-      dataNascimento: newForm.dataNascimento, sexo: newForm.sexo,
-      dataAdmissao: new Date().toISOString().slice(0, 10),
-      especialidade: "", diagnostico: "", status: "active",
-      infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
-      pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
-      bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
-      idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
-    });
-    setNewPatientOpen(false);
-    setNewForm({ nome: "", prontuario: "", unidade: "", leito: "", sexo: "", dataNascimento: "", infeccaoMaterna: "", irasTransplacentaria: "", pesoRN: "", diagnosticoRN: "", tipoParto: "", bolsaRotaH: "", bolsaRotaDias: "", apgar: "", idadeGestacional: "", dataInternacaoRN: "" });
+    setSubmittingNewPatient(true);
+    try {
+      const created = await createPatient({
+        nome: newForm.nome,
+        unidade: newForm.unidade || "UTI 1 Adulto",
+        leito: newForm.leito || "—",
+        prontuario: newForm.prontuario || `PRO-${Date.now().toString().slice(-6)}`,
+        dataInternacaoHospitalar: new Date().toISOString().slice(0, 10),
+        origem: "", dataInternacaoCTI: "", dataAlta: "", doencasBase: "", motivoInternacao: "",
+        dataNascimento: newForm.dataNascimento, sexo: newForm.sexo,
+        dataAdmissao: new Date().toISOString().slice(0, 10),
+        especialidade: "", diagnostico: "", status: "active",
+        infeccaoMaterna: newForm.infeccaoMaterna, irasTransplacentaria: newForm.irasTransplacentaria,
+        pesoRN: newForm.pesoRN, diagnosticoRN: newForm.diagnosticoRN, tipoParto: newForm.tipoParto,
+        bolsaRotaH: newForm.bolsaRotaH, bolsaRotaDias: newForm.bolsaRotaDias, apgar: newForm.apgar,
+        idadeGestacional: newForm.idadeGestacional, dataInternacaoRN: newForm.dataInternacaoRN,
+      });
+      if (created) {
+        setNewPatientOpen(false);
+        setNewForm(emptyNewForm);
+      }
+    } finally {
+      setSubmittingNewPatient(false);
+    }
   };
 
   const handleDischarge = async () => {
@@ -1814,7 +1824,7 @@ export default function PatientsMonitoring() {
       </AlertDialog>
 
       {/* ─── NEW PATIENT MODAL ────────────────────────────── */}
-      <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
+      <Dialog open={newPatientOpen} onOpenChange={(v) => { setNewPatientOpen(v); if (!v) setNewForm(emptyNewForm); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Cadastrar Novo Paciente</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -1906,8 +1916,8 @@ export default function PatientsMonitoring() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewPatientOpen(false)}>Cancelar</Button>
-            <Button onClick={handleNewPatient}>Cadastrar</Button>
+            <Button variant="outline" onClick={() => { setNewPatientOpen(false); setNewForm(emptyNewForm); }} disabled={submittingNewPatient}>Cancelar</Button>
+            <Button onClick={handleNewPatient} disabled={submittingNewPatient}>{submittingNewPatient ? "Cadastrando..." : "Cadastrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
