@@ -76,7 +76,13 @@ export default function AuditHandHygieneNew() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Dados da Observação</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Nome do Funcionário *</Label><Input placeholder="Nome do colaborador" value={form.employeeName} onChange={set("employeeName")} /></div>
+          <div className="space-y-2">
+            <Label>Nome do Funcionário *</Label>
+            <Select value={form.employeeName} onValueChange={setSelect("employeeName")}>
+              <SelectTrigger><SelectValue placeholder="Selecione o funcionário" /></SelectTrigger>
+              <SelectContent>{employees.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2"><Label>Data *</Label><Input type="date" value={form.auditDate} onChange={set("auditDate")} /></div>
           <div className="space-y-2">
             <Label>Unidade *</Label>
