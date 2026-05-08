@@ -11,6 +11,7 @@ import { ArrowLeft, ClipboardCheck, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 
+const employees = ["Danubia Sant'anna", "Mariana Andrade", "Rosangela Mauricio", "Oseas Macedo", "Lucas Lemos", "Mara Rubia"];
 const units = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const professionals = ["Médico(a)", "Enfermeiro(a)", "Técnico(a) de Enfermagem", "Fisioterapeuta", "Farmacêutico(a)", "Nutricionista", "Outro"];
 const fiveMoments = [
@@ -76,7 +77,13 @@ export default function AuditHandHygieneNew() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Dados da Observação</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Nome do Funcionário *</Label><Input placeholder="Nome do colaborador" value={form.employeeName} onChange={set("employeeName")} /></div>
+          <div className="space-y-2">
+            <Label>Nome do Funcionário *</Label>
+            <Select value={form.employeeName} onValueChange={setSelect("employeeName")}>
+              <SelectTrigger><SelectValue placeholder="Selecione o funcionário" /></SelectTrigger>
+              <SelectContent>{employees.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2"><Label>Data *</Label><Input type="date" value={form.auditDate} onChange={set("auditDate")} /></div>
           <div className="space-y-2">
             <Label>Unidade *</Label>
