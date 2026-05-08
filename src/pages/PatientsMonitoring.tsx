@@ -1916,8 +1916,8 @@ export default function PatientsMonitoring() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewPatientOpen(false)}>Cancelar</Button>
-            <Button onClick={handleNewPatient}>Cadastrar</Button>
+            <Button variant="outline" onClick={() => { setNewPatientOpen(false); setNewForm(emptyNewForm); }} disabled={submittingNewPatient}>Cancelar</Button>
+            <Button onClick={handleNewPatient} disabled={submittingNewPatient}>{submittingNewPatient ? "Cadastrando..." : "Cadastrar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
