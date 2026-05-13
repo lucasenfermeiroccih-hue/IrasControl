@@ -124,7 +124,8 @@ export default function IndicadoresDDD() {
       (pacienteDia["UTI 2 Adulto"] || 0) +
       (pacienteDia["UTI 3 Adulto"] || 0) +
       (pacienteDia["UTI Neonatal"] || 0) +
-      (pacienteDia["UTI Pediátrica"] || 0);
+      (pacienteDia["UTI Pediátrica"] || 0) +
+      (pacienteDia["UPO"] || 0);
   }, [pacienteDia]);
 
   const [quantidades, setQuantidades] = useState<Record<number, number>>(
