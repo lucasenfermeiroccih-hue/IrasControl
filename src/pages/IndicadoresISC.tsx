@@ -13,6 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -341,17 +344,35 @@ export default function IndicadoresISC() {
     }
     if (row.type === "select") {
       if (isTotal) return <span className="text-muted-foreground">—</span>;
+      const selected = d.sitio ? d.sitio.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      const toggle = (s: string) => {
+        const next = selected.includes(s) ? selected.filter((x) => x !== s) : [...selected, s];
+        updateField(clinica!, "sitio", next.join(", "));
+      };
+      const display = selected.length === 0
+        ? "Selecione"
+        : selected.length === 1
+          ? selected[0]
+          : `${selected.length} selecionados`;
       return (
-        <Select value={d.sitio} onValueChange={(v) => updateField(clinica!, "sitio", v)}>
-          <SelectTrigger className="h-9 w-full text-xs">
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            {sitioOptions.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 w-full justify-between text-xs font-normal">
+              <span className="truncate">{display}</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[240px] p-2 bg-popover z-50" align="start">
+            <div className="space-y-1">
+              {sitioOptions.map((s) => (
+                <label key={s} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs cursor-pointer hover:bg-accent">
+                  <Checkbox checked={selected.includes(s)} onCheckedChange={() => toggle(s)} className="h-4 w-4" />
+                  <span>{s}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       );
     }
     if (isTotal) {
