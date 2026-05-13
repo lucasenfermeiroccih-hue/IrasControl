@@ -478,6 +478,14 @@ function buildAnalyticsPdf(data: any, hospital: string): string {
 function buildDDDPdf(data: any, hospital: string): string {
   const pdf = new PdfBuilder(hospital, "Relatorio de Consumo de Antimicrobianos (DDD)");
 
+  if (data.header) {
+    pdf.addText(`Profissional: ${data.header.profissional || "-"}`);
+    pdf.addText(`Periodo: ${data.header.periodo || "-"}`);
+    pdf.addText(`Data Vigilancia: ${data.header.dataVigilancia || "-"}`);
+    pdf.addText(`Compilado UTIs (paciente-dia): ${data.header.compiladoUtis ?? "-"}`);
+    pdf.addSpacer();
+  }
+
   if (data.kpis) {
     pdf.addKPIRow([
       { label: "Total DDD", value: String(data.kpis.totalDDD || 0) },
@@ -488,13 +496,24 @@ function buildDDDPdf(data: any, hospital: string): string {
 
   if (data.lines?.length > 0) {
     pdf.addSubtitle("Detalhamento por Antimicrobiano");
+    const fmt = (n: any, d = 2) => {
+      const v = Number(n);
+      return isFinite(v) ? v.toFixed(d) : "0";
+    };
     pdf.addTable(
-      ["Antimicrobiano", "Apresentacao", "Qtde", "Total (g)", "DDD"],
-      data.lines.slice(0, 80).map((l: any) => [
-        l.nome || "", l.apresentacao || "", String(l.quantidade || 0),
-        String(l.total_g || 0), String(l.indicador || 0),
+      ["Antimicrobiano", "Apresentacao", "mg/unid", "Qtd Un.", "Total (mg)", "Total (g)", "DDD (g)", "A/B", "Indicador"],
+      data.lines.map((l: any) => [
+        l.nome || "",
+        l.apresentacao || "",
+        fmt(l.mg_por_unidade, 2),
+        String(l.quantidade ?? 0),
+        fmt(l.total_mg, 2),
+        fmt(l.total_g, 3),
+        fmt(l.ddd_padrao, 3),
+        fmt(l.valor_ab, 3),
+        fmt(l.indicador, 2),
       ]),
-      [130, 100, 50, 65, 65]
+      [110, 75, 45, 40, 55, 50, 45, 40, 55]
     );
   }
 
