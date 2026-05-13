@@ -252,7 +252,7 @@ export default function AgentChat() {
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-          Em produção, as respostas serão processadas por IA via n8n. Atualmente usando respostas simuladas.
+          Respostas geradas por IA com base nos dados reais do hospital · IRASControl
         </p>
       </div>
     </div>

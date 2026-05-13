@@ -213,82 +213,52 @@ const MOCK_RESPONSES: Record<string, (input: string) => string> = {
     `## Suporte à Decisão Rápida\n\nSituação: *"${input.slice(0, 80)}"*\n\n### Análise Rápida\n🔴 **Prioridade: ALTA**\n\n### Decisão Recomendada\n1. Iniciar isolamento de contato **imediatamente**\n2. Coletar culturas de vigilância nos contactantes\n3. Acionar CCIH para investigação epidemiológica\n4. Notificar ao SCIH em até 24h\n\n⏱️ *Tempo estimado de resposta ideal: <2h após identificação.*`,
 };
 
-// === n8n webhook mapping ===
-
-const N8N_BASE_URL = "https://irascontrol.app.n8n.cloud/webhook";
-
-const AGENT_WEBHOOK_SLUGS: Record<string, string> = {
-  "trend-analyst": "analista_de_tendências",
-  "risk-detector": "detector_de_fatores_de_risco",
-  "report-generator": "gerador_de_relatórios_automatizados",
-  "outbreak-alert": "alerta_de_surtos",
-  "intervention-suggester": "sugestor_de_intervenções",
-  "dashboard-interpreter": "interpretador_de_dashboards",
-  "form-validator": "validador_de_formulários",
-  "anvisa-report": "agente_de_relatorios_tecnicos_anvisa_e_vigilância_de_isc",
-  "micro-report": "agente_de_relatórios_microbiológicos_integrados",
-  "quick-decision": "agente_de_tomada_de_decisao_rapida",
-};
+// === Supabase Edge Function integration ===
 
 export async function sendToAgent(agentId: string, _sessionId: string, input: string): Promise<string> {
-  const slug = AGENT_WEBHOOK_SLUGS[agentId];
-
-  // Get user session for auth token
+  // Require authentication
   const { data: { session } } = await supabase.auth.getSession();
-
   if (!session?.access_token) {
     throw new Error("Usuário não autenticado. Faça login para usar os agentes de IA.");
   }
 
-  if (!slug) {
-    // No webhook mapped — use mock fallback
-    const mockFn = MOCK_RESPONSES[agentId];
-    if (mockFn) return mockFn(input);
-    return `Agente **${agentId}** sem integração configurada.`;
+  // Fetch Supabase context for richer responses
+  let contextData = null;
+  try {
+    contextData = await fetchAgentContext(agentId, input);
+  } catch (ctxError) {
+    console.warn("Falha ao buscar contexto do Supabase:", ctxError);
   }
 
   try {
-    // Fetch relevant Supabase data as context for the agent
-    let contextData = null;
-    try {
-      contextData = await fetchAgentContext(agentId, input);
-    } catch (ctxError) {
-      console.warn("Falha ao buscar contexto do Supabase:", ctxError);
-    }
-
-    const payload: Record<string, unknown> = { input };
-    if (contextData) {
-      payload.context = contextData;
-    }
-
-    const response = await fetch(`${N8N_BASE_URL}/${slug}`, {
-      method: "POST",
-      headers: {
-        "Authorization": `bearer ${session.access_token}`,
-        "Content-Type": "application/json",
+    // Call the Supabase Edge Function agent-chat
+    const { data, error } = await supabase.functions.invoke("agent-chat", {
+      body: {
+        agent_id: agentId,
+        input,
+        context: contextData ?? undefined,
       },
-      body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-      console.error(`n8n webhook error: ${response.status} ${response.statusText}`);
-      throw new Error(`Erro do agente (${response.status})`);
+    if (error) {
+      console.error("Edge function error:", error);
+      throw new Error(error.message ?? "Erro na edge function");
     }
 
-    const data = await response.text();
+    if (data?.output) return data.output as string;
+    if (data?.error) throw new Error(data.error as string);
 
-    // Try to parse as JSON first, otherwise return raw text
-    try {
-      const json = JSON.parse(data);
-      return json.output || json.message || json.response || JSON.stringify(json, null, 2);
-    } catch {
-      return data;
-    }
+    throw new Error("Resposta inesperada da edge function");
+
   } catch (error) {
-    console.error(`Falha ao chamar agente ${agentId}:`, error);
-    // Fallback to mock response
+    console.error(`Falha ao chamar agente ${agentId} via edge function:`, error);
+
+    // Fallback to mock only when edge function is unavailable
     const mockFn = MOCK_RESPONSES[agentId];
-    if (mockFn) return mockFn(input) + "\n\n---\n⚠️ *Resposta simulada — falha na conexão com o servidor.*";
+    if (mockFn) {
+      console.warn("Usando resposta simulada como fallback.");
+      return mockFn(input) + "\n\n---\n⚠️ *Resposta simulada — configure ANTHROPIC_API_KEY nas secrets do Supabase para ativar a IA real.*";
+    }
     throw error;
   }
 }
