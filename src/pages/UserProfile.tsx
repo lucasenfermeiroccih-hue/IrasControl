@@ -161,7 +161,7 @@ export default function UserProfile() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    clearAllSelectedHospitalIds(user?.id);
+    clearAllSelectedHospitalIds(authUser?.id);
     navigate("/login");
   };
 
