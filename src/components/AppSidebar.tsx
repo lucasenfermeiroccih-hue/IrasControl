@@ -223,7 +223,6 @@ export function AppSidebar() {
             size="sm"
             className="w-full justify-start text-xs bg-warning text-warning-foreground hover:bg-warning/90 border-0"
             onClick={() => {
-              localStorage.removeItem("selected_hospital_id");
               clearAllSelectedHospitalIds(user?.id);
               navigate("/select-hospital");
             }}
