@@ -196,7 +196,28 @@ export default function IndicadoresDashboard() {
     (async () => {
       const { data } = await (supabase.from("indicadores_records" as any).select("*") as any)
         .eq("hospital_id", hospitalId).order("data_vigilancia", { ascending: false });
-      setRecords(data || []);
+      const rows = data || [];
+      setRecords(rows);
+      // Auto-aplica filtro de setor com base nos setores realmente presentes nos dados
+      // do hospital atual (ex.: maternidade só tem "UTI Neonatal")
+      const setoresDisponiveis = Array.from(
+        new Set(rows.map((r: any) => r.setor).filter(Boolean))
+      ) as string[];
+      setSetorFiltro((prev) => {
+        if (prev.length > 0) {
+          const validos = prev.filter((s) => setoresDisponiveis.includes(s));
+          return validos.length > 0 ? validos : setoresDisponiveis;
+        }
+        return setoresDisponiveis;
+      });
+      // Se não houver registros no ano padrão, expande para todos os anos disponíveis
+      const anosDisp = Array.from(
+        new Set(rows.map((r: any) => String(r.ano_vigilancia)).filter(Boolean))
+      ) as string[];
+      setAnoFiltro((prev) => {
+        const validos = prev.filter((a) => anosDisp.includes(a));
+        return validos.length > 0 ? validos : anosDisp;
+      });
       setLoading(false);
     })();
   }, [hospitalId, ctxLoading]);
