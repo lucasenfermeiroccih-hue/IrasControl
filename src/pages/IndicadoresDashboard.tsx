@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Activity, Download, Filter, X, Loader2, Heart, Skull, Bug, Timer,
   Syringe, TrendingUp, ShieldAlert, Thermometer, FileDown, Maximize2,
+  Baby, BarChart2, Users,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
@@ -24,6 +25,14 @@ import { mesesOptions, setorOptions } from "@/data/indicadores-config";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
+
+const neonatalWeightCategories = [
+  { id: "pesoMenor750",      label: "< 750g",        color: "hsl(262,83%,58%)" },
+  { id: "peso750a999",       label: "750–999g",       color: "hsl(0,72%,51%)" },
+  { id: "peso1000a1499",     label: "1.000–1.499g",   color: "hsl(38,92%,50%)" },
+  { id: "peso1500a2499",     label: "1.500–2.499g",   color: "hsl(217,91%,60%)" },
+  { id: "pesoMaiorIgual2500",label: "≥ 2.500g",       color: "hsl(168,66%,34%)" },
+];
 
 const COLORS = [
   "hsl(168 66% 34%)", "hsl(217 91% 60%)", "hsl(0 72% 51%)",
@@ -123,6 +132,7 @@ export default function IndicadoresDashboard() {
     dispositivos: useRef<HTMLDivElement>(null),
     taxas: useRef<HTMLDivElement>(null),
     permanencia: useRef<HTMLDivElement>(null),
+    quantitativo: useRef<HTMLDivElement>(null),
   };
 
   // Individual chart refs
@@ -147,6 +157,7 @@ export default function IndicadoresDashboard() {
     dispositivos: "Dispositivos",
     taxas: "Taxas Específicas",
     permanencia: "Permanência / ATB",
+    quantitativo: "Quantitativo",
   };
 
   const exportTabPdf = useCallback(async () => {
@@ -362,6 +373,67 @@ export default function IndicadoresDashboard() {
     };
   }, [yearlyMonthly]);
 
+  // ====== Quantitativo mensal (números absolutos) ======
+  const quantitativoMonthly = useMemo(() => {
+    return mesesOptions.map((mes, idx) => {
+      const recs = filtered.filter((r: any) => r.mes_vigilancia === mes);
+      if (!recs.length) return null;
+      const m: any = {
+        numPacienteDiaTotal: 0, numAdmissoes: 0, numSaidas: 0, numAltas: 0,
+        numObitosTotal: 0, numObitosInfeccao: 0, numInfeccoes: 0,
+        utilizacaoCVC: 0, infeccaoCVC: 0,
+        utilizacaoVM: 0, infeccaoVM: 0,
+        utilizacaoSVD: 0, infeccaoSVD: 0,
+        numAntibioticosUtilizados: 0,
+      };
+      recs.forEach((r: any) => {
+        const v = r.inputs || {};
+        Object.keys(m).forEach(k => { m[k] += (v[k] || 0); });
+      });
+      return { mes: mesesAbrev[idx], ...m };
+    }).filter(Boolean) as any[];
+  }, [filtered]);
+
+  const quantitativoTotals = useMemo(() => {
+    const t: any = {
+      numPacienteDiaTotal: 0, numAdmissoes: 0, numSaidas: 0, numAltas: 0,
+      numObitosTotal: 0, numObitosInfeccao: 0, numInfeccoes: 0,
+      utilizacaoCVC: 0, infeccaoCVC: 0,
+      utilizacaoVM: 0, infeccaoVM: 0,
+      utilizacaoSVD: 0, infeccaoSVD: 0,
+      numAntibioticosUtilizados: 0,
+    };
+    quantitativoMonthly.forEach((m: any) => {
+      Object.keys(t).forEach(k => { t[k] += (m[k] || 0); });
+    });
+    return t;
+  }, [quantitativoMonthly]);
+
+  // ====== Dados por peso do RN (UTI Neonatal) ======
+  const neonatalWeightMonthly = useMemo(() => {
+    const neonatalRecs = filtered.filter((r: any) => r.setor === "UTI Neonatal");
+    if (!neonatalRecs.length) return null;
+    const monthly = mesesOptions.map((mes, idx) => {
+      const recs = neonatalRecs.filter((r: any) => r.mes_vigilancia === mes);
+      if (!recs.length) return null;
+      const w: any = { mes: mesesAbrev[idx] };
+      neonatalWeightCategories.forEach(cat => { w[cat.id] = 0; });
+      recs.forEach((r: any) => {
+        const pd = (r.inputs || {}).neonatalPacienteDiaPorPeso || {};
+        neonatalWeightCategories.forEach(cat => { w[cat.id] += (pd[cat.id] || 0); });
+      });
+      w.total = neonatalWeightCategories.reduce((s, cat) => s + w[cat.id], 0);
+      return w;
+    }).filter(Boolean) as any[];
+    const totals: any = { total: 0 };
+    neonatalWeightCategories.forEach(cat => { totals[cat.id] = 0; });
+    monthly.forEach((m: any) => {
+      neonatalWeightCategories.forEach(cat => { totals[cat.id] += m[cat.id]; });
+      totals.total += m.total;
+    });
+    return { monthly, totals };
+  }, [filtered]);
+
   // ====== Comparativo anual (Ano vs Ano) ======
   // Ignora filtro de ano e mês — agrega por ano+mês para todos os anos disponíveis
   const yearsCompare = useMemo(() => {
@@ -530,11 +602,20 @@ export default function IndicadoresDashboard() {
           <TabsTrigger value="dispositivos" className="flex-1 min-w-[120px] text-xs gap-1.5"><Syringe className="h-3.5 w-3.5" />Dispositivos</TabsTrigger>
           <TabsTrigger value="taxas" className="flex-1 min-w-[120px] text-xs gap-1.5"><ShieldAlert className="h-3.5 w-3.5" />Taxas Específicas</TabsTrigger>
           <TabsTrigger value="permanencia" className="flex-1 min-w-[120px] text-xs gap-1.5"><Timer className="h-3.5 w-3.5" />Permanência / ATB</TabsTrigger>
+          <TabsTrigger value="quantitativo" className="flex-1 min-w-[120px] text-xs gap-1.5"><BarChart2 className="h-3.5 w-3.5" />Quantitativo</TabsTrigger>
         </TabsList>
 
         {/* ====== TAB 1: Infecção ====== */}
         <TabsContent value="infeccao" className="space-y-4">
           <div ref={tabRefs.infeccao} className="space-y-4 bg-background p-1">
+            {/* Dados base — sempre visíveis mesmo com infecções zeradas */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Total Paciente-Dia" value={agg.numPacienteDiaTotal} unit="" icon={Activity} color="hsl(168,66%,34%)" />
+              <KpiCard label="Total Admissões" value={agg.numAdmissoes} unit="" icon={Users} color="hsl(217,91%,60%)" />
+              <KpiCard label="Total Saídas" value={agg.numSaidas} unit="" icon={TrendingUp} color="hsl(38,92%,50%)" />
+              <KpiCard label="Antibióticos Utilizados" value={agg.numAntibioticosUtilizados} unit="" icon={Syringe} color="hsl(262,83%,58%)" />
+            </div>
+            {/* KPIs de infecção */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard label="Taxa de Infecção Hospitalar" value={taxaInfeccao} unit="‰" icon={Bug} color="hsl(0,72%,51%)" />
               <KpiCard label="Nº Óbitos c/ Infecção" value={agg.numObitosInfeccao} unit="" icon={Skull} color="hsl(262,83%,58%)" />
@@ -802,6 +883,180 @@ export default function IndicadoresDashboard() {
           {renderYearComparisonChart("Taxa de Uso de Antibióticos", "taxaUsoAtb", "%")}
           </div>
         </TabsContent>
+        {/* ====== TAB 5: Quantitativo ====== */}
+        <TabsContent value="quantitativo" className="space-y-4">
+          <div ref={tabRefs.quantitativo} className="space-y-4 bg-background p-1">
+
+            {/* KPIs de resumo */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Total Paciente-Dia" value={agg.numPacienteDiaTotal} unit="" icon={Activity} color="hsl(168,66%,34%)" />
+              <KpiCard label="Total Admissões" value={agg.numAdmissoes} unit="" icon={Users} color="hsl(217,91%,60%)" />
+              <KpiCard label="Total Saídas" value={agg.numSaidas} unit="" icon={TrendingUp} color="hsl(38,92%,50%)" />
+              <KpiCard label="Antibióticos Utilizados" value={agg.numAntibioticosUtilizados} unit="" icon={Syringe} color="hsl(262,83%,58%)" />
+            </div>
+
+            {/* Tabela mensal com números absolutos */}
+            {quantitativoMonthly.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <BarChart2 className="h-4 w-4 text-primary" />
+                    Dados Quantitativos Mensais
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 pb-2">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs min-w-[900px]">
+                      <thead>
+                        <tr className="border-b bg-muted/60">
+                          <th className="text-left p-3 font-semibold">Mês</th>
+                          <th className="text-right p-3 font-semibold">Pac-Dia</th>
+                          <th className="text-right p-3 font-semibold">Admissões</th>
+                          <th className="text-right p-3 font-semibold">Saídas</th>
+                          <th className="text-right p-3 font-semibold">Altas</th>
+                          <th className="text-right p-3 font-semibold">Infecções</th>
+                          <th className="text-right p-3 font-semibold">Óbitos c/ Inf.</th>
+                          <th className="text-right p-3 font-semibold">Óbitos Total</th>
+                          <th className="text-right p-3 font-semibold">CVC-Dias</th>
+                          <th className="text-right p-3 font-semibold">Inf. CVC</th>
+                          <th className="text-right p-3 font-semibold">VM-Dias</th>
+                          <th className="text-right p-3 font-semibold">Inf. VM</th>
+                          <th className="text-right p-3 font-semibold">SVD-Dias</th>
+                          <th className="text-right p-3 font-semibold">Inf. SVD</th>
+                          <th className="text-right p-3 font-semibold">Antibióticos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quantitativoMonthly.map((m: any) => (
+                          <tr key={m.mes} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{m.mes}</td>
+                            <td className="text-right p-3">{m.numPacienteDiaTotal}</td>
+                            <td className="text-right p-3">{m.numAdmissoes}</td>
+                            <td className="text-right p-3">{m.numSaidas}</td>
+                            <td className="text-right p-3">{m.numAltas}</td>
+                            <td className="text-right p-3 font-semibold text-destructive">{m.numInfeccoes}</td>
+                            <td className="text-right p-3">{m.numObitosInfeccao}</td>
+                            <td className="text-right p-3">{m.numObitosTotal}</td>
+                            <td className="text-right p-3">{m.utilizacaoCVC}</td>
+                            <td className="text-right p-3">{m.infeccaoCVC}</td>
+                            <td className="text-right p-3">{m.utilizacaoVM}</td>
+                            <td className="text-right p-3">{m.infeccaoVM}</td>
+                            <td className="text-right p-3">{m.utilizacaoSVD}</td>
+                            <td className="text-right p-3">{m.infeccaoSVD}</td>
+                            <td className="text-right p-3">{m.numAntibioticosUtilizados}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-muted/60 font-bold text-sm border-t-2">
+                          <td className="p-3">Total</td>
+                          <td className="text-right p-3">{quantitativoTotals.numPacienteDiaTotal}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numAdmissoes}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numSaidas}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numAltas}</td>
+                          <td className="text-right p-3 text-destructive">{quantitativoTotals.numInfeccoes}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numObitosInfeccao}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numObitosTotal}</td>
+                          <td className="text-right p-3">{quantitativoTotals.utilizacaoCVC}</td>
+                          <td className="text-right p-3">{quantitativoTotals.infeccaoCVC}</td>
+                          <td className="text-right p-3">{quantitativoTotals.utilizacaoVM}</td>
+                          <td className="text-right p-3">{quantitativoTotals.infeccaoVM}</td>
+                          <td className="text-right p-3">{quantitativoTotals.utilizacaoSVD}</td>
+                          <td className="text-right p-3">{quantitativoTotals.infeccaoSVD}</td>
+                          <td className="text-right p-3">{quantitativoTotals.numAntibioticosUtilizados}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Seção UTI Neonatal — Paciente-Dia por Peso */}
+            {neonatalWeightMonthly && (
+              <Card className="border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Baby className="h-4 w-4 text-primary" />
+                    Paciente-Dia por Peso — UTI Neonatal
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Cards de total por faixa de peso */}
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {neonatalWeightCategories.map(cat => (
+                      <div key={cat.id} className="text-center p-3 rounded-lg bg-muted/50 border">
+                        <p className="text-[10px] text-muted-foreground leading-tight mb-1">{cat.label}</p>
+                        <p className="text-xl font-bold" style={{ color: cat.color }}>{neonatalWeightMonthly.totals[cat.id]}</p>
+                        <p className="text-[10px] text-muted-foreground">pac-dia</p>
+                      </div>
+                    ))}
+                    <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <p className="text-[10px] text-primary font-medium leading-tight mb-1">Total</p>
+                      <p className="text-xl font-bold text-primary">{neonatalWeightMonthly.totals.total}</p>
+                      <p className="text-[10px] text-primary/70">pac-dia</p>
+                    </div>
+                  </div>
+
+                  {/* Gráfico mensal por faixa de peso */}
+                  {neonatalWeightMonthly.monthly.length > 0 && (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={neonatalWeightMonthly.monthly}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={35} />
+                        <Tooltip />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        {neonatalWeightCategories.map((cat, idx) => (
+                          <Bar
+                            key={cat.id}
+                            dataKey={cat.id}
+                            name={cat.label}
+                            fill={cat.color}
+                            stackId="peso"
+                            radius={idx === neonatalWeightCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {/* Tabela mensal por peso */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b bg-muted/60">
+                          <th className="text-left p-2 font-semibold">Mês</th>
+                          {neonatalWeightCategories.map(cat => (
+                            <th key={cat.id} className="text-right p-2 font-semibold">{cat.label}</th>
+                          ))}
+                          <th className="text-right p-2 font-semibold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {neonatalWeightMonthly.monthly.map((m: any) => (
+                          <tr key={m.mes} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-2 font-medium">{m.mes}</td>
+                            {neonatalWeightCategories.map(cat => (
+                              <td key={cat.id} className="text-right p-2">{m[cat.id]}</td>
+                            ))}
+                            <td className="text-right p-2 font-semibold">{m.total}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-muted/60 font-bold border-t-2">
+                          <td className="p-2">Total</td>
+                          {neonatalWeightCategories.map(cat => (
+                            <td key={cat.id} className="text-right p-2">{neonatalWeightMonthly.totals[cat.id]}</td>
+                          ))}
+                          <td className="text-right p-2">{neonatalWeightMonthly.totals.total}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
       </Tabs>
 
       {/* Médias Anuais — abaixo dos gráficos */}
