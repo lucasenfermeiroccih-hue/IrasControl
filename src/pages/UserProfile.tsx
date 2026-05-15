@@ -14,6 +14,7 @@ import { User, Lock, Bell, Shield, LogOut, Camera, Loader2 } from "lucide-react"
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { clearAllSelectedHospitalIds } from "@/lib/selectedHospital";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -160,7 +161,7 @@ export default function UserProfile() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem("selected_hospital_id");
+    clearAllSelectedHospitalIds(authUser?.id);
     navigate("/login");
   };
 
