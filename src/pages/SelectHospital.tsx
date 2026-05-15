@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Shield, Building2, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { clearAllSelectedHospitalIds, setSelectedHospitalId } from "@/lib/selectedHospital";
 
 interface HospitalOption {
   hospital_id: string;
@@ -50,7 +51,7 @@ export default function SelectHospital() {
       }));
 
       if (mapped.length === 1) {
-        localStorage.setItem("selected_hospital_id", mapped[0].hospital_id);
+        setSelectedHospitalId(user.id, mapped[0].hospital_id);
         navigate("/dashboard");
         return;
       }
@@ -68,14 +69,14 @@ export default function SelectHospital() {
   }, [user, isReady, navigate]);
 
   const selectHospital = (hospitalId: string) => {
-    localStorage.setItem("selected_hospital_id", hospitalId);
+    setSelectedHospitalId(user?.id, hospitalId);
     toast.success("Hospital selecionado!");
     navigate("/dashboard");
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem("selected_hospital_id");
+    clearAllSelectedHospitalIds(user?.id);
     navigate("/login");
   };
 
