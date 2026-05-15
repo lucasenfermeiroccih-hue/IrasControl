@@ -16,36 +16,42 @@ export function useHospitalContext() {
     }
 
     const fetch = async () => {
-      // Use selected hospital from localStorage, or fall back to first
       const selectedId = localStorage.getItem("selected_hospital_id");
 
-      if (selectedId) {
-        setHospitalId(selectedId);
-        const { data: hospital } = await supabase
-          .from("hospitals")
-          .select("name")
-          .eq("id", selectedId)
-          .single();
-        if (hospital) setHospitalName(hospital.name);
-      } else {
-        const { data: membership } = await supabase
-          .from("hospital_users")
-          .select("hospital_id")
-          .eq("user_id", user.id)
-          .limit(1)
-          .maybeSingle();
+      const { data: memberships } = await supabase
+        .from("hospital_users")
+        .select("hospital_id")
+        .eq("user_id", user.id);
 
-        if (membership) {
-          setHospitalId(membership.hospital_id);
-          localStorage.setItem("selected_hospital_id", membership.hospital_id);
-          const { data: hospital } = await supabase
-            .from("hospitals")
-            .select("name")
-            .eq("id", membership.hospital_id)
-            .single();
-          if (hospital) setHospitalName(hospital.name);
-        }
+      const hospitalIds = (memberships || []).map((item: any) => item.hospital_id);
+      const resolvedHospitalId = selectedId && hospitalIds.includes(selectedId)
+        ? selectedId
+        : hospitalIds[0] ?? null;
+
+      if (!resolvedHospitalId) {
+        localStorage.removeItem("selected_hospital_id");
+        setHospitalId(null);
+        setHospitalName("");
+        setLoading(false);
+        return;
       }
+
+      if (resolvedHospitalId !== selectedId) {
+        localStorage.setItem("selected_hospital_id", resolvedHospitalId);
+      }
+
+      setHospitalId(resolvedHospitalId);
+
+      const { data: hospital } = await supabase
+        .from("hospitals")
+        .select("name")
+        .eq("id", resolvedHospitalId)
+        .single();
+
+      if (hospital) {
+        setHospitalName(hospital.name);
+      }
+
       setLoading(false);
     };
     fetch();
