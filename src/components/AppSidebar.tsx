@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { Button } from "@/components/ui/button";
+import { clearAllSelectedHospitalIds, getSelectedHospitalId } from "@/lib/selectedHospital";
 import {
   Sidebar,
   SidebarContent,
@@ -123,7 +124,7 @@ const CCIH_5W2H_URL = "https://5w2h.ekaban.irascontrol.com";
 async function openCCIH5W2H() {
   const { data } = await supabase.auth.getSession();
   if (!data.session) return;
-  const hospitalId = localStorage.getItem("selected_hospital_id") ?? "";
+  const hospitalId = getSelectedHospitalId(data.session.user.id) ?? "";
   const params = new URLSearchParams({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
@@ -155,7 +156,7 @@ export function AppSidebar() {
       setMultiHospital((memberships || []).length > 1);
 
       // Load current hospital name
-      const selectedId = localStorage.getItem("selected_hospital_id");
+      const selectedId = getSelectedHospitalId(user.id);
       if (selectedId) {
         const { data: hosp } = await supabase.from("hospitals").select("name").eq("id", selectedId).maybeSingle();
         if (hosp) setHospitalName(hosp.name);
@@ -223,6 +224,7 @@ export function AppSidebar() {
             className="w-full justify-start text-xs bg-warning text-warning-foreground hover:bg-warning/90 border-0"
             onClick={() => {
               localStorage.removeItem("selected_hospital_id");
+              clearAllSelectedHospitalIds(user?.id);
               navigate("/select-hospital");
             }}
           >
