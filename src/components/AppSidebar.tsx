@@ -208,7 +208,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={openCCIH5W2H} className="cursor-pointer hover:bg-sidebar-accent/50 w-full">
+                <SidebarMenuButton onClick={() => navigate("/kanban-ccih")} className="cursor-pointer hover:bg-sidebar-accent/50 w-full">
                   <KanbanSquare className="mr-2 h-4 w-4 shrink-0 text-sidebar-primary" />
                   {!collapsed && <span>Kanban CCIH</span>}
                 </SidebarMenuButton>

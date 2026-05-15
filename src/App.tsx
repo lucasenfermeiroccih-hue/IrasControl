@@ -50,6 +50,7 @@ import CasesInvestigationAnalytics from "./pages/CasesInvestigationAnalytics.tsx
 import AuditHandHygieneConsumptionNew from "./pages/AuditHandHygieneConsumptionNew.tsx";
 import HygieneConsumptionDashboard from "./pages/HygieneConsumptionDashboard.tsx";
 import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
+import KanbanCCIH from "./pages/KanbanCCIH.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/notificacao-investigacao-ccih" element={<NotificacaoInvestigacaoCCIH />} />
               <Route path="/audits/hand-hygiene/consumption/new" element={<AuditHandHygieneConsumptionNew />} />
               <Route path="/hygiene/consumption-dashboard" element={<HygieneConsumptionDashboard />} />
+              <Route path="/kanban-ccih" element={<KanbanCCIH />} />
             </Route>
           </Route>
 
