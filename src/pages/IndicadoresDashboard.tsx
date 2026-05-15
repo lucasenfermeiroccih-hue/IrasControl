@@ -192,14 +192,14 @@ export default function IndicadoresDashboard() {
   }, [activeTab, mesFiltro, anoFiltro, setorFiltro]);
 
   useEffect(() => {
-    if (ctxLoading || !hospitalId) { setLoading(false); return; }
+    if (ctxLoading) return;
+    if (!hospitalId) { setLoading(false); return; }
     (async () => {
-      const { data } = await (supabase.from("indicadores_records" as any).select("*") as any)
+      const { data, error } = await (supabase.from("indicadores_records" as any).select("*") as any)
         .eq("hospital_id", hospitalId).order("data_vigilancia", { ascending: false });
+      if (error) console.error("Erro ao buscar indicadores:", error);
       const rows = data || [];
       setRecords(rows);
-      // Auto-aplica filtro de setor com base nos setores realmente presentes nos dados
-      // do hospital atual (ex.: maternidade só tem "UTI Neonatal")
       const setoresDisponiveis = Array.from(
         new Set(rows.map((r: any) => r.setor).filter(Boolean))
       ) as string[];
@@ -210,7 +210,6 @@ export default function IndicadoresDashboard() {
         }
         return setoresDisponiveis;
       });
-      // Se não houver registros no ano padrão, expande para todos os anos disponíveis
       const anosDisp = Array.from(
         new Set(rows.map((r: any) => String(r.ano_vigilancia)).filter(Boolean))
       ) as string[];
@@ -224,7 +223,7 @@ export default function IndicadoresDashboard() {
 
   const anosDisponiveis = useMemo(() => {
     const s = new Set(records.map((r: any) => String(r.ano_vigilancia)));
-    return ["Todos", ...Array.from(s).sort()];
+    return Array.from(s).sort();
   }, [records]);
 
   const filtered = useMemo(() => records.filter((r: any) => {
