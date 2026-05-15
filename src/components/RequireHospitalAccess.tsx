@@ -3,6 +3,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { clearAllSelectedHospitalIds, getSelectedHospitalId, setSelectedHospitalId } from "@/lib/selectedHospital";
 
 type AccessState = "loading" | "authorized" | "select_hospital" | "unauthenticated";
 
@@ -21,7 +22,7 @@ export function RequireHospitalAccess() {
     let cancelled = false;
 
     const validateAccess = async () => {
-      const selectedHospitalId = localStorage.getItem("selected_hospital_id");
+      const selectedHospitalId = getSelectedHospitalId(user.id);
 
       const { data: memberships, error } = await supabase
         .from("hospital_users")
@@ -46,7 +47,7 @@ export function RequireHospitalAccess() {
       const hospitalIds = (memberships || []).map((membership) => membership.hospital_id);
 
       if (hospitalIds.length === 0) {
-        localStorage.removeItem("selected_hospital_id");
+        clearAllSelectedHospitalIds(user.id);
         setStatus("unauthenticated");
         return;
       }
@@ -57,12 +58,12 @@ export function RequireHospitalAccess() {
       }
 
       if (hospitalIds.length === 1) {
-        localStorage.setItem("selected_hospital_id", hospitalIds[0]);
+        setSelectedHospitalId(user.id, hospitalIds[0]);
         setStatus("authorized");
         return;
       }
 
-      localStorage.removeItem("selected_hospital_id");
+      clearAllSelectedHospitalIds(user.id);
       setStatus("select_hospital");
     };
 
