@@ -165,7 +165,29 @@ export function AppSidebar() {
     check();
   }, [user, isReady]);
 
-  const sections = [...publicSections, isAdmin ? adminSection : userOnlySection];
+  const beforeIA = publicSections.filter((s) => s.label !== "IA");
+  const iaSection = publicSections.find((s) => s.label === "IA");
+  const accountSection = isAdmin ? adminSection : userOnlySection;
+
+  const renderSection = (section: typeof publicSections[0]) => (
+    <SidebarGroup key={section.label}>
+      <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {section.items.map((item) => (
+            <SidebarMenuItem key={item.url}>
+              <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                  {!collapsed && <span>{item.title}</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -176,27 +198,10 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {sections.map((section) => (
-          <SidebarGroup key={section.label}>
-            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                      <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                        <item.icon className="mr-2 h-4 w-4 shrink-0" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        {/* Geral → Relatórios */}
+        {beforeIA.map(renderSection)}
 
-        {/* Módulo externo: CCIH 5W2H */}
+        {/* Qualidade — acima de IA */}
         <SidebarGroup>
           <SidebarGroupLabel>Qualidade</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -216,6 +221,12 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* IA */}
+        {iaSection && renderSection(iaSection)}
+
+        {/* Admin / Conta */}
+        {renderSection(accountSection)}
       </SidebarContent>
       <SidebarFooter className="p-3 space-y-2">
         {multiHospital && (
