@@ -517,6 +517,75 @@ export default function KanbanCCIH() {
             </TabsList>
           </Tabs>
 
+          {/* Checklist */}
+          <Card className="border border-violet-200 bg-violet-50/40">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListTodo className="h-4 w-4 text-violet-600" />
+                  <CardTitle className="text-sm font-semibold text-violet-700">
+                    Checklist de Tarefas
+                  </CardTitle>
+                  <span className="text-xs text-violet-500 font-normal">
+                    {filtered.filter((t) => t.status === "completed").length}/{filtered.length} concluídas
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-1 max-w-xs ml-4">
+                  <div className="w-full bg-violet-200 rounded-full h-1.5">
+                    <div
+                      className="bg-violet-600 h-1.5 rounded-full transition-all"
+                      style={{ width: filtered.length ? `${Math.round((filtered.filter((t) => t.status === "completed").length / filtered.length) * 100)}%` : "0%" }}
+                    />
+                  </div>
+                  <span className="text-xs text-violet-600 font-medium shrink-0">
+                    {filtered.length ? Math.round((filtered.filter((t) => t.status === "completed").length / filtered.length) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              {filtered.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">Nenhuma tarefa encontrada.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                  {filtered.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => t.status === "completed" ? handleReopen(t.id) : handleComplete(t.id)}
+                      className={`flex items-start gap-2 p-2 rounded-lg border text-left transition-all hover:shadow-sm
+                        ${t.status === "completed"
+                          ? "bg-emerald-50 border-emerald-200 opacity-70"
+                          : "bg-white border-gray-200 hover:border-violet-300"}`}
+                    >
+                      <div className={`mt-0.5 shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center transition-colors
+                        ${t.status === "completed"
+                          ? "bg-emerald-500 border-emerald-500"
+                          : "border-gray-300 hover:border-violet-500"}`}
+                      >
+                        {t.status === "completed" && (
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium leading-snug ${t.status === "completed" ? "line-through text-muted-foreground" : "text-gray-800"}`}>
+                          {t.title}
+                        </p>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          {t.source === "guardiao" && (
+                            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-1 rounded">Guardião</span>
+                          )}
+                          {t.assigned_to_name && isAdmin && (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{t.assigned_to_name}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Board */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Em Andamento */}
