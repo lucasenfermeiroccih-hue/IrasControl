@@ -78,6 +78,18 @@ const PRIORITY_LABELS = {
   high: "Alta",
 };
 
+function isWeekend(date = new Date()): boolean {
+  const d = date.getDay();
+  return d === 0 || d === 6; // 0=Dom, 6=Sáb
+}
+
+// Último dia útil anterior a uma data (para comparar com last_completed_at)
+function lastWeekday(from = new Date()): Date {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  do { d.setDate(d.getDate() - 1); } while (isWeekend(d));
+  return d;
+}
+
 function shouldReset(tarefa: Tarefa): boolean {
   if (!tarefa.last_completed_at) return false;
   if (tarefa.status === "in_progress") return false;
@@ -86,17 +98,21 @@ function shouldReset(tarefa: Tarefa): boolean {
   const now = new Date();
 
   if (tarefa.recurrence === "daily") {
+    // Tarefas diárias não resetam no fim de semana
+    if (isWeekend(now)) return false;
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
     return lastDay < today;
   }
   if (tarefa.recurrence === "weekly") {
+    // Reseta toda segunda-feira
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     startOfWeek.setHours(0, 0, 0, 0);
     return last < startOfWeek;
   }
   if (tarefa.recurrence === "monthly") {
+    // Reseta no primeiro dia do mês
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return last < startOfMonth;
   }
@@ -299,7 +315,16 @@ export default function KanbanCCIH() {
       source: "guardiao" as const,
     }));
 
-    setTarefas([...enrichedCcih, ...enrichedGuard]);
+    // Auto-reset Guardião tasks com recorrência vencida
+    const guardToReset = enrichedGuard.filter(shouldReset).map((t) => t.id);
+    if (guardToReset.length > 0) {
+      await (supabase.from("kanban_tasks" as any).update({ status: "in_progress" }).in("id", guardToReset) as any);
+    }
+    const finalGuard = enrichedGuard.map((t) =>
+      guardToReset.includes(t.id) ? { ...t, status: "in_progress" as const } : t
+    );
+
+    setTarefas([...enrichedCcih, ...finalGuard]);
   }, [hospitalId, userId, isAdmin, hospitalUsers]);
 
   useEffect(() => {
@@ -418,9 +443,14 @@ export default function KanbanCCIH() {
 
   const myTarefas = isAdmin ? tarefas : tarefas.filter((t) => t.assigned_to === userId);
 
-  const filtered = myTarefas.filter(
-    (t) => recurrenceFilter === "all" || (t.recurrence !== "none" && t.recurrence === recurrenceFilter)
-  );
+  const todayIsWeekend = isWeekend();
+
+  const filtered = myTarefas.filter((t) => {
+    // Tarefas diárias não aparecem no fim de semana (sábado/domingo)
+    if (t.recurrence === "daily" && todayIsWeekend) return false;
+    // Aplica filtro de recorrência selecionado
+    return recurrenceFilter === "all" || (t.recurrence !== "none" && t.recurrence === recurrenceFilter);
+  });
 
   const inProgress = filtered.filter((t) => t.status === "in_progress");
   const completed = filtered.filter((t) => t.status === "completed");
