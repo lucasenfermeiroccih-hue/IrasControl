@@ -226,11 +226,13 @@ export default function KanbanCCIH() {
       .eq("hospital_id", hospitalId) as any);
     if (data) {
       setHospitalUsers(
-        data.map((u: any) => ({
-          user_id: u.user_id,
-          full_name: u.profiles?.full_name || "Sem nome",
-          email: u.profiles?.email || "",
-        }))
+        data
+          .filter((u: any) => !!u.user_id)
+          .map((u: any) => ({
+            user_id: u.user_id,
+            full_name: u.profiles?.full_name || "Sem nome",
+            email: u.profiles?.email || "",
+          }))
       );
     }
   }, [hospitalId]);
@@ -651,7 +653,7 @@ export default function KanbanCCIH() {
                   <SelectValue placeholder="Selecione um usuário..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {hospitalUsers.map((u) => (
+                  {hospitalUsers.filter((u) => !!u.user_id).map((u) => (
                     <SelectItem key={u.user_id} value={u.user_id}>
                       {u.full_name} — {u.email}
                     </SelectItem>
