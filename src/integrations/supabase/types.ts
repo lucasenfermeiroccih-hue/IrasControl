@@ -152,6 +152,7 @@ export type Database = {
       actions: {
         Row: {
           created_at: string
+          hospital_id: string | null
           how: string
           how_much: string | null
           id: string
@@ -167,6 +168,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hospital_id?: string | null
           how: string
           how_much?: string | null
           id?: string
@@ -182,6 +184,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hospital_id?: string | null
           how?: string
           how_much?: string | null
           id?: string
@@ -195,7 +198,22 @@ export type Database = {
           who?: string
           why?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "actions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_chat_messages: {
         Row: {
@@ -1026,6 +1044,13 @@ export type Database = {
             referencedRelation: "hospitals_summary"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hospital_users_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       hospitals: {
@@ -1617,32 +1642,101 @@ export type Database = {
           },
         ]
       }
+      kanban_ccih_tarefas: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string
+          assigned_to_ids: string[]
+          created_at: string
+          description: string | null
+          hospital_id: string
+          id: string
+          last_completed_at: string | null
+          priority: string
+          recurrence: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to: string
+          assigned_to_ids?: string[]
+          created_at?: string
+          description?: string | null
+          hospital_id: string
+          id?: string
+          last_completed_at?: string | null
+          priority?: string
+          recurrence?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string
+          assigned_to_ids?: string[]
+          created_at?: string
+          description?: string | null
+          hospital_id?: string
+          id?: string
+          last_completed_at?: string | null
+          priority?: string
+          recurrence?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_ccih_tarefas_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_ccih_tarefas_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_columns: {
         Row: {
-          board_id: string
+          board_id: string | null
           color: string | null
           created_at: string | null
+          hospital_id: string | null
           id: string
           position: number
           title: string
+          user_id: string | null
           wip_limit: number | null
         }
         Insert: {
-          board_id: string
+          board_id?: string | null
           color?: string | null
           created_at?: string | null
+          hospital_id?: string | null
           id?: string
           position?: number
           title: string
+          user_id?: string | null
           wip_limit?: number | null
         }
         Update: {
-          board_id?: string
+          board_id?: string | null
           color?: string | null
           created_at?: string | null
+          hospital_id?: string | null
           id?: string
           position?: number
           title?: string
+          user_id?: string | null
           wip_limit?: number | null
         }
         Relationships: [
@@ -1651,6 +1745,136 @@ export type Database = {
             columns: ["board_id"]
             isOneToOne: false
             referencedRelation: "kanban_boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_columns_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_columns_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_task_assignees: {
+        Row: {
+          created_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_task_assignees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      kanban_tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string | null
+          column_id: string
+          created_at: string
+          description: string | null
+          hospital_id: string | null
+          id: string
+          last_completed_at: string | null
+          position: number
+          priority: string
+          recurrence: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          column_id: string
+          created_at?: string
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          last_completed_at?: string | null
+          position?: number
+          priority?: string
+          recurrence?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          column_id?: string
+          created_at?: string
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          last_completed_at?: string | null
+          position?: number
+          priority?: string
+          recurrence?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "kanban_tasks_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_tasks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_tasks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
             referencedColumns: ["id"]
           },
         ]
@@ -2084,6 +2308,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_primary_admin_hospital_ids: { Args: never; Returns: string[] }
       get_user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       has_any_super_admin: { Args: never; Returns: boolean }
       has_role: {

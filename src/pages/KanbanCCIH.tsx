@@ -16,6 +16,7 @@ import {
   KanbanSquare, Plus, CheckCircle2, Clock, RotateCcw, Trash2,
   Pencil, Loader2, Calendar, CalendarDays, CalendarRange,
   ListTodo, Users, ChevronRight, AlertCircle, User,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -242,6 +243,23 @@ export default function KanbanCCIH() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Manage tab filters & sort
+  const [manageMes, setManageMes] = useState<string>("all");
+  const [manageAno, setManageAno] = useState<string>("all");
+  const [manageUser, setManageUser] = useState<string>("all");
+  const [manageStatus, setManageStatus] = useState<string>("all");
+  type SortKey = "source" | "recurrence" | "priority" | "status";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) { setSortKey(k); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortKey(null); setSortDir("asc"); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) =>
+    sortKey !== k ? <ArrowUpDown className="h-3 w-3 opacity-50" />
+      : sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+
   const emptyForm = {
     title: "",
     description: "",
@@ -462,6 +480,35 @@ export default function KanbanCCIH() {
     setForm(emptyForm);
     setShowDialog(true);
   };
+
+  // Manage tab: filter + sort
+  const manageAnos = Array.from(new Set(tarefas.map((t) => new Date(t.created_at).getFullYear()))).sort((a, b) => b - a);
+  const manageTarefas = (() => {
+    let list = tarefas.filter((t) => {
+      const d = new Date(t.created_at);
+      if (manageMes !== "all" && d.getMonth() + 1 !== Number(manageMes)) return false;
+      if (manageAno !== "all" && d.getFullYear() !== Number(manageAno)) return false;
+      if (manageUser !== "all" && !(t.assigned_to_ids?.includes(manageUser) || t.assigned_to === manageUser)) return false;
+      if (manageStatus !== "all" && t.status !== manageStatus) return false;
+      return true;
+    });
+    if (sortKey) {
+      const order: Record<SortKey, (t: Tarefa) => string | number> = {
+        source: (t) => t.source ?? "",
+        recurrence: (t) => ["daily", "weekly", "monthly", "once", "none"].indexOf(t.recurrence),
+        priority: (t) => ["low", "normal", "high"].indexOf(t.priority),
+        status: (t) => t.status,
+      };
+      const fn = order[sortKey];
+      list = [...list].sort((a, b) => {
+        const va = fn(a); const vb = fn(b);
+        if (va < vb) return sortDir === "asc" ? -1 : 1;
+        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+  })();
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -703,13 +750,66 @@ export default function KanbanCCIH() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {tarefas.length} tarefa(s) atribuídas no hospital
+              {manageTarefas.length} de {tarefas.length} tarefa(s)
             </p>
             <Button size="sm" onClick={openNew} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Nova Tarefa
             </Button>
           </div>
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Mês</Label>
+                <Select value={manageMes} onValueChange={setManageMes}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ano</Label>
+                <Select value={manageAno} onValueChange={setManageAno}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {manageAnos.map((a) => (
+                      <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funcionário</Label>
+                <Select value={manageUser} onValueChange={setManageUser}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {hospitalUsers.map((u) => (
+                      <SelectItem key={u.user_id} value={u.user_id}>{u.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Status</Label>
+                <Select value={manageStatus} onValueChange={setManageStatus}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="in_progress">Em Andamento</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-0">
@@ -718,22 +818,38 @@ export default function KanbanCCIH() {
                   <TableRow>
                     <TableHead>Tarefa</TableHead>
                     <TableHead>Usuário</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Recorrência</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("source")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Origem <SortIcon k="source" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("recurrence")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Recorrência <SortIcon k="recurrence" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("priority")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Prioridade <SortIcon k="priority" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("status")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Status <SortIcon k="status" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-20">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tarefas.length === 0 && (
+                  {manageTarefas.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                        Nenhuma tarefa cadastrada. Clique em "Nova Tarefa" para começar.
+                        Nenhuma tarefa encontrada com os filtros aplicados.
                       </TableCell>
                     </TableRow>
                   )}
-                  {tarefas.map((t) => (
+                  {manageTarefas.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>
                         <p className="font-medium text-sm">{t.title}</p>
