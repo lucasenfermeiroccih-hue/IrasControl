@@ -243,6 +243,23 @@ export default function KanbanCCIH() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Manage tab filters & sort
+  const [manageMes, setManageMes] = useState<string>("all");
+  const [manageAno, setManageAno] = useState<string>("all");
+  const [manageUser, setManageUser] = useState<string>("all");
+  const [manageStatus, setManageStatus] = useState<string>("all");
+  type SortKey = "source" | "recurrence" | "priority" | "status";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) { setSortKey(k); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortKey(null); setSortDir("asc"); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) =>
+    sortKey !== k ? <ArrowUpDown className="h-3 w-3 opacity-50" />
+      : sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+
   const emptyForm = {
     title: "",
     description: "",
