@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -27,13 +28,14 @@ interface Tarefa {
   title: string;
   description: string | null;
   assigned_to: string;
+  assigned_to_ids: string[];
   assigned_by: string | null;
   recurrence: "daily" | "weekly" | "monthly" | "none";
   status: "in_progress" | "completed";
   priority: "low" | "normal" | "high";
   last_completed_at: string | null;
   created_at: string;
-  assigned_to_name?: string;
+  assigned_to_names?: string[];
   source?: "ccih" | "guardiao";
 }
 
@@ -181,10 +183,10 @@ function TarefaCard({
         <p className="text-xs text-muted-foreground leading-snug">{tarefa.description}</p>
       )}
 
-      {isAdmin && tarefa.assigned_to_name && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <User className="h-3 w-3" />
-          <span>{tarefa.assigned_to_name}</span>
+      {isAdmin && tarefa.assigned_to_names && tarefa.assigned_to_names.length > 0 && (
+        <div className="flex items-start gap-1 text-xs text-muted-foreground flex-wrap">
+          <User className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>{tarefa.assigned_to_names.join(", ")}</span>
         </div>
       )}
 
@@ -239,7 +241,7 @@ export default function KanbanCCIH() {
   const emptyForm = {
     title: "",
     description: "",
-    assigned_to: "",
+    assigned_to_ids: [] as string[],
     recurrence: "daily" as "daily" | "weekly" | "monthly",
     priority: "normal" as "low" | "normal" | "high",
   };
@@ -274,7 +276,7 @@ export default function KanbanCCIH() {
     // ── Tarefas CCIH (tabela local) ─────────────────────────────────────────
     let ccihQuery = (supabase.from("kanban_ccih_tarefas" as any).select("*") as any)
       .eq("hospital_id", hospitalId);
-    if (!isAdmin) ccihQuery = ccihQuery.eq("assigned_to", userId);
+    if (!isAdmin) ccihQuery = ccihQuery.contains("assigned_to_ids", [userId]);
     const { data: ccihData, error } = await ccihQuery.order("created_at", { ascending: true });
     if (error) { toast.error("Erro ao carregar tarefas"); return; }
 
@@ -283,37 +285,49 @@ export default function KanbanCCIH() {
     if (toReset.length > 0) {
       await (supabase.from("kanban_ccih_tarefas" as any).update({ status: "in_progress" }).in("id", toReset) as any);
     }
-    const enrichedCcih: Tarefa[] = (ccihData as Tarefa[]).map((t) => ({
-      ...t,
-      status: toReset.includes(t.id) ? "in_progress" : t.status,
-      assigned_to_name: hospitalUsers.find((u) => u.user_id === t.assigned_to)?.full_name || "",
-      source: "ccih" as const,
-    }));
+    const enrichedCcih: Tarefa[] = (ccihData as any[]).map((t) => {
+      const ids: string[] = Array.isArray(t.assigned_to_ids) && t.assigned_to_ids.length > 0
+        ? t.assigned_to_ids
+        : t.assigned_to ? [t.assigned_to] : [];
+      return {
+        ...t,
+        assigned_to_ids: ids,
+        status: toReset.includes(t.id) ? "in_progress" : t.status,
+        assigned_to_names: ids
+          .map((id) => hospitalUsers.find((u) => u.user_id === id)?.full_name)
+          .filter(Boolean) as string[],
+        source: "ccih" as const,
+      };
+    });
 
     // ── Tarefas Guardião Hospitalar (kanban_tasks) ──────────────────────────
     let guardQuery = (supabase
       .from("kanban_tasks" as any)
       .select("*, profiles(full_name)") as any)
       .eq("hospital_id", hospitalId);
-    if (!isAdmin) guardQuery = guardQuery.eq("assigned_to", userId);
+    if (!isAdmin) guardQuery = guardQuery.eq("assigned_to", userId); // guardião usa assigned_to simples
     const { data: guardData } = await guardQuery.order("created_at", { ascending: true });
 
-    const enrichedGuard: Tarefa[] = ((guardData || []) as any[]).map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description ?? null,
-      assigned_to: t.assigned_to ?? "",
-      assigned_by: t.assigned_by ?? null,
-      recurrence: (t.recurrence ?? "none") as Tarefa["recurrence"],
-      status: t.status ?? "in_progress",
-      priority: (t.priority ?? "normal") as Tarefa["priority"],
-      last_completed_at: t.last_completed_at ?? null,
-      created_at: t.created_at,
-      assigned_to_name: (t as any).profiles?.full_name
+    const enrichedGuard: Tarefa[] = ((guardData || []) as any[]).map((t) => {
+      const guardName = (t as any).profiles?.full_name
         || hospitalUsers.find((u) => u.user_id === t.assigned_to)?.full_name
-        || "",
-      source: "guardiao" as const,
-    }));
+        || "";
+      return {
+        id: t.id,
+        title: t.title,
+        description: t.description ?? null,
+        assigned_to: t.assigned_to ?? "",
+        assigned_to_ids: t.assigned_to ? [t.assigned_to] : [],
+        assigned_by: t.assigned_by ?? null,
+        recurrence: (t.recurrence ?? "none") as Tarefa["recurrence"],
+        status: t.status ?? "in_progress",
+        priority: (t.priority ?? "normal") as Tarefa["priority"],
+        last_completed_at: t.last_completed_at ?? null,
+        created_at: t.created_at,
+        assigned_to_names: guardName ? [guardName] : [],
+        source: "guardiao" as const,
+      };
+    });
 
     // Auto-reset Guardião tasks com recorrência vencida
     const guardToReset = enrichedGuard.filter(shouldReset).map((t) => t.id);
@@ -374,16 +388,18 @@ export default function KanbanCCIH() {
 
   const handleSave = async () => {
     if (!form.title.trim()) { toast.error("Informe o título da tarefa."); return; }
-    if (!form.assigned_to) { toast.error("Selecione um usuário."); return; }
+    if (form.assigned_to_ids.length === 0) { toast.error("Selecione ao menos um usuário."); return; }
 
     setSaving(true);
+    const firstAssignee = form.assigned_to_ids[0];
     if (editingTarefa) {
       const { error } = await (supabase
         .from("kanban_ccih_tarefas" as any)
         .update({
           title: form.title.trim(),
           description: form.description.trim() || null,
-          assigned_to: form.assigned_to,
+          assigned_to: firstAssignee,
+          assigned_to_ids: form.assigned_to_ids,
           recurrence: form.recurrence,
           priority: form.priority,
         })
@@ -395,14 +411,15 @@ export default function KanbanCCIH() {
         hospital_id: hospitalId,
         title: form.title.trim(),
         description: form.description.trim() || null,
-        assigned_to: form.assigned_to,
+        assigned_to: firstAssignee,
+        assigned_to_ids: form.assigned_to_ids,
         assigned_by: userId,
         recurrence: form.recurrence,
         priority: form.priority,
         status: "in_progress",
       }) as any);
       if (error) { toast.error("Erro ao criar tarefa."); setSaving(false); return; }
-      toast.success("Tarefa criada e enviada para o usuário!");
+      toast.success("Tarefa criada e enviada para o(s) usuário(s)!");
     }
 
     setSaving(false);
@@ -423,10 +440,13 @@ export default function KanbanCCIH() {
   const openEdit = (tarefa: Tarefa) => {
     if (tarefa.source === "guardiao") return;
     setEditingTarefa(tarefa);
+    const ids = tarefa.assigned_to_ids?.length > 0
+      ? tarefa.assigned_to_ids
+      : tarefa.assigned_to ? [tarefa.assigned_to] : [];
     setForm({
       title: tarefa.title,
       description: tarefa.description || "",
-      assigned_to: tarefa.assigned_to,
+      assigned_to_ids: ids,
       recurrence: (tarefa.recurrence === "none" ? "daily" : tarefa.recurrence) as "daily" | "weekly" | "monthly",
       priority: tarefa.priority,
     });
@@ -441,7 +461,11 @@ export default function KanbanCCIH() {
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
-  const myTarefas = isAdmin ? tarefas : tarefas.filter((t) => t.assigned_to === userId);
+  const myTarefas = isAdmin
+    ? tarefas
+    : tarefas.filter((t) =>
+        t.assigned_to_ids?.includes(userId!) || t.assigned_to === userId
+      );
 
   const todayIsWeekend = isWeekend();
 
@@ -604,8 +628,8 @@ export default function KanbanCCIH() {
                           {t.source === "guardiao" && (
                             <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-1 rounded">Guardião</span>
                           )}
-                          {t.assigned_to_name && isAdmin && (
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{t.assigned_to_name}</span>
+                          {isAdmin && t.assigned_to_names && t.assigned_to_names.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{t.assigned_to_names.join(", ")}</span>
                           )}
                         </div>
                       </div>
@@ -710,8 +734,12 @@ export default function KanbanCCIH() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm">{t.assigned_to_name || "—"}</span>
+                          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-sm">
+                            {t.assigned_to_names && t.assigned_to_names.length > 0
+                              ? t.assigned_to_names.join(", ")
+                              : "—"}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -795,18 +823,11 @@ export default function KanbanCCIH() {
             </div>
             <div className="space-y-1.5">
               <Label>Atribuir para *</Label>
-              <Select value={form.assigned_to || undefined} onValueChange={(v) => setForm((f) => ({ ...f, assigned_to: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um usuário..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {hospitalUsers.filter((u) => !!u.user_id).map((u) => (
-                    <SelectItem key={u.user_id} value={u.user_id}>
-                      {u.full_name} — {u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiUserSelect
+                users={hospitalUsers}
+                selected={form.assigned_to_ids}
+                onChange={(ids) => setForm((f) => ({ ...f, assigned_to_ids: ids }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -881,6 +902,48 @@ export default function KanbanCCIH() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function MultiUserSelect({
+  users,
+  selected,
+  onChange,
+}: {
+  users: HospitalUser[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const toggle = (userId: string) => {
+    onChange(
+      selected.includes(userId)
+        ? selected.filter((id) => id !== userId)
+        : [...selected, userId],
+    );
+  };
+
+  if (users.length === 0) {
+    return <p className="text-sm text-muted-foreground px-1 py-2">Nenhum usuário disponível</p>;
+  }
+
+  return (
+    <div className="rounded-md border bg-background divide-y max-h-44 overflow-y-auto">
+      {users.filter((u) => !!u.user_id).map((u) => (
+        <label
+          key={u.user_id}
+          className="flex items-center gap-3 px-3 py-2 hover:bg-accent cursor-pointer transition-colors select-none"
+        >
+          <Checkbox
+            checked={selected.includes(u.user_id)}
+            onCheckedChange={() => toggle(u.user_id)}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{u.full_name}</p>
+            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+}
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
