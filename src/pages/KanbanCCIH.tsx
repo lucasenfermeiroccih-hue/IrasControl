@@ -750,13 +750,66 @@ export default function KanbanCCIH() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {tarefas.length} tarefa(s) atribuídas no hospital
+              {manageTarefas.length} de {tarefas.length} tarefa(s)
             </p>
             <Button size="sm" onClick={openNew} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Nova Tarefa
             </Button>
           </div>
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Mês</Label>
+                <Select value={manageMes} onValueChange={setManageMes}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ano</Label>
+                <Select value={manageAno} onValueChange={setManageAno}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {manageAnos.map((a) => (
+                      <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Funcionário</Label>
+                <Select value={manageUser} onValueChange={setManageUser}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {hospitalUsers.map((u) => (
+                      <SelectItem key={u.user_id} value={u.user_id}>{u.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Status</Label>
+                <Select value={manageStatus} onValueChange={setManageStatus}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="in_progress">Em Andamento</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-0">
@@ -765,22 +818,38 @@ export default function KanbanCCIH() {
                   <TableRow>
                     <TableHead>Tarefa</TableHead>
                     <TableHead>Usuário</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Recorrência</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("source")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Origem <SortIcon k="source" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("recurrence")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Recorrência <SortIcon k="recurrence" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("priority")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Prioridade <SortIcon k="priority" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button onClick={() => toggleSort("status")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Status <SortIcon k="status" />
+                      </button>
+                    </TableHead>
                     <TableHead className="w-20">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tarefas.length === 0 && (
+                  {manageTarefas.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                        Nenhuma tarefa cadastrada. Clique em "Nova Tarefa" para começar.
+                        Nenhuma tarefa encontrada com os filtros aplicados.
                       </TableCell>
                     </TableRow>
                   )}
-                  {tarefas.map((t) => (
+                  {manageTarefas.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>
                         <p className="font-medium text-sm">{t.title}</p>
