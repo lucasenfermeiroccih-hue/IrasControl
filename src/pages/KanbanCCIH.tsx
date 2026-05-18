@@ -481,6 +481,35 @@ export default function KanbanCCIH() {
     setShowDialog(true);
   };
 
+  // Manage tab: filter + sort
+  const manageAnos = Array.from(new Set(tarefas.map((t) => new Date(t.created_at).getFullYear()))).sort((a, b) => b - a);
+  const manageTarefas = (() => {
+    let list = tarefas.filter((t) => {
+      const d = new Date(t.created_at);
+      if (manageMes !== "all" && d.getMonth() + 1 !== Number(manageMes)) return false;
+      if (manageAno !== "all" && d.getFullYear() !== Number(manageAno)) return false;
+      if (manageUser !== "all" && !(t.assigned_to_ids?.includes(manageUser) || t.assigned_to === manageUser)) return false;
+      if (manageStatus !== "all" && t.status !== manageStatus) return false;
+      return true;
+    });
+    if (sortKey) {
+      const order: Record<SortKey, (t: Tarefa) => string | number> = {
+        source: (t) => t.source ?? "",
+        recurrence: (t) => ["daily", "weekly", "monthly", "once", "none"].indexOf(t.recurrence),
+        priority: (t) => ["low", "normal", "high"].indexOf(t.priority),
+        status: (t) => t.status,
+      };
+      const fn = order[sortKey];
+      list = [...list].sort((a, b) => {
+        const va = fn(a); const vb = fn(b);
+        if (va < vb) return sortDir === "asc" ? -1 : 1;
+        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+  })();
+
   // ── Derived data ──────────────────────────────────────────────────────────
 
   const myTarefas = isAdmin
