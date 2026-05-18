@@ -196,12 +196,46 @@ export function usePatientMonitoring() {
     const newStatus = statusMap[dischargeType] || "discharged";
     const today = new Date().toISOString().slice(0, 10);
 
+    // Fetch current clinical_data to auto-close open antibiotics and devices
+    const { data: patRow } = await supabase
+      .from("patients")
+      .select("clinical_data")
+      .eq("id", id)
+      .single();
+
+    const cd: any = (patRow?.clinical_data as any) || {};
+
+    // Close antibiotics without dataFim
+    const antibioticos: Array<{ id: string; nome: string; dataInicio: string; dataFim: string }> =
+      cd.antibioticos || [];
+    const closedAntibioticos = antibioticos.map((atb) =>
+      atb.dataFim ? atb : { ...atb, dataFim: today }
+    );
+
+    // Close devices without retirada (including open trocas)
+    const deviceKeys = ["cvc", "cvp", "svu", "vm", "tqt", "hemo", "picc", "cuv", "cva"];
+    const dispInvasivos = { ...(cd.dispInvasivos || {}) };
+    for (const k of deviceKeys) {
+      if (dispInvasivos[`${k}Insercao`] && !dispInvasivos[`${k}Retirada`]) {
+        dispInvasivos[`${k}Retirada`] = today;
+      }
+      if (Array.isArray(dispInvasivos[`${k}Trocas`])) {
+        dispInvasivos[`${k}Trocas`] = dispInvasivos[`${k}Trocas`].map(
+          (t: { insercao: string; retirada: string }) =>
+            t.insercao && !t.retirada ? { ...t, retirada: today } : t
+        );
+      }
+    }
+
+    const updatedCd = { ...cd, antibioticos: closedAntibioticos, dispInvasivos };
+
     const { error } = await supabase
       .from("patients")
       .update({
         status: newStatus as any,
         discharge_date: today,
         discharge_type: dischargeType,
+        clinical_data: updatedCd,
       })
       .eq("id", id);
 
@@ -209,8 +243,27 @@ export function usePatientMonitoring() {
       toast.error("Erro ao dar alta: " + error.message);
       return false;
     }
-    setPatients(prev =>
-      prev.map(p => p.id === id ? { ...p, status: newStatus as any, dataAlta: today, tipoAlta: dischargeType } : p)
+
+    // Also close records in separate tables (best-effort)
+    await Promise.allSettled([
+      (supabase as any)
+        .from("antimicrobial_prescriptions")
+        .update({ end_date: today, is_active: false })
+        .eq("patient_id", id)
+        .is("end_date", null),
+      (supabase as any)
+        .from("patient_devices")
+        .update({ removal_date: today })
+        .eq("patient_id", id)
+        .is("removal_date", null),
+    ]);
+
+    setPatients((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: newStatus as any, dataAlta: today, tipoAlta: dischargeType, _clinicalData: updatedCd } as any
+          : p
+      )
     );
     return true;
   };
