@@ -484,9 +484,9 @@ export default function DashboardAntibiogram() {
           </CardHeader>
           <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.organismos}>
             <div className="flex flex-col items-center gap-3">
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2}>
+                  <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={120} paddingAngle={2}>
                     {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
                   <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
