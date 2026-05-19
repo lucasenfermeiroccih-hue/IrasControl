@@ -455,16 +455,20 @@ export default function DashboardAntibiogram() {
             <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
           </CardHeader>
           <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={sectorData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis type="number" tick={{ fontSize: 10 }} />
-                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9 }} />
-                <Tooltip />
-                {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                <Bar dataKey="value" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {sectorData.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10 text-sm">Sem dados de setor</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(220, sectorData.length * 32 + 40)}>
+                <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} interval={0} />
+                  <Tooltip formatter={(v: number) => [`${v} exames`, "Exames"]} />
+                  {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                  <Bar dataKey="value" name="Exames" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} barSize={18} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -527,12 +531,12 @@ export default function DashboardAntibiogram() {
             <ChartActions chartRef={chartRefs.tendenciaMensal} chartTitle="Tendência Mensal de Resistência" metaValue={metas.tendenciaMensal} onMetaChange={(v) => setMeta("tendenciaMensal", v)} metaUnit="%" />
           </CardHeader>
           <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.tendenciaMensal}>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={monthlyTrend}>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={monthlyTrend} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                <YAxis unit="%" tick={{ fontSize: 10 }} width={35} />
-                <Tooltip formatter={(v: number) => `${v}%`} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis unit="%" tick={{ fontSize: 10 }} width={42} domain={[0, 100]} />
+                <Tooltip formatter={(v: number) => [`${v}%`, "Resistência"]} />
                 {metas.tendenciaMensal !== undefined && <ReferenceLine y={metas.tendenciaMensal} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.tendenciaMensal}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
                 <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -548,14 +552,14 @@ export default function DashboardAntibiogram() {
             {phenotypeDist.length === 0 ? (
               <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={phenotypeDist}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} width={25} />
-                  <Tooltip />
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={phenotypeDist} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                  <YAxis tick={{ fontSize: 10 }} width={32} allowDecimals={false} />
+                  <Tooltip formatter={(v: number) => [`${v} casos`, "Casos"]} />
                   {metas.fenotipos !== undefined && <ReferenceLine y={metas.fenotipos} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.fenotipos}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                  <Bar dataKey="value" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" name="Casos" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} barSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             )}

@@ -1654,6 +1654,7 @@ export type Database = {
           last_completed_at: string | null
           priority: string
           recurrence: string
+          source: string
           status: string
           title: string
           updated_at: string
@@ -1669,6 +1670,7 @@ export type Database = {
           last_completed_at?: string | null
           priority?: string
           recurrence?: string
+          source?: string
           status?: string
           title: string
           updated_at?: string
@@ -1684,6 +1686,7 @@ export type Database = {
           last_completed_at?: string | null
           priority?: string
           recurrence?: string
+          source?: string
           status?: string
           title?: string
           updated_at?: string
