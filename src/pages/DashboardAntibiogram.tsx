@@ -458,14 +458,20 @@ export default function DashboardAntibiogram() {
             {sectorData.length === 0 ? (
               <p className="text-center text-muted-foreground py-10 text-sm">Sem dados de setor</p>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(220, sectorData.length * 32 + 40)}>
-                <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
+              <ResponsiveContainer width="100%" height={Math.max(240, sectorData.length * 36 + 40)}>
+                <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} interval={0} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={Math.min(220, Math.max(110, sectorData.reduce((m, s) => Math.max(m, String(s.name).length), 0) * 7))}
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                  />
                   <Tooltip formatter={(v: number) => [`${v} exames`, "Exames"]} />
                   {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                  <Bar dataKey="value" name="Exames" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} barSize={18} />
+                  <Bar dataKey="value" name="Exames" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             )}
