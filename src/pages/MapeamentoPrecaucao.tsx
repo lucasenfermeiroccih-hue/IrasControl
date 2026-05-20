@@ -627,8 +627,8 @@ export default function MapeamentoPrecaucao() {
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <button type="submit" style={{ padding:"7px 20px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>Cadastrar</button>
-                  <button type="button" onClick={() => setShowForm(false)} style={{ padding:"7px 14px", background:"transparent", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>Cancelar</button>
+                  <button type="submit" style={{ padding:"7px 20px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>{editingId ? "Salvar alterações" : "Cadastrar"}</button>
+                  <button type="button" onClick={resetForm} style={{ padding:"7px 14px", background:"transparent", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>Cancelar</button>
                 </div>
               </form>
             </div>
