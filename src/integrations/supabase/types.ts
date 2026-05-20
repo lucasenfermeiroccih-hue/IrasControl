@@ -1007,6 +1007,41 @@ export type Database = {
           },
         ]
       }
+      hospital_tool_installations: {
+        Row: {
+          hospital_id: string
+          id: string
+          installed_at: string | null
+          installed_by: string | null
+          is_active: boolean | null
+          tool_id: string
+        }
+        Insert: {
+          hospital_id: string
+          id?: string
+          installed_at?: string | null
+          installed_by?: string | null
+          is_active?: boolean | null
+          tool_id: string
+        }
+        Update: {
+          hospital_id?: string
+          id?: string
+          installed_at?: string | null
+          installed_by?: string | null
+          is_active?: boolean | null
+          tool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_tool_installations_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_users: {
         Row: {
           created_at: string
@@ -1970,6 +2005,57 @@ export type Database = {
           },
         ]
       }
+      marketplace_tools: {
+        Row: {
+          author: string | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          downloads: number | null
+          features: Json | null
+          icon_name: string | null
+          id: string
+          is_free: boolean | null
+          name: string
+          price: string | null
+          rating: number | null
+          route: string
+          version: string | null
+        }
+        Insert: {
+          author?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          downloads?: number | null
+          features?: Json | null
+          icon_name?: string | null
+          id: string
+          is_free?: boolean | null
+          name: string
+          price?: string | null
+          rating?: number | null
+          route: string
+          version?: string | null
+        }
+        Update: {
+          author?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          downloads?: number | null
+          features?: Json | null
+          icon_name?: string | null
+          id?: string
+          is_free?: boolean | null
+          name?: string
+          price?: string | null
+          rating?: number | null
+          route?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       microorganisms: {
         Row: {
           created_at: string
@@ -2205,6 +2291,27 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      scih_module_data: {
+        Row: {
+          data: Json
+          hospital_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          data?: Json
+          hospital_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          data?: Json
+          hospital_id?: string
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
