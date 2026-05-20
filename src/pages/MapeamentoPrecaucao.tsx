@@ -709,11 +709,16 @@ export default function MapeamentoPrecaucao() {
                         <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:20, background:sta.bg, color:sta.color, fontSize:11, fontWeight:500 }}>{p.status}</span>
                       </td>
                       <td className="np" style={{ padding:"9px 14px" }}>
-                        {p.status === "Internado" && (
-                          <button onClick={() => setStModal(p.id)} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
-                            Alterar
+                        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                          <button onClick={() => startEdit(p)} title="Editar paciente" style={{ width:28, height:28, display:"inline-flex", alignItems:"center", justifyContent:"center", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"#0F4C75", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>
+                            ✎
                           </button>
-                        )}
+                          {p.status === "Internado" && (
+                            <button onClick={() => setStModal(p.id)} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                              Alterar
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding:"9px 14px", color:"var(--color-text-secondary)" }}>{p.setor}</td>
                       <td style={{ padding:"9px 14px" }}>
