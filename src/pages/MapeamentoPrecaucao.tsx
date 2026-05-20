@@ -206,10 +206,53 @@ export default function MapeamentoPrecaucao() {
     setForm(f => ({ ...f, [name]: value }));
   };
 
+  const resetForm = () => {
+    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (p: Patient) => {
+    setForm({
+      nome: p.nome, prontuario: p.prontuario, setor: p.setor, leito: p.leito,
+      dataColeta: p.dataColeta || "", material: p.material || "", organismo: p.organismo || "",
+    });
+    setEditingId(p.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome || !form.prontuario || !form.setor || !form.leito || !form.organismo || !hospitalId) return;
     const org = ORGANISMOS.find(o => o.value === form.organismo);
+
+    if (editingId) {
+      const pat = patients.find(p => p.id === editingId);
+      await supabase.from("patients").update({
+        full_name: form.nome,
+        medical_record: form.prontuario,
+        sector: form.setor,
+        bed: form.leito,
+      }).eq("id", editingId);
+
+      if (pat?.precaucaoId) {
+        await supabase.from("precautions").update({
+          precaution_type: org?.precaucao || "Contato",
+          reason: form.organismo,
+        }).eq("id", pat.precaucaoId);
+      }
+
+      await (supabase as any).from("lab_results").update({
+        organism: form.organismo || null,
+        sample_material: form.material || null,
+        collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
+      }).eq("patient_id", editingId);
+
+      await fetchData();
+      resetForm();
+      return;
+    }
 
     const { data: newPatient, error: pErr } = await supabase
       .from("patients")
@@ -257,9 +300,9 @@ export default function MapeamentoPrecaucao() {
     }, ...prev]);
 
     await fetchData();
-    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
-    setShowForm(false);
+    resetForm();
   };
+
 
   const changeStatus = async (id: string, s: string) => {
     const pat = patients.find(p => p.id === id);
