@@ -477,7 +477,7 @@ export default function KanbanCCIH() {
     // Tarefas diárias não aparecem no fim de semana (sábado/domingo)
     if (t.recurrence === "daily" && todayIsWeekend) return false;
     // Aplica filtro de recorrência selecionado
-    return recurrenceFilter === "all" || (t.recurrence !== "none" && t.recurrence === recurrenceFilter);
+    return recurrenceFilter === "all" || t.recurrence === recurrenceFilter;
   });
 
   const inProgress = filtered.filter((t) => t.status === "in_progress");
