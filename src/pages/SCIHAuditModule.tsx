@@ -88,6 +88,45 @@ const SCIH_CSS = `
 .scih-modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .scih-modal-title{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text);}
 .scih-sector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;}
+.scih-wrap table{width:100%;}
+@media (max-width: 1024px){
+  .scih-main{padding:16px;}
+  .scih-grid4{grid-template-columns:repeat(2,1fr);}
+  .scih-grid3{grid-template-columns:repeat(2,1fr);}
+  .scih-page-title{font-size:19px;}
+  .scih-kpi-val{font-size:26px;}
+  .scih-tabs{padding:0 12px;}
+  .scih-tab-btn{padding:10px 10px;font-size:11.5px;}
+}
+@media (max-width: 768px){
+  .scih-main{padding:12px;}
+  .scih-card{padding:14px;}
+  .scih-card-sm{padding:12px;}
+  .scih-grid2,.scih-grid3,.scih-grid4{grid-template-columns:1fr;gap:12px;}
+  .scih-form-grid{grid-template-columns:1fr;}
+  .scih-sector-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;}
+  .scih-page-title{font-size:17px;}
+  .scih-page-sub{font-size:12px;margin-bottom:16px;}
+  .scih-kpi-val{font-size:22px;}
+  .scih-section-title{font-size:14px;}
+  .scih-row{flex-direction:column;align-items:stretch;gap:10px;}
+  .scih-flex-wrap{gap:8px;}
+  .scih-tabs{padding:0 8px;}
+  .scih-tab-btn{padding:9px 8px;font-size:11px;gap:5px;}
+  .scih-tab-icon{font-size:13px;}
+  .scih-btn{padding:8px 12px;font-size:12px;width:100%;justify-content:center;}
+  .scih-flex .scih-btn,.scih-flex-wrap .scih-btn{width:auto;}
+  .scih-modal{width:95vw;padding:16px;}
+  .scih-table{font-size:12px;display:block;overflow-x:auto;white-space:nowrap;}
+  .scih-crono-card{flex-direction:column;align-items:stretch;gap:8px;}
+  .scih-kanban-col{min-height:auto;}
+  .scih-boletim-val{font-size:22px;}
+}
+@media (max-width: 480px){
+  .scih-main{padding:10px;}
+  .scih-sector-grid{grid-template-columns:repeat(2,1fr);}
+  .scih-tab-btn span:not(.scih-tab-icon){display:none;}
+}
 `;
 
 // ─── STATIC DATA ────────────────────────────────────────────────────────────
