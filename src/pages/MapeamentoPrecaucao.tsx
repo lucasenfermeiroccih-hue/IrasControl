@@ -102,6 +102,7 @@ export default function MapeamentoPrecaucao() {
   const [events,     setEvents]    = useState<Event[]>([]);
   const [loading,    setLoading]   = useState(false);
   const [showForm,   setShowForm]  = useState(false);
+  const [editingId,  setEditingId] = useState<string | null>(null);
   const [form,       setForm]      = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
   const [fStatus,    setFStatus]   = useState("Internado");
   const [search,     setSearch]    = useState("");
@@ -182,8 +183,8 @@ export default function MapeamentoPrecaucao() {
 
   const applySort = (list: Patient[]) =>
     [...list].sort((a, b) => {
-      let va: string = (a as Record<string,string>)[sortKey] || "";
-      let vb: string = (b as Record<string,string>)[sortKey] || "";
+      let va: string = (a as unknown as Record<string,string>)[sortKey] || "";
+      let vb: string = (b as unknown as Record<string,string>)[sortKey] || "";
       if (sortKey === "leito")      { va = va.padStart(6,"0"); vb = vb.padStart(6,"0"); }
       if (sortKey === "dataColeta") { va = va || "0000-00-00"; vb = vb || "0000-00-00"; }
       const cmp = va.localeCompare(vb, "pt-BR", { numeric: sortKey === "leito" });
@@ -205,10 +206,53 @@ export default function MapeamentoPrecaucao() {
     setForm(f => ({ ...f, [name]: value }));
   };
 
+  const resetForm = () => {
+    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (p: Patient) => {
+    setForm({
+      nome: p.nome, prontuario: p.prontuario, setor: p.setor, leito: p.leito,
+      dataColeta: p.dataColeta || "", material: p.material || "", organismo: p.organismo || "",
+    });
+    setEditingId(p.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome || !form.prontuario || !form.setor || !form.leito || !form.organismo || !hospitalId) return;
     const org = ORGANISMOS.find(o => o.value === form.organismo);
+
+    if (editingId) {
+      const pat = patients.find(p => p.id === editingId);
+      await supabase.from("patients").update({
+        full_name: form.nome,
+        medical_record: form.prontuario,
+        sector: form.setor,
+        bed: form.leito,
+      }).eq("id", editingId);
+
+      if (pat?.precaucaoId) {
+        await supabase.from("precautions").update({
+          precaution_type: org?.precaucao || "Contato",
+          reason: form.organismo,
+        }).eq("id", pat.precaucaoId);
+      }
+
+      await (supabase as any).from("lab_results").update({
+        organism: form.organismo || null,
+        sample_material: form.material || null,
+        collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
+      }).eq("patient_id", editingId);
+
+      await fetchData();
+      resetForm();
+      return;
+    }
 
     const { data: newPatient, error: pErr } = await supabase
       .from("patients")
@@ -256,9 +300,9 @@ export default function MapeamentoPrecaucao() {
     }, ...prev]);
 
     await fetchData();
-    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
-    setShowForm(false);
+    resetForm();
   };
+
 
   const changeStatus = async (id: string, s: string) => {
     const pat = patients.find(p => p.id === id);
@@ -526,7 +570,7 @@ export default function MapeamentoPrecaucao() {
           {/* form */}
           {showForm && (
             <div className="np" style={{ ...card, marginBottom:16 }}>
-              <h3 style={{ margin:"0 0 14px", fontSize:14, fontWeight:500, color:"var(--color-text-primary)" }}>Cadastrar Paciente em Isolamento</h3>
+              <h3 style={{ margin:"0 0 14px", fontSize:14, fontWeight:500, color:"var(--color-text-primary)" }}>{editingId ? "Editar Paciente em Isolamento" : "Cadastrar Paciente em Isolamento"}</h3>
               <form onSubmit={onSubmit}>
                 <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:10, marginBottom:10 }}>
                   {[
@@ -583,8 +627,8 @@ export default function MapeamentoPrecaucao() {
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <button type="submit" style={{ padding:"7px 20px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>Cadastrar</button>
-                  <button type="button" onClick={() => setShowForm(false)} style={{ padding:"7px 14px", background:"transparent", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>Cancelar</button>
+                  <button type="submit" style={{ padding:"7px 20px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>{editingId ? "Salvar alterações" : "Cadastrar"}</button>
+                  <button type="button" onClick={resetForm} style={{ padding:"7px 14px", background:"transparent", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>Cancelar</button>
                 </div>
               </form>
             </div>
@@ -665,11 +709,16 @@ export default function MapeamentoPrecaucao() {
                         <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:20, background:sta.bg, color:sta.color, fontSize:11, fontWeight:500 }}>{p.status}</span>
                       </td>
                       <td className="np" style={{ padding:"9px 14px" }}>
-                        {p.status === "Internado" && (
-                          <button onClick={() => setStModal(p.id)} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
-                            Alterar
+                        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                          <button onClick={() => startEdit(p)} title="Editar paciente" style={{ width:28, height:28, display:"inline-flex", alignItems:"center", justifyContent:"center", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"#0F4C75", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>
+                            ✎
                           </button>
-                        )}
+                          {p.status === "Internado" && (
+                            <button onClick={() => setStModal(p.id)} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                              Alterar
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding:"9px 14px", color:"var(--color-text-secondary)" }}>{p.setor}</td>
                       <td style={{ padding:"9px 14px" }}>
