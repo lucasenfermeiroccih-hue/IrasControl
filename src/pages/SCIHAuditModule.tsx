@@ -5,16 +5,15 @@ import type { Json } from "@/integrations/supabase/types";
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const SCIH_CSS = `
-.scih-wrap { --sb:#0d1117; --bg2:#161b22; --bg3:#1c2128; --bg4:#21262d; --border:#30363d; --text:#e6edf3; --text2:#8b949e; --text3:#6e7681; --teal:#1a9e75; --teal-glow:rgba(26,158,117,.25); --amber:#d4a017; --red:#da3633; --blue:#388bfd; --r:8px; font-family:'Segoe UI',system-ui,sans-serif; background:var(--sb); color:var(--text); min-height:100vh; display:flex; }
+.scih-wrap { --bg2:#161b22; --bg3:#1c2128; --bg4:#21262d; --border:#30363d; --text:#e6edf3; --text2:#8b949e; --text3:#6e7681; --teal:#1a9e75; --teal-glow:rgba(26,158,117,.25); --amber:#d4a017; --red:#da3633; --blue:#388bfd; --r:8px; font-family:'Segoe UI',system-ui,sans-serif; background:#0d1117; color:var(--text); min-height:calc(100vh - 60px); }
 .scih-wrap *{box-sizing:border-box;margin:0;padding:0;}
-.scih-sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 0;gap:2px;position:sticky;top:0;height:100vh;overflow-y:auto;}
-.scih-logo{padding:12px 16px 20px;font-size:18px;font-weight:700;color:var(--teal);letter-spacing:.5px;border-bottom:1px solid var(--border);margin-bottom:8px;}
-.scih-logo small{display:block;font-size:11px;color:var(--text2);font-weight:400;margin-top:2px;}
-.scih-nav-btn{display:flex;align-items:center;gap:10px;padding:9px 16px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px;width:100%;text-align:left;border-radius:0;transition:background .15s,color .15s;}
-.scih-nav-btn:hover{background:var(--bg3);color:var(--text);}
-.scih-nav-btn.active{background:var(--teal-glow);color:var(--teal);border-right:2px solid var(--teal);}
-.scih-nav-icon{font-size:16px;width:20px;text-align:center;}
-.scih-main{flex:1;padding:24px;overflow-y:auto;min-width:0;}
+.scih-tabs{display:flex;gap:2px;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto;scrollbar-width:none;}
+.scih-tabs::-webkit-scrollbar{display:none;}
+.scih-tab-btn{display:flex;align-items:center;gap:7px;padding:11px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;font-family:inherit;transition:all .15s;}
+.scih-tab-btn:hover{color:var(--text);}
+.scih-tab-btn.active{color:var(--teal);border-bottom-color:var(--teal);}
+.scih-tab-icon{font-size:14px;}
+.scih-main{padding:24px;min-width:0;}
 .scih-page-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;}
 .scih-page-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
 .scih-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
@@ -1722,34 +1721,24 @@ export default function SCIHAuditModule() {
     <>
       <style>{SCIH_CSS}</style>
       <div className="scih-wrap">
-        {/* Sidebar */}
-        <aside className="scih-sidebar">
-          <div className="scih-logo">
-            🦠 SCIH
-            <small>Controle de Infecção</small>
-          </div>
+        {/* Tabs horizontais */}
+        <div className="scih-tabs">
           {NAV.map(n => (
             <button
               key={n.key}
-              className={`scih-nav-btn${activePage === n.key ? " active" : ""}`}
+              className={`scih-tab-btn${activePage === n.key ? " active" : ""}`}
               onClick={() => setActivePage(n.key)}
             >
-              <span className="scih-nav-icon">{n.icon}</span>
+              <span className="scih-tab-icon">{n.icon}</span>
               {n.label}
             </button>
           ))}
-          <div style={{ marginTop:"auto", padding:"12px 16px", borderTop:"1px solid var(--border)" }}>
-            {hospitalId ? (
-              <div style={{ fontSize:11, color:"var(--text3)" }}>
-                {loaded ? "Dados sincronizados" : "Carregando..."}
-              </div>
-            ) : (
-              <div style={{ fontSize:11, color:"var(--red)" }}>Hospital não selecionado</div>
-            )}
+          <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", padding:"0 8px", fontSize:11, color: loaded ? "var(--teal)" : "var(--text3)", whiteSpace:"nowrap" }}>
+            {loaded ? "✓ Sincronizado" : "Carregando…"}
           </div>
-        </aside>
+        </div>
 
-        {/* Main content */}
+        {/* Conteúdo da página */}
         <main className="scih-main">
           {pageMap[activePage]()}
         </main>
