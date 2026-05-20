@@ -59,6 +59,15 @@
     --chart-3: 38 92% 50%;
     --chart-4: 142 71% 35%;
     --chart-5: 0 72% 51%;
+
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f8fafc;
+    --color-background-tertiary: #f1f5f9;
+    --color-border-secondary: #cbd5e1;
+    --color-border-tertiary: #e2e8f0;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-text-tertiary: #94a3b8;
   }
 
   .dark {

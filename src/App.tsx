@@ -26,6 +26,7 @@ import DashboardHygiene from "./pages/DashboardHygiene.tsx";
 import DashboardDispenser from "./pages/DashboardDispenser.tsx";
 import DashboardStructure from "./pages/DashboardStructure.tsx";
 import DashboardPrecautions from "./pages/DashboardPrecautions.tsx";
+import MapeamentoPrecaucao from "./pages/MapeamentoPrecaucao.tsx";
 import DashboardAntimicrobials from "./pages/DashboardAntimicrobials.tsx";
 import ReportsAnalytics from "./pages/ReportsAnalytics.tsx";
 import Forms from "./pages/Forms.tsx";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/dashboard/dispenser" element={<DashboardDispenser />} />
               <Route path="/dashboard/structure" element={<DashboardStructure />} />
               <Route path="/precautions/monitoring" element={<DashboardPrecautions />} />
+              <Route path="/precautions/mapping" element={<MapeamentoPrecaucao />} />
               <Route path="/antimicrobials/monitoring" element={<DashboardAntimicrobials />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/cases/investigation" element={<CasesInvestigation />} />
