@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Lock, Bell, Shield, LogOut, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { translateAuthError, validatePassword, passwordStrength } from "@/lib/authErrors";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { clearAllSelectedHospitalIds } from "@/lib/selectedHospital";
 
@@ -113,19 +114,20 @@ export default function UserProfile() {
   };
 
   const handleChangePassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      toast.error("A nova senha deve ter pelo menos 6 caracteres");
+    const validationError = validatePassword(newPassword);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+      toast.error("As senhas não coincidem.");
       return;
     }
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setChangingPassword(false);
     if (error) {
-      toast.error("Erro ao alterar senha: " + error.message);
+      toast.error(translateAuthError(error.message));
     } else {
       toast.success("Senha alterada com sucesso!");
       setNewPassword("");
@@ -288,11 +290,26 @@ export default function UserProfile() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Nova Senha</Label>
-                <Input type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <Input type="password" placeholder="Mínimo 8 caracteres" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                {newPassword.length > 0 && (() => {
+                  const s = passwordStrength(newPassword);
+                  return (
+                    <div className="space-y-1">
+                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-300 ${s.color}`} style={{ width: `${s.pct}%` }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Força: <span className="font-medium">{s.label}</span></p>
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-muted-foreground">Use letras, números e símbolos para maior segurança.</p>
               </div>
               <div className="space-y-2">
                 <Label>Confirmar Nova Senha</Label>
-                <Input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <Input type="password" placeholder="Repita a senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                  <p className="text-xs text-destructive">As senhas não coincidem.</p>
+                )}
               </div>
               <Button onClick={handleChangePassword} disabled={changingPassword}>
                 {changingPassword && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}

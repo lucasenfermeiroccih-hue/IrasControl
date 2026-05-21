@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { translateAuthError, validatePassword, passwordStrength } from "@/lib/authErrors";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -16,37 +17,34 @@ export default function ResetPassword() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setReady(true);
-      }
+      if (event === "PASSWORD_RECOVERY") setReady(true);
     });
-
     return () => subscription.unsubscribe();
   }, []);
+
+  const strength = passwordStrength(password);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+    const validationError = validatePassword(password);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+    if (password !== confirmPassword) {
+      toast.error("As senhas não coincidem.");
       return;
     }
 
     setLoading(true);
-
     const { error } = await supabase.auth.updateUser({ password });
-
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(translateAuthError(error.message));
       return;
     }
 
@@ -63,7 +61,7 @@ export default function ResetPassword() {
             <span className="text-xl md:text-2xl font-bold">IRAS<span className="text-primary">Control</span></span>
           </div>
           <CardTitle className="text-xl">Nova senha</CardTitle>
-          <CardDescription>Defina sua nova senha abaixo</CardDescription>
+          <CardDescription>Defina uma senha segura para sua conta</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -72,29 +70,52 @@ export default function ResetPassword() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
               />
+              {password.length > 0 && (
+                <div className="space-y-1">
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
+                      style={{ width: `${strength.pct}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Força: <span className="font-medium">{strength.label}</span>
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Use pelo menos 8 caracteres com letras e números.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirmar senha</Label>
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Repita a senha"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
               />
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <p className="text-xs text-destructive">As senhas não coincidem.</p>
+              )}
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar nova senha"}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !ready}
+            >
+              {loading
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                : "Salvar nova senha"}
             </Button>
           </CardFooter>
         </form>

@@ -8,6 +8,7 @@ import { Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { translateAuthError } from "@/lib/authErrors";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,9 +36,7 @@ export default function Login() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message === "Invalid login credentials"
-        ? "E-mail ou senha inválidos"
-        : error.message);
+      toast.error(translateAuthError(error.message));
       return;
     }
 
@@ -59,7 +58,7 @@ export default function Login() {
     setResetLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(translateAuthError(error.message));
       return;
     }
 
