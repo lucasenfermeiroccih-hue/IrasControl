@@ -9,27 +9,32 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { sendToAgent } from "@/lib/agent-service";
 
 const ORGANISMOS = [
-  { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",   precaucao: "Contato"   },
-  { value: "VRE",         label: "VRE – Enterococcus resist. vancomicina", precaucao: "Contato"   },
-  { value: "ESBL-EC",     label: "ESBL – Escherichia coli",                precaucao: "Contato"   },
-  { value: "ESBL-KP",     label: "ESBL – Klebsiella pneumoniae",           precaucao: "Contato"   },
-  { value: "KPC-KP",      label: "KPC – Klebsiella pneumoniae",            precaucao: "Contato"   },
-  { value: "KPC-EC",      label: "KPC – Escherichia coli",                 precaucao: "Contato"   },
-  { value: "CRAB",        label: "CRAB – Acinetobacter baumannii CR",      precaucao: "Contato"   },
-  { value: "CRPA",        label: "CRPA – Pseudomonas aeruginosa CR",       precaucao: "Contato"   },
-  { value: "NDM",         label: "NDM – New Delhi metalo-β-lactamase",     precaucao: "Contato"   },
-  { value: "CDIFF",       label: "Clostridioides difficile",               precaucao: "Contato"   },
-  { value: "NOROVIRUS",   label: "Norovírus",                              precaucao: "Contato"   },
-  { value: "VISA",        label: "S. aureus VISA / VRSA",                  precaucao: "Contato"   },
-  { value: "INFLUENZA",   label: "Influenza A / B",                        precaucao: "Gotículas" },
-  { value: "TUBERCULOSE", label: "Mycobacterium tuberculosis (TB)",        precaucao: "Aerossóis" },
-  { value: "COVID19",     label: "SARS-CoV-2 (COVID-19)",                  precaucao: "Aerossóis" },
+  { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",              precaucao: "Contato"   },
+  { value: "VRE",         label: "VRE – Enterococcus resist. vancomicina",           precaucao: "Contato"   },
+  { value: "ESBL-EC",     label: "ESBL – Escherichia coli",                          precaucao: "Contato"   },
+  { value: "ESBL-KP",     label: "ESBL – Klebsiella pneumoniae",                    precaucao: "Contato"   },
+  { value: "KPC-KP",      label: "KPC – Klebsiella pneumoniae",                     precaucao: "Contato"   },
+  { value: "KPC-EC",      label: "KPC – Escherichia coli",                           precaucao: "Contato"   },
+  { value: "CRAB",        label: "CRAB – Acinetobacter baumannii CR",               precaucao: "Contato"   },
+  { value: "CRPA",        label: "CRPA – Pseudomonas aeruginosa CR",                precaucao: "Contato"   },
+  { value: "ERC",         label: "ERC – Enterobactérias Resist. Carbapenêmicos",    precaucao: "Contato"   },
+  { value: "PROTEUS",     label: "Proteus",                                          precaucao: "Contato"   },
+  { value: "PROVIDENCIA", label: "Providência Stuarti",                             precaucao: "Contato"   },
+  { value: "PSEUDOMONAS", label: "Pseudomonas",                                     precaucao: "Contato"   },
+  { value: "NDM",         label: "NDM – New Delhi metalo-β-lactamase",              precaucao: "Contato"   },
+  { value: "CDIFF",       label: "Clostridioides difficile",                        precaucao: "Contato"   },
+  { value: "NOROVIRUS",   label: "Norovírus",                                       precaucao: "Contato"   },
+  { value: "INFLUENZA",   label: "Influenza A / B",                                 precaucao: "Gotículas" },
+  { value: "TUBERCULOSE", label: "Mycobacterium tuberculosis (TB)",                 precaucao: "Aerossóis" },
+  { value: "COVID19",     label: "SARS-CoV-2 (COVID-19)",                           precaucao: "Aerossóis" },
 ];
 
 const SETORES = [
-  "UTI Adulto","UTI Pediátrica","UTI Neonatal","Enfermaria A","Enfermaria B",
-  "Enfermaria C","Pediatria","Maternidade","Cirurgia","Ortopedia",
-  "Oncologia","Pronto-Socorro","Hemodinâmica","Nefrologia",
+  "UTI Adulto 1","UTI Adulto 2","UTI Adulto 3","UPO",
+  "UTI Neonatal","UTI Pediátrica","Trauma Clínico",
+  "Clínica Médica","Clínica Cirúrgica","Contêiner",
+  "Pediatria Emergência","Pediatria Enfermaria","Alojamento Conjunto",
+  "Ambulatório","Setor de Internação",
 ];
 
 const MATERIAIS = [
