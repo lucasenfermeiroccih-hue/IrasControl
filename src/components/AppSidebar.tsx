@@ -3,7 +3,7 @@ import {
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
-  ExternalLink, KanbanSquare, Package, ClipboardList, Puzzle
+  KanbanSquare, Package, ClipboardList, Puzzle
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { Button } from "@/components/ui/button";
 import { clearAllSelectedHospitalIds, getSelectedHospitalId } from "@/lib/selectedHospital";
+
 import {
   Sidebar,
   SidebarContent,
@@ -120,20 +121,6 @@ const userOnlySection = {
   ],
 };
 
-const CCIH_5W2H_URL = "https://5w2h.ekaban.irascontrol.com";
-
-async function openCCIH5W2H() {
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) return;
-  const hospitalId = getSelectedHospitalId(data.session.user.id) ?? "";
-  const params = new URLSearchParams({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    hospital_id: hospitalId,
-  });
-  window.open(`${CCIH_5W2H_URL}/#${params.toString()}`, "_blank");
-}
-
 interface InstalledTool { tool_id: string; name: string; route: string; icon_name: string; }
 const SIDEBAR_ICON_MAP: Record<string, React.ElementType> = {
   ClipboardList, Shield, Package, Puzzle, BarChart3, FileText, Microscope,
@@ -227,9 +214,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={openCCIH5W2H} className="cursor-pointer hover:bg-sidebar-accent/50 w-full">
-                  <ExternalLink className="mr-2 h-4 w-4 shrink-0 text-sidebar-primary" />
-                  {!collapsed && <span>Planos 5W2H</span>}
+                <SidebarMenuButton asChild isActive={location.pathname === "/quality/5w2h"}>
+                  <NavLink to="/quality/5w2h" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <ClipboardList className="mr-2 h-4 w-4 shrink-0 text-sidebar-primary" />
+                    {!collapsed && <span>Planos 5W2H</span>}
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
