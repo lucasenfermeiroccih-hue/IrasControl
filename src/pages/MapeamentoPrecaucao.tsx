@@ -11,6 +11,7 @@ import { sendToAgent } from "@/lib/agent-service";
 const ORGANISMOS = [
   { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",              precaucao: "Contato"   },
   { value: "VRE",         label: "VRE – Enterococcus resist. vancomicina",           precaucao: "Contato"   },
+  { value: "ESBL",        label: "ESBL – Beta-lactamase de espectro estendido",      precaucao: "Contato"   },
   { value: "ESBL-EC",     label: "ESBL – Escherichia coli",                          precaucao: "Contato"   },
   { value: "ESBL-KP",     label: "ESBL – Klebsiella pneumoniae",                    precaucao: "Contato"   },
   { value: "KPC-KP",      label: "KPC – Klebsiella pneumoniae",                     precaucao: "Contato"   },
@@ -28,6 +29,15 @@ const ORGANISMOS = [
   { value: "TUBERCULOSE", label: "Mycobacterium tuberculosis (TB)",                 precaucao: "Aerossóis" },
   { value: "COVID19",     label: "SARS-CoV-2 (COVID-19)",                           precaucao: "Aerossóis" },
 ];
+
+// Precaução mais restritiva entre vários organismos selecionados
+function getMostRestrictivePrecaucao(values: string[]): string {
+  const priority = ["Aerossóis", "Gotículas", "Contato"];
+  for (const p of priority) {
+    if (values.some(v => ORGANISMOS.find(o => o.value === v)?.precaucao === p)) return p;
+  }
+  return "Contato";
+}
 
 const SETORES = [
   "UTI Adulto 1","UTI Adulto 2","UTI Adulto 3","UPO",
@@ -108,7 +118,7 @@ export default function MapeamentoPrecaucao() {
   const [loading,    setLoading]   = useState(false);
   const [showForm,   setShowForm]  = useState(false);
   const [editingId,  setEditingId] = useState<string | null>(null);
-  const [form,       setForm]      = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
+  const [form,       setForm]      = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[] });
   const [fStatus,    setFStatus]   = useState("Internado");
   const [search,     setSearch]    = useState("");
   const [stModal,    setStModal]   = useState<string | null>(null);
@@ -212,15 +222,27 @@ export default function MapeamentoPrecaucao() {
   };
 
   const resetForm = () => {
-    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"" });
+    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] });
     setEditingId(null);
     setShowForm(false);
   };
 
+  const toggleOrganismo = (value: string) => {
+    setForm(f => {
+      const list = f.organismos.includes(value)
+        ? f.organismos.filter(v => v !== value)
+        : [...f.organismos, value];
+      return { ...f, organismos: list, organismo: list.join(" | ") };
+    });
+  };
+
   const startEdit = (p: Patient) => {
+    const stored = p.organismo || "";
+    const organismos = stored ? stored.split(" | ").filter(v => ORGANISMOS.some(o => o.value === v)) : [];
     setForm({
       nome: p.nome, prontuario: p.prontuario, setor: p.setor, leito: p.leito,
-      dataColeta: p.dataColeta || "", material: p.material || "", organismo: p.organismo || "",
+      dataColeta: p.dataColeta || "", material: p.material || "",
+      organismo: stored, organismos,
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -229,8 +251,10 @@ export default function MapeamentoPrecaucao() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome || !form.prontuario || !form.setor || !form.leito || !form.organismo || !hospitalId) return;
-    const org = ORGANISMOS.find(o => o.value === form.organismo);
+    if (!form.nome || !form.prontuario || !form.setor || !form.leito || form.organismos.length === 0 || !hospitalId) return;
+    const precaucao = getMostRestrictivePrecaucao(form.organismos);
+    const orgValue = form.organismos.join(" | ");
+    const org = { precaucao };
 
     if (editingId) {
       const pat = patients.find(p => p.id === editingId);
@@ -243,13 +267,13 @@ export default function MapeamentoPrecaucao() {
 
       if (pat?.precaucaoId) {
         await supabase.from("precautions").update({
-          precaution_type: org?.precaucao || "Contato",
-          reason: form.organismo,
+          precaution_type: precaucao,
+          reason: orgValue,
         }).eq("id", pat.precaucaoId);
       }
 
       await (supabase as any).from("lab_results").update({
-        organism: form.organismo || null,
+        organism: orgValue || null,
         sample_material: form.material || null,
         collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
       }).eq("patient_id", editingId);
@@ -278,15 +302,15 @@ export default function MapeamentoPrecaucao() {
     await Promise.all([
       supabase.from("precautions").insert({
         patient_id: newPatient.id,
-        precaution_type: org?.precaucao || "Contato",
+        precaution_type: precaucao,
         is_active: true,
         start_date: new Date().toISOString().split("T")[0],
-        reason: form.organismo,
+        reason: orgValue,
       }),
-      ...(form.organismo || form.material ? [supabase.from("lab_results").insert({
+      ...(orgValue || form.material ? [supabase.from("lab_results").insert({
         patient_id: newPatient.id,
         hospital_id: hospitalId,
-        organism: form.organismo || null,
+        organism: orgValue || null,
         sample_material: form.material || null,
         collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
         status: "completed" as const,
@@ -301,7 +325,7 @@ export default function MapeamentoPrecaucao() {
       patientNome: form.nome,
       setor: form.setor,
       leito: form.leito,
-      detail: `${org?.label || form.organismo} · ${form.material || "—"}`,
+      detail: `${orgValue} · ${form.material || "—"}`,
     }, ...prev]);
 
     await fetchData();
@@ -612,22 +636,41 @@ export default function MapeamentoPrecaucao() {
                     </select>
                   </div>
                 </div>
-                <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:10, marginBottom:14 }}>
-                  <div>
-                    <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>Microrganismo Multirresistente *</label>
-                    <select name="organismo" value={form.organismo} onChange={onChange} required style={inpStyle}>
-                      <option value="">Selecionar microrganismo</option>
-                      {ORGANISMOS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>Tipo de Precaução</label>
-                    <div style={{ padding:"7px 10px", borderRadius:6, border:"0.5px solid var(--color-border-tertiary)", fontSize:12, background:"var(--color-background-tertiary)", color:"var(--color-text-secondary)", height:34, display:"flex", alignItems:"center" }}>
-                      {form.organismo ? (() => {
-                        const prec = ORGANISMOS.find(o => o.value === form.organismo)?.precaucao || "";
-                        const m = PMETA[prec];
-                        return m ? <span style={{ color:m.color, fontWeight:500 }}>{m.icon} {prec}</span> : "—";
-                      })() : <span style={{ color:"var(--color-text-tertiary)" }}>Auto-preenchido</span>}
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:5, fontWeight:500 }}>
+                    Microrganismo Multirresistente * <span style={{ fontWeight:400, color:"var(--color-text-tertiary)" }}>(selecione um ou mais)</span>
+                  </label>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>
+                    <div style={{ maxHeight:160, overflowY:"auto", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, padding:"6px 8px", background:"var(--color-background-primary)" }}>
+                      {ORGANISMOS.map(o => (
+                        <label key={o.value} style={{ display:"flex", alignItems:"center", gap:7, padding:"3px 2px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary)", borderRadius:4, background: form.organismos.includes(o.value) ? "rgba(15,76,117,.08)" : "transparent" }}>
+                          <input
+                            type="checkbox"
+                            checked={form.organismos.includes(o.value)}
+                            onChange={() => toggleOrganismo(o.value)}
+                            style={{ accentColor:"#0F4C75", width:13, height:13, cursor:"pointer" }}
+                          />
+                          <span>{o.label}</span>
+                          {form.organismos.includes(o.value) && (
+                            <span style={{ marginLeft:"auto", fontSize:10, color: PMETA[o.precaucao]?.color, fontWeight:600 }}>{o.precaucao}</span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <div style={{ minWidth:120 }}>
+                      <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:4, fontWeight:500 }}>Tipo de Precaução</div>
+                      <div style={{ padding:"7px 10px", borderRadius:6, border:"0.5px solid var(--color-border-tertiary)", fontSize:12, background:"var(--color-background-tertiary)", color:"var(--color-text-secondary)", minHeight:34, display:"flex", alignItems:"center" }}>
+                        {form.organismos.length > 0 ? (() => {
+                          const prec = getMostRestrictivePrecaucao(form.organismos);
+                          const m = PMETA[prec];
+                          return m ? <span style={{ color:m.color, fontWeight:500 }}>{m.icon} {prec}</span> : "—";
+                        })() : <span style={{ color:"var(--color-text-tertiary)" }}>Auto-preenchido</span>}
+                      </div>
+                      {form.organismos.length > 0 && (
+                        <div style={{ marginTop:6, fontSize:10, color:"var(--color-text-tertiary)" }}>
+                          {form.organismos.length} selecionado(s)
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
