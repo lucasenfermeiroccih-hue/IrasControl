@@ -15,7 +15,6 @@ const ORGANISMOS = [
   { value: "ESBL-EC",     label: "ESBL – Escherichia coli",                          precaucao: "Contato"   },
   { value: "ESBL-KP",     label: "ESBL – Klebsiella pneumoniae",                    precaucao: "Contato"   },
   { value: "KPC-KP",      label: "KPC – Klebsiella pneumoniae",                     precaucao: "Contato"   },
-  { value: "KPC-EC",      label: "KPC – Escherichia coli",                           precaucao: "Contato"   },
   { value: "CRAB",        label: "CRAB – Acinetobacter baumannii CR",               precaucao: "Contato"   },
   { value: "CRPA",        label: "CRPA – Pseudomonas aeruginosa CR",                precaucao: "Contato"   },
   { value: "ERC",         label: "ERC – Enterobactérias Resist. Carbapenêmicos",    precaucao: "Contato"   },
@@ -50,7 +49,7 @@ const SETORES = [
 const MATERIAIS = [
   "Sangue","Hemocultura","Urina","Secreção Traqueal","Escarro","LCR",
   "Swab Nasal","Swab Retal","Swab de Lesão","Fezes",
-  "Ponta de Cateter","Lavado Broncoalveolar","Outros",
+  "Ponta de Cateter","Lavado Broncoalveolar","Abcesso","Líquidos","Outros",
 ];
 
 const PMETA: Record<string, { color: string; bg: string; text: string; icon: string }> = {
