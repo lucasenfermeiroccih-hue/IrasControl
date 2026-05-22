@@ -904,7 +904,7 @@ export const CHECKLISTS_DATA: ChecklistsData = {
       ]},
     ],
   },
-  necrotério: {
+  necroterio_v2: {
     nome: "Necrotério", icon: "Building",
     grupos: [
       { grupo: "Estrutura e Organização", itens: [
