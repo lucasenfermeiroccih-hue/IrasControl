@@ -2294,6 +2294,226 @@ export type Database = {
         }
         Relationships: []
       }
+      scih_action_plans: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          how: string | null
+          how_much: string | null
+          id: string
+          nc_id: string | null
+          status: string
+          updated_at: string
+          what: string
+          when_date: string | null
+          where_sector: string | null
+          who: string | null
+          why: string | null
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          how?: string | null
+          how_much?: string | null
+          id?: string
+          nc_id?: string | null
+          status?: string
+          updated_at?: string
+          what: string
+          when_date?: string | null
+          where_sector?: string | null
+          who?: string | null
+          why?: string | null
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          how?: string | null
+          how_much?: string | null
+          id?: string
+          nc_id?: string | null
+          status?: string
+          updated_at?: string
+          what?: string
+          when_date?: string | null
+          where_sector?: string | null
+          who?: string | null
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_action_plans_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_action_plans_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_action_plans_nc_id_fkey"
+            columns: ["nc_id"]
+            isOneToOne: false
+            referencedRelation: "scih_ncs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_audit_schedules: {
+        Row: {
+          audit_type: string | null
+          completed: boolean | null
+          created_at: string
+          hospital_id: string
+          id: string
+          planned_date: string
+          responsible: string | null
+          sector_key: string
+        }
+        Insert: {
+          audit_type?: string | null
+          completed?: boolean | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          planned_date: string
+          responsible?: string | null
+          sector_key: string
+        }
+        Update: {
+          audit_type?: string | null
+          completed?: boolean | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          planned_date?: string
+          responsible?: string | null
+          sector_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_audit_schedules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_audit_schedules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_iras_indicators: {
+        Row: {
+          cases: number
+          created_at: string
+          denominator: number
+          hospital_id: string
+          id: string
+          indicator_type: string
+          observations: string | null
+          period: string | null
+          sector: string | null
+        }
+        Insert: {
+          cases?: number
+          created_at?: string
+          denominator?: number
+          hospital_id: string
+          id?: string
+          indicator_type: string
+          observations?: string | null
+          period?: string | null
+          sector?: string | null
+        }
+        Update: {
+          cases?: number
+          created_at?: string
+          denominator?: number
+          hospital_id?: string
+          id?: string
+          indicator_type?: string
+          observations?: string | null
+          period?: string | null
+          sector?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_iras_indicators_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_iras_indicators_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_kanban_cards: {
+        Row: {
+          card_order: number | null
+          column_id: string
+          created_at: string
+          deadline: string | null
+          hospital_id: string
+          id: string
+          priority: string | null
+          sector: string | null
+          title: string
+        }
+        Insert: {
+          card_order?: number | null
+          column_id?: string
+          created_at?: string
+          deadline?: string | null
+          hospital_id: string
+          id?: string
+          priority?: string | null
+          sector?: string | null
+          title: string
+        }
+        Update: {
+          card_order?: number | null
+          column_id?: string
+          created_at?: string
+          deadline?: string | null
+          hospital_id?: string
+          id?: string
+          priority?: string | null
+          sector?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_kanban_cards_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_kanban_cards_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scih_module_data: {
         Row: {
           data: Json
@@ -2314,6 +2534,323 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      scih_nc_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          nc_id: string
+          observation: string | null
+          status: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          nc_id: string
+          observation?: string | null
+          status: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          nc_id?: string
+          observation?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_nc_history_nc_id_fkey"
+            columns: ["nc_id"]
+            isOneToOne: false
+            referencedRelation: "scih_ncs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_ncs: {
+        Row: {
+          audit_date: string | null
+          audit_id: string | null
+          created_at: string
+          hospital_id: string
+          id: string
+          observation: string | null
+          question: string
+          sector_key: string
+          sector_name: string
+          severity: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          audit_date?: string | null
+          audit_id?: string | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          observation?: string | null
+          question: string
+          sector_key: string
+          sector_name: string
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          audit_date?: string | null
+          audit_id?: string | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          observation?: string | null
+          question?: string
+          sector_key?: string
+          sector_name?: string
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_ncs_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "scih_sector_audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_ncs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_ncs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_risk_items: {
+        Row: {
+          contingency_plan: string | null
+          created_at: string
+          description: string
+          hospital_id: string
+          id: string
+          impact: number
+          probability: number
+          sector: string | null
+        }
+        Insert: {
+          contingency_plan?: string | null
+          created_at?: string
+          description: string
+          hospital_id: string
+          id?: string
+          impact: number
+          probability: number
+          sector?: string | null
+        }
+        Update: {
+          contingency_plan?: string | null
+          created_at?: string
+          description?: string
+          hospital_id?: string
+          id?: string
+          impact?: number
+          probability?: number
+          sector?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_risk_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_risk_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_sector_audits: {
+        Row: {
+          audit_date: string
+          audit_time: string | null
+          audit_type: string
+          auditor_id: string | null
+          auditor_name: string | null
+          compliance_rate: number | null
+          compliant_items: number
+          created_at: string
+          hospital_id: string
+          id: string
+          na_items: number
+          nc_items: number
+          observations: string | null
+          partial_items: number
+          participants: string | null
+          responsible_name: string | null
+          sector_key: string
+          sector_name: string
+          total_items: number
+          updated_at: string
+        }
+        Insert: {
+          audit_date?: string
+          audit_time?: string | null
+          audit_type?: string
+          auditor_id?: string | null
+          auditor_name?: string | null
+          compliance_rate?: number | null
+          compliant_items?: number
+          created_at?: string
+          hospital_id: string
+          id?: string
+          na_items?: number
+          nc_items?: number
+          observations?: string | null
+          partial_items?: number
+          participants?: string | null
+          responsible_name?: string | null
+          sector_key: string
+          sector_name: string
+          total_items?: number
+          updated_at?: string
+        }
+        Update: {
+          audit_date?: string
+          audit_time?: string | null
+          audit_type?: string
+          auditor_id?: string | null
+          auditor_name?: string | null
+          compliance_rate?: number | null
+          compliant_items?: number
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          na_items?: number
+          nc_items?: number
+          observations?: string | null
+          partial_items?: number
+          participants?: string | null
+          responsible_name?: string | null
+          sector_key?: string
+          sector_name?: string
+          total_items?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_sector_audits_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_sector_audits_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_sector_responses: {
+        Row: {
+          audit_id: string
+          created_at: string
+          group_name: string
+          id: string
+          item_index: number
+          observation: string | null
+          question: string
+          response: string | null
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          group_name: string
+          id?: string
+          item_index: number
+          observation?: string | null
+          question: string
+          response?: string | null
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          group_name?: string
+          id?: string
+          item_index?: number
+          observation?: string | null
+          question?: string
+          response?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_sector_responses_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "scih_sector_audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scih_swot_items: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          quadrant: string
+          sector_key: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          quadrant: string
+          sector_key: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          quadrant?: string
+          sector_key?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scih_swot_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scih_swot_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sectors: {
         Row: {

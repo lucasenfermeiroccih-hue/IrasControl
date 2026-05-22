@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import ChartActions from "@/components/ChartActions";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -23,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, Legend, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, Legend, PieChart, Pie, Cell, AreaChart, Area, ReferenceLine } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -107,6 +108,17 @@ const Reports = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (key: string, val: number | undefined) => setMetas(prev => ({ ...prev, [key]: val }));
+  const chartRefs = {
+    distribution: useRef<HTMLDivElement>(null),
+    trend: useRef<HTMLDivElement>(null),
+    mdr: useRef<HTMLDivElement>(null),
+    examType: useRef<HTMLDivElement>(null),
+    resistant: useRef<HTMLDivElement>(null),
+    cases: useRef<HTMLDivElement>(null),
+  };
 
   const currentYear = new Date().getFullYear();
   const ANOS = [String(currentYear), String(currentYear - 1), String(currentYear - 2)];
@@ -784,21 +796,24 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Distribution */}
         {distribution.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={chartRefs.distribution}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 Distribuição por Microorganismo
               </CardTitle>
+              <ChartActions chartRef={chartRefs.distribution} chartTitle="Distribuição por Microorganismo" metaValue={metas.distribution} onMetaChange={v => setMeta("distribution", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={distribution}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={distribution} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} height={70} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  {metas.distribution !== undefined && <ReferenceLine y={metas.distribution} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.distribution}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -807,16 +822,17 @@ const Reports = () => {
 
         {/* Trend Chart */}
         {trendData.data.length > 1 && (
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={chartRefs.trend}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 Tendência de Resistência (Mensal)
               </CardTitle>
+              <ChartActions chartRef={chartRefs.trend} chartTitle="Tendência de Resistência" metaValue={metas.trend} onMetaChange={v => setMeta("trend", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={trendData.data}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trendData.data} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -825,6 +841,7 @@ const Reports = () => {
                   {trendData.topOrgs.map((org, i) => (
                     <Line key={org} type="monotone" dataKey={org} stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
                   ))}
+                  {metas.trend !== undefined && <ReferenceLine y={metas.trend} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.trend}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -842,17 +859,20 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Evolução MDR */}
         {mdrEvolution.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-destructive" />
-                Evolução de Multirresistentes (MDR)
-              </CardTitle>
-              <CardDescription className="text-xs">Proporção de isolados MDR ao longo do tempo</CardDescription>
+          <Card ref={chartRefs.mdr}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-destructive" />
+                  Evolução de Multirresistentes (MDR)
+                </CardTitle>
+                <CardDescription className="text-xs">Proporção de isolados MDR ao longo do tempo</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.mdr} chartTitle="Evolução MDR" metaValue={metas.mdr} onMetaChange={v => setMeta("mdr", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={mdrEvolution}>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={mdrEvolution} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -860,6 +880,7 @@ const Reports = () => {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} name="Total Isolados" />
                   <Area type="monotone" dataKey="mdr" stroke="hsl(var(--destructive))" fill="hsl(var(--destructive))" fillOpacity={0.3} name="MDR" />
+                  {metas.mdr !== undefined && <ReferenceLine y={metas.mdr} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.mdr}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -868,20 +889,31 @@ const Reports = () => {
 
         {/* Por Tipo de Exame */}
         {examTypeData.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={chartRefs.examType}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <FlaskConical className="h-4 w-4 text-primary" />
                 Distribuição por Tipo de Exame
               </CardTitle>
+              <ChartActions chartRef={chartRefs.examType} chartTitle="Distribuição por Tipo de Exame" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={examTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} labelLine={false} fontSize={10}>
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                  <Pie
+                    data={examTypeData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="45%"
+                    outerRadius={90}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
                     {examTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value: number, name: string) => [value, name]} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11 }} iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -890,22 +922,27 @@ const Reports = () => {
 
         {/* Microorganismos Resistentes */}
         {resistantOrganisms.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Skull className="h-4 w-4 text-destructive" />
-                Microorganismos Resistentes (MDR)
-              </CardTitle>
-              <CardDescription className="text-xs">Isolados identificados como multirresistentes</CardDescription>
+          <Card ref={chartRefs.resistant}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Skull className="h-4 w-4 text-destructive" />
+                  Microorganismos Resistentes (MDR)
+                </CardTitle>
+                <CardDescription className="text-xs">Isolados identificados como multirresistentes</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.resistant} chartTitle="Microorganismos Resistentes" metaValue={metas.resistant} onMetaChange={v => setMeta("resistant", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={resistantOrganisms} layout="vertical">
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={resistantOrganisms} layout="vertical" margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 9 }} width={120} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={140} />
                   <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="Isolados MDR" />
+                  {metas.resistant !== undefined && <ReferenceLine x={metas.resistant} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.resistant}`, position: "top", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -914,16 +951,17 @@ const Reports = () => {
 
         {/* Casos ao longo do tempo */}
         {casesOverTime.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
+          <Card ref={chartRefs.cases}>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <Clipboard className="h-4 w-4 text-primary" />
                 Evolução de Casos por Status
               </CardTitle>
+              <ChartActions chartRef={chartRefs.cases} chartTitle="Evolução de Casos por Status" metaValue={metas.cases} onMetaChange={v => setMeta("cases", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={casesOverTime}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={casesOverTime} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -932,12 +970,14 @@ const Reports = () => {
                   <Bar dataKey="pendente" stackId="a" fill="#f59e0b" name="Pendente" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="confirmado" stackId="a" fill="hsl(var(--destructive))" name="Confirmado" />
                   <Bar dataKey="descartado" stackId="a" fill="hsl(var(--primary))" name="Descartado" radius={[4, 4, 0, 0]} />
+                  {metas.cases !== undefined && <ReferenceLine y={metas.cases} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.cases}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         )}
       </div>
+
 
       {/* Top 10 Microorganismos */}
       {top10Organisms.length > 0 && (
