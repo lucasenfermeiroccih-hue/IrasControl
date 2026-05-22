@@ -898,23 +898,17 @@ const Reports = () => {
               <ChartActions chartRef={chartRefs.examType} chartTitle="Distribuição por Tipo de Exame" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                  <Pie
-                    data={examTypeData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="45%"
-                    outerRadius={90}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
+              <ResponsiveContainer width="100%" height={Math.max(280, examTypeData.length * 32 + 60)}>
+                <BarChart data={examTypeData} layout="vertical" margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={150} interval={0} />
+                  <Tooltip formatter={(value: number) => [value, "Exames"]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="value" name="Total de Exames" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 11, fill: "hsl(var(--foreground))" }}>
                     {examTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(value: number, name: string) => [value, name]} />
-                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11 }} iconType="circle" />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
