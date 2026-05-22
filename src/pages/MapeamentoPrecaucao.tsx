@@ -607,7 +607,7 @@ export default function MapeamentoPrecaucao() {
                   ].map(f => (
                     <div key={f.n}>
                       <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>{f.lbl}</label>
-                      <input name={f.n} value={(form as Record<string,string>)[f.n]} onChange={onChange} placeholder={f.ph} required style={inpStyle} />
+                      <input name={f.n} value={(form as unknown as Record<string,string>)[f.n]} onChange={onChange} placeholder={f.ph} required style={inpStyle} />
                     </div>
                   ))}
                 </div>
