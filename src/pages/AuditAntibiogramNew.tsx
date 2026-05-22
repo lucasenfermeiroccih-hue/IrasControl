@@ -59,6 +59,12 @@ const commonAntibiotics = [
   "Tigeciclina",
   "Trimetoprim/Sulfametoxazol",
   "Vancomicina",
+  "Nitrofurantoína",
+  "Norfloxacino",
+  "Fluconazol",
+  "Caspofungina",
+  "Micafungina",
+  "Voriconazol",
 ];
 
 const testMethods = ["Disco-difusão (Kirby-Bauer)", "CIM (Concentração Inibitória Mínima)"];
