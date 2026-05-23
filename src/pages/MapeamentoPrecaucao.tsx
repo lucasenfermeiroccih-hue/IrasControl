@@ -839,26 +839,64 @@ export default function MapeamentoPrecaucao() {
 
           {/* print view */}
           <div className="po" style={{ padding:20 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", borderBottom:"2px solid #0F4C75", paddingBottom:10, marginBottom:14 }}>
-              <div><div style={{ fontSize:17, fontWeight:600, color:"#0F4C75" }}>IRAS Control</div><div style={{ fontSize:11, color:"#6B7280" }}>Relatório de Mapeamento de Precauções e Isolamento — ANVISA</div></div>
-              <div style={{ textAlign:"right", fontSize:10, color:"#6B7280" }}>
-                <div>Data: {new Date().toLocaleDateString("pt-BR")}</div>
-                <div>Total em isolamento: {cntTotal}</div>
-              </div>
-            </div>
-            <table className="ptbl">
-              <thead><tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Data Coleta</th><th>Material</th><th>Microrganismo</th><th>Precaução</th></tr></thead>
-              <tbody>
-                {internadosSorted.map(p => {
-                  const org = ORGANISMOS.find(o => o.value === p.organismo);
-                  return (<tr key={p.id}><td>{p.nome}</td><td>{p.prontuario}</td><td>{p.setor}</td><td>{p.leito}</td><td>{fmt(p.dataColeta)}</td><td>{p.material || "—"}</td><td>{org?.label || p.organismo}</td><td>{p.precaucao}</td></tr>);
-                })}
-              </tbody>
-            </table>
-            <div style={{ marginTop:16, fontSize:9, color:"#9CA3AF", borderTop:"1px solid #E5E7EB", paddingTop:8 }}>
-              IRAS Control · Controle de Infecção Hospitalar · {new Date().toLocaleString("pt-BR")}
-            </div>
+            {(() => {
+              const grupos = internadosSorted.reduce<Record<string, Patient[]>>((acc, p) => {
+                const k = p.setor || "Sem setor";
+                (acc[k] = acc[k] || []).push(p);
+                return acc;
+              }, {});
+              const setoresOrd = Object.keys(grupos).sort((a,b) => a.localeCompare(b, "pt-BR"));
+              const renderTable = (rows: Patient[]) => (
+                <table className="ptbl">
+                  <thead><tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Data Coleta</th><th>Material</th><th>Microrganismo</th><th>Precaução</th></tr></thead>
+                  <tbody>
+                    {rows.map(p => {
+                      const org = ORGANISMOS.find(o => o.value === p.organismo);
+                      return (<tr key={p.id}><td>{p.nome}</td><td>{p.prontuario}</td><td>{p.setor}</td><td>{p.leito}</td><td>{fmt(p.dataColeta)}</td><td>{p.material || "—"}</td><td>{org?.label || p.organismo}</td><td>{p.precaucao}</td></tr>);
+                    })}
+                  </tbody>
+                </table>
+              );
+              return (
+                <>
+                  {setoresOrd.map((setor, idx) => (
+                    <section key={setor} className={idx > 0 ? "page-break avoid-break" : "avoid-break"}>
+                      <div style={{ display:"flex", justifyContent:"space-between", borderBottom:"2px solid #0F4C75", paddingBottom:10, marginBottom:14 }}>
+                        <div>
+                          <div style={{ fontSize:17, fontWeight:600, color:"#0F4C75" }}>IRAS Control</div>
+                          <div style={{ fontSize:11, color:"#6B7280" }}>Mapeamento de Precauções — Setor: <b>{setor}</b></div>
+                        </div>
+                        <div style={{ textAlign:"right", fontSize:10, color:"#6B7280" }}>
+                          <div>Data: {new Date().toLocaleDateString("pt-BR")}</div>
+                          <div>Pacientes no setor: {grupos[setor].length}</div>
+                        </div>
+                      </div>
+                      {renderTable(grupos[setor])}
+                    </section>
+                  ))}
+
+                  {/* Consolidado final */}
+                  <section className={setoresOrd.length > 0 ? "page-break" : ""}>
+                    <div style={{ display:"flex", justifyContent:"space-between", borderBottom:"2px solid #0F4C75", paddingBottom:10, marginBottom:14 }}>
+                      <div>
+                        <div style={{ fontSize:17, fontWeight:600, color:"#0F4C75" }}>IRAS Control</div>
+                        <div style={{ fontSize:11, color:"#6B7280" }}>Consolidado Geral — Todos os Setores · ANVISA</div>
+                      </div>
+                      <div style={{ textAlign:"right", fontSize:10, color:"#6B7280" }}>
+                        <div>Data: {new Date().toLocaleDateString("pt-BR")}</div>
+                        <div>Total em isolamento: {cntTotal}</div>
+                      </div>
+                    </div>
+                    {renderTable(internadosSorted)}
+                    <div style={{ marginTop:16, fontSize:9, color:"#9CA3AF", borderTop:"1px solid #E5E7EB", paddingTop:8 }}>
+                      IRAS Control · Controle de Infecção Hospitalar · {new Date().toLocaleString("pt-BR")}
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
           </div>
+
         </main>
       )}
 
