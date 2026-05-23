@@ -212,6 +212,11 @@ export default function MapeamentoPrecaucao() {
 
   const displayed = applySort(patients.filter(p =>
     p.status === fStatus &&
+    (fSetor === "Todos" || p.setor === fSetor) &&
+    (fLeito === "" || p.leito.toLowerCase().includes(fLeito.toLowerCase())) &&
+    (fDataColeta === "" || p.dataColeta === fDataColeta) &&
+    (fOrganismo === "Todos" || (p.organismo || "").split(" | ").includes(fOrganismo)) &&
+    (fPrecaucao === "Todos" || p.precaucao === fPrecaucao) &&
     (search === "" ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.prontuario.includes(search) ||
