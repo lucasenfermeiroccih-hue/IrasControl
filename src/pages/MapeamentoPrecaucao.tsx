@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { sendToAgent } from "@/lib/agent-service";
 import ChartActions from "@/components/ChartActions";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 const ORGANISMOS = [
@@ -84,6 +83,10 @@ const CHART_COLORS = ["#1D4ED8","#B45309","#B91C1C","#0D9488","#7C3AED","#059669
 const PIE_COLORS: Record<string, string> = { Contato:"#B45309", Gotículas:"#1D4ED8", Aerossóis:"#B91C1C" };
 
 const fmt = (d: string) => { if (!d) return "—"; const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
+const hexToRgb = (hex: string) => {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : { r: 0, g: 0, b: 0 };
+};
 const fmtTS = (ts: number) =>
   new Date(ts).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
@@ -154,31 +157,204 @@ export default function MapeamentoPrecaucao() {
   const setMeta = (key: string, value: number | undefined) =>
     setMetas(prev => ({ ...prev, [key]: value }));
 
-  const exportAllDashboardPDF = async () => {
-    const entries: { ref: React.RefObject<HTMLDivElement>; title: string }[] = [
-      { ref: chartRefs.org,   title: "Distribuição por Microrganismo" },
-      { ref: chartRefs.prec,  title: "Tipo de Precaução" },
-      { ref: chartRefs.setor, title: "Pacientes por Setor" },
-      { ref: chartRefs.mat,   title: "Material Coletado" },
-    ];
+  const exportSectorsPDF = () => {
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-    const margin = 10;
-    const pageW = pdf.internal.pageSize.getWidth();
-    const usableW = pageW - margin * 2;
-    let first = true;
-    for (const { ref, title } of entries) {
-      if (!ref.current) continue;
-      const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      if (!first) pdf.addPage();
-      pdf.setFontSize(11);
-      pdf.text(title, margin, margin + 5);
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const mg = 14;
+    const cW = PW - mg * 2;
+
+    const COL_WIDTHS = [50, 24, 14, 46, 27, 21];
+    const COL_LABELS = ["Paciente", "Prontuário", "Leito", "Microrganismo", "Precaução", "Data Coleta"];
+    const ROW_H = 8;
+    const CHART_BLOCK = 88;
+    const FOOTER_Y = PH - 8;
+    const MAX_ROW_Y = PH - CHART_BLOCK - 12;
+
+    const PREC_COLORS: Record<string, string> = {
+      Contato: "#B45309", Gotículas: "#1D4ED8", Aerossóis: "#B91C1C",
+    };
+    const ORG_COLORS = ["#1D4ED8","#B45309","#B91C1C","#0D9488","#7C3AED","#059669","#D97706"];
+
+    const drawPageHeader = (setor: string, count: number, isContinuation: boolean): number => {
+      pdf.setFillColor(15, 76, 117);
+      pdf.rect(0, 0, PW, 20, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text("IRAS Control", mg, 9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.text("Controle de Infecção Hospitalar — Mapeamento de Precaução e Isolamento (ANVISA)", mg, 15);
+      pdf.text(new Date().toLocaleDateString("pt-BR"), PW - mg, 9, { align: "right" });
+
+      pdf.setTextColor(15, 76, 117);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(17);
+      pdf.text(setor + (isContinuation ? "  (continuação)" : ""), mg, 32);
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(90, 90, 90);
+      pdf.text(`${count} paciente${count !== 1 ? "s" : ""} em isolamento ativo`, mg, 39);
+
+      pdf.setDrawColor(15, 76, 117);
+      pdf.setLineWidth(0.5);
+      pdf.line(mg, 42, PW - mg, 42);
+      return 46;
+    };
+
+    const drawTableHeader = (y: number): number => {
+      pdf.setFillColor(15, 76, 117);
+      pdf.rect(mg, y, cW, ROW_H, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8);
+      let x = mg + 2;
+      COL_LABELS.forEach((lbl, i) => { pdf.text(lbl, x, y + 5.5); x += COL_WIDTHS[i]; });
+      return y + ROW_H;
+    };
+
+    const drawCharts = (sectorPats: Patient[], startY: number) => {
+      const halfW = (cW - 8) / 2;
+
+      const orgCount: Record<string, number> = {};
+      sectorPats.forEach(p => {
+        const key = (ORGANISMOS.find(o => o.value === p.organismo)?.label || p.organismo).split("–")[0].trim();
+        orgCount[key] = (orgCount[key] || 0) + 1;
+      });
+      const orgEntries = Object.entries(orgCount).sort((a, b) => b[1] - a[1]).slice(0, 7);
+
+      const precCount: Record<string, number> = {};
+      sectorPats.forEach(p => { precCount[p.precaucao] = (precCount[p.precaucao] || 0) + 1; });
+      const precEntries = Object.entries(precCount).sort((a, b) => b[1] - a[1]);
+
+      // Separator before charts
+      pdf.setDrawColor(229, 231, 235);
+      pdf.setLineWidth(0.3);
+      pdf.line(mg, startY, PW - mg, startY);
+
+      const chartY = startY + 6;
+
+      // Titles
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      pdf.setTextColor(15, 76, 117);
+      pdf.text("Distribuição por Microrganismo", mg, chartY);
+      pdf.text("Tipo de Precaução", mg + halfW + 8, chartY);
+
+      const bodyY = chartY + 6;
+      const BAR_H = 7;
+      const BAR_GAP = 2;
+
+      // Org bars
+      const LABEL_W = 42;
+      const maxOrg = Math.max(...orgEntries.map(([, v]) => v), 1);
+      const barMaxW = halfW - LABEL_W - 10;
+      pdf.setFont("helvetica", "normal");
+      orgEntries.forEach(([name, val], i) => {
+        const y = bodyY + i * (BAR_H + BAR_GAP);
+        const bW = Math.max((val / maxOrg) * barMaxW, 1);
+        const { r, g, b } = hexToRgb(ORG_COLORS[i % ORG_COLORS.length]);
+        pdf.setFontSize(7);
+        pdf.setTextColor(55, 55, 55);
+        const lbl = name.length > 20 ? name.slice(0, 19) + "…" : name;
+        pdf.text(lbl, mg, y + BAR_H - 1.5);
+        pdf.setFillColor(r, g, b);
+        pdf.rect(mg + LABEL_W, y, bW, BAR_H, "F");
+        pdf.setTextColor(90, 90, 90);
+        pdf.text(String(val), mg + LABEL_W + bW + 2, y + BAR_H - 1.5);
+      });
+
+      // Prec bars
+      const PREC_X = mg + halfW + 8;
+      const PREC_LABEL_W = 22;
+      const precMaxW = halfW - PREC_LABEL_W - 14;
+      const maxPrec = Math.max(...precEntries.map(([, v]) => v), 1);
+      const totalPrec = precEntries.reduce((s, [, v]) => s + v, 0);
+      precEntries.forEach(([name, val], i) => {
+        const y = bodyY + i * (BAR_H + BAR_GAP + 2);
+        const bW = Math.max((val / maxPrec) * precMaxW, 1);
+        const { r, g, b } = hexToRgb(PREC_COLORS[name] || "#0F4C75");
+        const pct = totalPrec > 0 ? Math.round((val / totalPrec) * 100) : 0;
+        pdf.setFontSize(7);
+        pdf.setTextColor(55, 55, 55);
+        pdf.text(name, PREC_X, y + BAR_H - 1.5);
+        pdf.setFillColor(r, g, b);
+        pdf.rect(PREC_X + PREC_LABEL_W, y, bW, BAR_H, "F");
+        pdf.setTextColor(90, 90, 90);
+        pdf.text(`${val} (${pct}%)`, PREC_X + PREC_LABEL_W + bW + 2, y + BAR_H - 1.5);
+      });
+    };
+
+    const drawFooter = (setor: string, sIdx: number, total: number) => {
       pdf.setFontSize(7);
-      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 10);
-      const ratio = canvas.height / canvas.width;
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, margin + 14, usableW, usableW * ratio);
-      first = false;
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(160, 160, 160);
+      pdf.text(`IRAS Control · Controle de Infecção Hospitalar · ${new Date().toLocaleString("pt-BR")}`, mg, FOOTER_Y);
+      pdf.text(`Setor ${sIdx + 1} de ${total}`, PW - mg, FOOTER_Y, { align: "right" });
+    };
+
+    const internados = patients.filter(p => p.status === "Internado");
+    const sectors = [...new Set(internados.map(p => p.setor))].sort();
+
+    if (sectors.length === 0) {
+      pdf.setFontSize(12);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text("Nenhum paciente em isolamento ativo.", mg, 50);
+      pdf.save(`precaucao_setores_${new Date().toISOString().slice(0, 10)}.pdf`);
+      return;
     }
-    pdf.save(`mapeamento_precaucao_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+    let firstPage = true;
+
+    sectors.forEach((setor, sIdx) => {
+      if (!firstPage) pdf.addPage();
+      firstPage = false;
+
+      const sectorPats = internados.filter(p => p.setor === setor).sort((a, b) => a.leito.localeCompare(b.leito, "pt-BR", { numeric: true }));
+      let y = drawPageHeader(setor, sectorPats.length, false);
+      y = drawTableHeader(y);
+
+      pdf.setFont("helvetica", "normal");
+      let continuation = false;
+
+      sectorPats.forEach((p, ri) => {
+        if (y + ROW_H > MAX_ROW_Y) {
+          drawCharts(sectorPats, y + 6);
+          drawFooter(setor, sIdx, sectors.length);
+          pdf.addPage();
+          continuation = true;
+          y = drawPageHeader(setor, sectorPats.length, true);
+          y = drawTableHeader(y);
+          pdf.setFont("helvetica", "normal");
+        }
+
+        if (ri % 2 === 1) {
+          pdf.setFillColor(249, 250, 251);
+          pdf.rect(mg, y, cW, ROW_H, "F");
+        }
+
+        const org = ORGANISMOS.find(o => o.value === p.organismo);
+        const orgLabel = ((org?.label || p.organismo).split("–")[0].trim()).slice(0, 22);
+
+        const cells = [p.nome.slice(0, 27), p.prontuario || "—", p.leito || "—", orgLabel, p.precaucao, fmt(p.dataColeta)];
+        pdf.setFontSize(8);
+        pdf.setTextColor(30, 30, 30);
+        let x = mg + 2;
+        cells.forEach((cell, ci) => { pdf.text(String(cell), x, y + 5.5); x += COL_WIDTHS[ci]; });
+
+        pdf.setDrawColor(229, 231, 235);
+        pdf.setLineWidth(0.2);
+        pdf.line(mg, y + ROW_H, mg + cW, y + ROW_H);
+        y += ROW_H;
+      });
+
+      drawCharts(sectorPats, y + 8);
+      drawFooter(setor, sIdx, sectors.length);
+    });
+
+    pdf.save(`precaucao_setores_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   const fetchData = useCallback(async () => {
@@ -1043,8 +1219,8 @@ export default function MapeamentoPrecaucao() {
               <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Dashboard — Mapeamento de Precaução</h1>
               <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Análise epidemiológica interativa dos isolamentos ativos</p>
             </div>
-            <button onClick={exportAllDashboardPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
-              ⎙ Exportar Gráficos PDF
+            <button onClick={exportSectorsPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+              ⎙ Exportar PDF por Setor
             </button>
           </div>
 
