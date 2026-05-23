@@ -853,8 +853,8 @@ export default function MapeamentoPrecaucao() {
               <button onClick={runAI} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"#4F46E5", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
                 ✦ Insights IA
               </button>
-              <button onClick={() => window.print()} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
-                ⎙ PDF
+              <button onClick={exportSectorsPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+                ⎙ PDF por Setor
               </button>
               <button onClick={() => setShowForm(!showForm)} style={{ padding:"7px 16px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
                 + Cadastrar Paciente
