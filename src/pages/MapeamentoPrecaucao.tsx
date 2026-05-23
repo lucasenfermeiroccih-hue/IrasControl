@@ -590,8 +590,11 @@ export default function MapeamentoPrecaucao() {
           .ptbl th { background:#0F4C75; color:#fff; padding:6px 8px; text-align:left; }
           .ptbl td { padding:5px 8px; border-bottom:1px solid #E5E7EB; }
           .ptbl tr:nth-child(even) td { background:#F9FAFB; }
-          .page-break { page-break-before: always; }
+          .page-break { page-break-before: always; break-before: page; }
+          .page-break-after { page-break-after: always; break-after: page; }
           .avoid-break { page-break-inside: avoid; }
+          .setor-page { page-break-after: always; break-after: page; page-break-inside: auto; }
+          .setor-page:last-of-type { page-break-after: auto; break-after: auto; }
         }
         @media screen { .po { display:none; } }
         * { box-sizing:border-box; }
@@ -948,8 +951,8 @@ export default function MapeamentoPrecaucao() {
               );
               return (
                 <>
-                  {setoresOrd.map((setor, idx) => (
-                    <section key={setor} className={idx > 0 ? "page-break avoid-break" : "avoid-break"}>
+                  {setoresOrd.map((setor) => (
+                    <section key={setor} className="setor-page">
                       <div style={{ display:"flex", justifyContent:"space-between", borderBottom:"2px solid #0F4C75", paddingBottom:10, marginBottom:14 }}>
                         <div>
                           <div style={{ fontSize:17, fontWeight:600, color:"#0F4C75" }}>IRAS Control</div>
