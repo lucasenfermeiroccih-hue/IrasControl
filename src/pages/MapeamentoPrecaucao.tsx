@@ -590,8 +590,11 @@ export default function MapeamentoPrecaucao() {
           .ptbl th { background:#0F4C75; color:#fff; padding:6px 8px; text-align:left; }
           .ptbl td { padding:5px 8px; border-bottom:1px solid #E5E7EB; }
           .ptbl tr:nth-child(even) td { background:#F9FAFB; }
-          .page-break { page-break-before: always; }
+          .page-break { page-break-before: always; break-before: page; }
+          .page-break-after { page-break-after: always; break-after: page; }
           .avoid-break { page-break-inside: avoid; }
+          .setor-page { page-break-after: always; break-after: page; page-break-inside: auto; }
+          .setor-page:last-of-type { page-break-after: auto; break-after: auto; }
         }
         @media screen { .po { display:none; } }
         * { box-sizing:border-box; }
