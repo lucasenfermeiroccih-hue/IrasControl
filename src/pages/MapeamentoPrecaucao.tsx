@@ -716,6 +716,35 @@ export default function MapeamentoPrecaucao() {
               style={{ flex:1, padding:"6px 12px", borderRadius:8, border:"0.5px solid var(--color-border-secondary)", fontSize:12, background:"var(--color-background-primary)", color:"var(--color-text-primary)" }} />
           </div>
 
+          {/* filtros avançados */}
+          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(6, minmax(0,1fr)) auto", gap:8, marginBottom:14 }}>
+            <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={inpStyle}>
+              <option value="Todos">Setor: Todos</option>
+              {SETORES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <input value={fLeito} onChange={e => setFLeito(e.target.value)} placeholder="Leito" style={inpStyle} />
+            <input type="date" value={fDataColeta} onChange={e => setFDataColeta(e.target.value)} style={inpStyle} title="Data da Coleta" />
+            <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={inpStyle}>
+              {Object.keys(SMETA).map(s => <option key={s} value={s}>Status: {s}</option>)}
+            </select>
+            <select value={fOrganismo} onChange={e => setFOrganismo(e.target.value)} style={inpStyle}>
+              <option value="Todos">Microrganismo: Todos</option>
+              {ORGANISMOS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select value={fPrecaucao} onChange={e => setFPrecaucao(e.target.value)} style={inpStyle}>
+              <option value="Todos">Precaução: Todas</option>
+              {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setSearch(""); }}
+              style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}
+            >
+              Limpar
+            </button>
+          </div>
+
+
           {/* sort chips */}
           <div className="np" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10 }}>
             <span style={{ fontSize:11, color:"var(--color-text-tertiary)", fontWeight:500, marginRight:2 }}>Ordenar por:</span>
