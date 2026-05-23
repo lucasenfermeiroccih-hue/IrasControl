@@ -104,6 +104,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Buscar nome do hospital
+    const { data: hospData } = await supabase.from("hospitals").select("name").eq("id", hospitalId).maybeSingle();
+    const hospitalName: string = (hospData as any)?.name || "Hospital";
+
     // Período
     const periodEnd = new Date();
     const periodStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -216,21 +220,41 @@ Deno.serve(async (req) => {
     };
 
     // Chamar Lovable AI
-    const systemPrompt = `Você é um médico infectologista e especialista em vigilância epidemiológica de IRAS, responsável por analisar dados de Sensibilidade Antimicrobiana de hospitais brasileiros. Produza relatórios técnicos claros, em português, seguindo as diretrizes ANVISA/CDC. Use markdown com cabeçalhos (##, ###), listas e tabelas quando apropriado.`;
-    const userPrompt = `Gere um RELATÓRIO COMPLETO de Sensibilidade Antimicrobiana para o período: ${periodLabel} (${isoStart} a ${isoEnd}).
+    const systemPrompt = `Você é um médico infectologista sênior e especialista em vigilância epidemiológica de IRAS (Infecções Relacionadas à Assistência à Saúde) em hospitais brasileiros. Seu papel é elaborar relatórios mensais completos de Perfil de Sensibilidade Antimicrobiana com rigor técnico, seguindo os padrões ANVISA, CDC e OMS. Use markdown com cabeçalhos ## para seções principais e ### para subseções. Seja objetivo, técnico e acionável. Produza SEMPRE todas as seções solicitadas, mesmo que os dados sejam escassos — nesse caso, escreva "Dados insuficientes para análise conclusiva neste período."`;
 
-Estrutura obrigatória:
-1. **Resumo Executivo** (2-3 parágrafos)
-2. **Indicadores-chave** (KPIs)
-3. **Microrganismos predominantes** e implicações clínicas
-4. **Perfil de resistência por antibiótico** — destaque os de maior risco (>30% R)
-5. **Fenótipos críticos detectados** (MRSA, VRE, KPC, ESBL) e medidas recomendadas
-6. **Tendência temporal** — comente padrões de aumento/queda
-7. **Distribuição por setor** — aponte focos
-8. **Alertas e recomendações clínicas** (bullets acionáveis)
-9. **Conclusão**
+    const userPrompt = `Gere o RELATÓRIO MENSAL COMPLETO de Perfil de Sensibilidade Antimicrobiana Hospitalar para o período ${periodLabel} (${isoStart} a ${isoEnd}).
 
-Dados estruturados (JSON):
+INSTRUÇÃO CRÍTICA: Use EXATAMENTE estes cabeçalhos de seção (## NOME DA SEÇÃO) para que o sistema possa parsear corretamente:
+
+## RESUMO EXECUTIVO
+Escreva 2-3 parágrafos narrativos sobre o período. Contextualize os achados, destaque os principais riscos e o panorama geral da resistência antimicrobiana. Mencione os microrganismos e setores de maior preocupação.
+
+## ANÁLISE MICROBIOLÓGICA
+Analise os microrganismos predominantes e suas implicações clínicas. Discuta o significado clínico de cada patógeno, contextualize com a literatura e com padrões epidemiológicos brasileiros. Explique o risco para os pacientes.
+
+## PERFIL DE RESISTÊNCIA
+Analise os antibióticos com maior taxa de resistência (>30% R). Discuta mecanismos de resistência prováveis (ESBL, KPC, MBL, MRSA, VRE), implicações terapêuticas e riscos para falha de tratamento empírico.
+
+## TENDÊNCIAS TEMPORAIS
+Comente a evolução mensal dos dados. Identifique tendências de aumento ou queda. Avalie se há padrão de surto, sazonalidade ou estabilização. Sugira o que pode estar impulsionando as mudanças.
+
+## ANÁLISE POR SETOR
+Aponte os setores com maior pressão antimicrobiana. Identifique focos de transmissão cruzada potencial. Relacione o perfil de resistência com as características de cada setor (UTI, PS, enfermarias).
+
+## ALERTAS EPIDEMIOLÓGICOS
+Liste de 3 a 5 alertas IMEDIATOS em formato bullet point. Seja específico: cite o microrganismo, o setor, o antimicrobiano e o nível de risco. Use linguagem acionável.
+
+## RECOMENDAÇÕES CLÍNICAS
+Liste de 5 a 8 recomendações concretas baseadas nos dados. Inclua: stewardship antimicrobiano, precauções de isolamento, vigilância ativa, educação permanente, revisão de protocolos e medidas de controle de infecção.
+
+## PLANO DE AÇÃO CCIH
+Apresente uma tabela markdown com as colunas: Problema | Impacto (Alto/Médio/Baixo) | Ação Proposta | Responsável | Prazo. Liste de 4 a 6 ações prioritárias baseadas nos achados.
+
+## CONCLUSÃO
+Escreva 1 parágrafo de fechamento sintetizando os achados mais críticos, o nível de risco geral do período e as prioridades para o próximo ciclo de monitoramento.
+
+---
+DADOS ESTRUTURADOS DO PERÍODO (use estes dados como base factual para toda a análise):
 \`\`\`json
 ${JSON.stringify(summary, null, 2)}
 \`\`\``;
@@ -296,6 +320,7 @@ ${JSON.stringify(summary, null, 2)}
     return new Response(JSON.stringify({
       ok: true,
       period: periodLabel,
+      hospital_name: hospitalName,
       summary,
       ai_content: aiContent,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

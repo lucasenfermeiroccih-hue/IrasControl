@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { supabase } from "@/integrations/supabase/client";
+import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -159,8 +160,11 @@ export default function DashboardAntibiogram() {
   const [reportPeriod, setReportPeriod] = useState("ultimo-mes");
   const [reportLoading, setReportLoading] = useState(false);
   const [reportResult, setReportResult] = useState<string | null>(null);
+  const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null);
+  const [reportHospitalName, setReportHospitalName] = useState("Hospital");
 
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Em breve." });
 
@@ -281,6 +285,8 @@ export default function DashboardAntibiogram() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       setReportResult(data.ai_content);
+      if (data.summary) setReportSummary(data.summary);
+      if (data.hospital_name) setReportHospitalName(data.hospital_name);
       toast({ title: "Relatório gerado", description: "Salvo no histórico." });
     } catch (error: any) {
       toast({ title: "Erro", description: error.message || "Falha ao gerar relatório.", variant: "destructive" });
@@ -289,7 +295,45 @@ export default function DashboardAntibiogram() {
     }
   };
 
-  const handleExportReportPDF = () => handleExportPDFStructured(true);
+  const handleExportReportPDF = async () => {
+    if (!reportRef.current || !reportResult || !reportSummary) {
+      handleExportPDFStructured(true);
+      return;
+    }
+    setPdfStructuredLoading(true);
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        width: 794,
+        windowWidth: 794,
+        scrollY: 0,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const imgW = pdfW;
+      const imgH = (canvas.height * pdfW) / canvas.width;
+      let heightLeft = imgH;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+      heightLeft -= pdfH;
+      while (heightLeft > 0) {
+        position = heightLeft - imgH;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+        heightLeft -= pdfH;
+      }
+      pdf.save(`relatorio-sensibilidade-antimicrobiana-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast({ title: "PDF exportado", description: "Download iniciado." });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message || "Falha ao gerar PDF.", variant: "destructive" });
+    } finally {
+      setPdfStructuredLoading(false);
+    }
+  };
 
   if (dataLoading) {
     return (
@@ -619,7 +663,7 @@ export default function DashboardAntibiogram() {
 
       {/* Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[900px] max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-primary" />
@@ -649,14 +693,24 @@ export default function DashboardAntibiogram() {
               {reportLoading ? "Gerando relatório..." : "Gerar Relatório"}
             </Button>
 
-            {reportResult && (
+            {reportResult && reportSummary && (
               <div className="space-y-3">
                 <Separator />
-                <div className="rounded-lg border bg-card p-4">
-                  <div className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{reportResult}</div>
+                <div className="overflow-x-auto rounded-lg border bg-white">
+                  <MicrobiologicalReport
+                    ref={reportRef}
+                    summary={reportSummary}
+                    aiContent={reportResult}
+                    hospitalName={reportHospitalName}
+                  />
                 </div>
-                <Button variant="outline" onClick={handleExportReportPDF} className="w-full gap-2">
-                  <Download className="h-4 w-4" /> Exportar Relatório em PDF
+                <Button
+                  onClick={handleExportReportPDF}
+                  disabled={pdfStructuredLoading}
+                  className="w-full gap-2"
+                >
+                  {pdfStructuredLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Exportar Relatório Completo em PDF
                 </Button>
               </div>
             )}
