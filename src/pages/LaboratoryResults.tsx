@@ -110,6 +110,7 @@ const LaboratoryResults = () => {
       .select("id, full_name, medical_record, sector")
       .eq("hospital_id", hospitalId)
       .eq("status", "active")
+      .neq("source", "precaution_map")
       .order("full_name")
       .then(({ data }) => setPatients(data || []));
   }, [hospitalId]);

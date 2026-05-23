@@ -142,7 +142,8 @@ const PatientDashboardIndicators = () => {
       const pRes = await supabase
         .from("patients")
         .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
-        .eq("hospital_id", hospitalId);
+        .eq("hospital_id", hospitalId)
+        .neq("source", "precaution_map");
       const pts = (pRes.data || []) as PatientRow[];
       setPatients(pts);
 

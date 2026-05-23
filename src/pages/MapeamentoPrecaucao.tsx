@@ -115,9 +115,13 @@ export default function MapeamentoPrecaucao() {
   const [patients,   setPatients]  = useState<Patient[]>([]);
   const [events,     setEvents]    = useState<Event[]>([]);
   const [loading,    setLoading]   = useState(false);
-  const [showForm,   setShowForm]  = useState(false);
-  const [editingId,  setEditingId] = useState<string | null>(null);
-  const [form,       setForm]      = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[] });
+  const [showForm,         setShowForm]         = useState(false);
+  const [editingId,        setEditingId]        = useState<string | null>(null);
+  const [form,             setForm]             = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[] });
+  const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
+  const [patientQuery,     setPatientQuery]     = useState("");
+  const [patientResults,   setPatientResults]   = useState<{id:string;full_name:string;medical_record:string;sector:string;bed:string}[]>([]);
+  const [patientSearching, setPatientSearching] = useState(false);
   const [fStatus,    setFStatus]   = useState("Internado");
   const [search,     setSearch]    = useState("");
   const [stModal,    setStModal]   = useState<string | null>(null);
@@ -233,7 +237,33 @@ export default function MapeamentoPrecaucao() {
   const resetForm = () => {
     setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] });
     setEditingId(null);
+    setExistingPatientId(null);
+    setPatientQuery("");
+    setPatientResults([]);
     setShowForm(false);
+  };
+
+  const searchExistingPatients = async (q: string) => {
+    setPatientQuery(q);
+    if (!hospitalId || q.length < 2) { setPatientResults([]); return; }
+    setPatientSearching(true);
+    const { data } = await supabase
+      .from("patients")
+      .select("id, full_name, medical_record, sector, bed")
+      .eq("hospital_id", hospitalId)
+      .eq("status", "active")
+      .neq("source", "precaution_map")
+      .or(`full_name.ilike.%${q}%,medical_record.ilike.%${q}%`)
+      .limit(8);
+    setPatientResults(data || []);
+    setPatientSearching(false);
+  };
+
+  const selectExistingPatient = (p: typeof patientResults[0]) => {
+    setExistingPatientId(p.id);
+    setForm(f => ({ ...f, nome: p.full_name, prontuario: p.medical_record || "", setor: p.sector || "", leito: p.bed || "" }));
+    setPatientQuery(p.full_name);
+    setPatientResults([]);
   };
 
   const toggleOrganismo = (value: string) => {
@@ -292,32 +322,45 @@ export default function MapeamentoPrecaucao() {
       return;
     }
 
-    const { data: newPatient, error: pErr } = await supabase
-      .from("patients")
-      .insert({
-        full_name: form.nome,
-        medical_record: form.prontuario,
+    let finalPatientId: string;
+
+    if (existingPatientId) {
+      // Patient already exists in the system — just update location and add precaution
+      await supabase.from("patients").update({
         sector: form.setor,
         bed: form.leito,
-        hospital_id: hospitalId,
-        status: "active" as const,
-        admission_date: new Date().toISOString().split("T")[0],
-      })
-      .select()
-      .single();
+      }).eq("id", existingPatientId);
+      finalPatientId = existingPatientId;
+    } else {
+      const { data: newPatient, error: pErr } = await supabase
+        .from("patients")
+        .insert({
+          full_name: form.nome,
+          medical_record: form.prontuario,
+          sector: form.setor,
+          bed: form.leito,
+          hospital_id: hospitalId,
+          status: "active" as const,
+          admission_date: new Date().toISOString().split("T")[0],
+          source: "precaution_map",
+        })
+        .select()
+        .single();
 
-    if (pErr || !newPatient) return;
+      if (pErr || !newPatient) return;
+      finalPatientId = newPatient.id;
+    }
 
     await Promise.all([
       supabase.from("precautions").insert({
-        patient_id: newPatient.id,
+        patient_id: finalPatientId,
         precaution_type: precaucao,
         is_active: true,
         start_date: new Date().toISOString().split("T")[0],
         reason: orgValue,
       }),
       ...(orgValue || form.material ? [supabase.from("lab_results").insert({
-        patient_id: newPatient.id,
+        patient_id: finalPatientId,
         hospital_id: hospitalId,
         organism: orgValue || null,
         sample_material: form.material || null,
@@ -330,7 +373,7 @@ export default function MapeamentoPrecaucao() {
       id: Date.now(),
       type: "Cadastro",
       timestamp: Date.now(),
-      patientId: newPatient.id,
+      patientId: finalPatientId,
       patientNome: form.nome,
       setor: form.setor,
       leito: form.leito,
@@ -625,6 +668,52 @@ export default function MapeamentoPrecaucao() {
             <div className="np" style={{ ...card, marginBottom:16 }}>
               <h3 style={{ margin:"0 0 14px", fontSize:14, fontWeight:500, color:"var(--color-text-primary)" }}>{editingId ? "Editar Paciente em Isolamento" : "Cadastrar Paciente em Isolamento"}</h3>
               <form onSubmit={onSubmit}>
+                {!editingId && (
+                  <div style={{ marginBottom:12, padding:"10px 12px", background:"#EFF6FF", borderRadius:8, border:"1px solid #BFDBFE" }}>
+                    <label style={{ display:"block", fontSize:11, color:"#1E40AF", marginBottom:4, fontWeight:500 }}>
+                      Buscar paciente já cadastrado no sistema (MDR, por nome ou prontuário)
+                    </label>
+                    <div style={{ position:"relative" }}>
+                      <input
+                        value={patientQuery}
+                        onChange={e => searchExistingPatients(e.target.value)}
+                        placeholder="Digite nome ou prontuário para buscar…"
+                        style={{ ...inpStyle, paddingRight: existingPatientId ? 80 : 10 }}
+                      />
+                      {existingPatientId && (
+                        <button type="button" onClick={() => { setExistingPatientId(null); setPatientQuery(""); setForm(f => ({ ...f, nome:"", prontuario:"", setor:"", leito:"" })); }}
+                          style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#B91C1C", background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
+                          ✕ limpar
+                        </button>
+                      )}
+                    </div>
+                    {patientSearching && <div style={{ fontSize:11, color:"#6B7280", marginTop:4 }}>Buscando…</div>}
+                    {patientResults.length > 0 && (
+                      <div style={{ marginTop:4, border:"1px solid #BFDBFE", borderRadius:6, overflow:"hidden", background:"white" }}>
+                        {patientResults.map(p => (
+                          <button key={p.id} type="button" onClick={() => selectExistingPatient(p)}
+                            style={{ display:"block", width:"100%", textAlign:"left", padding:"7px 10px", border:"none", borderBottom:"1px solid #EFF6FF", background:"white", cursor:"pointer", fontSize:12, fontFamily:"inherit" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "white")}>
+                            <span style={{ fontWeight:500, color:"#1E40AF" }}>{p.full_name}</span>
+                            {p.medical_record && <span style={{ color:"#6B7280", marginLeft:6 }}>#{p.medical_record}</span>}
+                            {p.sector && <span style={{ color:"#9CA3AF", marginLeft:6, fontSize:11 }}>{p.sector}{p.bed ? ` · leito ${p.bed}` : ""}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {existingPatientId && (
+                      <div style={{ marginTop:4, fontSize:11, color:"#065F46", fontWeight:500 }}>
+                        ✓ Paciente do sistema selecionado — não será criado novo cadastro
+                      </div>
+                    )}
+                    {!existingPatientId && patientQuery.length === 0 && (
+                      <div style={{ marginTop:4, fontSize:11, color:"#6B7280" }}>
+                        Não encontrado? Preencha os campos abaixo para cadastrar novo paciente exclusivo do mapa.
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:10, marginBottom:10 }}>
                   {[
                     { n:"nome",       lbl:"Nome do Paciente *", ph:"Nome completo" },

@@ -177,6 +177,7 @@ async function fetchPatients(filters: FetchFilters): Promise<Record<string, unkn
   let query = supabase
     .from("patients")
     .select("id, full_name, gender, birth_date, admission_date, discharge_date, sector, bed, status, medical_record")
+    .neq("source", "precaution_map")
     .order("admission_date", { ascending: false });
 
   if (filters.dateFrom) {

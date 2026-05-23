@@ -117,6 +117,7 @@ export function usePatientMonitoring() {
       .from("patients")
       .select("*")
       .eq("hospital_id", hospitalId)
+      .neq("source", "precaution_map")
       .order("created_at", { ascending: false });
 
     if (error) {

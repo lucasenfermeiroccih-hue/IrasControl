@@ -2146,6 +2146,7 @@ export type Database = {
           notes: string | null
           origin: string | null
           sector: string | null
+          source: string
           specialty: string | null
           status: Database["public"]["Enums"]["patient_status"]
           updated_at: string
@@ -2171,6 +2172,7 @@ export type Database = {
           notes?: string | null
           origin?: string | null
           sector?: string | null
+          source?: string
           specialty?: string | null
           status?: Database["public"]["Enums"]["patient_status"]
           updated_at?: string
@@ -2196,6 +2198,7 @@ export type Database = {
           notes?: string | null
           origin?: string | null
           sector?: string | null
+          source?: string
           specialty?: string | null
           status?: Database["public"]["Enums"]["patient_status"]
           updated_at?: string

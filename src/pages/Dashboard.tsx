@@ -35,7 +35,7 @@ export default function Dashboard() {
     const fetchAll = async () => {
       setLoading(true);
       const [pRes, cRes, aRes, alRes, lRes] = await Promise.all([
-        supabase.from("patients").select("*").eq("hospital_id", hospitalId),
+        supabase.from("patients").select("*").eq("hospital_id", hospitalId).neq("source", "precaution_map"),
         supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId),
         supabase.from("audits").select("*").eq("hospital_id", hospitalId),
         supabase.from("alerts").select("*").eq("hospital_id", hospitalId).eq("status", "active"),

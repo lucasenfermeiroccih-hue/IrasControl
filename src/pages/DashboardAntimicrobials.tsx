@@ -132,6 +132,7 @@ export default function DashboardAntimicrobials() {
         .eq("hospital_id", hospitalId!)
         .eq("full_name", form.patient.trim())
         .eq("status", "active")
+        .neq("source", "precaution_map")
         .limit(1);
 
       if (existing && existing.length > 0) {
