@@ -951,8 +951,8 @@ export default function MapeamentoPrecaucao() {
               );
               return (
                 <>
-                  {setoresOrd.map((setor, idx) => (
-                    <section key={setor} className={idx > 0 ? "page-break avoid-break" : "avoid-break"}>
+                  {setoresOrd.map((setor) => (
+                    <section key={setor} className="setor-page">
                       <div style={{ display:"flex", justifyContent:"space-between", borderBottom:"2px solid #0F4C75", paddingBottom:10, marginBottom:14 }}>
                         <div>
                           <div style={{ fontSize:17, fontWeight:600, color:"#0F4C75" }}>IRAS Control</div>
