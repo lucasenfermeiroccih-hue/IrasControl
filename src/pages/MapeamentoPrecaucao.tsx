@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -7,6 +7,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { sendToAgent } from "@/lib/agent-service";
+import ChartActions from "@/components/ChartActions";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const ORGANISMOS = [
   { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",              precaucao: "Contato"   },
@@ -139,6 +142,44 @@ export default function MapeamentoPrecaucao() {
   const [fPrecaucao, setFPrecaucao]= useState("Todos");
 
   const { hospitalId } = useHospitalContext();
+
+  // Chart refs and metas for ChartActions
+  const chartRefs = {
+    org:   useRef<HTMLDivElement>(null),
+    prec:  useRef<HTMLDivElement>(null),
+    setor: useRef<HTMLDivElement>(null),
+    mat:   useRef<HTMLDivElement>(null),
+  };
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({});
+  const setMeta = (key: string, value: number | undefined) =>
+    setMetas(prev => ({ ...prev, [key]: value }));
+
+  const exportAllDashboardPDF = async () => {
+    const entries: { ref: React.RefObject<HTMLDivElement>; title: string }[] = [
+      { ref: chartRefs.org,   title: "Distribuição por Microrganismo" },
+      { ref: chartRefs.prec,  title: "Tipo de Precaução" },
+      { ref: chartRefs.setor, title: "Pacientes por Setor" },
+      { ref: chartRefs.mat,   title: "Material Coletado" },
+    ];
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    const margin = 10;
+    const pageW = pdf.internal.pageSize.getWidth();
+    const usableW = pageW - margin * 2;
+    let first = true;
+    for (const { ref, title } of entries) {
+      if (!ref.current) continue;
+      const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      if (!first) pdf.addPage();
+      pdf.setFontSize(11);
+      pdf.text(title, margin, margin + 5);
+      pdf.setFontSize(7);
+      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 10);
+      const ratio = canvas.height / canvas.width;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, margin + 14, usableW, usableW * ratio);
+      first = false;
+    }
+    pdf.save(`mapeamento_precaucao_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   const fetchData = useCallback(async () => {
     if (!hospitalId) return;
@@ -997,9 +1038,14 @@ export default function MapeamentoPrecaucao() {
       ════════════════════════════════ */}
       {page === "dashboard" && (
         <main style={{ padding:"20px 20px 40px" }}>
-          <div style={{ marginBottom:16 }}>
-            <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Dashboard — Mapeamento de Precaução</h1>
-            <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Análise epidemiológica interativa dos isolamentos ativos</p>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16 }}>
+            <div>
+              <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Dashboard — Mapeamento de Precaução</h1>
+              <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Análise epidemiológica interativa dos isolamentos ativos</p>
+            </div>
+            <button onClick={exportAllDashboardPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+              ⎙ Exportar Gráficos PDF
+            </button>
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
@@ -1017,8 +1063,11 @@ export default function MapeamentoPrecaucao() {
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"3fr 2fr", gap:14, marginBottom:14 }}>
-            <div style={{ ...card }}>
-              <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>Distribuição por microrganismo</div>
+            <div ref={chartRefs.org} style={{ ...card }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:2 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>Distribuição por microrganismo</div>
+                <ChartActions chartRef={chartRefs.org} chartTitle="Distribuição por Microrganismo" metaValue={metas.org} onMetaChange={v => setMeta("org", v)} metaUnit="casos" />
+              </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Pacientes ativos por agente etiológico</div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={orgData} layout="vertical" margin={{ left:10, right:28 }}>
@@ -1034,8 +1083,11 @@ export default function MapeamentoPrecaucao() {
               </ResponsiveContainer>
             </div>
 
-            <div style={{ ...card }}>
-              <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>Tipo de precaução</div>
+            <div ref={chartRefs.prec} style={{ ...card }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:2 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>Tipo de precaução</div>
+                <ChartActions chartRef={chartRefs.prec} chartTitle="Tipo de Precaução" metaValue={metas.prec} onMetaChange={v => setMeta("prec", v)} metaUnit="casos" />
+              </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Proporção por categoria</div>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
@@ -1062,8 +1114,11 @@ export default function MapeamentoPrecaucao() {
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
-            <div style={{ ...card }}>
-              <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>Pacientes por setor</div>
+            <div ref={chartRefs.setor} style={{ ...card }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:2 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>Pacientes por setor</div>
+                <ChartActions chartRef={chartRefs.setor} chartTitle="Pacientes por Setor" metaValue={metas.setor} onMetaChange={v => setMeta("setor", v)} metaUnit="casos" />
+              </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Concentração de isolamentos por unidade</div>
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart data={setorData} margin={{ bottom:30 }}>
@@ -1078,8 +1133,11 @@ export default function MapeamentoPrecaucao() {
               </ResponsiveContainer>
             </div>
 
-            <div style={{ ...card }}>
-              <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>Material coletado</div>
+            <div ref={chartRefs.mat} style={{ ...card }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:2 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>Material coletado</div>
+                <ChartActions chartRef={chartRefs.mat} chartTitle="Material Coletado" metaValue={metas.mat} onMetaChange={v => setMeta("mat", v)} metaUnit="coletas" />
+              </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Frequência por tipo de espécime</div>
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart data={matData} layout="vertical" margin={{ left:0, right:24 }}>
