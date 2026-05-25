@@ -125,10 +125,25 @@ export default function DashboardPrecautions() {
 
     if (audits && audits.length > 0) {
       const auditIds = audits.map(a => a.id);
-      const { data: items } = await supabase
-        .from("audit_items")
-        .select("*")
-        .in("audit_id", auditIds);
+      // Paginate to avoid Supabase's 1000-row default limit
+      const chunkSize = 200;
+      const pageSize = 1000;
+      const allItems: any[] = [];
+      for (let i = 0; i < auditIds.length; i += chunkSize) {
+        const chunk = auditIds.slice(i, i + chunkSize);
+        let from = 0;
+        while (true) {
+          const { data: page, error } = await supabase
+            .from("audit_items")
+            .select("*")
+            .in("audit_id", chunk)
+            .range(from, from + pageSize - 1);
+          if (error || !page || page.length === 0) break;
+          allItems.push(...page);
+          if (page.length < pageSize) break;
+          from += pageSize;
+        }
+      }
 
       const mapped: AuditRecord[] = audits.map(a => ({
         id: a.id,
@@ -138,7 +153,7 @@ export default function DashboardPrecautions() {
         compliance_rate: a.compliance_rate,
         compliant_items: a.compliant_items,
         total_items: a.total_items,
-        items: (items || []).filter(i => i.audit_id === a.id).map(i => ({
+        items: allItems.filter(i => i.audit_id === a.id).map(i => ({
           question: i.question,
           status: i.status,
           category: i.category,
