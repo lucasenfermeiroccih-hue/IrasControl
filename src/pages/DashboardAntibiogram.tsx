@@ -24,7 +24,6 @@ import { supabase } from "@/integrations/supabase/client";
 import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
 
 const CHART_COLORS = [
   "hsl(168,66%,34%)", "hsl(199,89%,48%)", "hsl(38,92%,50%)",
