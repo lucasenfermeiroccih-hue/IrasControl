@@ -42,11 +42,11 @@ function getMostRestrictivePrecaucao(values: string[]): string {
 }
 
 const SETORES = [
-  "UTI Adulto 1","UTI Adulto 2","UTI Adulto 3","UPO",
-  "UTI Neonatal","UTI Pediátrica","Trauma Clínico",
+  "UTI 1 Adulto","UTI 2 Adulto","UTI 3 Adulto",
+  "UTI Neonatal","UTI Pediátrica","UPO",
+  "Trauma Clínico","Trauma Clínico Fora",
   "Clínica Médica","Clínica Cirúrgica","Contêiner",
-  "Pediatria Emergência","Pediatria Enfermaria","Alojamento Conjunto",
-  "Ambulatório","Setor de Internação",
+  "Pediatria","Pediatria (Enfermaria)","Alojamento Conjunto",
 ];
 
 const MATERIAIS = [
