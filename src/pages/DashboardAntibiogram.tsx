@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import ChartActions from "@/components/ChartActions";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
 
 const CHART_COLORS = [
   "hsl(168,66%,34%)", "hsl(199,89%,48%)", "hsl(38,92%,50%)",
@@ -120,6 +121,36 @@ export default function DashboardAntibiogram() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
+  // Summary calculado a partir dos dados filtrados no cliente (para PDF Visual sem IA)
+  const filteredSummary = useMemo((): ReportSummary => {
+    const dates = filtered.map(d => d.collectionDate).filter(Boolean).sort();
+    const periodStart = dates[0] || new Date().toISOString().slice(0, 10);
+    const periodEnd = dates[dates.length - 1] || new Date().toISOString().slice(0, 10);
+    const parts: string[] = [];
+    if (filtroAno.length) parts.push(filtroAno.join(", "));
+    if (filtroMes.length) parts.push(`Meses: ${filtroMes.join(", ")}`);
+    if (filtroSetor.length) parts.push(filtroSetor.length > 2 ? `${filtroSetor.length} setores` : filtroSetor.join(", "));
+    if (filtroOrg.length) parts.push(filtroOrg.length > 2 ? `${filtroOrg.length} organismos` : filtroOrg.join(", "));
+    if (filtroSite.length) parts.push(filtroSite.join(", "));
+    return {
+      periodo: parts.length ? parts.join(" · ") : "Período Completo",
+      periodStart,
+      periodEnd,
+      totalExames: totalExams,
+      totalTestes: totalTests,
+      taxaResistencia: resistanceRate,
+      taxaSensibilidade: sensitivityRate,
+      examesComFenotipo: phenotypeCount,
+      topOrganismos: orgCounts,
+      setores: sectorData,
+      perfilSIR: sirByAntibiotic,
+      tendenciaMensal: monthlyTrend,
+      fenotiposDetectados: phenotypeDist,
+    };
+  }, [filtered, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno,
+      totalExams, totalTests, resistanceRate, sensitivityRate, phenotypeCount,
+      orgCounts, sectorData, sirByAntibiotic, monthlyTrend, phenotypeDist]);
+
   const riskLevel = resistanceRate > 40 ? "critical" : resistanceRate > 25 ? "high" : resistanceRate > 15 ? "moderate" : "low";
   const riskConfig: Record<string, { label: string; color: string; icon: typeof ShieldAlert }> = {
     critical: { label: "Crítico", color: "bg-destructive text-destructive-foreground", icon: ShieldAlert },
@@ -165,81 +196,109 @@ export default function DashboardAntibiogram() {
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const directExportRef = useRef<HTMLDivElement>(null);
+
+  // Estado para exportação direta sem dialog
+  const [directExportData, setDirectExportData] = useState<{
+    summary: ReportSummary;
+    aiContent: string;
+    hospitalName: string;
+    filename: string;
+  } | null>(null);
+  const [pdfVisualLoading, setPdfVisualLoading] = useState(false);
+
+  const exportDirectPDF = async (el: HTMLDivElement, filename: string) => {
+    const canvas = await html2canvas(el, {
+      scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 794, windowWidth: 794, scrollY: 0,
+    });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const imgH = (canvas.height * pdfW) / canvas.width;
+    let heightLeft = imgH;
+    let position = 0;
+    pdf.addImage(imgData, "PNG", 0, position, pdfW, imgH);
+    heightLeft -= pdfH;
+    while (heightLeft > 0) {
+      position = heightLeft - imgH;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, pdfW, imgH);
+      heightLeft -= pdfH;
+    }
+    pdf.save(filename);
+    toast({ title: "PDF exportado", description: "Download iniciado." });
+  };
+
+  // Dispara exportação assim que o MicrobiologicalReport oculto for renderizado
+  useEffect(() => {
+    if (!directExportData) return;
+    const el = directExportRef.current;
+    if (!el) return;
+
+    const run = async () => {
+      await new Promise(r => setTimeout(r, 350)); // aguarda render completo
+      try {
+        await exportDirectPDF(el, directExportData.filename);
+      } catch (e: any) {
+        toast({ title: "Erro ao exportar PDF", description: e.message, variant: "destructive" });
+      } finally {
+        setDirectExportData(null);
+        setPdfVisualLoading(false);
+        setPdfStructuredLoading(false);
+      }
+    };
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directExportData]);
 
   const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Em breve." });
 
-  // PDF Visual (screenshot dos gráficos via html2canvas)
-  const [pdfVisualLoading, setPdfVisualLoading] = useState(false);
-  const handleExportPDFVisual = async () => {
-    if (!dashboardRef.current) return;
+  // PDF Visual — captura MicrobiologicalReport com dados filtrados (sem IA)
+  const handleExportPDFVisual = () => {
     setPdfVisualLoading(true);
-    try {
-      const canvas = await html2canvas(dashboardRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        windowWidth: dashboardRef.current.scrollWidth,
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
-      const imgW = pdfW;
-      const imgH = (canvas.height * pdfW) / canvas.width;
-      let heightLeft = imgH;
-      let position = 0;
-      pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
-      heightLeft -= pdfH;
-      while (heightLeft > 0) {
-        position = heightLeft - imgH;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
-        heightLeft -= pdfH;
-      }
-      pdf.save(`dashboard-antibiograma-${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast({ title: "PDF Visual gerado", description: "Download iniciado." });
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Falha ao gerar PDF visual.", variant: "destructive" });
-    } finally {
-      setPdfVisualLoading(false);
-    }
+    setDirectExportData({
+      summary: filteredSummary,
+      aiContent: "",
+      hospitalName: reportHospitalName,
+      filename: `relatorio-visual-antibiograma-${new Date().toISOString().slice(0, 10)}.pdf`,
+    });
   };
 
-  // PDF Estruturado server-side (com IA opcional)
+  // PDF Relatório — chama IA com filtros atuais e exporta direto sem dialog
   const [pdfStructuredLoading, setPdfStructuredLoading] = useState(false);
-  const handleExportPDFStructured = async (includeAi = false) => {
+  const handlePDFRelatorio = async () => {
     setPdfStructuredLoading(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Faça login para exportar.");
-
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/antibiogram-pdf`;
+      if (!token) throw new Error("Faça login.");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-antibiogram-report`;
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           period: reportPeriod,
-          include_ai: includeAi,
-          ai_content: includeAi ? reportResult : undefined,
+          filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
         }),
       });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `Erro ${resp.status}`);
-      }
-      const blob = await resp.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `relatorio-antibiograma-${new Date().toISOString().slice(0, 10)}.pdf`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast({ title: "PDF Relatório IA gerado", description: "Download iniciado." });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
+      if (data.hospital_name) setReportHospitalName(data.hospital_name);
+      setDirectExportData({
+        summary: data.summary || filteredSummary,
+        aiContent: data.ai_content || "",
+        hospitalName: data.hospital_name || reportHospitalName,
+        filename: `relatorio-antimicrobiano-${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Falha ao gerar PDF.", variant: "destructive" });
-    } finally {
       setPdfStructuredLoading(false);
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
+  };
+
+  const handleExportPDFStructured = () => {
+    toast({ title: "Gere o relatório primeiro", description: "Clique em 'Gerar Relatório' para visualizá-lo antes de exportar." });
   };
 
   // Insights via edge function (período curto, sem salvar como relatório completo)
@@ -297,7 +356,7 @@ export default function DashboardAntibiogram() {
 
   const handleExportReportPDF = async () => {
     if (!reportRef.current || !reportResult || !reportSummary) {
-      handleExportPDFStructured(true);
+      toast({ title: "Relatório não disponível", description: "Gere o relatório primeiro.", variant: "destructive" });
       return;
     }
     setPdfStructuredLoading(true);
@@ -375,11 +434,25 @@ export default function DashboardAntibiogram() {
           >
             <Bot className="h-3.5 w-3.5 text-primary" /> Relatório IA
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPDFVisual} disabled={pdfVisualLoading} className="gap-1.5 text-xs">
-            {pdfVisualLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />} PDF Visual
+          <Button
+            variant="outline" size="sm"
+            onClick={handleExportPDFVisual}
+            disabled={pdfVisualLoading || pdfStructuredLoading}
+            className="gap-1.5 text-xs"
+            title="Exporta relatório visual com gráficos dos dados filtrados (sem IA)"
+          >
+            {pdfVisualLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            PDF Visual
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExportPDFStructured(false)} disabled={pdfStructuredLoading} className="gap-1.5 text-xs">
-            {pdfStructuredLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-primary" />} PDF Relatório
+          <Button
+            variant="outline" size="sm"
+            onClick={handlePDFRelatorio}
+            disabled={pdfStructuredLoading || pdfVisualLoading}
+            className="gap-1.5 text-xs border-primary/40 hover:bg-primary/10"
+            title="Gera relatório completo com IA e exporta PDF com os dados filtrados"
+          >
+            {pdfStructuredLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-primary" />}
+            PDF Relatório
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5 text-xs">
             <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
@@ -717,6 +790,25 @@ export default function DashboardAntibiogram() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Container oculto off-screen — renderiza MicrobiologicalReport para exportação direta em PDF */}
+      {directExportData && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: "-9999px",
+          width: "794px",
+          zIndex: -1,
+          pointerEvents: "none",
+        }}>
+          <MicrobiologicalReport
+            ref={directExportRef}
+            summary={directExportData.summary}
+            aiContent={directExportData.aiContent}
+            hospitalName={directExportData.hospitalName}
+          />
+        </div>
+      )}
     </div>
   );
 }
