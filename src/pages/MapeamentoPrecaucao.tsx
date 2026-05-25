@@ -992,7 +992,7 @@ export default function MapeamentoPrecaucao() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr", gap:10, marginBottom:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:10, marginBottom:10 }}>
                   <div>
                     <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>Setor *</label>
                     <select name="setor" value={form.setor} onChange={onChange} required style={inpStyle}>
@@ -1008,13 +1008,16 @@ export default function MapeamentoPrecaucao() {
                     <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>Data da Coleta</label>
                     <input type="date" name="dataColeta" value={form.dataColeta} onChange={onChange} style={inpStyle} />
                   </div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:14, alignItems:"start" }}>
+                  {/* Material */}
                   <div>
-                    <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:3, fontWeight:500 }}>
+                    <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:5, fontWeight:500 }}>
                       Material <span style={{ fontWeight:400, color:"var(--color-text-tertiary)" }}>(um ou mais)</span>
                     </label>
-                    <div style={{ maxHeight:130, overflowY:"auto", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, padding:"5px 8px", background:"var(--color-background-primary)" }}>
+                    <div style={{ maxHeight:190, overflowY:"auto", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, padding:"6px 8px", background:"var(--color-background-primary)" }}>
                       {MATERIAIS.map(m => (
-                        <label key={m} style={{ display:"flex", alignItems:"center", gap:7, padding:"2px 2px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary)", borderRadius:4, background: form.materiais.includes(m) ? "rgba(15,76,117,.08)" : "transparent" }}>
+                        <label key={m} style={{ display:"flex", alignItems:"center", gap:7, padding:"3px 2px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary)", borderRadius:4, background: form.materiais.includes(m) ? "rgba(15,76,117,.08)" : "transparent" }}>
                           <input type="checkbox" checked={form.materiais.includes(m)} onChange={() => toggleMaterial(m)}
                             style={{ accentColor:"#0F4C75", width:13, height:13, cursor:"pointer" }} />
                           <span>{m}</span>
@@ -1025,42 +1028,43 @@ export default function MapeamentoPrecaucao() {
                       <div style={{ fontSize:10, color:"var(--color-text-tertiary)", marginTop:3 }}>{form.materiais.length} selecionado(s)</div>
                     )}
                   </div>
-                </div>
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:5, fontWeight:500 }}>
-                    Microrganismo Multirresistente * <span style={{ fontWeight:400, color:"var(--color-text-tertiary)" }}>(selecione um ou mais)</span>
-                  </label>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>
-                    <div style={{ maxHeight:160, overflowY:"auto", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, padding:"6px 8px", background:"var(--color-background-primary)" }}>
-                      {ORGANISMOS.map(o => (
-                        <label key={o.value} style={{ display:"flex", alignItems:"center", gap:7, padding:"3px 2px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary)", borderRadius:4, background: form.organismos.includes(o.value) ? "rgba(15,76,117,.08)" : "transparent" }}>
-                          <input
-                            type="checkbox"
-                            checked={form.organismos.includes(o.value)}
-                            onChange={() => toggleOrganismo(o.value)}
-                            style={{ accentColor:"#0F4C75", width:13, height:13, cursor:"pointer" }}
-                          />
-                          <span>{o.label}</span>
-                          {form.organismos.includes(o.value) && (
-                            <span style={{ marginLeft:"auto", fontSize:10, color: PMETA[o.precaucao]?.color, fontWeight:600 }}>{o.precaucao}</span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                    <div style={{ minWidth:120 }}>
-                      <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:4, fontWeight:500 }}>Tipo de Precaução</div>
-                      <div style={{ padding:"7px 10px", borderRadius:6, border:"0.5px solid var(--color-border-tertiary)", fontSize:12, background:"var(--color-background-tertiary)", color:"var(--color-text-secondary)", minHeight:34, display:"flex", alignItems:"center" }}>
-                        {form.organismos.length > 0 ? (() => {
-                          const prec = getMostRestrictivePrecaucao(form.organismos);
-                          const m = PMETA[prec];
-                          return m ? <span style={{ color:m.color, fontWeight:500 }}>{m.icon} {prec}</span> : "—";
-                        })() : <span style={{ color:"var(--color-text-tertiary)" }}>Auto-preenchido</span>}
+                  {/* Microrganismo + Precaução */}
+                  <div>
+                    <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:5, fontWeight:500 }}>
+                      Microrganismo Multirresistente * <span style={{ fontWeight:400, color:"var(--color-text-tertiary)" }}>(um ou mais)</span>
+                    </label>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>
+                      <div style={{ maxHeight:190, overflowY:"auto", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, padding:"6px 8px", background:"var(--color-background-primary)" }}>
+                        {ORGANISMOS.map(o => (
+                          <label key={o.value} style={{ display:"flex", alignItems:"center", gap:7, padding:"3px 2px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary)", borderRadius:4, background: form.organismos.includes(o.value) ? "rgba(15,76,117,.08)" : "transparent" }}>
+                            <input
+                              type="checkbox"
+                              checked={form.organismos.includes(o.value)}
+                              onChange={() => toggleOrganismo(o.value)}
+                              style={{ accentColor:"#0F4C75", width:13, height:13, cursor:"pointer" }}
+                            />
+                            <span>{o.label}</span>
+                            {form.organismos.includes(o.value) && (
+                              <span style={{ marginLeft:"auto", fontSize:10, color: PMETA[o.precaucao]?.color, fontWeight:600 }}>{o.precaucao}</span>
+                            )}
+                          </label>
+                        ))}
                       </div>
-                      {form.organismos.length > 0 && (
-                        <div style={{ marginTop:6, fontSize:10, color:"var(--color-text-tertiary)" }}>
-                          {form.organismos.length} selecionado(s)
+                      <div style={{ minWidth:110 }}>
+                        <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:4, fontWeight:500 }}>Tipo de Precaução</div>
+                        <div style={{ padding:"7px 10px", borderRadius:6, border:"0.5px solid var(--color-border-tertiary)", fontSize:12, background:"var(--color-background-tertiary)", color:"var(--color-text-secondary)", minHeight:34, display:"flex", alignItems:"center" }}>
+                          {form.organismos.length > 0 ? (() => {
+                            const prec = getMostRestrictivePrecaucao(form.organismos);
+                            const m = PMETA[prec];
+                            return m ? <span style={{ color:m.color, fontWeight:500 }}>{m.icon} {prec}</span> : "—";
+                          })() : <span style={{ color:"var(--color-text-tertiary)" }}>Auto-preenchido</span>}
                         </div>
-                      )}
+                        {form.organismos.length > 0 && (
+                          <div style={{ marginTop:6, fontSize:10, color:"var(--color-text-tertiary)" }}>
+                            {form.organismos.length} selecionado(s)
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
