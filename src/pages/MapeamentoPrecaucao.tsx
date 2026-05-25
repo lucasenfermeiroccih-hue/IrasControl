@@ -381,34 +381,27 @@ export default function MapeamentoPrecaucao() {
     const mapped: Patient[] = [];
     pData.forEach(p => {
       const patPrecs = precs.filter(pr => pr.patient_id === p.id);
+      if (patPrecs.length === 0) return;
       const active = patPrecs.find(pr => pr.is_active)
-        ?? (patPrecs.length > 0
-            ? [...patPrecs].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())[0]
-            : null);
+        ?? [...patPrecs].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())[0];
       const lab = labs.find(lr => lr.patient_id === p.id);
       let status = "Internado";
-      if (active) {
-        if (!active.is_active) {
-          if (p.status === "deceased")    status = "Óbito";
-          else if (p.status === "transferred") status = "Transferência";
-          else status = "Alta";
-        }
-      } else {
+      if (!active.is_active) {
         if (p.status === "deceased")    status = "Óbito";
         else if (p.status === "transferred") status = "Transferência";
-        else if (p.status === "discharged") status = "Alta";
+        else status = "Alta";
       }
       mapped.push({
         id: p.id,
-        precaucaoId: active?.id,
+        precaucaoId: active.id,
         nome: p.full_name,
         prontuario: p.medical_record || "",
         setor: p.sector || "",
         leito: p.bed || "",
-        dataColeta: lab?.collection_date || active?.start_date || "",
+        dataColeta: lab?.collection_date || active.start_date || "",
         material: lab?.sample_material || "",
-        organismo: lab?.organism || active?.reason || "",
-        precaucao: active?.precaution_type || "",
+        organismo: lab?.organism || active.reason || "",
+        precaucao: active.precaution_type,
         status,
       });
     });
@@ -419,13 +412,11 @@ export default function MapeamentoPrecaucao() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const internados      = patients.filter(p => p.status === "Internado");
-  const emIsolamento    = internados.filter(p => p.precaucao !== "");
-  const cntTotal        = emIsolamento.length;
-  const cntContato      = emIsolamento.filter(p => p.precaucao === "Contato").length;
-  const cntGoticulas    = emIsolamento.filter(p => p.precaucao === "Gotículas").length;
-  const cntAerossol     = emIsolamento.filter(p => p.precaucao === "Aerossóis").length;
-  const cntSemPrecaucao = internados.filter(p => p.precaucao === "").length;
+  const internados   = patients.filter(p => p.status === "Internado");
+  const cntTotal     = internados.length;
+  const cntContato   = internados.filter(p => p.precaucao === "Contato").length;
+  const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
+  const cntAerossol  = internados.filter(p => p.precaucao === "Aerossóis").length;
 
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -914,13 +905,12 @@ export default function MapeamentoPrecaucao() {
           )}
 
           {/* KPI cards */}
-          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, marginBottom:16 }}>
+          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:16 }}>
             {[
-              { lbl:"Em Isolamento",       val:cntTotal,        c:"#0F4C75", bg:"#EFF6FF" },
-              { lbl:"Precaução Contato",   val:cntContato,      c:"#92400E", bg:"#FFFBEB" },
-              { lbl:"Precaução Gotículas", val:cntGoticulas,    c:"#1E40AF", bg:"#EFF6FF" },
-              { lbl:"Precaução Aerossóis", val:cntAerossol,     c:"#991B1B", bg:"#FEF2F2" },
-              { lbl:"Sem Precaução",       val:cntSemPrecaucao, c:"#6B7280", bg:"#F3F4F6" },
+              { lbl:"Em Isolamento",       val:cntTotal,     c:"#0F4C75", bg:"#EFF6FF" },
+              { lbl:"Precaução Contato",   val:cntContato,   c:"#92400E", bg:"#FFFBEB" },
+              { lbl:"Precaução Gotículas", val:cntGoticulas, c:"#1E40AF", bg:"#EFF6FF" },
+              { lbl:"Precaução Aerossóis", val:cntAerossol,  c:"#991B1B", bg:"#FEF2F2" },
             ].map(k => (
               <div key={k.lbl} style={{ background:k.bg, borderRadius:10, padding:"12px 16px", border:`1px solid ${k.c}22` }}>
                 <div style={{ fontSize:10, color:k.c, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{k.lbl}</div>
@@ -1092,7 +1082,6 @@ export default function MapeamentoPrecaucao() {
             <select value={fPrecaucao} onChange={e => setFPrecaucao(e.target.value)} style={inpStyle}>
               <option value="Todos">Precaução: Todas</option>
               {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
-              <option value="">Sem Precaução</option>
             </select>
             <button
               type="button"
@@ -1145,7 +1134,7 @@ export default function MapeamentoPrecaucao() {
                   <tr><td colSpan={9} style={{ padding:28, textAlign:"center", color:"var(--color-text-tertiary)" }}>Nenhum paciente encontrado</td></tr>
                 ) : displayed.map((p, i) => {
                   const org = ORGANISMOS.find(o => o.value === p.organismo);
-                  const pre = PMETA[p.precaucao] ?? null;
+                  const pre = PMETA[p.precaucao] || PMETA.Contato;
                   const sta = SMETA[p.status]    || SMETA.Internado;
                   return (
                     <tr key={p.id} style={{ borderTop:"0.5px solid var(--color-border-tertiary)", background: i%2===0?"transparent":"var(--color-background-secondary)" }}>
@@ -1158,15 +1147,9 @@ export default function MapeamentoPrecaucao() {
                         <div style={{ fontSize:11, color:"var(--color-text-primary)", lineHeight:1.3 }}>{org?.label || p.organismo}</div>
                       </td>
                       <td style={{ padding:"9px 14px" }}>
-                        {pre ? (
-                          <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:20, background:pre.bg, color:pre.text, fontSize:11, fontWeight:500 }}>
-                            {pre.icon} {p.precaucao}
-                          </span>
-                        ) : (
-                          <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:20, background:"#FEF9C3", color:"#92400E", fontSize:11, fontWeight:500 }}>
-                            ⚠ A definir
-                          </span>
-                        )}
+                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 10px", borderRadius:20, background:pre.bg, color:pre.text, fontSize:11, fontWeight:500 }}>
+                          {pre.icon} {p.precaucao}
+                        </span>
                       </td>
                       <td style={{ padding:"9px 14px" }}>
                         <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:20, background:sta.bg, color:sta.color, fontSize:11, fontWeight:500 }}>{p.status}</span>
