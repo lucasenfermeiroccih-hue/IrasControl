@@ -126,7 +126,6 @@ export default function MapeamentoPrecaucao() {
   const [showForm,         setShowForm]         = useState(false);
   const [editingId,        setEditingId]        = useState<string | null>(null);
   const [form,             setForm]             = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[], materiais:[] as string[], outroMaterial:"", outroOrganismo:"" });
-  const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
   const [patientQuery,     setPatientQuery]     = useState("");
   const [patientResults,   setPatientResults]   = useState<{id:string;full_name:string;medical_record:string;sector:string;bed:string}[]>([]);
   const [patientSearching, setPatientSearching] = useState(false);
@@ -457,7 +456,6 @@ export default function MapeamentoPrecaucao() {
   const resetForm = () => {
     setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[], materiais:[], outroMaterial:"", outroOrganismo:"" });
     setEditingId(null);
-    setExistingPatientId(null);
     setPatientQuery("");
     setPatientResults([]);
     setShowForm(false);
@@ -480,7 +478,7 @@ export default function MapeamentoPrecaucao() {
   };
 
   const selectExistingPatient = (p: typeof patientResults[0]) => {
-    setExistingPatientId(p.id);
+    // Only pre-fills the form — always creates a separate precaution_map record
     setForm(f => ({ ...f, nome: p.full_name, prontuario: p.medical_record || "", setor: p.sector || "", leito: p.bed || "" }));
     setPatientQuery(p.full_name);
     setPatientResults([]);
@@ -584,36 +582,26 @@ export default function MapeamentoPrecaucao() {
       return;
     }
 
-    let finalPatientId: string;
-
-    if (existingPatientId) {
-      await supabase.from("patients").update({
+    const { data: newPatient, error: pErr } = await supabase
+      .from("patients")
+      .insert({
+        full_name: form.nome,
+        medical_record: form.prontuario,
         sector: form.setor,
         bed: form.leito,
-      }).eq("id", existingPatientId);
-      finalPatientId = existingPatientId;
-    } else {
-      const { data: newPatient, error: pErr } = await supabase
-        .from("patients")
-        .insert({
-          full_name: form.nome,
-          medical_record: form.prontuario,
-          sector: form.setor,
-          bed: form.leito,
-          hospital_id: hospitalId,
-          status: "active" as const,
-          admission_date: new Date().toISOString().split("T")[0],
-          source: "precaution_map",
-        })
-        .select()
-        .single();
+        hospital_id: hospitalId,
+        status: "active" as const,
+        admission_date: new Date().toISOString().split("T")[0],
+        source: "precaution_map",
+      })
+      .select()
+      .single();
 
-      if (pErr || !newPatient) {
-        toast({ title: "Erro ao cadastrar paciente", description: pErr?.message || "Tente novamente.", variant: "destructive" });
-        return;
-      }
-      finalPatientId = newPatient.id;
+    if (pErr || !newPatient) {
+      toast({ title: "Erro ao cadastrar paciente", description: pErr?.message || "Tente novamente.", variant: "destructive" });
+      return;
     }
+    const finalPatientId = newPatient.id;
 
     const [precRes] = await Promise.all([
       supabase.from("precautions").insert({
@@ -944,17 +932,17 @@ export default function MapeamentoPrecaucao() {
                 {!editingId && (
                   <div style={{ marginBottom:12, padding:"10px 12px", background:"#EFF6FF", borderRadius:8, border:"1px solid #BFDBFE" }}>
                     <label style={{ display:"block", fontSize:11, color:"#1E40AF", marginBottom:4, fontWeight:500 }}>
-                      Buscar paciente já cadastrado no sistema (MDR, por nome ou prontuário)
+                      Buscar paciente pelo nome ou prontuário para preencher automaticamente
                     </label>
                     <div style={{ position:"relative" }}>
                       <input
                         value={patientQuery}
                         onChange={e => searchExistingPatients(e.target.value)}
                         placeholder="Digite nome ou prontuário para buscar…"
-                        style={{ ...inpStyle, paddingRight: existingPatientId ? 80 : 10 }}
+                        style={{ ...inpStyle, paddingRight: patientQuery ? 80 : 10 }}
                       />
-                      {existingPatientId && (
-                        <button type="button" onClick={() => { setExistingPatientId(null); setPatientQuery(""); setForm(f => ({ ...f, nome:"", prontuario:"", setor:"", leito:"" })); }}
+                      {patientQuery && (
+                        <button type="button" onClick={() => { setPatientQuery(""); setPatientResults([]); setForm(f => ({ ...f, nome:"", prontuario:"", setor:"", leito:"" })); }}
                           style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#B91C1C", background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
                           ✕ limpar
                         </button>
@@ -975,16 +963,9 @@ export default function MapeamentoPrecaucao() {
                         ))}
                       </div>
                     )}
-                    {existingPatientId && (
-                      <div style={{ marginTop:4, fontSize:11, color:"#065F46", fontWeight:500 }}>
-                        ✓ Paciente do sistema selecionado — não será criado novo cadastro
-                      </div>
-                    )}
-                    {!existingPatientId && patientQuery.length === 0 && (
-                      <div style={{ marginTop:4, fontSize:11, color:"#6B7280" }}>
-                        Não encontrado? Preencha os campos abaixo para cadastrar novo paciente exclusivo do mapa.
-                      </div>
-                    )}
+                    <div style={{ marginTop:4, fontSize:11, color:"#6B7280" }}>
+                      A busca preenche o formulário automaticamente. O paciente será cadastrado exclusivamente no mapa de precaução.
+                    </div>
                   </div>
                 )}
                 <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:10, marginBottom:10 }}>
