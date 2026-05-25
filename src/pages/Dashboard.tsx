@@ -16,6 +16,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from "recharts";
 import { toast } from "sonner";
+import { openGuardiaoWithSSO } from "@/lib/guardiaoSSO";
 
 export default function Dashboard() {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
@@ -234,16 +235,13 @@ export default function Dashboard() {
               <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70 truncate">Gestão integrada de qualidade e segurança do paciente</p>
             </div>
           </div>
-          <a
-            href="https://5w2h.ekaban.irascontrol.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0"
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shrink-0"
+            onClick={() => openGuardiaoWithSSO(hospitalId)}
           >
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
-              Acessar <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-          </a>
+            Acessar <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </CardContent>
       </Card>
 

@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { Button } from "@/components/ui/button";
 import { clearAllSelectedHospitalIds, getSelectedHospitalId } from "@/lib/selectedHospital";
+import { openGuardiaoWithSSO } from "@/lib/guardiaoSSO";
 
 import {
   Sidebar,
@@ -264,21 +265,17 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <a
-                    href="https://5w2h.ekaban.irascontrol.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:bg-sidebar-accent/50 flex items-center w-full"
-                  >
-                    <ShieldCheck className="mr-2 h-4 w-4 shrink-0 text-emerald-600" />
-                    {!collapsed && (
-                      <span className="flex items-center gap-1 truncate">
-                        Guardião Hospitalar
-                        <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
-                      </span>
-                    )}
-                  </a>
+                <SidebarMenuButton
+                  onClick={() => openGuardiaoWithSSO(getSelectedHospitalId(user?.id))}
+                  className="cursor-pointer hover:bg-sidebar-accent/50 w-full"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4 shrink-0 text-emerald-600" />
+                  {!collapsed && (
+                    <span className="flex items-center gap-1 truncate">
+                      Guardião Hospitalar
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                    </span>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
