@@ -1083,8 +1083,10 @@ const CasesInvestigation = () => {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openFullInvestigation(c)} title="Investigar"><ClipboardList className="h-3.5 w-3.5 text-primary" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeletePatient(c)} title="Excluir paciente"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>
