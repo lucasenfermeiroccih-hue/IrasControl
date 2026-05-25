@@ -30,6 +30,7 @@ const ORGANISMOS = [
   { value: "INFLUENZA",   label: "Influenza A / B",                                 precaucao: "Gotículas" },
   { value: "TUBERCULOSE", label: "Mycobacterium tuberculosis (TB)",                 precaucao: "Aerossóis" },
   { value: "COVID19",     label: "SARS-CoV-2 (COVID-19)",                           precaucao: "Aerossóis" },
+  { value: "OUTROS",      label: "Outros",                                           precaucao: "Contato"   },
 ];
 
 // Precaução mais restritiva entre vários organismos selecionados
@@ -124,7 +125,7 @@ export default function MapeamentoPrecaucao() {
   const [loading,    setLoading]   = useState(false);
   const [showForm,         setShowForm]         = useState(false);
   const [editingId,        setEditingId]        = useState<string | null>(null);
-  const [form,             setForm]             = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[], materiais:[] as string[] });
+  const [form,             setForm]             = useState({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[] as string[], materiais:[] as string[], outroMaterial:"", outroOrganismo:"" });
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
   const [patientQuery,     setPatientQuery]     = useState("");
   const [patientResults,   setPatientResults]   = useState<{id:string;full_name:string;medical_record:string;sector:string;bed:string}[]>([]);
@@ -454,7 +455,7 @@ export default function MapeamentoPrecaucao() {
   };
 
   const resetForm = () => {
-    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[], materiais:[] });
+    setForm({ nome:"", prontuario:"", setor:"", leito:"", dataColeta:"", material:"", organismo:"", organismos:[], materiais:[], outroMaterial:"", outroOrganismo:"" });
     setEditingId(null);
     setExistingPatientId(null);
     setPatientQuery("");
@@ -505,13 +506,17 @@ export default function MapeamentoPrecaucao() {
 
   const startEdit = (p: Patient) => {
     const stored = p.organismo || "";
-    const organismos = stored ? stored.split(" | ").filter(v => ORGANISMOS.some(o => o.value === v)) : [];
+    const orgParts = stored ? stored.split(" | ") : [];
+    const organismos = orgParts.map(v => v.startsWith("Outros: ") ? "OUTROS" : v).filter(v => ORGANISMOS.some(o => o.value === v));
+    const outroOrganismo = orgParts.find(v => v.startsWith("Outros: "))?.replace("Outros: ", "") || "";
     const matStored = p.material || "";
-    const materiais = matStored ? matStored.split(" | ").filter(v => MATERIAIS.includes(v)) : [];
+    const matParts = matStored ? matStored.split(" | ") : [];
+    const materiais = matParts.map(v => v.startsWith("Outros: ") ? "Outros" : v).filter(v => MATERIAIS.includes(v));
+    const outroMaterial = matParts.find(v => v.startsWith("Outros: "))?.replace("Outros: ", "") || "";
     setForm({
       nome: p.nome, prontuario: p.prontuario, setor: p.setor, leito: p.leito,
       dataColeta: p.dataColeta || "", material: matStored,
-      organismo: stored, organismos, materiais,
+      organismo: stored, organismos, materiais, outroMaterial, outroOrganismo,
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -539,7 +544,8 @@ export default function MapeamentoPrecaucao() {
     }
 
     const precaucao = getMostRestrictivePrecaucao(form.organismos);
-    const orgValue = form.organismos.join(" | ");
+    const orgValue = form.organismos.map(v => v === "OUTROS" && form.outroOrganismo ? `Outros: ${form.outroOrganismo}` : v).join(" | ");
+    const materialValue = form.materiais.map(m => m === "Outros" && form.outroMaterial ? `Outros: ${form.outroMaterial}` : m).join(" | ");
 
     if (editingId) {
       const pat = patients.find(p => p.id === editingId);
@@ -568,7 +574,7 @@ export default function MapeamentoPrecaucao() {
 
       await (supabase as any).from("lab_results").update({
         organism: orgValue || null,
-        sample_material: form.material || null,
+        sample_material: materialValue || null,
         collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
       }).eq("patient_id", editingId);
 
@@ -617,11 +623,11 @@ export default function MapeamentoPrecaucao() {
         start_date: new Date().toISOString().split("T")[0],
         reason: orgValue,
       }),
-      ...(orgValue || form.material ? [supabase.from("lab_results").insert({
+      ...(orgValue || materialValue ? [supabase.from("lab_results").insert({
         patient_id: finalPatientId,
         hospital_id: hospitalId,
         organism: orgValue || null,
-        sample_material: form.material || null,
+        sample_material: materialValue || null,
         collection_date: form.dataColeta || new Date().toISOString().split("T")[0],
         status: "completed" as const,
       })] : []),
@@ -1027,6 +1033,14 @@ export default function MapeamentoPrecaucao() {
                     {form.materiais.length > 0 && (
                       <div style={{ fontSize:10, color:"var(--color-text-tertiary)", marginTop:3 }}>{form.materiais.length} selecionado(s)</div>
                     )}
+                    {form.materiais.includes("Outros") && (
+                      <input
+                        value={form.outroMaterial}
+                        onChange={e => setForm(f => ({ ...f, outroMaterial: e.target.value }))}
+                        placeholder="Descreva o material…"
+                        style={{ ...inpStyle, marginTop:6 }}
+                      />
+                    )}
                   </div>
                   {/* Microrganismo + Precaução */}
                   <div>
@@ -1066,6 +1080,14 @@ export default function MapeamentoPrecaucao() {
                         )}
                       </div>
                     </div>
+                    {form.organismos.includes("OUTROS") && (
+                      <input
+                        value={form.outroOrganismo}
+                        onChange={e => setForm(f => ({ ...f, outroOrganismo: e.target.value }))}
+                        placeholder="Descreva o microrganismo…"
+                        style={{ ...inpStyle, marginTop:6 }}
+                      />
+                    )}
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
