@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -133,6 +134,7 @@ const CasesInvestigation = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailCase, setDetailCase] = useState<InfectionCase | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [search, setSearch] = useState("");
   const [filterMes, setFilterMes] = useState("Todos");
@@ -398,13 +400,23 @@ const CasesInvestigation = () => {
     setDialogOpen(false);
   };
 
-  const handleDeleteCase = async (caseId: string) => {
-    if (!window.confirm("Excluir este caso de investigação? Esta ação não pode ser desfeita.")) return;
-    const { error } = await supabase.from("infection_cases").delete().eq("id", caseId);
-    if (error) { toast.error("Erro ao excluir caso"); return; }
+  const handleDeleteCase = (caseId: string) => setDeleteConfirmId(caseId);
+
+  const confirmDelete = async () => {
+    const caseId = deleteConfirmId;
+    if (!caseId) return;
+    setDeleteConfirmId(null);
+    // Optimistic removal — removes from UI immediately
     setCases(prev => prev.filter(c => c.id !== caseId));
     if (detailCase?.id === caseId) setDetailCase(null);
-    toast.success("Caso excluído.");
+    const { error } = await supabase.from("infection_cases").delete().eq("id", caseId);
+    if (error) {
+      // Restore on failure
+      toast.error("Erro ao excluir caso: " + error.message);
+      fetchCases();
+    } else {
+      toast.success("Caso excluído.");
+    }
   };
 
   const handleStatusChange = async (caseId: string, newStatus: CaseStatus) => {
@@ -1187,6 +1199,24 @@ const CasesInvestigation = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete Confirmation ── */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir caso de investigação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O caso será removido permanentemente do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDelete}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Detail Quick View Dialog ── */}
       <Dialog open={!!detailCase} onOpenChange={(open) => !open && setDetailCase(null)}>
