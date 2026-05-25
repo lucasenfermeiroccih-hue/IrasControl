@@ -36,7 +36,9 @@ interface InfectionCase {
   detection_date: string;
   confirmation_date: string | null;
   notes: string | null;
+  patient_id?: string | null;
   patient?: { full_name: string; medical_record: string | null; sector: string | null } | null;
+
 }
 
 const statusConfig: Record<CaseStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -291,6 +293,30 @@ const CasesInvestigation = () => {
   };
 
   useEffect(() => { if (hospitalId) fetchCases(); }, [hospitalId]);
+
+  const handleDeletePatient = async (c: InfectionCase) => {
+    const nome = c.patient?.full_name || "este paciente";
+    if (!confirm(`Excluir ${nome} e todos os casos/dados relacionados? Esta ação não pode ser desfeita.`)) return;
+    try {
+      // Remove case dependencies and the case itself
+      await supabase.from("case_notes").delete().eq("case_id", c.id);
+      await supabase.from("infection_cases").delete().eq("id", c.id);
+      // If linked to a patient, cascade-delete patient-related data and the patient
+      if (c.patient_id) {
+        await supabase.from("precautions").delete().eq("patient_id", c.patient_id);
+        await supabase.from("lab_results").delete().eq("patient_id", c.patient_id);
+        await supabase.from("antimicrobial_prescriptions").delete().eq("patient_id", c.patient_id);
+        await supabase.from("infection_cases").delete().eq("patient_id", c.patient_id);
+        const { error: pErr } = await supabase.from("patients").delete().eq("id", c.patient_id);
+        if (pErr) throw pErr;
+      }
+      toast.success("Paciente excluído");
+      fetchCases();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err?.message || ""));
+    }
+  };
+
 
   const mesesNomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const anosDisponiveis = Array.from(new Set(cases.map(c => c.detection_date ? new Date(c.detection_date).getFullYear() : null).filter(Boolean) as number[]))
@@ -1083,8 +1109,10 @@ const CasesInvestigation = () => {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailCase(c)} title="Detalhes"><Eye className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openFullInvestigation(c)} title="Investigar"><ClipboardList className="h-3.5 w-3.5 text-primary" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeletePatient(c)} title="Excluir paciente"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>
