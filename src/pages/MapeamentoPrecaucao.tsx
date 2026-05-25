@@ -144,6 +144,13 @@ export default function MapeamentoPrecaucao() {
   const [fDataColeta,setFDataColeta]= useState("");
   const [fOrganismo, setFOrganismo]= useState("Todos");
   const [fPrecaucao, setFPrecaucao]= useState("Todos");
+  const [pdfModal,     setPdfModal]    = useState(false);
+  const [pdfStatus,    setPdfStatus]   = useState("Todos");
+  const [pdfSetor,     setPdfSetor]    = useState("Todos");
+  const [pdfOrganismo, setPdfOrganismo]= useState("Todos");
+  const [pdfPrecaucao, setPdfPrecaucao]= useState("Todos");
+  const [pdfDataDe,    setPdfDataDe]   = useState("");
+  const [pdfDataAte,   setPdfDataAte]  = useState("");
 
   const { hospitalId } = useHospitalContext();
   const { toast } = useToast();
@@ -159,204 +166,428 @@ export default function MapeamentoPrecaucao() {
   const setMeta = (key: string, value: number | undefined) =>
     setMetas(prev => ({ ...prev, [key]: value }));
 
-  const exportSectorsPDF = () => {
+  const exportComprehensivePDF = (pats: Patient[]) => {
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
     const PW = pdf.internal.pageSize.getWidth();
     const PH = pdf.internal.pageSize.getHeight();
-    const mg = 14;
-    const cW = PW - mg * 2;
+    const MG = 14;
+    const CW = PW - MG * 2;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("pt-BR");
+    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-    const COL_WIDTHS = [50, 24, 14, 46, 27, 21];
-    const COL_LABELS = ["Paciente", "Prontuário", "Leito", "Microrganismo", "Precaução", "Data Coleta"];
-    const ROW_H = 8;
-    const CHART_BLOCK = 88;
-    const FOOTER_Y = PH - 8;
-    const MAX_ROW_Y = PH - CHART_BLOCK - 12;
+    type RGB = [number, number, number];
+    const NAVY:   RGB = [15,  76,  117];
+    const AMBER:  RGB = [180, 83,  9  ];
+    const RED:    RGB = [185, 28,  28 ];
+    const TEAL:   RGB = [13,  148, 136];
+    const PURPLE: RGB = [124, 58,  237];
+    const GREEN:  RGB = [5,   150, 105];
+    const ORANGE: RGB = [217, 119, 6  ];
+    const SLATE:  RGB = [55,  65,  81 ];
+    const BLUE:   RGB = [29,  78,  216];
 
-    const PREC_COLORS: Record<string, string> = {
-      Contato: "#B45309", Gotículas: "#1D4ED8", Aerossóis: "#B91C1C",
+    const CHART_C: RGB[] = [NAVY, AMBER, RED, TEAL, PURPLE, GREEN, ORANGE, SLATE];
+    const PREC_C: Record<string, RGB> = { Contato: AMBER, Gotículas: BLUE, Aerossóis: RED };
+
+    const sf = (c: RGB) => pdf.setFillColor(c[0], c[1], c[2]);
+    const st = (c: RGB) => pdf.setTextColor(c[0], c[1], c[2]);
+    const sd = (c: RGB) => pdf.setDrawColor(c[0], c[1], c[2]);
+    const light = (c: RGB, a = 0.9): RGB => [
+      Math.round(c[0] + (255 - c[0]) * a),
+      Math.round(c[1] + (255 - c[1]) * a),
+      Math.round(c[2] + (255 - c[2]) * a),
+    ];
+    const gg = (v: number) => pdf.setTextColor(v, v, v);
+    const gf = (v: number) => pdf.setFillColor(v, v, v);
+    const gd = (v: number) => pdf.setDrawColor(v, v, v);
+
+    const activeP  = pats.filter(p => p.status === "Internado");
+    const altaP    = pats.filter(p => p.status === "Alta");
+    const obitoP   = pats.filter(p => p.status === "Óbito");
+    const transfP  = pats.filter(p => p.status === "Transferência");
+    const cntC     = activeP.filter(p => p.precaucao === "Contato").length;
+    const cntG     = activeP.filter(p => p.precaucao === "Gotículas").length;
+    const cntA     = activeP.filter(p => p.precaucao === "Aerossóis").length;
+
+    const countMap = (arr: Patient[], keyFn: (p: Patient) => string): [string, number][] => {
+      const m: Record<string, number> = {};
+      arr.forEach(p => { const k = keyFn(p); if (k) m[k] = (m[k] || 0) + 1; });
+      return Object.entries(m).sort((a, b) => b[1] - a[1]);
     };
-    const ORG_COLORS = ["#1D4ED8","#B45309","#B91C1C","#0D9488","#7C3AED","#059669","#D97706"];
+    const orgEntries   = countMap(pats, p => (ORGANISMOS.find(o => o.value === p.organismo)?.label || p.organismo || "").split("–")[0].trim()).slice(0, 8);
+    const setorEntries = countMap(activeP, p => p.setor).slice(0, 10);
+    const matEntries   = countMap(pats, p => p.material || "").filter(([k]) => k !== "").slice(0, 8);
+    const precEntries  = countMap(activeP, p => p.precaucao);
 
-    const drawPageHeader = (setor: string, count: number, isContinuation: boolean): number => {
-      pdf.setFillColor(15, 76, 117);
-      pdf.rect(0, 0, PW, 20, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(12);
-      pdf.text("IRAS Control", mg, 9);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.text("Controle de Infecção Hospitalar — Mapeamento de Precaução e Isolamento (ANVISA)", mg, 15);
-      pdf.text(new Date().toLocaleDateString("pt-BR"), PW - mg, 9, { align: "right" });
+    const clusterMap: Record<string, Patient[]> = {};
+    activeP.forEach(p => {
+      const k = `${p.setor}||${p.organismo}`;
+      (clusterMap[k] = clusterMap[k] || []).push(p);
+    });
+    const pdfAlerts = Object.entries(clusterMap)
+      .filter(([, ps]) => ps.length >= 2)
+      .map(([key, ps]) => {
+        const [setor, organismo] = key.split("||");
+        const org = ORGANISMOS.find(o => o.value === organismo);
+        return { setor, organismo: org?.label || organismo, count: ps.length, pacientes: ps, nivel: ps.length >= 3 ? "surto" : "atencao" };
+      }).sort((a, b) => b.count - a.count);
 
-      pdf.setTextColor(15, 76, 117);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(17);
-      pdf.text(setor + (isContinuation ? "  (continuação)" : ""), mg, 32);
+    const sectors  = [...new Set(activeP.map(p => p.setor))].sort();
+    const totalPgs = 2 + sectors.length + (pdfAlerts.length > 0 ? 1 : 0);
 
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(90, 90, 90);
-      pdf.text(`${count} paciente${count !== 1 ? "s" : ""} em isolamento ativo`, mg, 39);
-
-      pdf.setDrawColor(15, 76, 117);
-      pdf.setLineWidth(0.5);
-      pdf.line(mg, 42, PW - mg, 42);
-      return 46;
+    const pFooter = (pg: number, label = "") => {
+      gf(247); pdf.rect(0, PH - 9, PW, 9, "F");
+      pdf.setFontSize(6.5); gg(130); pdf.setFont("helvetica", "normal");
+      pdf.text(`IRAS Control · Controle de Infecção Hospitalar · ${dateStr} ${timeStr}`, MG, PH - 2.5);
+      pdf.text(`${label ? label + " · " : ""}Pág. ${pg} de ${totalPgs}`, PW - MG, PH - 2.5, { align: "right" });
     };
 
-    const drawTableHeader = (y: number): number => {
-      pdf.setFillColor(15, 76, 117);
-      pdf.rect(mg, y, cW, ROW_H, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(8);
-      let x = mg + 2;
-      COL_LABELS.forEach((lbl, i) => { pdf.text(lbl, x, y + 5.5); x += COL_WIDTHS[i]; });
-      return y + ROW_H;
+    const hBar = (
+      entries: [string, number][], x: number, startY: number,
+      maxW: number, lblW: number, bH: number, gap: number, colors: RGB[]
+    ) => {
+      const maxV = Math.max(...entries.map(([, v]) => v), 1);
+      entries.forEach(([name, val], i) => {
+        const oy = startY + i * (bH + gap);
+        const bW = Math.max((val / maxV) * (maxW - lblW - 10), 1);
+        const c = colors[i % colors.length];
+        gf(238); pdf.rect(x + lblW, oy, maxW - lblW - 10, bH, "F");
+        sf(c); pdf.rect(x + lblW, oy, bW, bH, "F");
+        pdf.setFontSize(7); pdf.setFont("helvetica", "normal"); gg(45);
+        const lbl = name.length > Math.floor(lblW / 2.5) ? name.slice(0, Math.floor(lblW / 2.5) - 1) + "…" : name;
+        pdf.text(lbl, x, oy + bH - 1.2);
+        pdf.setFont("helvetica", "bold"); st(c);
+        pdf.text(String(val), x + lblW + bW + 2, oy + bH - 1.2);
+      });
+      return startY + entries.length * (bH + gap);
     };
 
-    const drawCharts = (sectorPats: Patient[], startY: number) => {
-      const halfW = (cW - 8) / 2;
+    const kpiRow = (items: { lbl: string; val: number; c: RGB }[], x: number, y: number, totalW: number, h: number) => {
+      const gap = 3, cardW = (totalW - gap * (items.length - 1)) / items.length;
+      items.forEach((k, i) => {
+        const cx = x + i * (cardW + gap);
+        sf(light(k.c, 0.9)); pdf.rect(cx, y, cardW, h, "F");
+        sf(k.c); pdf.rect(cx, y, 3.5, h, "F");
+        pdf.setFontSize(20); pdf.setFont("helvetica", "bold"); st(k.c);
+        pdf.text(String(k.val), cx + 8, y + h - 6);
+        pdf.setFontSize(7); pdf.setFont("helvetica", "normal"); gg(80);
+        pdf.text(k.lbl, cx + 8, y + h - 1);
+      });
+      return y + h + 4;
+    };
 
-      const orgCount: Record<string, number> = {};
+    const secTitle = (t: string, x: number, y: number, w: number) => {
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5); st(NAVY);
+      pdf.text(t, x, y);
+      sd(NAVY); pdf.setLineWidth(0.4);
+      pdf.line(x, y + 2, x + w, y + 2);
+      return y + 7;
+    };
+
+    function drawMiniCharts(sectorPats: Patient[], startY: number) {
+      if (startY + 32 > PH - 11) return;
+      const halfW = (CW - 8) / 2;
+      const orgC: Record<string, number> = {};
       sectorPats.forEach(p => {
-        const key = (ORGANISMOS.find(o => o.value === p.organismo)?.label || p.organismo).split("–")[0].trim();
-        orgCount[key] = (orgCount[key] || 0) + 1;
+        const k = (ORGANISMOS.find(o => o.value === p.organismo)?.label || p.organismo || "").split("–")[0].trim();
+        orgC[k] = (orgC[k] || 0) + 1;
       });
-      const orgEntries = Object.entries(orgCount).sort((a, b) => b[1] - a[1]).slice(0, 7);
+      const orgE = Object.entries(orgC).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const precC: Record<string, number> = {};
+      sectorPats.forEach(p => { precC[p.precaucao] = (precC[p.precaucao] || 0) + 1; });
+      const precE = Object.entries(precC);
 
-      const precCount: Record<string, number> = {};
-      sectorPats.forEach(p => { precCount[p.precaucao] = (precCount[p.precaucao] || 0) + 1; });
-      const precEntries = Object.entries(precCount).sort((a, b) => b[1] - a[1]);
+      gd(225); pdf.setLineWidth(0.3); pdf.line(MG, startY, PW - MG, startY);
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5); st(NAVY);
+      pdf.text("Distribuição por Microrganismo", MG, startY + 7);
+      pdf.text("Tipo de Precaução", MG + halfW + 8, startY + 7);
 
-      // Separator before charts
-      pdf.setDrawColor(229, 231, 235);
-      pdf.setLineWidth(0.3);
-      pdf.line(mg, startY, PW - mg, startY);
-
-      const chartY = startY + 6;
-
-      // Titles
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(9);
-      pdf.setTextColor(15, 76, 117);
-      pdf.text("Distribuição por Microrganismo", mg, chartY);
-      pdf.text("Tipo de Precaução", mg + halfW + 8, chartY);
-
-      const bodyY = chartY + 6;
-      const BAR_H = 7;
-      const BAR_GAP = 2;
-
-      // Org bars
-      const LABEL_W = 42;
-      const maxOrg = Math.max(...orgEntries.map(([, v]) => v), 1);
-      const barMaxW = halfW - LABEL_W - 10;
-      pdf.setFont("helvetica", "normal");
-      orgEntries.forEach(([name, val], i) => {
-        const y = bodyY + i * (BAR_H + BAR_GAP);
-        const bW = Math.max((val / maxOrg) * barMaxW, 1);
-        const { r, g, b } = hexToRgb(ORG_COLORS[i % ORG_COLORS.length]);
-        pdf.setFontSize(7);
-        pdf.setTextColor(55, 55, 55);
-        const lbl = name.length > 20 ? name.slice(0, 19) + "…" : name;
-        pdf.text(lbl, mg, y + BAR_H - 1.5);
-        pdf.setFillColor(r, g, b);
-        pdf.rect(mg + LABEL_W, y, bW, BAR_H, "F");
-        pdf.setTextColor(90, 90, 90);
-        pdf.text(String(val), mg + LABEL_W + bW + 2, y + BAR_H - 1.5);
+      const bodyY = startY + 10, MH = 5, MG2 = 1;
+      const orgMaxW = halfW - 36 - 8;
+      const maxOV = Math.max(...orgE.map(([, v]) => v), 1);
+      orgE.forEach(([name, val], i) => {
+        const oy = bodyY + i * (MH + MG2);
+        const bW = Math.max((val / maxOV) * orgMaxW, 1);
+        const c = CHART_C[i % CHART_C.length];
+        gf(240); pdf.rect(MG + 36, oy, orgMaxW, MH, "F");
+        sf(c); pdf.rect(MG + 36, oy, bW, MH, "F");
+        pdf.setFontSize(6.5); pdf.setFont("helvetica", "normal"); gg(50);
+        pdf.text(name.length > 18 ? name.slice(0, 17) + "…" : name, MG, oy + MH - 1);
+        pdf.setFont("helvetica", "bold"); st(c);
+        pdf.text(String(val), MG + 36 + bW + 2, oy + MH - 1);
       });
 
-      // Prec bars
-      const PREC_X = mg + halfW + 8;
-      const PREC_LABEL_W = 22;
-      const precMaxW = halfW - PREC_LABEL_W - 14;
-      const maxPrec = Math.max(...precEntries.map(([, v]) => v), 1);
-      const totalPrec = precEntries.reduce((s, [, v]) => s + v, 0);
-      precEntries.forEach(([name, val], i) => {
-        const y = bodyY + i * (BAR_H + BAR_GAP + 2);
-        const bW = Math.max((val / maxPrec) * precMaxW, 1);
-        const { r, g, b } = hexToRgb(PREC_COLORS[name] || "#0F4C75");
-        const pct = totalPrec > 0 ? Math.round((val / totalPrec) * 100) : 0;
-        pdf.setFontSize(7);
-        pdf.setTextColor(55, 55, 55);
-        pdf.text(name, PREC_X, y + BAR_H - 1.5);
-        pdf.setFillColor(r, g, b);
-        pdf.rect(PREC_X + PREC_LABEL_W, y, bW, BAR_H, "F");
-        pdf.setTextColor(90, 90, 90);
-        pdf.text(`${val} (${pct}%)`, PREC_X + PREC_LABEL_W + bW + 2, y + BAR_H - 1.5);
+      const precX = MG + halfW + 8, precMaxW = halfW - 24 - 6;
+      const totP = precE.reduce((s, [, v]) => s + v, 0);
+      const maxPV = Math.max(...precE.map(([, v]) => v), 1);
+      precE.forEach(([name, val], i) => {
+        const py = bodyY + i * (MH + MG2 + 2);
+        const c = (PREC_C[name] || NAVY) as RGB;
+        const pct = totP > 0 ? Math.round(val / totP * 100) : 0;
+        const bW = Math.max((val / maxPV) * precMaxW, 1);
+        sf(light(c, 0.85)); pdf.rect(precX + 24, py, precMaxW, MH, "F");
+        sf(c); pdf.rect(precX + 24, py, bW, MH, "F");
+        pdf.setFontSize(6.5); pdf.setFont("helvetica", "bold"); st(c);
+        pdf.text(name, precX, py + MH - 1);
+        pdf.setFont("helvetica", "normal"); gg(80);
+        pdf.text(`${val} (${pct}%)`, precX + 24 + bW + 2, py + MH - 1);
       });
-    };
-
-    const drawFooter = (setor: string, sIdx: number, total: number) => {
-      pdf.setFontSize(7);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(160, 160, 160);
-      pdf.text(`IRAS Control · Controle de Infecção Hospitalar · ${new Date().toLocaleString("pt-BR")}`, mg, FOOTER_Y);
-      pdf.text(`Setor ${sIdx + 1} de ${total}`, PW - mg, FOOTER_Y, { align: "right" });
-    };
-
-    const internados = patients.filter(p => p.status === "Internado");
-    const sectors = [...new Set(internados.map(p => p.setor))].sort();
-
-    if (sectors.length === 0) {
-      pdf.setFontSize(12);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text("Nenhum paciente em isolamento ativo.", mg, 50);
-      pdf.save(`precaucao_setores_${new Date().toISOString().slice(0, 10)}.pdf`);
-      return;
     }
 
-    let firstPage = true;
+    // ══ PAGE 1 — COVER ══
+    sf(NAVY); pdf.rect(0, 0, PW, 62, "F");
+    sf(TEAL);  pdf.rect(0, 0, PW, 2.5, "F");
+    sf(TEAL);  pdf.rect(0, 62, PW, 3, "F");
 
-    sectors.forEach((setor, sIdx) => {
-      if (!firstPage) pdf.addPage();
-      firstPage = false;
+    pdf.setFont("helvetica", "bold");   pdf.setFontSize(28); pdf.setTextColor(255, 255, 255);
+    pdf.text("IRAS", MG, 26);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(18); pdf.setTextColor(140, 190, 225);
+    pdf.text("Control", MG + 43, 26);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(160, 205, 235);
+    pdf.text("Sistema de Controle de Infecção Hospitalar", MG, 34);
+    pdf.setFont("helvetica", "bold");   pdf.setFontSize(17); pdf.setTextColor(255, 255, 255);
+    pdf.text("Mapeamento de Precaução e Isolamento", MG, 47);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5); pdf.setTextColor(160, 205, 235);
+    pdf.text("Controle de Infecção Hospitalar · ANVISA", MG, 55);
+    pdf.setFontSize(9); pdf.setTextColor(160, 205, 235);
+    pdf.text(`Gerado em ${dateStr} às ${timeStr}`, PW - MG, 33, { align: "right" });
 
-      const sectorPats = internados.filter(p => p.setor === setor).sort((a, b) => a.leito.localeCompare(b.leito, "pt-BR", { numeric: true }));
-      let y = drawPageHeader(setor, sectorPats.length, false);
-      y = drawTableHeader(y);
+    let y = 74;
+    y = kpiRow([
+      { lbl: "Em Isolamento",       val: activeP.length, c: NAVY  },
+      { lbl: "Precaução Contato",   val: cntC,           c: AMBER },
+      { lbl: "Precaução Gotículas", val: cntG,           c: BLUE  },
+      { lbl: "Precaução Aerossóis", val: cntA,           c: RED   },
+    ], MG, y, CW, 28);
 
-      pdf.setFont("helvetica", "normal");
-      let continuation = false;
+    y += 6;
+    y = secTitle("Filtros Aplicados Neste Relatório", MG, y, CW);
+    const filterItems = [
+      { lbl: "Status",      val: pdfStatus },
+      { lbl: "Setor",       val: pdfSetor },
+      { lbl: "Organismo",   val: pdfOrganismo },
+      { lbl: "Precaução",   val: pdfPrecaucao },
+      { lbl: "Data Coleta", val: (pdfDataDe || pdfDataAte) ? `${pdfDataDe ? fmt(pdfDataDe) : "início"} → ${pdfDataAte ? fmt(pdfDataAte) : "hoje"}` : "Todos" },
+    ];
+    const chipW = (CW - 8) / 3;
+    filterItems.forEach((f, i) => {
+      const fx = MG + (i % 3) * (chipW + 4);
+      const fy = y + Math.floor(i / 3) * 16;
+      gf(246); pdf.rect(fx, fy - 4, chipW, 13, "F");
+      sd(NAVY); pdf.setLineWidth(0.2); pdf.rect(fx, fy - 4, chipW, 13, "S");
+      pdf.setFontSize(7); pdf.setFont("helvetica", "bold"); st(NAVY);
+      pdf.text(f.lbl, fx + 4, fy + 1);
+      pdf.setFont("helvetica", "normal"); gg(40);
+      pdf.text(f.val, fx + 4, fy + 7);
+    });
+    y += Math.ceil(filterItems.length / 3) * 16 + 8;
 
-      sectorPats.forEach((p, ri) => {
-        if (y + ROW_H > MAX_ROW_Y) {
-          drawCharts(sectorPats, y + 6);
-          drawFooter(setor, sIdx, sectors.length);
-          pdf.addPage();
-          continuation = true;
-          y = drawPageHeader(setor, sectorPats.length, true);
-          y = drawTableHeader(y);
-          pdf.setFont("helvetica", "normal");
-        }
-
-        if (ri % 2 === 1) {
-          pdf.setFillColor(249, 250, 251);
-          pdf.rect(mg, y, cW, ROW_H, "F");
-        }
-
-        const org = ORGANISMOS.find(o => o.value === p.organismo);
-        const orgLabel = ((org?.label || p.organismo).split("–")[0].trim()).slice(0, 22);
-
-        const cells = [p.nome.slice(0, 27), p.prontuario || "—", p.leito || "—", orgLabel, p.precaucao, fmt(p.dataColeta)];
-        pdf.setFontSize(8);
-        pdf.setTextColor(30, 30, 30);
-        let x = mg + 2;
-        cells.forEach((cell, ci) => { pdf.text(String(cell), x, y + 5.5); x += COL_WIDTHS[ci]; });
-
-        pdf.setDrawColor(229, 231, 235);
-        pdf.setLineWidth(0.2);
-        pdf.line(mg, y + ROW_H, mg + cW, y + ROW_H);
-        y += ROW_H;
-      });
-
-      drawCharts(sectorPats, y + 8);
-      drawFooter(setor, sIdx, sectors.length);
+    gf(245); pdf.rect(MG, y, CW, 36, "F");
+    sf(TEAL); pdf.rect(MG, y, 3, 36, "F");
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); st(TEAL);
+    pdf.text("Resumo Geral", MG + 8, y + 8);
+    const sumItems = [
+      `Total registros: ${pats.length}`, `Em isolamento: ${activeP.length}`,
+      `Altas: ${altaP.length}`, `Óbitos: ${obitoP.length}`,
+      `Transferências: ${transfP.length}`, `Setores ativos: ${sectors.length}`,
+      `Alertas detectados: ${pdfAlerts.length}`,
+    ];
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); gg(40);
+    const sumCols = 4, sumW = (CW - 16) / sumCols;
+    sumItems.forEach((s, i) => {
+      pdf.text("• " + s, MG + 8 + (i % sumCols) * sumW, y + 20 + Math.floor(i / sumCols) * 10);
     });
 
-    pdf.save(`precaucao_setores_${new Date().toISOString().slice(0, 10)}.pdf`);
+    sf(NAVY); pdf.rect(0, PH - 12, PW, 12, "F");
+    pdf.setFontSize(7.5); pdf.setFont("helvetica", "normal"); pdf.setTextColor(160, 205, 235);
+    pdf.text("IRAS Control · Sistema de Controle de Infecção Hospitalar", MG, PH - 4);
+    pdf.text(`Página 1 de ${totalPgs}`, PW - MG, PH - 4, { align: "right" });
+
+    // ══ PAGE 2 — ANÁLISE EPIDEMIOLÓGICA ══
+    pdf.addPage();
+    sf(NAVY); pdf.rect(0, 0, PW, 18, "F");
+    sf(TEAL);  pdf.rect(0, 18, PW, 2, "F");
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(255, 255, 255);
+    pdf.text("Análise Epidemiológica — Mapeamento de Precaução", MG, 12);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(160, 205, 235);
+    pdf.text(dateStr, PW - MG, 12, { align: "right" });
+    y = 25;
+
+    const COL_L = CW * 0.56, COL_RX = MG + COL_L + 6, COL_RW = CW - COL_L - 6;
+
+    const r1Y = y;
+    y = secTitle("Distribuição por Microrganismo", MG, y, COL_L);
+    hBar(orgEntries, MG, y, COL_L, 52, 6, 1.5, CHART_C);
+    const r1EndL = y + orgEntries.length * 7.5;
+
+    let ry = r1Y;
+    ry = secTitle("Tipo de Precaução", COL_RX, ry, COL_RW);
+    const totPrec = precEntries.reduce((s, [, v]) => s + v, 0);
+    const maxPrec = Math.max(...precEntries.map(([, v]) => v), 1);
+    precEntries.forEach(([name, val], i) => {
+      const py = ry + i * 15;
+      const c = (PREC_C[name] || NAVY) as RGB;
+      const pct = totPrec > 0 ? Math.round(val / totPrec * 100) : 0;
+      const bW = Math.max((val / maxPrec) * (COL_RW - 4), 2);
+      sf(light(c, 0.88)); pdf.rect(COL_RX, py, COL_RW - 4, 12, "F");
+      sf(c); pdf.rect(COL_RX, py, bW, 12, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(255, 255, 255);
+      pdf.text(name, COL_RX + 4, py + 9);
+      pdf.setFontSize(7.5); st(c);
+      pdf.text(`${val} (${pct}%)`, COL_RX + COL_RW - 8, py + 9, { align: "right" });
+    });
+    const r1EndR = ry + precEntries.length * 15;
+
+    y = Math.max(r1EndL, r1EndR) + 8;
+    gd(225); pdf.setLineWidth(0.3); pdf.line(MG, y, PW - MG, y); y += 8;
+
+    const r2Y = y;
+    y = secTitle("Pacientes por Setor", MG, y, COL_L);
+    hBar(setorEntries, MG, y, COL_L, 52, 6, 1.5, CHART_C);
+    const r2EndL = y + setorEntries.length * 7.5;
+
+    let ry2 = r2Y;
+    ry2 = secTitle("Material Coletado", COL_RX, ry2, COL_RW);
+    hBar(matEntries, COL_RX, ry2, COL_RW, 40, 6, 1.5, [TEAL, GREEN, PURPLE, ORANGE, NAVY, AMBER, RED, SLATE]);
+    const r2EndR = ry2 + matEntries.length * 7.5;
+
+    y = Math.max(r2EndL, r2EndR) + 8;
+    gd(225); pdf.setLineWidth(0.3); pdf.line(MG, y, PW - MG, y); y += 8;
+
+    y = secTitle("Resumo por Desfecho", MG, y, CW);
+    kpiRow([
+      { lbl: "Em Isolamento", val: activeP.length, c: NAVY              },
+      { lbl: "Alta",          val: altaP.length,   c: SLATE             },
+      { lbl: "Óbito",         val: obitoP.length,  c: RED               },
+      { lbl: "Transferência", val: transfP.length, c: [30, 58, 95] as RGB },
+    ], MG, y, CW, 24);
+
+    pFooter(2, "Análise Epidemiológica");
+
+    // ══ PAGES 3+ — BY SECTOR ══
+    const COL_WS = [46, 22, 13, 50, 28, 23];
+    const COL_LBL = ["Paciente", "Prontuário", "Leito", "Microrganismo", "Precaução", "Data Coleta"];
+    const ROW_H = 7.5, TABLE_MAX = PH - 50;
+
+    sectors.forEach((setor, sIdx) => {
+      pdf.addPage();
+      const sectorPats = activeP.filter(p => p.setor === setor)
+        .sort((a, b) => a.leito.localeCompare(b.leito, "pt-BR", { numeric: true }));
+      const pg = sIdx + 3;
+      const sAlert = pdfAlerts.find(a => a.setor === setor);
+
+      sf(NAVY); pdf.rect(0, 0, PW, 18, "F");
+      sf(TEAL);  pdf.rect(0, 18, PW, 2, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(255, 255, 255);
+      pdf.text("IRAS Control — Mapeamento de Precaução", MG, 12);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(160, 205, 235);
+      pdf.text(dateStr, PW - MG, 12, { align: "right" });
+
+      gf(237); pdf.rect(0, 20, PW, 18, "F");
+      sf(NAVY); pdf.rect(0, 20, 5, 18, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); st(NAVY);
+      pdf.text(setor, MG + 4, 31);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); gg(80);
+      pdf.text(`${sectorPats.length} paciente${sectorPats.length !== 1 ? "s" : ""} em isolamento ativo`, MG + 4, 35);
+
+      if (sAlert) {
+        const bc = sAlert.nivel === "surto" ? RED : AMBER;
+        sf(bc); pdf.rect(PW - MG - 58, 21, 58, 16, "F");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5); pdf.setTextColor(255, 255, 255);
+        pdf.text(sAlert.nivel === "surto" ? "SURTO" : "ATENCAO", PW - MG - 4, 27.5, { align: "right" });
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7);
+        pdf.text(`${sAlert.count} casos · ${(sAlert.organismo || "").split("–")[0].trim().slice(0, 20)}`, PW - MG - 4, 34, { align: "right" });
+      }
+
+      let tableY = 42;
+      sf(NAVY); pdf.rect(MG, tableY, CW, ROW_H, "F");
+      pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5);
+      let hx = MG + 2;
+      COL_LBL.forEach((lbl, ci) => { pdf.text(lbl, hx, tableY + 5); hx += COL_WS[ci]; });
+      tableY += ROW_H;
+
+      sectorPats.forEach((p, ri) => {
+        if (tableY + ROW_H > TABLE_MAX) {
+          drawMiniCharts(sectorPats, tableY + 4);
+          pFooter(pg, setor);
+          pdf.addPage();
+          sf(NAVY); pdf.rect(0, 0, PW, 18, "F");
+          sf(TEAL);  pdf.rect(0, 18, PW, 2, "F");
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(255, 255, 255);
+          pdf.text("IRAS Control — Mapeamento (cont.)", MG, 12);
+          gf(237); pdf.rect(0, 20, PW, 14, "F");
+          sf(NAVY); pdf.rect(0, 20, 5, 14, "F");
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); st(NAVY);
+          pdf.text(setor + " (cont.)", MG + 4, 30);
+          tableY = 38;
+          sf(NAVY); pdf.rect(MG, tableY, CW, ROW_H, "F");
+          pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5);
+          hx = MG + 2;
+          COL_LBL.forEach((lbl, ci) => { pdf.text(lbl, hx, tableY + 5); hx += COL_WS[ci]; });
+          tableY += ROW_H;
+        }
+
+        if (ri % 2 === 1) { gf(249); pdf.rect(MG, tableY, CW, ROW_H, "F"); }
+        const precRgb = (PREC_C[p.precaucao] || NAVY) as RGB;
+        sf(precRgb); pdf.rect(MG, tableY, 3, ROW_H, "F");
+        const org = ORGANISMOS.find(o => o.value === p.organismo);
+        const orgLbl = (org?.label || p.organismo || "—").split("–")[0].trim().slice(0, 28);
+        const cells = [p.nome.slice(0, 24), p.prontuario || "—", p.leito || "—", orgLbl, p.precaucao, fmt(p.dataColeta)];
+        let cx = MG + 4;
+        cells.forEach((cell, ci) => {
+          pdf.setFontSize(7.5);
+          if (ci === 4) { pdf.setFont("helvetica", "bold"); st(precRgb); }
+          else { pdf.setFont("helvetica", "normal"); gg(25); }
+          pdf.text(String(cell), cx, tableY + 5);
+          cx += COL_WS[ci];
+        });
+        gd(235); pdf.setLineWidth(0.2); pdf.line(MG, tableY + ROW_H, MG + CW, tableY + ROW_H);
+        tableY += ROW_H;
+      });
+
+      drawMiniCharts(sectorPats, tableY + 4);
+      pFooter(pg, setor);
+    });
+
+    // ══ ALERTS PAGE ══
+    if (pdfAlerts.length > 0) {
+      pdf.addPage();
+      const aPg = 2 + sectors.length + 1;
+      sf(RED); pdf.rect(0, 0, PW, 18, "F");
+      pdf.setFillColor(239, 68, 68); pdf.rect(0, 18, PW, 2, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(255, 255, 255);
+      pdf.text("Alertas de Surto Epidemiológico", MG, 12);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(255, 200, 200);
+      pdf.text(`${pdfAlerts.length} cluster${pdfAlerts.length !== 1 ? "s" : ""} · ${dateStr}`, PW - MG, 12, { align: "right" });
+
+      let alertY = 26;
+      pdfAlerts.forEach(alerta => {
+        if (alertY + 44 > PH - 14) { pdf.addPage(); alertY = 20; }
+        const isSurto = alerta.nivel === "surto";
+        const bc = isSurto ? RED : AMBER;
+        sf(light(bc, 0.92)); pdf.rect(MG, alertY, CW, 40, "F");
+        sf(bc); pdf.rect(MG, alertY, 4, 40, "F");
+        gd(220); pdf.setLineWidth(0.3); pdf.rect(MG, alertY, CW, 40, "S");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); st(bc);
+        pdf.text(isSurto ? "SURTO" : "ATENCAO", MG + 8, alertY + 9);
+        pdf.setFontSize(22); st(bc);
+        pdf.text(String(alerta.count), PW - MG - 4, alertY + 22, { align: "right" });
+        pdf.setFontSize(7); gg(100); pdf.setFont("helvetica", "normal");
+        pdf.text("caso" + (alerta.count !== 1 ? "s" : ""), PW - MG - 4, alertY + 28, { align: "right" });
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); gg(25);
+        pdf.text(alerta.setor, MG + 8, alertY + 19);
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); gg(70);
+        pdf.text((alerta.organismo || "").split("–")[0].trim().slice(0, 50), MG + 8, alertY + 27);
+        pdf.setFontSize(7.5); gg(100);
+        const names = alerta.pacientes.map(p => `${p.nome} (Leito ${p.leito})`).join("  ·  ");
+        pdf.text("Pacientes: " + names, MG + 8, alertY + 35, { maxWidth: CW - 30 });
+        alertY += 46;
+      });
+      pFooter(aPg, "Alertas de Surto");
+    }
+
+    pdf.save(`iras_precaucao_${now.toISOString().slice(0, 10)}.pdf`);
   };
 
   const fetchData = useCallback(async () => {
@@ -447,6 +678,17 @@ export default function MapeamentoPrecaucao() {
   ));
 
   const internadosSorted = applySort(internados);
+
+  const pdfFilteredPatients = useMemo(() =>
+    patients.filter(p =>
+      (pdfStatus === "Todos" || p.status === pdfStatus) &&
+      (pdfSetor === "Todos" || p.setor === pdfSetor) &&
+      (pdfOrganismo === "Todos" || (p.organismo || "").split(" | ").some(v => v === pdfOrganismo)) &&
+      (pdfPrecaucao === "Todos" || p.precaucao === pdfPrecaucao) &&
+      (pdfDataDe === "" || p.dataColeta >= pdfDataDe) &&
+      (pdfDataAte === "" || p.dataColeta <= pdfDataAte)
+    ), [patients, pdfStatus, pdfSetor, pdfOrganismo, pdfPrecaucao, pdfDataDe, pdfDataAte]
+  );
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -894,8 +1136,8 @@ export default function MapeamentoPrecaucao() {
               <button onClick={runAI} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"#4F46E5", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
                 ✦ Insights IA
               </button>
-              <button onClick={exportSectorsPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
-                ⎙ PDF por Setor
+              <button onClick={() => setPdfModal(true)} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+                ⎙ Exportar PDF
               </button>
               <button onClick={() => setShowForm(!showForm)} style={{ padding:"7px 16px", background:"#0F4C75", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
                 + Cadastrar Paciente
@@ -1283,8 +1525,8 @@ export default function MapeamentoPrecaucao() {
               <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Dashboard — Mapeamento de Precaução</h1>
               <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Análise epidemiológica interativa dos isolamentos ativos</p>
             </div>
-            <button onClick={exportSectorsPDF} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
-              ⎙ Exportar PDF por Setor
+            <button onClick={() => setPdfModal(true)} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+              ⎙ Exportar PDF
             </button>
           </div>
 
@@ -1757,6 +1999,101 @@ export default function MapeamentoPrecaucao() {
             </>
           )}
         </main>
+      )}
+
+      {/* ── PDF FILTER MODAL ── */}
+      {pdfModal && (
+        <div className="np" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}>
+          <div style={{ background:"var(--color-background-primary)", borderRadius:16, padding:28, width:520, maxHeight:"90vh", overflow:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+              <div>
+                <h3 style={{ margin:0, fontSize:16, fontWeight:600, color:"var(--color-text-primary)" }}>Exportar PDF — Configurar Relatório</h3>
+                <p style={{ margin:"3px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Selecione os filtros e gere um PDF completo com gráficos e tabelas</p>
+              </div>
+              <button onClick={() => setPdfModal(false)} style={{ border:"none", background:"transparent", cursor:"pointer", fontSize:22, color:"var(--color-text-tertiary)", lineHeight:1, padding:4 }}>×</button>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#0F4C75", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>Status dos Pacientes</label>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {["Todos","Internado","Alta","Óbito","Transferência"].map(s => (
+                  <button key={s} onClick={() => setPdfStatus(s)}
+                    style={{ padding:"5px 14px", borderRadius:20, border: pdfStatus===s?"1.5px solid #0F4C75":"1px solid var(--color-border-secondary)", background: pdfStatus===s?"#EFF6FF":"transparent", color: pdfStatus===s?"#0F4C75":"var(--color-text-secondary)", fontSize:12, fontWeight:500, cursor:"pointer", fontFamily:"inherit" }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#0F4C75", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>Setor</label>
+              <select value={pdfSetor} onChange={e => setPdfSetor(e.target.value)}
+                style={{ width:"100%", padding:"8px 10px", borderRadius:8, border:"1px solid var(--color-border-secondary)", fontSize:12, background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontFamily:"inherit" }}>
+                <option value="Todos">Todos os setores</option>
+                {[...new Set(patients.map(p => p.setor))].filter(Boolean).sort().map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#0F4C75", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>Tipo de Precaução</label>
+              <div style={{ display:"flex", gap:6 }}>
+                {["Todos","Contato","Gotículas","Aerossóis"].map(pr => (
+                  <button key={pr} onClick={() => setPdfPrecaucao(pr)}
+                    style={{ padding:"5px 14px", borderRadius:20, border: pdfPrecaucao===pr?"1.5px solid #0F4C75":"1px solid var(--color-border-secondary)", background: pdfPrecaucao===pr?"#EFF6FF":"transparent", color: pdfPrecaucao===pr?"#0F4C75":"var(--color-text-secondary)", fontSize:12, fontWeight:500, cursor:"pointer", fontFamily:"inherit" }}>
+                    {pr}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#0F4C75", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>Microrganismo</label>
+              <select value={pdfOrganismo} onChange={e => setPdfOrganismo(e.target.value)}
+                style={{ width:"100%", padding:"8px 10px", borderRadius:8, border:"1px solid var(--color-border-secondary)", fontSize:12, background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontFamily:"inherit" }}>
+                <option value="Todos">Todos os microrganismos</option>
+                {ORGANISMOS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom:20 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#0F4C75", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.5px" }}>Período — Data de Coleta</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:4 }}>De</label>
+                  <input type="date" value={pdfDataDe} onChange={e => setPdfDataDe(e.target.value)}
+                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid var(--color-border-secondary)", fontSize:12, background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontFamily:"inherit" }} />
+                </div>
+                <div>
+                  <label style={{ display:"block", fontSize:11, color:"var(--color-text-secondary)", marginBottom:4 }}>Até</label>
+                  <input type="date" value={pdfDataAte} onChange={e => setPdfDataAte(e.target.value)}
+                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid var(--color-border-secondary)", fontSize:12, background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontFamily:"inherit" }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding:"10px 14px", background:"#EFF6FF", borderRadius:8, marginBottom:18, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ fontSize:13, color:"#0F4C75", fontWeight:500 }}>
+                {pdfFilteredPatients.length} paciente{pdfFilteredPatients.length !== 1 ? "s" : ""} selecionado{pdfFilteredPatients.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ fontSize:11, color:"#1E40AF" }}>
+                {pdfFilteredPatients.filter(p => p.status === "Internado").length} em isolamento ativo
+              </span>
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setPdfModal(false)}
+                style={{ flex:1, padding:"9px", border:"1px solid var(--color-border-secondary)", borderRadius:8, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>
+                Cancelar
+              </button>
+              <button
+                disabled={pdfFilteredPatients.length === 0}
+                onClick={() => { exportComprehensivePDF(pdfFilteredPatients); setPdfModal(false); }}
+                style={{ flex:2, padding:"9px", border:"none", borderRadius:8, background: pdfFilteredPatients.length === 0 ? "#9CA3AF" : "#0F4C75", color:"white", cursor: pdfFilteredPatients.length === 0 ? "not-allowed" : "pointer", fontSize:13, fontWeight:600, fontFamily:"inherit" }}>
+                ⎙ Exportar PDF ({pdfFilteredPatients.length} paciente{pdfFilteredPatients.length !== 1 ? "s" : ""})
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── STATUS MODAL ── */}
