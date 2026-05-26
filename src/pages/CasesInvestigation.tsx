@@ -129,6 +129,9 @@ const CasesInvestigation = () => {
   const navState = location.state as { fromMonitoring?: boolean; data?: any } | null;
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
 
+  // Patient ID from monitoring page (prevents duplicate creation)
+  const [monitoringPatientId, setMonitoringPatientId] = useState<string | null>(null);
+
   // ── Existing list state ──
   const [cases, setCases] = useState<InfectionCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,6 +217,7 @@ const CasesInvestigation = () => {
   useEffect(() => {
     if (navState?.fromMonitoring && navState.data) {
       const d = navState.data;
+      if (d.patientId) setMonitoringPatientId(d.patientId);
       const obsLines: string[] = [];
       if (d.diagnostico) obsLines.push(`Diagnóstico: ${d.diagnostico}`);
       if (d.doencasBase) obsLines.push(`Doenças de base: ${d.doencasBase}`);
@@ -355,6 +359,7 @@ const CasesInvestigation = () => {
   const openNew = () => {
     setEditingCase(null);
     setPrefilledBanner(false);
+    setMonitoringPatientId(null);
     setForm({ paciente: "", prontuario: "", setor: "", evento: "", classificacao: "", dispositivos: [], observacoes: "" });
     setDialogOpen(true);
   };
@@ -383,13 +388,17 @@ const CasesInvestigation = () => {
       }).eq("id", editingCase.id);
       if (error) toast.error("Erro ao atualizar caso"); else { toast.success("Caso atualizado!"); fetchCases(); }
     } else {
-      const { data: patient, error: patientError } = await supabase.from("patients").insert({
-        full_name: form.paciente, medical_record: form.prontuario || null, sector: form.setor,
-        hospital_id: hospitalId, created_by: userId,
-      }).select().single();
-      if (patientError) { toast.error("Erro ao criar paciente: " + patientError.message); setSaving(false); return; }
+      let patientId = monitoringPatientId;
+      if (!patientId) {
+        const { data: patient, error: patientError } = await supabase.from("patients").insert({
+          full_name: form.paciente, medical_record: form.prontuario || null, sector: form.setor,
+          hospital_id: hospitalId, created_by: userId,
+        }).select().single();
+        if (patientError) { toast.error("Erro ao criar paciente: " + patientError.message); setSaving(false); return; }
+        patientId = patient.id;
+      }
       const { error } = await supabase.from("infection_cases").insert({
-        hospital_id: hospitalId, patient_id: patient.id, infection_type: form.evento,
+        hospital_id: hospitalId, patient_id: patientId, infection_type: form.evento,
         infection_site: form.classificacao, device_related: form.dispositivos.length > 0,
         device_type: form.dispositivos[0] as any || null, notes: form.observacoes,
         created_by: userId, status: "open" as const,
@@ -409,10 +418,17 @@ const CasesInvestigation = () => {
     // Optimistic removal — removes from UI immediately
     setCases(prev => prev.filter(c => c.id !== caseId));
     if (detailCase?.id === caseId) setDetailCase(null);
-    const { error } = await supabase.from("infection_cases").delete().eq("id", caseId);
+    const { data: deleted, error } = await supabase
+      .from("infection_cases")
+      .delete()
+      .eq("id", caseId)
+      .select("id");
     if (error) {
-      // Restore on failure
       toast.error("Erro ao excluir caso: " + error.message);
+      fetchCases();
+    } else if (!deleted || deleted.length === 0) {
+      // RLS bloqueou silenciosamente — sem permissão de DELETE
+      toast.error("Sem permissão para excluir este caso. Contate o administrador.");
       fetchCases();
     } else {
       toast.success("Caso excluído.");

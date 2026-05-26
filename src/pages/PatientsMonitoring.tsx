@@ -1345,6 +1345,7 @@ export default function PatientsMonitoring() {
                 className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 onClick={() => {
                   const investigationData = {
+                    patientId: selected.id,
                     paciente: selected.nome, prontuario: selected.prontuario,
                     setor: selected.unidade, leito: selected.leito, sexo: selected.sexo,
                     dataNascimento: selected.dataNascimento,

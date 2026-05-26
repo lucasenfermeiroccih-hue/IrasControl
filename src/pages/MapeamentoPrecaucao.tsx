@@ -1551,15 +1551,28 @@ export default function MapeamentoPrecaucao() {
                 <ChartActions chartRef={chartRefs.org} chartTitle="Distribuição por Microrganismo" metaValue={metas.org} onMetaChange={v => setMeta("org", v)} metaUnit="casos" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Pacientes ativos por agente etiológico</div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={orgData} layout="vertical" margin={{ left:10, right:28 }}>
+              <ResponsiveContainer width="100%" height={Math.max(220, orgData.length * 38)}>
+                <BarChart data={orgData} layout="vertical" margin={{ left:4, right:36, top:4, bottom:4 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
                   <XAxis type="number" tick={{ fontSize:10, fill:"#9CA3AF" }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:"#4B5563" }} width={70} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={155}
+                    tick={(props: any) => {
+                      const { x, y, payload } = props;
+                      const label = payload.value.length > 22 ? payload.value.slice(0, 22) + "…" : payload.value;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="#4B5563">{label}</text>
+                        </g>
+                      );
+                    }}
+                  />
                   <Tooltip contentStyle={{ fontSize:11, borderRadius:8 }} />
-                  <Bar dataKey="value" name="Pacientes" radius={[0,4,4,0]}>
+                  <Bar dataKey="value" name="Pacientes" radius={[0,4,4,0]} barSize={20}>
                     {orgData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                    <LabelList dataKey="value" position="right" style={{ fontSize:11, fill:"#6B7280", fontWeight:500 }} />
+                    <LabelList dataKey="value" position="right" style={{ fontSize:11, fill:"#6B7280", fontWeight:600 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -1621,14 +1634,27 @@ export default function MapeamentoPrecaucao() {
                 <ChartActions chartRef={chartRefs.mat} chartTitle="Material Coletado" metaValue={metas.mat} onMetaChange={v => setMeta("mat", v)} metaUnit="coletas" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Frequência por tipo de espécime</div>
-              <ResponsiveContainer width="100%" height={190}>
-                <BarChart data={matData} layout="vertical" margin={{ left:0, right:24 }}>
+              <ResponsiveContainer width="100%" height={Math.max(190, matData.length * 38)}>
+                <BarChart data={matData} layout="vertical" margin={{ left:4, right:36, top:4, bottom:4 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
                   <XAxis type="number" tick={{ fontSize:10, fill:"#9CA3AF" }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize:10, fill:"#4B5563" }} width={120} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={140}
+                    tick={(props: any) => {
+                      const { x, y, payload } = props;
+                      const label = payload.value.length > 20 ? payload.value.slice(0, 20) + "…" : payload.value;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="#4B5563">{label}</text>
+                        </g>
+                      );
+                    }}
+                  />
                   <Tooltip contentStyle={{ fontSize:11, borderRadius:8 }} />
-                  <Bar dataKey="value" name="Coletas" fill="#0D9488" radius={[0,4,4,0]}>
-                    <LabelList dataKey="value" position="right" style={{ fontSize:11, fill:"#6B7280" }} />
+                  <Bar dataKey="value" name="Coletas" fill="#0D9488" radius={[0,4,4,0]} barSize={20}>
+                    <LabelList dataKey="value" position="right" style={{ fontSize:11, fill:"#6B7280", fontWeight:600 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
