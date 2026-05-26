@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LabelList
 } from "recharts";
@@ -135,6 +135,10 @@ export default function MapeamentoPrecaucao() {
   const [aiModal,    setAiModal]   = useState(false);
   const [aiText,     setAiText]    = useState("");
   const [aiLoading,  setAiLoading] = useState(false);
+  const [alertAI,    setAlertAI]   = useState<Record<string, {
+    loading: boolean; analise: string; insights: string[];
+    plano: { acao: string; porQue: string; quem: string; onde: string; quando: string; como: string; quanto: string }[];
+  }>>({});
   const [sortKey,    setSortKey]   = useState("setor");
   const [sortDir,    setSortDir]   = useState<"asc"|"desc">("asc");
   const [evtFilter,  setEvtFilter] = useState("Todos");
@@ -946,6 +950,81 @@ export default function MapeamentoPrecaucao() {
     setAiLoading(false);
   };
 
+  const build5W2HTemplate = (alerta: { setor: string; organismo: string; precaucao: string; count: number }) => [
+    { acao: `Implementar/reforçar precaução de ${alerta.precaucao.toLowerCase()} para todos os casos`, porQue: `Bloquear a cadeia de transmissão de ${alerta.organismo.split("–")[0].trim()} em ${alerta.setor}`, quem: "Enfermagem + CCIH", onde: alerta.setor, quando: "Imediatamente", como: "Sinalização de precaução, EPI adequado no corredor, coorte ou quarto privativo se disponível", quanto: "EPI por atendimento: R$ 15–25" },
+    { acao: "Notificar CCIH e Vigilância Epidemiológica Hospitalar", porQue: "Cumprimento de protocolo institucional e investigação epidemiológica formal do cluster", quem: "Médico assistente + Enfermeiro-chefe do setor", onde: "Chefia de setor / CCIH", quando: "Em até 24 horas da identificação do cluster", como: "Preenchimento de ficha de notificação interna e registro no sistema de vigilância", quanto: "Recursos humanos disponíveis" },
+    { acao: "Auditoria de adesão à higiene das mãos", porQue: "Principal via de transmissão cruzada de microrganismos multirresistentes entre pacientes", quem: "Enfermeiro de Controle de Infecção / CCIH", onde: alerta.setor, quando: "Em 48 h, com reavaliação semanal durante o surto", como: "Observação direta nos 5 momentos OMS, feedback imediato aos profissionais", quanto: "Álcool gel 70% adicional: ~R$ 50/semana" },
+    { acao: "Culturas de vigilância nos pacientes contato", porQue: "Rastrear portadores assintomáticos e identificar extensão real do cluster", quem: "Médico assistente + Laboratório de Microbiologia", onde: alerta.setor, quando: "Em até 72 h após identificação do cluster", como: "Swab nasal/retal (conforme agente) em todos os pacientes do setor; resultado esperado em 48–72 h", quanto: "Custo por cultura: R$ 80–150" },
+    { acao: "Limpeza e desinfecção terminal intensificada", porQue: `${alerta.organismo.split("–")[0].trim()} pode persistir em superfícies por horas a dias, mantendo reservatório ambiental`, quem: "Equipe de higienização + supervisão da CCIH", onde: `Quartos dos pacientes afetados e áreas comuns de ${alerta.setor}`, quando: "Imediato e a cada alta ou transferência de paciente afetado", como: "Hipoclorito de sódio 0,5% em superfícies; clorexidina 2% em equipamentos conforme protocolo institucional", quanto: "Insumos: R$ 100–200 por limpeza terminal" },
+    { acao: "Capacitação emergencial da equipe multiprofissional", porQue: "Reforçar conhecimento sobre o agente, via de transmissão e uso correto de EPI específico para a precaução indicada", quem: "CCIH / Educação Continuada", onde: alerta.setor, quando: "Em até 48 h, abrangendo todos os turnos (manhã, tarde, noite)", como: "Treinamento in loco de 30 min por turno com demonstração prática de paramentação/desparamentação", quanto: "1 hora de CCIH × 3 turnos + material didático" },
+    { acao: "Monitoramento diário de novos casos e indicadores do surto", porQue: "Avaliar efetividade das medidas implantadas e identificar precocemente progressão ou resolução do surto", quem: "CCIH + Chefia de Enfermagem + Médico Infectologista", onde: `${alerta.setor} — reunião diária de ponto de situação`, quando: "Diariamente enquanto houver casos ativos", como: "Reunião rápida (15 min) com atualização de planilha de casos, coleta de dados e reavaliação das medidas", quanto: "Recursos humanos; tempo estimado 15–20 min/dia" },
+  ];
+
+  const runAlertAI = async (alerta: { id: string; setor: string; organismo: string; precaucao: string; nivel: string; count: number; pacientes: Patient[] }) => {
+    const id = alerta.id;
+    setAlertAI(prev => ({ ...prev, [id]: { loading: true, analise: "", insights: [], plano: [] } }));
+    const pList = alerta.pacientes.map(p =>
+      `• ${p.nome} | Leito: ${p.leito} | Prontuário: ${p.prontuario || "—"} | Material: ${p.material || "—"} | Coleta: ${fmt(p.dataColeta)}`
+    ).join("\n");
+    const prompt = `Você é um infectologista e especialista em Controle de Infecção Hospitalar (CCIH) com experiência sólida em investigação e controle de surtos. Analise o seguinte cluster epidemiológico hospitalar e forneça uma análise completa.
+
+DADOS DO CLUSTER:
+- Setor: ${alerta.setor}
+- Agente etiológico: ${alerta.organismo}
+- Tipo de precaução indicada: ${alerta.precaucao}
+- Nível: ${alerta.nivel === "surto" ? "SURTO (≥3 casos)" : "ATENÇÃO (2 casos)"}
+- Total de casos: ${alerta.count}
+
+Pacientes envolvidos:
+${pList}
+
+Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte formato exato:
+{
+  "analise_epidemiologica": "Análise epidemiológica detalhada do cluster, incluindo características do agente, risco de disseminação e contexto hospitalar.",
+  "avaliacao_clinica": "Avaliação clínica do agente etiológico, perfil de resistência esperado, implicações terapêuticas e risco para os pacientes.",
+  "insights": [
+    "Insight prioritário 1 para controle imediato",
+    "Insight 2",
+    "Insight 3",
+    "Insight 4",
+    "Insight 5"
+  ],
+  "plano_5w2h": [
+    {
+      "acao": "Nome objetivo da ação",
+      "por_que": "Justificativa clínica/epidemiológica",
+      "quem": "Profissional responsável",
+      "onde": "Local de execução",
+      "quando": "Prazo concreto",
+      "como": "Descrição técnica de execução",
+      "quanto": "Recursos e custos estimados"
+    }
+  ]
+}`;
+    try {
+      const result = await sendToAgent("outbreak-alert", `surto-${id}-${Date.now()}`, prompt);
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const p = JSON.parse(jsonMatch[0]);
+          const plano = (p.plano_5w2h || []).map((r: any) => ({
+            acao: r.acao || "", porQue: r.por_que || "", quem: r.quem || "",
+            onde: r.onde || "", quando: r.quando || "", como: r.como || "", quanto: r.quanto || "",
+          }));
+          setAlertAI(prev => ({
+            ...prev,
+            [id]: { loading: false, analise: [p.analise_epidemiologica, p.avaliacao_clinica].filter(Boolean).join("\n\n"), insights: p.insights || [], plano: plano.length ? plano : build5W2HTemplate(alerta) },
+          }));
+          return;
+        } catch { /* fall through */ }
+      }
+      // Fallback: show text + template plan
+      setAlertAI(prev => ({ ...prev, [id]: { loading: false, analise: result, insights: [], plano: build5W2HTemplate(alerta) } }));
+    } catch (err) {
+      setAlertAI(prev => ({ ...prev, [id]: { loading: false, analise: err instanceof Error ? err.message : "Erro ao conectar.", insights: [], plano: build5W2HTemplate(alerta) } }));
+    }
+  };
+
   /* ── chart data ── */
   const orgData = useMemo(() => {
     const c: Record<string,number> = {};
@@ -1741,8 +1820,8 @@ export default function MapeamentoPrecaucao() {
       {page === "alertas" && (
         <main style={{ padding:"20px 20px 40px" }}>
           <div style={{ marginBottom:16 }}>
-            <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Alertas de Surto</h1>
-            <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Detecção automática de clusters · 2 casos = Atenção · 3+ casos = Surto</p>
+            <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Alertas de Surto Epidemiológico</h1>
+            <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Detecção automática de clusters · 2 casos = Atenção · 3+ casos = Surto · Análise por IA infectologista</p>
           </div>
 
           {alertas.length === 0 ? (
@@ -1753,11 +1832,13 @@ export default function MapeamentoPrecaucao() {
             </div>
           ) : (
             <>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:20 }}>
+              {/* KPIs */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:16 }}>
                 {[
-                  { lbl:"Total de Alertas",  val:alertas.length,                                c:"#B91C1C", bg:"#FEF2F2" },
-                  { lbl:"Surtos Ativos",      val:alertas.filter(a => a.nivel==="surto").length,  c:"#7F1D1D", bg:"#FEF2F2" },
-                  { lbl:"Em Atenção",         val:alertas.filter(a => a.nivel==="atencao").length, c:"#92400E", bg:"#FFFBEB" },
+                  { lbl:"Total de Alertas",   val:alertas.length,                                                           c:"#B91C1C", bg:"#FEF2F2" },
+                  { lbl:"Surtos Ativos",       val:alertas.filter(a => a.nivel==="surto").length,                            c:"#7F1D1D", bg:"#FEF2F2" },
+                  { lbl:"Em Atenção",          val:alertas.filter(a => a.nivel==="atencao").length,                          c:"#92400E", bg:"#FFFBEB" },
+                  { lbl:"Pacientes em Risco",  val:alertas.reduce((s, a) => s + a.count, 0),                                 c:"#1D4ED8", bg:"#EFF6FF" },
                 ].map(k => (
                   <div key={k.lbl} style={{ background:k.bg, borderRadius:10, padding:"12px 16px", border:`1px solid ${k.c}22` }}>
                     <div style={{ fontSize:10, color:k.c, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{k.lbl}</div>
@@ -1766,50 +1847,221 @@ export default function MapeamentoPrecaucao() {
                 ))}
               </div>
 
-              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {/* Overview chart */}
+              <div style={{ ...card, marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>Visão geral dos clusters ativos</div>
+                <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:12 }}>Casos por setor e agente etiológico</div>
+                <ResponsiveContainer width="100%" height={Math.max(120, alertas.length * 40)}>
+                  <BarChart
+                    data={alertas.map(a => ({
+                      label: `${a.setor.length > 14 ? a.setor.slice(0,14)+"…" : a.setor} · ${a.organismo.split("–")[0].trim().slice(0,10)}`,
+                      casos: a.count,
+                      fill: a.nivel === "surto" ? "#B91C1C" : "#D97706",
+                    }))}
+                    layout="vertical"
+                    margin={{ left:4, right:44, top:4, bottom:4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
+                    <XAxis type="number" tick={{ fontSize:10, fill:"#9CA3AF" }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="label" width={170}
+                      tick={(props: any) => {
+                        const { x, y, payload } = props;
+                        return (
+                          <g transform={`translate(${x},${y})`}>
+                            <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="#4B5563">{payload.value}</text>
+                          </g>
+                        );
+                      }}
+                    />
+                    <Tooltip contentStyle={{ fontSize:11, borderRadius:8 }} formatter={(v) => [`${v} casos`, "Casos"]} />
+                    <Bar dataKey="casos" radius={[0,4,4,0]} barSize={22}>
+                      {alertas.map((a, i) => <Cell key={i} fill={a.nivel === "surto" ? "#B91C1C" : "#D97706"} />)}
+                      <LabelList dataKey="casos" position="right" style={{ fontSize:11, fill:"#6B7280", fontWeight:600 }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Alert cards */}
+              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                 {alertas.map(alerta => {
-                  const nm = NIVEL_META[alerta.nivel];
+                  const nm  = NIVEL_META[alerta.nivel];
+                  const ai  = alertAI[alerta.id];
+                  const timelineData = [...alerta.pacientes]
+                    .sort((a, b) => a.dataColeta.localeCompare(b.dataColeta))
+                    .map((p, i) => ({ date: fmt(p.dataColeta), casos: i + 1, nome: p.nome }));
+
                   return (
-                    <div key={alerta.id} style={{ background:"var(--color-background-primary)", borderRadius:12, border:`1.5px solid ${nm.border}`, padding:20 }}>
-                      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
-                        <div>
-                          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
-                            <span style={{ fontSize:12, fontWeight:600, color:nm.color, background:nm.bg, padding:"3px 10px", borderRadius:20, border:`1px solid ${nm.border}` }}>
-                              {nm.label}
-                            </span>
-                            <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, fontWeight:500, color:alerta.pre.text, background:alerta.pre.bg, padding:"2px 10px", borderRadius:20 }}>
-                              {alerta.pre.icon} {alerta.precaucao}
-                            </span>
-                          </div>
-                          <h3 style={{ margin:0, fontSize:15, fontWeight:600, color:"var(--color-text-primary)" }}>{alerta.setor}</h3>
-                          <p style={{ margin:"4px 0 0", fontSize:13, color:"var(--color-text-secondary)" }}>{alerta.organismo}</p>
-                        </div>
-                        <div style={{ textAlign:"right" }}>
-                          <div style={{ fontSize:34, fontWeight:700, color:nm.color, lineHeight:1 }}>{alerta.count}</div>
-                          <div style={{ fontSize:11, color:"var(--color-text-tertiary)" }}>caso{alerta.count !== 1 ? "s" : ""}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ background:"var(--color-background-tertiary)", borderRadius:8, padding:"10px 14px", marginBottom:12 }}>
-                        <div style={{ fontSize:11, fontWeight:500, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Pacientes envolvidos</div>
-                        {alerta.pacientes.map(p => (
-                          <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:4 }}>
-                            <span style={{ fontWeight:500, color:"var(--color-text-primary)" }}>{p.nome}</span>
-                            <div style={{ display:"flex", gap:10, color:"var(--color-text-secondary)" }}>
-                              <span>Leito {p.leito}</span>
-                              <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11 }}>{fmt(p.dataColeta)}</span>
+                    <div key={alerta.id} style={{ background:"var(--color-background-primary)", borderRadius:14, border:`1.5px solid ${nm.border}`, overflow:"hidden" }}>
+                      {/* Card header */}
+                      <div style={{ padding:"18px 20px 14px", borderBottom:`1px solid ${nm.border}40` }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+                          <div>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                              <span style={{ fontSize:12, fontWeight:700, color:nm.color, background:nm.bg, padding:"3px 12px", borderRadius:20, border:`1px solid ${nm.border}` }}>{nm.label}</span>
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, fontWeight:500, color:alerta.pre.text, background:alerta.pre.bg, padding:"2px 10px", borderRadius:20 }}>{alerta.pre.icon} {alerta.precaucao}</span>
                             </div>
+                            <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:"var(--color-text-primary)" }}>{alerta.setor}</h3>
+                            <p style={{ margin:"4px 0 0", fontSize:13, color:"var(--color-text-secondary)" }}>{alerta.organismo}</p>
                           </div>
-                        ))}
+                          <div style={{ textAlign:"center", background:nm.bg, borderRadius:12, padding:"8px 18px", border:`1px solid ${nm.border}` }}>
+                            <div style={{ fontSize:38, fontWeight:800, color:nm.color, lineHeight:1 }}>{alerta.count}</div>
+                            <div style={{ fontSize:11, color:nm.color, fontWeight:500 }}>caso{alerta.count !== 1 ? "s" : ""}</div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div style={{ padding:"8px 12px", background:`${nm.color}08`, borderRadius:8, borderLeft:`3px solid ${nm.color}` }}>
-                        <div style={{ fontSize:11, fontWeight:600, color:nm.color, marginBottom:2 }}>Recomendação</div>
-                        <div style={{ fontSize:12, color:"var(--color-text-secondary)" }}>
-                          {alerta.nivel === "surto"
-                            ? `Acionar CCIH imediatamente. Revisar medidas de ${alerta.precaucao.toLowerCase()} em ${alerta.setor}. Considerar coorte de pacientes e equipe dedicada.`
-                            : `Reforçar medidas de ${alerta.precaucao.toLowerCase()} em ${alerta.setor}. Monitorar novos casos e avaliar necessidade de investigação epidemiológica.`}
+                      <div style={{ padding:"14px 20px 18px" }}>
+                        {/* Patients table */}
+                        <div style={{ marginBottom:14 }}>
+                          <div style={{ fontSize:11, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Pacientes envolvidos</div>
+                          <div style={{ background:"var(--color-background-secondary)", borderRadius:8, overflow:"hidden" }}>
+                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                              <thead>
+                                <tr style={{ borderBottom:"1px solid var(--color-border-secondary)" }}>
+                                  {["Paciente","Prontuário","Leito","Material","Data Coleta"].map(h => (
+                                    <th key={h} style={{ padding:"7px 10px", textAlign:"left", fontSize:10, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.4px" }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {alerta.pacientes.map((p, i) => (
+                                  <tr key={p.id} style={{ borderBottom: i < alerta.pacientes.length-1 ? "1px solid var(--color-border-tertiary)" : "none" }}>
+                                    <td style={{ padding:"7px 10px", fontWeight:500, color:"var(--color-text-primary)" }}>{p.nome}</td>
+                                    <td style={{ padding:"7px 10px", color:"var(--color-text-secondary)", fontFamily:"'DM Mono',monospace", fontSize:11 }}>{p.prontuario || "—"}</td>
+                                    <td style={{ padding:"7px 10px", color:"var(--color-text-secondary)" }}>Leito {p.leito}</td>
+                                    <td style={{ padding:"7px 10px", color:"var(--color-text-secondary)" }}>{p.material || "—"}</td>
+                                    <td style={{ padding:"7px 10px", color:"var(--color-text-secondary)", fontFamily:"'DM Mono',monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
+
+                        {/* Timeline chart */}
+                        {timelineData.length >= 2 && (
+                          <div style={{ marginBottom:14 }}>
+                            <div style={{ fontSize:11, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Evolução temporal do cluster</div>
+                            <ResponsiveContainer width="100%" height={100}>
+                              <AreaChart data={timelineData} margin={{ left:0, right:8, top:4, bottom:0 }}>
+                                <defs>
+                                  <linearGradient id={`grad-${alerta.id.replace(/[^a-z0-9]/gi,"")}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={nm.color} stopOpacity={0.25} />
+                                    <stop offset="95%" stopColor={nm.color} stopOpacity={0.03} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                                <XAxis dataKey="date" tick={{ fontSize:9, fill:"#9CA3AF" }} />
+                                <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} allowDecimals={false} width={24} />
+                                <Tooltip contentStyle={{ fontSize:10, borderRadius:6 }} formatter={(v, _, p2) => [`${v} casos acumulados — ${p2.payload.nome}`, ""]} />
+                                <Area type="monotone" dataKey="casos" stroke={nm.color} strokeWidth={2}
+                                  fill={`url(#grad-${alerta.id.replace(/[^a-z0-9]/gi,"")})`}
+                                  dot={{ r:4, fill:nm.color, strokeWidth:0 }}
+                                  activeDot={{ r:5 }}
+                                />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+
+                        {/* AI analysis trigger */}
+                        {!ai && (
+                          <button
+                            onClick={() => runAlertAI(alerta)}
+                            style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"10px 16px", background:`${nm.color}0f`, border:`1px dashed ${nm.border}`, borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600, color:nm.color, fontFamily:"inherit", justifyContent:"center", marginBottom:8 }}
+                          >
+                            ✦ Gerar Análise Infectológica com IA + Plano 5W2H
+                          </button>
+                        )}
+
+                        {ai?.loading && (
+                          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", background:`${nm.color}08`, borderRadius:10, marginBottom:8 }}>
+                            <div style={{ width:16, height:16, border:`2px solid ${nm.color}40`, borderTop:`2px solid ${nm.color}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", flexShrink:0 }} />
+                            <span style={{ fontSize:13, color:nm.color, fontWeight:500 }}>Analisando cluster — IA infectologista em processamento…</span>
+                          </div>
+                        )}
+
+                        {ai && !ai.loading && (
+                          <div style={{ marginTop:4 }}>
+                            {/* Analysis text */}
+                            {ai.analise && (
+                              <div style={{ marginBottom:14 }}>
+                                <div style={{ fontSize:11, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Análise Clínico-Epidemiológica</div>
+                                <div style={{ background:`${nm.color}06`, border:`1px solid ${nm.border}`, borderRadius:10, padding:"12px 14px", fontSize:13, color:"var(--color-text-primary)", lineHeight:1.65, whiteSpace:"pre-wrap" }}>
+                                  {ai.analise}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Insights */}
+                            {ai.insights.length > 0 && (
+                              <div style={{ marginBottom:14 }}>
+                                <div style={{ fontSize:11, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Insights Prioritários para Controle</div>
+                                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                                  {ai.insights.map((ins, i) => (
+                                    <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"8px 12px", background:"var(--color-background-secondary)", borderRadius:8, borderLeft:`3px solid ${nm.color}` }}>
+                                      <span style={{ fontSize:12, fontWeight:700, color:nm.color, flexShrink:0, marginTop:1 }}>{i+1}.</span>
+                                      <span style={{ fontSize:13, color:"var(--color-text-primary)", lineHeight:1.5 }}>{ins}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 5W2H table */}
+                            {ai.plano.length > 0 && (
+                              <div>
+                                <div style={{ fontSize:11, fontWeight:600, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Plano de Ação 5W2H — Controle do Surto</div>
+                                <div style={{ overflowX:"auto", borderRadius:10, border:"1px solid var(--color-border-secondary)" }}>
+                                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:780 }}>
+                                    <thead>
+                                      <tr style={{ background:`${nm.color}12` }}>
+                                        {[
+                                          { key:"O Quê?", sub:"Ação" },
+                                          { key:"Por Quê?", sub:"Justificativa" },
+                                          { key:"Quem?", sub:"Responsável" },
+                                          { key:"Onde?", sub:"Local" },
+                                          { key:"Quando?", sub:"Prazo" },
+                                          { key:"Como?", sub:"Método" },
+                                          { key:"Quanto?", sub:"Recursos" },
+                                        ].map(col => (
+                                          <th key={col.key} style={{ padding:"9px 10px", textAlign:"left", borderBottom:`2px solid ${nm.border}`, borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top" }}>
+                                            <div style={{ fontSize:11, fontWeight:700, color:nm.color }}>{col.key}</div>
+                                            <div style={{ fontSize:10, color:"var(--color-text-tertiary)", fontWeight:400 }}>{col.sub}</div>
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {ai.plano.map((row, i) => (
+                                        <tr key={i} style={{ background: i % 2 === 0 ? "var(--color-background-primary)" : "var(--color-background-secondary)", borderBottom:"1px solid var(--color-border-tertiary)" }}>
+                                          <td style={{ padding:"9px 10px", fontWeight:600, color:"var(--color-text-primary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45 }}>{row.acao}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", borderRight:"1px solid var(--color-border-tertiary)", verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
+                                          <td style={{ padding:"9px 10px", color:"var(--color-text-secondary)", verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div style={{ marginTop:8, textAlign:"right" }}>
+                                  <span style={{ fontSize:10, color:"var(--color-text-tertiary)" }}>Gerado por IA — validar com equipe CCIH antes de implementar</span>
+                                </div>
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => setAlertAI(prev => { const n = {...prev}; delete n[alerta.id]; return n; })}
+                              style={{ marginTop:12, fontSize:11, color:"var(--color-text-tertiary)", background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit", padding:0 }}
+                            >
+                              ↺ Regenerar análise
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
