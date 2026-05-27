@@ -13,11 +13,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, BarChart3, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import { useHospitalEmployees } from "@/hooks/useHospitalEmployees";
 import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
-const auditors = ["Danubia Sant'anna", "Mariana Andrade", "Rosangela Mauricio", "Oseas Macedo", "Lucas Lemos", "Mara Rubia"];
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "";
 interface AuditItem { id: string; description: string; }

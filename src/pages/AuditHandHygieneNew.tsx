@@ -9,9 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, ClipboardCheck, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import { useHospitalEmployees } from "@/hooks/useHospitalEmployees";
 import AuditHistory from "@/components/AuditHistory";
 
-const employees = ["Danubia Sant'anna", "Mariana Andrade", "Rosangela Mauricio", "Oseas Macedo", "Lucas Lemos", "Mara Rubia"];
 const units = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const professionals = ["Médico(a)", "Enfermeiro(a)", "Técnico(a) de Enfermagem", "Fisioterapeuta", "Farmacêutico(a)", "Nutricionista", "Outro"];
 const fiveMoments = [
@@ -26,6 +26,7 @@ const techniques = ["Álcool em gel", "Sabonete líquido", "Água e sabão", "An
 export default function AuditHandHygieneNew() {
   const navigate = useNavigate();
   const { saveAudit } = useAuditSave();
+  const { employees } = useHospitalEmployees();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     employeeName: "", auditDate: "", unit: "", professionalCategory: "",
@@ -80,7 +81,7 @@ export default function AuditHandHygieneNew() {
           <div className="space-y-2">
             <Label>Nome do Funcionário *</Label>
             <Select value={form.employeeName} onValueChange={setSelect("employeeName")}>
-              <SelectTrigger><SelectValue placeholder="Selecione o funcionário" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={employees.length ? "Selecione o funcionário" : "Nenhum funcionário cadastrado"} /></SelectTrigger>
               <SelectContent>{employees.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
             </Select>
           </div>
