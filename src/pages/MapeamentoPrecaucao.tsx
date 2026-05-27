@@ -1029,8 +1029,12 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
   const orgData = useMemo(() => {
     const c: Record<string,number> = {};
     internados.forEach(p => {
-      const k = (ORGANISMOS.find(o => o.value === p.organismo)?.label || p.organismo).split("–")[0].trim();
-      c[k] = (c[k] || 0) + 1;
+      const parts = (p.organismo || "").split(" | ").map(s => s.trim()).filter(Boolean);
+      parts.forEach(org => {
+        const found = ORGANISMOS.find(o => o.value === org);
+        const label = found ? found.label.split("–")[0].trim() : org;
+        if (label) c[label] = (c[label] || 0) + 1;
+      });
     });
     return Object.entries(c).map(([name,value]) => ({ name, value })).sort((a,b) => b.value - a.value);
   }, [patients]);
@@ -1049,7 +1053,10 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
   const matData = useMemo(() => {
     const c: Record<string,number> = {};
-    internados.forEach(p => { if (p.material) c[p.material] = (c[p.material] || 0) + 1; });
+    internados.forEach(p => {
+      const parts = (p.material || "").split(" | ").map(s => s.trim()).filter(Boolean);
+      parts.forEach(mat => { c[mat] = (c[mat] || 0) + 1; });
+    });
     return Object.entries(c).map(([name,value]) => ({ name, value })).sort((a,b) => b.value - a.value);
   }, [patients]);
 
@@ -1630,20 +1637,24 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 <ChartActions chartRef={chartRefs.org} chartTitle="Distribuição por Microrganismo" metaValue={metas.org} onMetaChange={v => setMeta("org", v)} metaUnit="casos" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Pacientes ativos por agente etiológico</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {(() => {
-                  const max = Math.max(...orgData.map(d => d.value), 1);
-                  return orgData.map((d, i) => (
-                    <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:160, fontSize:11, color:"#4B5563", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
-                      <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
-                        <div style={{ width:`${(d.value / max) * 100}%`, height:"100%", background:CHART_COLORS[i % CHART_COLORS.length], borderRadius:4, minWidth:4 }} />
+              {orgData.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#9CA3AF", fontSize:12, padding:"20px 0" }}>Sem pacientes em isolamento com microrganismo registrado</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {(() => {
+                    const max = Math.max(...orgData.map(d => d.value), 1);
+                    return orgData.map((d, i) => (
+                      <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ width:160, fontSize:11, color:"var(--color-text-secondary,#4B5563)", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
+                        <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
+                          <div style={{ width:`${(d.value / max) * 100}%`, height:"100%", background:CHART_COLORS[i % CHART_COLORS.length], borderRadius:4, minWidth:4 }} />
+                        </div>
+                        <div style={{ width:28, fontSize:11, fontWeight:600, color:"#6B7280", flexShrink:0, textAlign:"left" }}>{d.value}</div>
                       </div>
-                      <div style={{ width:24, fontSize:11, fontWeight:600, color:"#6B7280", flexShrink:0 }}>{d.value}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
+                    ));
+                  })()}
+                </div>
+              )}
             </div>
 
             <div ref={chartRefs.prec} style={{ ...card }}>
@@ -1702,20 +1713,24 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 <ChartActions chartRef={chartRefs.mat} chartTitle="Material Coletado" metaValue={metas.mat} onMetaChange={v => setMeta("mat", v)} metaUnit="coletas" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Frequência por tipo de espécime</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {(() => {
-                  const max = Math.max(...matData.map(d => d.value), 1);
-                  return matData.map((d) => (
-                    <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:160, fontSize:11, color:"#4B5563", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
-                      <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
-                        <div style={{ width:`${(d.value / max) * 100}%`, height:"100%", background:"#0D9488", borderRadius:4, minWidth:4 }} />
+              {matData.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#9CA3AF", fontSize:12, padding:"20px 0" }}>Sem material coletado registrado para pacientes em isolamento</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {(() => {
+                    const max = Math.max(...matData.map(d => d.value), 1);
+                    return matData.map((d) => (
+                      <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ width:160, fontSize:11, color:"var(--color-text-secondary,#4B5563)", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
+                        <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
+                          <div style={{ width:`${(d.value / max) * 100}%`, height:"100%", background:"#0D9488", borderRadius:4, minWidth:4 }} />
+                        </div>
+                        <div style={{ width:28, fontSize:11, fontWeight:600, color:"#6B7280", flexShrink:0, textAlign:"left" }}>{d.value}</div>
                       </div>
-                      <div style={{ width:24, fontSize:11, fontWeight:600, color:"#6B7280", flexShrink:0 }}>{d.value}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
+                    ));
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
