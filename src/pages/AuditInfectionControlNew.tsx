@@ -58,6 +58,7 @@ const mapStatus = (v: ResponseValue) => v === "conforme" ? "compliant" as const 
 export default function AuditInfectionControlNew() {
   const navigate = useNavigate();
   const { saveAudit } = useAuditSave();
+  const { employees: auditors } = useHospitalEmployees();
   const [saving, setSaving] = useState(false);
   const [auditDate, setAuditDate] = useState("");
   const [sector, setSector] = useState("");

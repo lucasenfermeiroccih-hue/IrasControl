@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, Activity, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
+import { useHospitalEmployees } from "@/hooks/useHospitalEmployees";
 import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
@@ -49,6 +50,7 @@ const mapStatus = (v: ItemStatus) => {
 export default function AuditDispenserNew() {
   const navigate = useNavigate();
   const { saveAudit } = useAuditSave();
+  const { employees } = useHospitalEmployees();
   const [saving, setSaving] = useState(false);
   const [auditorName, setAuditorName] = useState("");
   const [sector, setSector] = useState("");
@@ -112,7 +114,7 @@ export default function AuditDispenserNew() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Identificação</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Funcionário *</Label><Input value={auditorName} onChange={e => setAuditorName(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Funcionário *</Label><Select value={auditorName} onValueChange={setAuditorName}><SelectTrigger><SelectValue placeholder={employees.length ? "Selecione o funcionário" : "Nenhum funcionário cadastrado"} /></SelectTrigger><SelectContent>{employees.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Setor *</Label><Select value={sector} onValueChange={setSector}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{sectors.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Nº do Dispenser *</Label><Input value={dispenserId} onChange={e => setDispenserId(e.target.value)} /></div>
           <div className="space-y-2"><Label>Tipo de Preparação</Label><Select value={preparationType} onValueChange={setPreparationType}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{preparationTypes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>
