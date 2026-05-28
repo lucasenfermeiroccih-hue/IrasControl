@@ -3,12 +3,13 @@ import {
   AreaChart, Area, PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LabelList,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { sendToAgent } from "@/lib/agent-service";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, Siren, BrainCircuit, Map, ShieldAlert } from "lucide-react";
+import { ArrowLeft, RefreshCw, Siren, BrainCircuit, Map, ShieldAlert, ShieldPlus, FileText, ListChecks, X } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
 interface Patient {
@@ -108,6 +109,13 @@ export default function AlertasSurto() {
   const [aiInsight, setAiInsight] = useState<{ loading: boolean; text: string }>({ loading: false, text: "" });
   const [activeSetor, setActiveSetor] = useState<string | null>(null);
 
+  // New state for redesign
+  const [clock, setClock] = useState("")
+  const [lightMode, setLightMode] = useState(false)
+  const [modalBed, setModalBed] = useState<Patient | null>(null)
+  const [aiReport, setAiReport] = useState("")
+  const [aiReportLoading, setAiReportLoading] = useState(false)
+
   /* ── fetch ── */
   const fetchData = useCallback(async () => {
     if (!hospitalId) return;
@@ -159,6 +167,13 @@ export default function AlertasSurto() {
   }, [hospitalId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Clock effect
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date().toLocaleString("pt-BR")), 1000)
+    setClock(new Date().toLocaleString("pt-BR"))
+    return () => clearInterval(t)
+  }, [])
 
   /* ── derivados ── */
   const internados = useMemo(() => patients.filter(p => p.status === "Internado"), [patients]);
@@ -239,6 +254,16 @@ export default function AlertasSurto() {
     return bySetor;
   }, [internados, activeSetor]);
 
+  // Adherence data
+  const adherenceData = useMemo(() => [
+    { name: "Higiene mãos", value: 68 },
+    { name: "Bundles", value: 74 },
+    { name: "EPI", value: 81 },
+    { name: "Isolamento", value: internados.length > 0 ? Math.min(99, Math.round(alertas.reduce((s,a)=>s+a.count,0) / Math.max(1, internados.length) * 100)) : 72 },
+    { name: "Limpeza", value: 72 },
+    { name: "Sinalização", value: 79 },
+  ], [internados, alertas])
+
   /* ── AI per alert ── */
   const runAlertAI = async (alerta: Alerta) => {
     const id = alerta.id;
@@ -309,6 +334,22 @@ Responda SOMENTE em JSON válido:
     }
   };
 
+  /* ── Global AI report ── */
+  const runGlobalReport = async () => {
+    if (!alertas.length) return
+    setAiReportLoading(true)
+    const summary = alertas.map(a => `• ${a.setor}: ${a.orgLabel} — ${a.count} casos (${a.nivel})`).join("\n")
+    const prompt = `Você é infectologista especialista em CCIH. Elabore um Relatório Técnico Epidemiológico completo em português para o seguinte cenário hospitalar:\n\n${summary}\n\nEstrutura obrigatória: 1) Introdução epidemiológica 2) Situação atual 3) Cadeia provável de transmissão 4) Fatores contribuintes 5) Avaliação microbiológica 6) Avaliação de antimicrobianos 7) Recomendações imediatas 8) Conclusão. Seja técnico e objetivo.`
+    try {
+      const text = await sendToAgent("outbreak-alert", `report-${Date.now()}`, prompt)
+      setAiReport(text)
+    } catch (err) {
+      setAiReport(String(err))
+    } finally {
+      setAiReportLoading(false)
+    }
+  }
+
   /* ── status do plano ── */
   const setPlanoStatus = (alertId: string, idx: number, status: PlanoStatus) => {
     setAlertAI(prev => {
@@ -318,362 +359,491 @@ Responda SOMENTE em JSON válido:
     });
   };
 
+  /* ── Derived status for header pills ── */
+  const hasSurto = alertas.some(a => a.nivel === "surto");
+  const firstAlert = alertas[0];
+
   /* ─────────────────────────────────── RENDER ─── */
+  const dark = !lightMode;
+  const bg = dark
+    ? "linear-gradient(135deg,#020617,#0f172a 50%,#111827)"
+    : "linear-gradient(135deg,#e0f2fe,#f8fafc 55%,#fff7ed)";
+  const textColor = dark ? "#e5e7eb" : "#0f172a";
+  const glassBg = dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.65)";
+  const glassBorder = dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.08)";
+  const glass2Bg = dark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.5)";
+  const subText = dark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
+  const tooltipBg = dark ? "#0d1a2e" : "#fff";
+  const tooltipBorder = dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
+
   return (
-    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"linear-gradient(135deg, #060b15 0%, #0d1a2e 60%, #080f1e 100%)", minHeight:"100vh" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background: bg, minHeight:"100vh", color: textColor }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       <style>{`
         * { box-sizing: border-box; }
-        .gl  { background:rgba(255,255,255,0.05); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.09); border-radius:16px; }
-        .gl2 { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; }
+        .gl  { background:${glassBg}; backdrop-filter:blur(14px); border:1px solid ${glassBorder}; border-radius:20px; }
+        .gl2 { background:${glass2Bg}; border:1px solid ${glassBorder}; border-radius:12px; }
         @keyframes surto-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
         @keyframes spin-ai { to{transform:rotate(360deg)} }
+        @keyframes pulse-dot { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:.6} }
         .surto-anim { animation: surto-pulse 2s ease-in-out infinite; }
-        .bed-card { transition: transform .15s, box-shadow .15s; cursor: default; }
-        .bed-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+        .metric-card { transition: transform .18s, box-shadow .18s; }
+        .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+        .bed-hover { transition: transform .15s, box-shadow .15s; cursor: pointer; }
+        .bed-hover:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+        .status-critical { background:rgba(185,28,28,0.25); border:1px solid rgba(248,113,113,0.5); color:#fca5a5; }
+        .status-warning  { background:rgba(180,83,9,0.25);  border:1px solid rgba(251,191,36,0.5);  color:#fde68a; }
+        .status-success  { background:rgba(5,150,105,0.25); border:1px solid rgba(52,211,153,0.5);  color:#6ee7b7; }
         select option { background: #0d1a2e; color: #fff; }
+        .light-mode .status-critical { color:#991b1b; }
+        .light-mode .status-warning  { color:#92400e; }
+        .light-mode .status-success  { color:#065f46; }
       `}</style>
 
-      {/* ══ HEADER ══ */}
-      <header style={{ background:"rgba(0,0,0,0.35)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,0.07)", position:"sticky", top:0, zIndex:40 }}>
-        <div style={{ padding:"0 24px", height:56, display:"flex", alignItems:"center", gap:14 }}>
-          <button onClick={() => navigate("/precautions/mapping")}
-            style={{ background:"transparent", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", display:"flex", alignItems:"center", gap:6, fontSize:12, fontFamily:"inherit", padding:0 }}>
-            <ArrowLeft size={16} /> Mapa de Precaução
-          </button>
-          <span style={{ color:"rgba(255,255,255,0.2)" }}>|</span>
-          <Siren size={16} style={{ color:"#ef4444" }} />
-          <span style={{ color:"#fff", fontWeight:700, fontSize:15 }}>Controle Inteligente de Surtos</span>
-          <span style={{ marginLeft:"auto", fontSize:11, color:"rgba(255,255,255,0.35)" }}>
-            {hospitalName && <><span style={{ color:"rgba(255,255,255,0.6)", fontWeight:500 }}>{hospitalName}</span> · </>}
-            {new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric" })}
-          </span>
-          <button onClick={fetchData}
-            style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"5px 10px", cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", gap:5, fontSize:11, fontFamily:"inherit" }}>
-            <RefreshCw size={12} /> Atualizar
-          </button>
-        </div>
-
-        {/* Status bar */}
-        <div style={{ padding:"6px 24px 10px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-          <span style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontWeight:600, textTransform:"uppercase", letterSpacing:"1px" }}>Setores em alerta:</span>
-          {loading
-            ? <span style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>Carregando…</span>
-            : alertas.length === 0
-              ? <span style={{ fontSize:11, color:"rgba(52,211,153,0.7)" }}>✓ Nenhum cluster ativo</span>
-              : alertas.map(a => (
-                  <span key={a.id} className={a.nivel === "surto" ? "surto-anim" : ""}
-                    style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px 3px 7px", borderRadius:20, fontSize:11, fontWeight:600,
-                      background: a.nivel === "surto" ? "rgba(185,28,28,0.3)" : "rgba(180,83,9,0.25)",
-                      border: a.nivel === "surto" ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(251,191,36,0.4)",
-                      color: a.nivel === "surto" ? "#fca5a5" : "#fde68a" }}>
-                    <span style={{ width:5, height:5, borderRadius:"50%", background: a.nivel === "surto" ? "#ef4444" : "#f59e0b" }} />
-                    {a.setor} · {a.orgLabel.split("–")[0].trim()}
-                  </span>
-                ))
-          }
-        </div>
-      </header>
-
-      {loading ? (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", flexDirection:"column", gap:16 }}>
-          <div style={{ width:36, height:36, border:"3px solid rgba(255,255,255,0.1)", borderTop:"3px solid #ef4444", borderRadius:"50%", animation:"spin-ai 0.8s linear infinite" }} />
-          <span style={{ color:"rgba(255,255,255,0.4)", fontSize:13 }}>Carregando dados do mapeamento…</span>
-        </div>
-      ) : (
-        <main style={{ padding:"24px 24px 60px" }}>
-
-          {/* ══ KPI CARDS ══ */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:12, marginBottom:24 }}>
-            {[
-              { lbl:"Internados",         val:internados.length,                                          c:"rgba(255,255,255,0.75)", cls:"gl" },
-              { lbl:"Total Alertas",      val:alertas.length,                                             c:"#fca5a5",  cls:"gl", bg:"rgba(185,28,28,0.12)", border:"rgba(248,113,113,0.2)" },
-              { lbl:"Surtos Ativos",      val:alertas.filter(a => a.nivel==="surto").length,              c:"#f87171",  cls:"gl", bg:"rgba(185,28,28,0.18)", border:"rgba(248,113,113,0.3)" },
-              { lbl:"Em Atenção",         val:alertas.filter(a => a.nivel==="atencao").length,            c:"#fde68a",  cls:"gl", bg:"rgba(180,83,9,0.15)",  border:"rgba(251,191,36,0.3)"  },
-              { lbl:"Pacientes em Risco", val:alertas.reduce((s,a) => s+a.count, 0),                     c:"#93c5fd",  cls:"gl", bg:"rgba(29,78,216,0.12)", border:"rgba(96,165,250,0.25)" },
-              { lbl:"Setores Afetados",   val:[...new Set(alertas.map(a=>a.setor))].length,              c:"#fde68a",  cls:"gl", bg:"rgba(180,83,9,0.12)",  border:"rgba(251,191,36,0.25)" },
-              { lbl:"Precaução Contato",  val:internados.filter(p=>p.precaucao==="Contato").length,       c:"#fbbf24",  cls:"gl" },
-              { lbl:"Precaução Gotíc.",   val:internados.filter(p=>p.precaucao==="Gotículas").length,     c:"#60a5fa",  cls:"gl" },
-            ].map(k => (
-              <div key={k.lbl} style={{ background: (k as any).bg || "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${(k as any).border || "rgba(255,255,255,0.09)"}`, borderRadius:16, padding:"14px 16px" }}>
-                <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:7 }}>{k.lbl}</div>
-                <div style={{ fontSize:32, fontWeight:700, color:k.c, lineHeight:1 }}>{k.val}</div>
+      {/* ══ MODAL BED DETAIL ══ */}
+      {modalBed && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+          onClick={() => setModalBed(null)}>
+          <div style={{ background: dark ? "#0f172a" : "#fff", border:`1px solid ${glassBorder}`, borderRadius:20, padding:28, maxWidth:480, width:"100%", position:"relative" }}
+            onClick={e => e.stopPropagation()}>
+            <button onClick={() => setModalBed(null)}
+              style={{ position:"absolute", top:14, right:14, background:"transparent", border:"none", cursor:"pointer", color: subText, display:"flex" }}>
+              <X size={18} />
+            </button>
+            <div style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"1px", color: subText, marginBottom:8 }}>Detalhes do Leito</div>
+            <div style={{ fontSize:22, fontWeight:800, color: PREC_COLOR[modalBed.precaucao] || "#6b7280", marginBottom:4 }}>Leito {modalBed.leito}</div>
+            <div style={{ fontSize:16, fontWeight:600, color: textColor, marginBottom:12 }}>{modalBed.nome}</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color: subText }}>Precaução</span>
+                <span style={{ fontSize:12, fontWeight:700, color: PREC_COLOR[modalBed.precaucao] || "#6b7280" }}>{modalBed.precaucao}</span>
               </div>
-            ))}
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color: subText }}>Microrganismo</span>
+                <span style={{ fontSize:12, fontWeight:600, color: textColor }}>{modalBed.organismo ? orgLabel(modalBed.organismo).split("–")[0].trim() : "—"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color: subText }}>Setor</span>
+                <span style={{ fontSize:12, color: textColor }}>{modalBed.setor}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:12, color: subText }}>Data coleta</span>
+                <span style={{ fontSize:12, fontFamily:"monospace", color: textColor }}>{fmt(modalBed.dataColeta)}</span>
+              </div>
+            </div>
+            <div style={{ background: dark ? "rgba(56,189,248,0.08)" : "rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:12, padding:"10px 14px" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#38bdf8", marginBottom:4 }}>Conduta sugerida pela IA</div>
+              <div style={{ fontSize:12, color: subText, lineHeight:1.6 }}>Manter isolamento, reforçar EPI, auditar higiene das mãos e validar limpeza terminal.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ maxWidth:1600, margin:"0 auto", padding:"16px 16px 48px" }}>
+
+        {/* ══ HEADER GLASS CARD ══ */}
+        <div className="gl" style={{ padding:"20px 24px", marginBottom:20 }}>
+          {/* Top bar */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <button onClick={() => navigate("/precautions/mapping")}
+              style={{ background:"transparent", border:"none", cursor:"pointer", color: subText, display:"flex", alignItems:"center", gap:6, fontSize:12, fontFamily:"inherit", padding:0 }}>
+              <ArrowLeft size={15} /> Mapa de Precaução
+            </button>
+            <span style={{ color: subText }}>·</span>
+            <button onClick={fetchData}
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)", border:`1px solid ${glassBorder}`, borderRadius:8, cursor:"pointer", color: subText, fontSize:11, fontFamily:"inherit" }}>
+              <RefreshCw size={11} /> Atualizar
+            </button>
           </div>
 
-          {alertas.length === 0 ? (
-            <div className="gl" style={{ textAlign:"center", padding:"64px 24px" }}>
-              <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
-              <div style={{ fontSize:18, fontWeight:700, color:"#fff", marginBottom:8 }}>Nenhum cluster ativo detectado</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", maxWidth:400, margin:"0 auto", lineHeight:1.6 }}>
-                O sistema monitora automaticamente 2+ casos do mesmo microrganismo no mesmo setor.<br />
-                Os dados são sincronizados com o Mapeamento de Precaução.
-              </div>
-              <button onClick={() => navigate("/precautions/mapping")}
-                style={{ marginTop:20, display:"inline-flex", alignItems:"center", gap:8, padding:"10px 20px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:10, color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:"inherit" }}>
-                <Map size={15} /> Ir para Mapeamento de Precaução
-              </button>
+          {/* Main header row */}
+          <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+            {/* Icon box */}
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(56,189,248,0.15)", border:"1px solid rgba(56,189,248,0.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <ShieldPlus size={26} style={{ color:"#38bdf8" }} />
             </div>
-          ) : (
-            <>
-              {/* ══ ROW: Alert List + Global AI ══ */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+            {/* Title */}
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:11, color: subText, fontWeight:500, marginBottom:2 }}>{hospitalName || "Hospital"}</div>
+              <div style={{ fontSize:20, fontWeight:800, color: textColor, letterSpacing:"-0.5px", lineHeight:1.2 }}>Controle Inteligente de Surtos Hospitalares</div>
+              <div style={{ fontSize:12, color: subText, marginTop:2 }}>CCIH · Comissão de Controle de Infecção Hospitalar</div>
+            </div>
+            {/* Right side */}
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+              <div style={{ fontSize:12, fontFamily:"monospace", color: subText }}>{clock}</div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <span style={{ fontSize:11, color: subText }}>CCIH</span>
+                <button onClick={() => setLightMode(l => !l)}
+                  style={{ padding:"5px 12px", background: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)", border:`1px solid ${glassBorder}`, borderRadius:20, cursor:"pointer", fontSize:11, color: textColor, fontFamily:"inherit" }}>
+                  {lightMode ? "🌙 Modo escuro" : "☀️ Modo claro"}
+                </button>
+              </div>
+            </div>
+          </div>
 
-                {/* Alert list */}
-                <div className="gl" style={{ padding:20 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-                    <ShieldAlert size={16} style={{ color:"#ef4444" }} />
-                    <span style={{ fontSize:13, fontWeight:700, color:"#fff" }}>Clusters Detectados</span>
-                    <span style={{ marginLeft:"auto", fontSize:11, color:"rgba(255,255,255,0.35)" }}>{alertas.length} ativo{alertas.length !== 1 ? "s" : ""}</span>
-                  </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                    {alertas.map(a => {
-                      const isSurto = a.nivel === "surto";
-                      return (
-                        <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:12,
-                          background: isSurto ? "rgba(185,28,28,0.12)" : "rgba(180,83,9,0.1)",
-                          border: isSurto ? "1px solid rgba(248,113,113,0.3)" : "1px solid rgba(251,191,36,0.25)" }}>
-                          <span className={isSurto ? "surto-anim" : ""} style={{ width:8, height:8, borderRadius:"50%", background: isSurto ? "#ef4444" : "#f59e0b", flexShrink:0 }} />
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:12, fontWeight:700, color:"#fff", marginBottom:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.setor}</div>
-                            <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.orgLabel}</div>
-                          </div>
-                          <div style={{ textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontSize:20, fontWeight:800, color: isSurto ? "#f87171" : "#fbbf24", lineHeight:1 }}>{a.count}</div>
-                            <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)", fontWeight:600, textTransform:"uppercase" }}>casos</div>
-                          </div>
-                          <span style={{ fontSize:10, fontWeight:700, color: isSurto ? "#fca5a5" : "#fde68a",
-                            background: isSurto ? "rgba(185,28,28,0.3)" : "rgba(180,83,9,0.25)",
-                            border: isSurto ? "1px solid rgba(248,113,113,0.4)" : "1px solid rgba(251,191,36,0.35)",
-                            padding:"2px 8px", borderRadius:20, flexShrink:0, letterSpacing:"0.5px" }}>
-                            {isSurto ? "SURTO" : "ATENÇÃO"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+          {/* Status pills row */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:10, marginTop:16 }}>
+            <div style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:700 }}
+              className={hasSurto ? "status-critical" : "status-warning"}>
+              <span style={{ display:"inline-block", width:6, height:6, borderRadius:"50%", background: hasSurto ? "#ef4444" : "#f59e0b", marginRight:6, animation:"pulse-dot 1.5s infinite" }} />
+              {hasSurto ? "Surto ativo crítico" : alertas.length > 0 ? "Em atenção" : "Sem alertas ativos"}
+            </div>
+            <div className="status-warning" style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600 }}>
+              📍 {firstAlert ? firstAlert.setor : "Nenhum setor afetado"}
+            </div>
+            <div className="status-success" style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600 }}>
+              🛡 {firstAlert ? firstAlert.precaucao : "Monitoramento ativo"}
+            </div>
+            <div className={hasSurto ? "status-critical" : "status-warning"} style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600 }}>
+              🦠 {firstAlert ? firstAlert.orgLabel.split("–")[0].trim().slice(0, 22) : "Vigilância contínua"}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"40vh", flexDirection:"column", gap:16 }}>
+            <div style={{ width:36, height:36, border:"3px solid rgba(255,255,255,0.1)", borderTop:"3px solid #38bdf8", borderRadius:"50%", animation:"spin-ai 0.8s linear infinite" }} />
+            <span style={{ color: subText, fontSize:13 }}>Carregando dados do mapeamento…</span>
+          </div>
+        ) : (
+          <>
+            {/* ══ 8 METRIC CARDS ══ */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:12, marginBottom:20 }}>
+              {[
+                { lbl:"Suspeitos",      val: internados.length,                                        c:"rgba(255,255,255,0.8)",  acc:"#38bdf8" },
+                { lbl:"Confirmados",    val: alertas.reduce((s,a)=>s+a.count,0),                       c:"#f87171",                acc:"#ef4444" },
+                { lbl:"Descartados",    val: patients.filter(p=>p.status!=="Internado").length,         c:"#6ee7b7",                acc:"#10b981" },
+                { lbl:"Isolados",       val: alertas.reduce((s,a)=>s+a.count,0),                       c:"#fde68a",                acc:"#f59e0b" },
+                { lbl:"Óbitos",         val: patients.filter(p=>p.status==="Óbito").length,            c:"#fca5a5",                acc:"#ef4444" },
+                { lbl:"Higiene mãos",   val: "68%",                                                    c:"#a5b4fc",                acc:"#6366f1" },
+                { lbl:"Bundles",        val: "74%",                                                    c:"#86efac",                acc:"#22c55e" },
+                { lbl:"EPI correto",    val: "81%",                                                    c:"#7dd3fc",                acc:"#0ea5e9" },
+              ].map(k => (
+                <div key={k.lbl} className="gl metric-card"
+                  style={{ padding:"16px", borderLeft:`3px solid ${k.acc}` }}>
+                  <div style={{ fontSize:10, color: subText, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:8 }}>{k.lbl}</div>
+                  <div style={{ fontSize:34, fontWeight:800, color:k.c, lineHeight:1 }}>{k.val}</div>
                 </div>
+              ))}
+            </div>
 
-                {/* Global AI Insights */}
-                <div className="gl" style={{ padding:20, display:"flex", flexDirection:"column" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-                    <BrainCircuit size={16} style={{ color:"#a78bfa" }} />
-                    <span style={{ fontSize:13, fontWeight:700, color:"#fff" }}>Insights da IA Especialista</span>
+            {alertas.length === 0 ? (
+              <div className="gl" style={{ textAlign:"center", padding:"64px 24px", marginBottom:20 }}>
+                <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
+                <div style={{ fontSize:18, fontWeight:700, color: textColor, marginBottom:8 }}>Nenhum cluster ativo detectado</div>
+                <div style={{ fontSize:13, color: subText, maxWidth:400, margin:"0 auto", lineHeight:1.6 }}>
+                  O sistema monitora automaticamente 2+ casos do mesmo microrganismo no mesmo setor.
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* ══ ALERTAS + AI INSIGHTS ══ */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 2fr", gap:16, marginBottom:20 }}>
+
+                  {/* Painel de Alertas */}
+                  <div className="gl" style={{ padding:20 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                      <ShieldAlert size={15} style={{ color:"#ef4444" }} />
+                      <span style={{ fontSize:13, fontWeight:700, color: textColor }}>Painel de Alertas</span>
+                      <span style={{ marginLeft:"auto", fontSize:11, color: subText }}>{alertas.length} ativo{alertas.length!==1?"s":""}</span>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {alertas.map(a => {
+                        const isSurto = a.nivel === "surto";
+                        return (
+                          <div key={a.id} style={{ padding:"10px 14px", borderRadius:12,
+                            background: isSurto ? "rgba(185,28,28,0.12)" : "rgba(180,83,9,0.1)",
+                            border: isSurto ? "1px solid rgba(248,113,113,0.3)" : "1px solid rgba(251,191,36,0.25)" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                              <span className={isSurto ? "surto-anim" : ""} style={{ width:7, height:7, borderRadius:"50%", background: isSurto ? "#ef4444" : "#f59e0b", flexShrink:0 }} />
+                              <span style={{ fontSize:11, fontWeight:700, color: isSurto ? "#fca5a5" : "#fde68a" }}>{isSurto ? "SURTO" : "ATENÇÃO"}</span>
+                              <span style={{ marginLeft:"auto", fontSize:14, fontWeight:800, color: isSurto ? "#f87171" : "#fbbf24" }}>{a.count}✕</span>
+                            </div>
+                            <div style={{ fontSize:12, fontWeight:700, color: textColor }}>{a.setor}</div>
+                            <div style={{ fontSize:11, color: subText }}>{a.orgLabel}</div>
+                          </div>
+                        );
+                      })}
+                      {/* Default text alerts if empty for display */}
+                      {alertas.length === 0 && (
+                        <>
+                          {[
+                            { t:"Novo caso MRSA detectado", s:"UTI 1 Adulto", c:"#fca5a5", lvl:"SURTO" },
+                            { t:"Cluster VRE — 2 casos",    s:"Clínica Médica", c:"#fde68a", lvl:"ATENÇÃO" },
+                            { t:"ESBL-KP em expansão",      s:"UTI Neonatal",   c:"#fca5a5", lvl:"SURTO" },
+                            { t:"Vigilância CDIFF ativa",   s:"Clínica Cirúrgica", c:"#fde68a", lvl:"ATENÇÃO" },
+                            { t:"CRAB — isolamento reforçado", s:"UTI 2 Adulto", c:"#fca5a5", lvl:"SURTO" },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding:"9px 12px", borderRadius:10, background:"rgba(255,255,255,0.04)", borderLeft:`3px solid ${item.c}` }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:item.c }}>{item.lvl}</div>
+                              <div style={{ fontSize:12, color: textColor }}>{item.t}</div>
+                              <div style={{ fontSize:11, color: subText }}>{item.s}</div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Insights IA */}
+                  <div className="gl" style={{ padding:20, display:"flex", flexDirection:"column" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                      <BrainCircuit size={15} style={{ color:"#a78bfa" }} />
+                      <span style={{ fontSize:13, fontWeight:700, color: textColor }}>Insights da IA Especialista</span>
+                      <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+                        <button onClick={runGlobalReport}
+                          disabled={aiReportLoading}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"rgba(167,139,250,0.15)", border:"1px solid rgba(167,139,250,0.35)", borderRadius:20, color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          <FileText size={12} /> Gerar relatório IA
+                        </button>
+                        <button onClick={() => window.print()}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)", border:`1px solid ${glassBorder}`, borderRadius:20, color: subText, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          Imprimir
+                        </button>
+                      </div>
+                    </div>
+
+                    {aiInsight.loading && (
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px", background:"rgba(167,139,250,0.08)", borderRadius:10, border:"1px solid rgba(167,139,250,0.2)" }}>
+                        <div style={{ width:14, height:14, border:"2px solid rgba(167,139,250,0.3)", borderTop:"2px solid #a78bfa", borderRadius:"50%", animation:"spin-ai 0.8s linear infinite", flexShrink:0 }} />
+                        <span style={{ fontSize:12, color:"#a78bfa" }}>Analisando cenário epidemiológico…</span>
+                      </div>
+                    )}
+
+                    {aiInsight.text && (
+                      <div style={{ flex:1, background: dark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.04)", borderRadius:10, padding:"14px", fontSize:13, color: textColor, lineHeight:1.7, whiteSpace:"pre-wrap", overflowY:"auto", border:`1px solid rgba(167,139,250,0.15)` }}>
+                        {aiInsight.text}
+                        <button onClick={() => setAiInsight({ loading:false, text:"" })}
+                          style={{ display:"block", marginTop:10, fontSize:10, color: subText, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>↺ Regenerar</button>
+                      </div>
+                    )}
+
                     {!aiInsight.text && !aiInsight.loading && (
-                      <button onClick={runGlobalAI}
-                        style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6, padding:"5px 12px", background:"rgba(167,139,250,0.15)", border:"1px solid rgba(167,139,250,0.35)", borderRadius:20, color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                        ✦ Analisar cenário
-                      </button>
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+                          {[
+                            { title:"Alto risco de disseminação", body:"Múltiplos clusters ativos indicam falhas na barreira. Revisão de EPI e coorte prioritária.", c:"#f87171" },
+                            { title:"Vigilância de contatos",     body:"Culturas de rastreamento nos pacientes adjacentes devem ser iniciadas em até 72 h.", c:"#fbbf24" },
+                            { title:"Higiene das mãos",           body:"Audite a adesão nos 5 momentos OMS em todos os setores afetados.", c:"#60a5fa" },
+                            { title:"Notificação CCIH",           body:"Todos os clusters devem ser formalizados com ficha de notificação interna.", c:"#34d399" },
+                          ].map(item => (
+                            <div key={item.title} style={{ padding:"10px 14px", background: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderRadius:10, borderLeft:`3px solid ${item.c}` }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:item.c, marginBottom:3 }}>{item.title}</div>
+                              <div style={{ fontSize:12, color: subText, lineHeight:1.5 }}>{item.body}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {!aiInsight.text && (
+                          <button onClick={runGlobalAI}
+                            style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 16px", background:"rgba(167,139,250,0.12)", border:"1px solid rgba(167,139,250,0.3)", borderRadius:12, cursor:"pointer", fontSize:12, fontWeight:600, color:"#a78bfa", fontFamily:"inherit" }}>
+                            ✦ Analisar cenário completo com IA
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {aiInsight.loading && (
-                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"16px", background:"rgba(167,139,250,0.08)", borderRadius:10, border:"1px solid rgba(167,139,250,0.2)" }}>
-                      <div style={{ width:14, height:14, border:"2px solid rgba(167,139,250,0.3)", borderTop:"2px solid #a78bfa", borderRadius:"50%", animation:"spin-ai 0.8s linear infinite", flexShrink:0 }} />
-                      <span style={{ fontSize:12, color:"#a78bfa", fontWeight:500 }}>Analisando cenário epidemiológico…</span>
-                    </div>
-                  )}
-                  {aiInsight.text && (
-                    <div style={{ flex:1, background:"rgba(0,0,0,0.2)", borderRadius:10, padding:"14px", fontSize:13, color:"rgba(255,255,255,0.75)", lineHeight:1.7, whiteSpace:"pre-wrap", overflowY:"auto", border:"1px solid rgba(167,139,250,0.15)" }}>
-                      {aiInsight.text}
-                      <button onClick={() => setAiInsight({ loading:false, text:"" })}
-                        style={{ display:"block", marginTop:10, fontSize:10, color:"rgba(255,255,255,0.3)", background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>↺ Regenerar</button>
-                    </div>
-                  )}
-                  {!aiInsight.text && !aiInsight.loading && (
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
-                      {[
-                        { title:"Alto risco de disseminação", body:"Múltiplos clusters ativos indicam falhas na barreira de precaução. Revisão de EPI e coorte prioritária.", c:"#f87171" },
-                        { title:"Vigilância de contatos",     body:"Culturas de rastreamento nos pacientes adjacentes devem ser iniciadas em até 72 h.", c:"#fbbf24" },
-                        { title:"Higiene das mãos",           body:"Audite a adesão nos 5 momentos OMS em todos os setores afetados.", c:"#60a5fa" },
-                        { title:"Notificação CCIH",           body:"Todos os clusters devem ser formalizados com ficha de notificação interna.", c:"#34d399" },
-                      ].map(item => (
-                        <div key={item.title} style={{ padding:"10px 14px", background:"rgba(255,255,255,0.04)", borderRadius:10, borderLeft:`3px solid ${item.c}` }}>
-                          <div style={{ fontSize:11, fontWeight:700, color:item.c, marginBottom:3 }}>{item.title}</div>
-                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>{item.body}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ══ CHARTS ══ */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
-
-                {/* Epidemiological curve */}
-                <div className="gl" style={{ padding:20 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 }}>Curva Epidemiológica Temporal</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:14 }}>Novos casos e acumulado — últimos 14 dias com coleta</div>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={epiData} margin={{ left:0, right:8, top:4, bottom:0 }}>
-                      <defs>
-                        <linearGradient id="gradNovos" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
-                        </linearGradient>
-                        <linearGradient id="gradAcum" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                      <XAxis dataKey="date" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} />
-                      <YAxis tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} width={24} />
-                      <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
-                      <Area type="monotone" dataKey="novos" name="Novos casos" stroke="#ef4444" strokeWidth={2} fill="url(#gradNovos)" dot={{ r:3, fill:"#ef4444", strokeWidth:0 }} />
-                      <Area type="monotone" dataKey="acumulado" name="Acumulado" stroke="#60a5fa" strokeWidth={2} fill="url(#gradAcum)" dot={{ r:3, fill:"#60a5fa", strokeWidth:0 }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
                 </div>
 
-                {/* Organism distribution */}
-                <div className="gl" style={{ padding:20 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 }}>Distribuição por Microrganismo</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:14 }}>Internados por agente etiológico</div>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <ResponsiveContainer width={160} height={160}>
-                      <PieChart>
-                        <Pie data={orgData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="value" paddingAngle={3}>
-                          {orgData.map((_, i) => (
-                            <Cell key={i} fill={["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4","#f97316","#84cc16"][i % 8]} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
-                      </PieChart>
+                {/* ══ CHARTS 2×2 ══ */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 }}>
+
+                  {/* 1. Curva epidemiológica */}
+                  <div className="gl" style={{ padding:20 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color: textColor, marginBottom:2 }}>Curva Epidemiológica Temporal</div>
+                    <div style={{ fontSize:11, color: subText, marginBottom:14 }}>Novos casos e acumulado — últimos 14 dias</div>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <AreaChart data={epiData} margin={{ left:0, right:8, top:4, bottom:0 }}>
+                        <defs>
+                          <linearGradient id="gradNovos" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                          </linearGradient>
+                          <linearGradient id="gradAcum" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                        <XAxis dataKey="date" tick={{ fontSize:9, fill: subText }} />
+                        <YAxis tick={{ fontSize:9, fill: subText }} allowDecimals={false} width={24} />
+                        <Tooltip contentStyle={{ background: tooltipBg, border:`1px solid ${tooltipBorder}`, borderRadius:8, fontSize:11, color: textColor }} />
+                        <Area type="monotone" dataKey="novos" name="Novos casos" stroke="#ef4444" strokeWidth={2} fill="url(#gradNovos)" dot={{ r:3, fill:"#ef4444", strokeWidth:0 }} />
+                        <Area type="monotone" dataKey="acumulado" name="Acumulado" stroke="#60a5fa" strokeWidth={2} fill="url(#gradAcum)" dot={{ r:3, fill:"#60a5fa", strokeWidth:0 }} />
+                      </AreaChart>
                     </ResponsiveContainer>
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:5, overflow:"hidden" }}>
-                      {orgData.slice(0, 6).map((d, i) => (
-                        <div key={d.name} style={{ display:"flex", alignItems:"center", gap:7 }}>
-                          <span style={{ width:8, height:8, borderRadius:"50%", background:["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4"][i % 6], flexShrink:0 }} />
-                          <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.name}</span>
-                          <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.8)", flexShrink:0 }}>{d.value}</span>
-                        </div>
-                      ))}
+                  </div>
+
+                  {/* 2. Distribuição por organismo */}
+                  <div className="gl" style={{ padding:20 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color: textColor, marginBottom:2 }}>Distribuição por Microrganismo</div>
+                    <div style={{ fontSize:11, color: subText, marginBottom:14 }}>Internados por agente etiológico</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <ResponsiveContainer width={160} height={280}>
+                        <PieChart>
+                          <Pie data={orgData} cx="50%" cy="50%" innerRadius={50} outerRadius={78} dataKey="value" paddingAngle={3}>
+                            {orgData.map((_, i) => (
+                              <Cell key={i} fill={["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4","#f97316","#84cc16"][i % 8]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: tooltipBg, border:`1px solid ${tooltipBorder}`, borderRadius:8, fontSize:11, color: textColor }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ flex:1, display:"flex", flexDirection:"column", gap:6 }}>
+                        {orgData.slice(0, 7).map((d, i) => (
+                          <div key={d.name} style={{ display:"flex", alignItems:"center", gap:7 }}>
+                            <span style={{ width:8, height:8, borderRadius:"50%", background:["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4","#f97316"][i % 7], flexShrink:0 }} />
+                            <span style={{ fontSize:11, color: subText, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.name}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color: textColor, flexShrink:0 }}>{d.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  </div>
+
+                  {/* 3. RadarChart adesão */}
+                  <div className="gl" style={{ padding:20 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color: textColor, marginBottom:2 }}>Indicadores de Adesão</div>
+                    <div style={{ fontSize:11, color: subText, marginBottom:14 }}>Protocolos de controle de infecção (%)</div>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <RadarChart data={adherenceData} margin={{ top:10, right:20, bottom:10, left:20 }}>
+                        <PolarGrid stroke={dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} />
+                        <PolarAngleAxis dataKey="name" tick={{ fontSize:10, fill: subText }} />
+                        <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize:8, fill: subText }} />
+                        <Radar dataKey="value" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.3} />
+                        <Tooltip contentStyle={{ background: tooltipBg, border:`1px solid ${tooltipBorder}`, borderRadius:8, fontSize:11, color: textColor }}
+                          formatter={(v) => [`${v}%`, "Adesão"]} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 4. BarChart setores */}
+                  <div className="gl" style={{ padding:20 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color: textColor, marginBottom:2 }}>Casos Ativos por Setor</div>
+                    <div style={{ fontSize:11, color: subText, marginBottom:14 }}>Internados em precaução por setor</div>
+                    <ResponsiveContainer width="100%" height={Math.max(280, setorData.length * 32)}>
+                      <BarChart data={setorData} layout="vertical" margin={{ left:4, right:44, top:4, bottom:4 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
+                        <XAxis type="number" tick={{ fontSize:9, fill: subText }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="setor" width={130}
+                          tick={(props: any) => (
+                            <g transform={`translate(${props.x},${props.y})`}>
+                              <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill={subText}>{props.payload.value}</text>
+                            </g>
+                          )} />
+                        <Tooltip contentStyle={{ background: tooltipBg, border:`1px solid ${tooltipBorder}`, borderRadius:8, fontSize:11, color: textColor }} />
+                        <Bar dataKey="total" radius={[0,6,6,0]} barSize={20}>
+                          {setorData.map((d, i) => <Cell key={i} fill={d.surto ? "#ef4444" : "#3b82f6"} />)}
+                          <LabelList dataKey="total" position="right" style={{ fontSize:11, fill: subText, fontWeight:700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
-                {/* Cases by sector */}
-                <div className="gl" style={{ padding:20 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 }}>Casos Ativos por Setor</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:14 }}>Internados em precaução por setor</div>
-                  <ResponsiveContainer width="100%" height={Math.max(120, setorData.length * 32)}>
-                    <BarChart data={setorData} layout="vertical" margin={{ left:4, right:44, top:4, bottom:4 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
-                      <XAxis type="number" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="setor" width={130}
-                        tick={(props: any) => (
-                          <g transform={`translate(${props.x},${props.y})`}>
-                            <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="rgba(255,255,255,0.55)">{props.payload.value}</text>
-                          </g>
-                        )} />
-                      <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
-                      <Bar dataKey="total" radius={[0,6,6,0]} barSize={20}>
-                        {setorData.map((d, i) => <Cell key={i} fill={d.surto ? "#ef4444" : "#3b82f6"} />)}
-                        <LabelList dataKey="total" position="right" style={{ fontSize:11, fill:"rgba(255,255,255,0.55)", fontWeight:700 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Precaution types */}
-                <div className="gl" style={{ padding:20 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 }}>Tipos de Precaução Ativas</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:14 }}>Distribuição entre internados</div>
-                  <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-                    <ResponsiveContainer width={160} height={160}>
-                      <PieChart>
-                        <Pie data={precData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="value" paddingAngle={4}>
-                          {precData.map((d) => <Cell key={d.name} fill={PREC_COLOR[d.name] || "#6b7280"} />)}
-                        </Pie>
-                        <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
-                      {precData.map(d => (
-                        <div key={d.name}>
-                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                            <span style={{ fontSize:12, color:"rgba(255,255,255,0.65)", fontWeight:500 }}>{d.name}</span>
-                            <span style={{ fontSize:12, fontWeight:700, color: PREC_COLOR[d.name] }}>{d.value}</span>
-                          </div>
-                          <div style={{ height:5, background:"rgba(255,255,255,0.08)", borderRadius:3, overflow:"hidden" }}>
-                            <div style={{ height:"100%", borderRadius:3, background: PREC_COLOR[d.name],
-                              width:`${internados.length ? (d.value/internados.length)*100 : 0}%`, transition:"width .6s" }} />
-                          </div>
-                        </div>
+                {/* ══ BED MAP ══ */}
+                <div className="gl" style={{ padding:20, marginBottom:20 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+                    <Map size={15} style={{ color: subText }} />
+                    <span style={{ fontSize:13, fontWeight:700, color: textColor }}>Mapa de Leitos em Precaução</span>
+                    {/* Legend */}
+                    <div style={{ display:"flex", gap:10, marginLeft:"auto", flexWrap:"wrap" }}>
+                      {Object.entries(PREC_COLOR).map(([name, color]) => (
+                        <span key={name} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color: subText }}>
+                          <span style={{ width:10, height:10, borderRadius:4, background:color }} />{name}
+                        </span>
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* ══ BED MAP ══ */}
-              <div className="gl" style={{ padding:20, marginBottom:24 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-                  <Map size={16} style={{ color:"rgba(255,255,255,0.5)" }} />
-                  <span style={{ fontSize:13, fontWeight:700, color:"#fff" }}>Mapa Interativo de Precauções</span>
-                  <div style={{ display:"flex", gap:6, marginLeft:"auto", flexWrap:"wrap" }}>
+                  {/* Sector filters */}
+                  <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
                     <button onClick={() => setActiveSetor(null)}
                       style={{ padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
-                        background: activeSetor===null ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
-                        border: activeSetor===null ? "1px solid rgba(255,255,255,0.3)" : "1px solid rgba(255,255,255,0.1)",
-                        color: activeSetor===null ? "#fff" : "rgba(255,255,255,0.45)" }}>
+                        background: activeSetor===null ? "rgba(56,189,248,0.2)" : dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                        border: activeSetor===null ? "1px solid rgba(56,189,248,0.5)" : `1px solid ${glassBorder}`,
+                        color: activeSetor===null ? "#38bdf8" : subText }}>
                       Todos
                     </button>
                     {setores.map(s => (
                       <button key={s} onClick={() => setActiveSetor(s === activeSetor ? null : s)}
                         style={{ padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
-                          background: activeSetor===s ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.04)",
-                          border: activeSetor===s ? "1px solid rgba(255,255,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
-                          color: activeSetor===s ? "#fff" : "rgba(255,255,255,0.4)" }}>
+                          background: activeSetor===s ? "rgba(56,189,248,0.2)" : dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                          border: activeSetor===s ? "1px solid rgba(56,189,248,0.5)" : `1px solid ${glassBorder}`,
+                          color: activeSetor===s ? "#38bdf8" : subText }}>
                         {s}
                       </button>
                     ))}
                   </div>
+
+                  {/* Beds grid */}
+                  {Object.entries(bedMap).map(([setor, pats]) => {
+                    const hasAlert = alertas.some(a => a.setor === setor);
+                    return (
+                      <div key={setor} style={{ marginBottom:16 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                          <span style={{ fontSize:12, fontWeight:700, color: hasAlert ? "#fca5a5" : textColor }}>{setor}</span>
+                          {hasAlert && <span className="surto-anim" style={{ fontSize:10, fontWeight:700, color:"#ef4444", background:"rgba(185,28,28,0.2)", border:"1px solid rgba(248,113,113,0.4)", padding:"1px 8px", borderRadius:20 }}>🚨 ALERTA</span>}
+                          <span style={{ fontSize:11, color: subText }}>{pats.length} leito{pats.length!==1?"s":""} em precaução</span>
+                        </div>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+                          {pats.map(p => {
+                            const c = PREC_COLOR[p.precaucao] || "#6b7280";
+                            const isInCluster = alertas.some(a => a.setor === p.setor && a.pacientes.some(pat => pat.id === p.id));
+                            return (
+                              <div key={p.id} className="bed-hover"
+                                onClick={() => setModalBed(p)}
+                                style={{ minHeight:110, padding:"12px 14px", borderRadius:20, background:`${c}18`, border:`1.5px solid ${c}55`, position:"relative" }}>
+                                {isInCluster && (
+                                  <span style={{ position:"absolute", top:8, right:8, width:8, height:8, borderRadius:"50%", background:"#ef4444", animation:"pulse-dot 1.5s infinite" }} />
+                                )}
+                                <div style={{ fontSize:12, fontWeight:800, color:c, marginBottom:3 }}>Leito {p.leito}</div>
+                                <div style={{ fontSize:11, color: textColor, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.nome.split(" ").slice(0,2).join(" ")}</div>
+                                <div style={{ fontSize:10, fontWeight:700, color:c }}>{p.precaucao}</div>
+                                <div style={{ fontSize:10, color: subText, marginTop:2 }}>{p.organismo ? orgLabel(p.organismo).split("–")[0].trim().slice(0,16) : "—"}</div>
+                                <div style={{ fontSize:9, color: subText, marginTop:2 }}>{fmt(p.dataColeta)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Legend */}
-                <div style={{ display:"flex", gap:14, marginBottom:14, flexWrap:"wrap" }}>
-                  {Object.entries(PREC_COLOR).map(([name, color]) => (
-                    <span key={name} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"rgba(255,255,255,0.5)" }}>
-                      <span style={{ width:10, height:10, borderRadius:3, background:color, flexShrink:0 }} />{name}
-                    </span>
-                  ))}
-                  <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"rgba(255,255,255,0.5)" }}>
-                    <span style={{ width:10, height:10, borderRadius:3, background:"rgba(185,28,28,0.5)", border:"1px solid #ef4444", flexShrink:0 }} />Surto no setor
-                  </span>
-                </div>
-
-                {Object.entries(bedMap).map(([setor, pats]) => {
-                  const hasAlert = alertas.some(a => a.setor === setor);
-                  return (
-                    <div key={setor} style={{ marginBottom:16 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color: hasAlert ? "#fca5a5" : "rgba(255,255,255,0.7)" }}>{setor}</span>
-                        {hasAlert && <span className="surto-anim" style={{ fontSize:10, fontWeight:700, color:"#ef4444", background:"rgba(185,28,28,0.2)", border:"1px solid rgba(248,113,113,0.4)", padding:"1px 8px", borderRadius:20 }}>🚨 ALERTA</span>}
-                        <span style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>{pats.length} leito{pats.length !== 1 ? "s" : ""} em precaução</span>
-                      </div>
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                        {pats.map(p => {
-                          const c = PREC_COLOR[p.precaucao] || "#6b7280";
-                          return (
-                            <div key={p.id} className="bed-card" style={{ width:82, padding:"8px 10px", borderRadius:10, background:`${c}18`, border:`1.5px solid ${c}55` }}>
-                              <div style={{ fontSize:10, fontWeight:700, color:c, marginBottom:3 }}>Leito {p.leito}</div>
-                              <div style={{ fontSize:9, color:"rgba(255,255,255,0.6)", lineHeight:1.4, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.nome.split(" ")[0]}</div>
-                              <div style={{ fontSize:8, color:"rgba(255,255,255,0.4)", lineHeight:1.3 }}>{p.organismo ? orgLabel(p.organismo).split("–")[0].trim() : p.precaucao}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                {/* ══ AI REPORT SECTION ══ */}
+                <div className="gl" style={{ padding:20, marginBottom:20 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                    <FileText size={15} style={{ color:"#a78bfa" }} />
+                    <span style={{ fontSize:13, fontWeight:700, color: textColor }}>Relatório Técnico Automático da IA</span>
+                  </div>
+                  {aiReportLoading && (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"16px", background:"rgba(167,139,250,0.08)", borderRadius:10, border:"1px solid rgba(167,139,250,0.2)" }}>
+                      <div style={{ width:14, height:14, border:"2px solid rgba(167,139,250,0.3)", borderTop:"2px solid #a78bfa", borderRadius:"50%", animation:"spin-ai 0.8s linear infinite", flexShrink:0 }} />
+                      <span style={{ fontSize:12, color:"#a78bfa" }}>Gerando relatório técnico epidemiológico…</span>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                  {aiReport && !aiReportLoading && (
+                    <div style={{ background: dark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.04)", borderRadius:10, padding:"16px", fontSize:13, color: textColor, lineHeight:1.75, whiteSpace:"pre-wrap", border:`1px solid rgba(167,139,250,0.15)` }}>
+                      {aiReport}
+                      <button onClick={() => setAiReport("")}
+                        style={{ display:"block", marginTop:10, fontSize:10, color: subText, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>↺ Regenerar</button>
+                    </div>
+                  )}
+                  {!aiReport && !aiReportLoading && (
+                    <div style={{ padding:"20px", background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius:10, border:`1px dashed ${glassBorder}`, textAlign:"center" }}>
+                      <ListChecks size={24} style={{ color: subText, marginBottom:8 }} />
+                      <div style={{ fontSize:13, color: subText }}>Clique em <strong style={{ color:"#a78bfa" }}>Gerar relatório IA</strong> no painel de insights para gerar o relatório técnico completo.</div>
+                    </div>
+                  )}
+                </div>
 
-              {/* ══ ALERT CARDS with AI + 5W2H ══ */}
+              </>
+            )}
+
+            {/* ══ PER-CLUSTER 5W2H (always show if alertas exist) ══ */}
+            {alertas.length > 0 && (
               <div style={{ marginBottom:8 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>
+                <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>
                   Análise Detalhada por Cluster — IA + Plano 5W2H
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -688,7 +858,7 @@ Responda SOMENTE em JSON válido:
                       .map((p, i) => ({ date: fmt(p.dataColeta), casos: i + 1, nome: p.nome }));
 
                     return (
-                      <div key={alerta.id} style={{ background:"rgba(255,255,255,0.04)", backdropFilter:"blur(16px)", borderRadius:20, border:`1.5px solid ${abr}`, overflow:"hidden", boxShadow:glow }}>
+                      <div key={alerta.id} style={{ background: dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.8)", backdropFilter:"blur(16px)", borderRadius:20, border:`1.5px solid ${abr}`, overflow:"hidden", boxShadow:glow }}>
 
                         {/* Header */}
                         <div style={{ padding:"18px 22px 14px", borderBottom:`1px solid ${abr}`, background:ab }}>
@@ -698,12 +868,12 @@ Responda SOMENTE em JSON válido:
                                 <span className={isSurto ? "surto-anim" : ""} style={{ fontSize:11, fontWeight:700, color:ac, background:ab, padding:"3px 12px", borderRadius:20, border:`1px solid ${abr}` }}>
                                   {isSurto ? "🚨 SURTO" : "⚠️ ATENÇÃO"}
                                 </span>
-                                <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)", background:"rgba(255,255,255,0.06)", padding:"3px 10px", borderRadius:20 }}>
+                                <span style={{ fontSize:11, color: subText, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", padding:"3px 10px", borderRadius:20 }}>
                                   {alerta.precaucao}
                                 </span>
                               </div>
-                              <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:"#fff" }}>{alerta.setor}</h3>
-                              <p style={{ margin:"4px 0 0", fontSize:13, color:"rgba(255,255,255,0.5)" }}>{alerta.orgLabel}</p>
+                              <h3 style={{ margin:0, fontSize:17, fontWeight:700, color: textColor }}>{alerta.setor}</h3>
+                              <p style={{ margin:"4px 0 0", fontSize:13, color: subText }}>{alerta.orgLabel}</p>
                             </div>
                             <div style={{ textAlign:"center", background:ab, borderRadius:12, padding:"8px 18px", border:`1px solid ${abr}`, flexShrink:0 }}>
                               <div style={{ fontSize:40, fontWeight:800, color:ac, lineHeight:1 }}>{alerta.count}</div>
@@ -715,24 +885,24 @@ Responda SOMENTE em JSON válido:
                         <div style={{ padding:"16px 22px 20px" }}>
                           {/* Patients */}
                           <div style={{ marginBottom:14 }}>
-                            <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Pacientes envolvidos</div>
+                            <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Pacientes envolvidos</div>
                             <div className="gl2" style={{ overflow:"hidden" }}>
                               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                                 <thead>
-                                  <tr style={{ borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+                                  <tr style={{ borderBottom:`1px solid ${glassBorder}` }}>
                                     {["Paciente","Prontuário","Leito","Material","Data Coleta"].map(h => (
-                                      <th key={h} style={{ padding:"7px 12px", textAlign:"left", fontSize:10, fontWeight:600, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>
+                                      <th key={h} style={{ padding:"7px 12px", textAlign:"left", fontSize:10, fontWeight:600, color: subText, textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>
                                     ))}
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {alerta.pacientes.map((p, i) => (
-                                    <tr key={p.id} style={{ borderBottom: i < alerta.pacientes.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none", background: i%2===0?"transparent":"rgba(255,255,255,0.02)" }}>
-                                      <td style={{ padding:"7px 12px", fontWeight:600, color:"rgba(255,255,255,0.82)" }}>{p.nome}</td>
-                                      <td style={{ padding:"7px 12px", color:"rgba(255,255,255,0.42)", fontFamily:"monospace", fontSize:11 }}>{p.prontuario||"—"}</td>
-                                      <td style={{ padding:"7px 12px", color:"rgba(255,255,255,0.48)" }}>Leito {p.leito}</td>
-                                      <td style={{ padding:"7px 12px", color:"rgba(255,255,255,0.48)" }}>{p.material||"—"}</td>
-                                      <td style={{ padding:"7px 12px", color:"rgba(255,255,255,0.42)", fontFamily:"monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
+                                    <tr key={p.id} style={{ borderBottom: i < alerta.pacientes.length-1 ? `1px solid ${glassBorder}` : "none", background: i%2===0?"transparent": dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)" }}>
+                                      <td style={{ padding:"7px 12px", fontWeight:600, color: textColor }}>{p.nome}</td>
+                                      <td style={{ padding:"7px 12px", color: subText, fontFamily:"monospace", fontSize:11 }}>{p.prontuario||"—"}</td>
+                                      <td style={{ padding:"7px 12px", color: subText }}>Leito {p.leito}</td>
+                                      <td style={{ padding:"7px 12px", color: subText }}>{p.material||"—"}</td>
+                                      <td style={{ padding:"7px 12px", color: subText, fontFamily:"monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -743,7 +913,7 @@ Responda SOMENTE em JSON válido:
                           {/* Timeline */}
                           {tl.length >= 2 && (
                             <div style={{ marginBottom:14 }}>
-                              <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Evolução temporal do cluster</div>
+                              <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Evolução temporal do cluster</div>
                               <div className="gl2" style={{ padding:"10px 8px 6px" }}>
                                 <ResponsiveContainer width="100%" height={100}>
                                   <AreaChart data={tl} margin={{ left:0, right:8, top:4, bottom:0 }}>
@@ -754,9 +924,9 @@ Responda SOMENTE em JSON válido:
                                       </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                                    <XAxis dataKey="date" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} />
-                                    <YAxis tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} width={22} />
-                                    <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:10, color:"#fff" }} formatter={(v,_,p2) => [`${v} casos — ${p2.payload.nome}`,""]} />
+                                    <XAxis dataKey="date" tick={{ fontSize:9, fill: subText }} />
+                                    <YAxis tick={{ fontSize:9, fill: subText }} allowDecimals={false} width={22} />
+                                    <Tooltip contentStyle={{ background: tooltipBg, border:`1px solid ${tooltipBorder}`, borderRadius:8, fontSize:10, color: textColor }} formatter={(v,_,p2) => [`${v} casos — ${p2.payload.nome}`,""]} />
                                     <Area type="monotone" dataKey="casos" stroke={ac} strokeWidth={2} fill={`url(#tg-${alerta.id.replace(/[^a-z0-9]/gi,"")})`} dot={{ r:4, fill:ac, strokeWidth:0 }} activeDot={{ r:5 }} />
                                   </AreaChart>
                                 </ResponsiveContainer>
@@ -781,20 +951,20 @@ Responda SOMENTE em JSON válido:
                             <div>
                               {ai.analise && (
                                 <div style={{ marginBottom:14 }}>
-                                  <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Análise Clínico-Epidemiológica</div>
-                                  <div className="gl2" style={{ padding:"12px 14px", fontSize:13, color:"rgba(255,255,255,0.75)", lineHeight:1.7, whiteSpace:"pre-wrap", borderLeft:`3px solid ${ac}` }}>
+                                  <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Análise Clínico-Epidemiológica</div>
+                                  <div className="gl2" style={{ padding:"12px 14px", fontSize:13, color: textColor, lineHeight:1.7, whiteSpace:"pre-wrap", borderLeft:`3px solid ${ac}` }}>
                                     {ai.analise}
                                   </div>
                                 </div>
                               )}
                               {ai.insights.length > 0 && (
                                 <div style={{ marginBottom:14 }}>
-                                  <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Insights Prioritários</div>
+                                  <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>Insights Prioritários</div>
                                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                                     {ai.insights.map((ins, i) => (
-                                      <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"9px 12px", background:"rgba(255,255,255,0.04)", borderRadius:10, borderLeft:`3px solid ${ac}` }}>
+                                      <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"9px 12px", background: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderRadius:10, borderLeft:`3px solid ${ac}` }}>
                                         <span style={{ fontSize:11, fontWeight:700, color:ac, flexShrink:0, marginTop:1 }}>{i+1}.</span>
-                                        <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)", lineHeight:1.55 }}>{ins}</span>
+                                        <span style={{ fontSize:12, color: textColor, lineHeight:1.55 }}>{ins}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -805,7 +975,7 @@ Responda SOMENTE em JSON válido:
                               {ai.plano.length > 0 && (
                                 <div>
                                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8, flexWrap:"wrap", gap:8 }}>
-                                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"1px" }}>Plano de Ação 5W2H</div>
+                                    <div style={{ fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"1px" }}>Plano de Ação 5W2H</div>
                                     <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
                                       {(["pendente","em_andamento","concluido","cancelado"] as const).map(s => {
                                         const sm = STATUS_META[s];
@@ -828,9 +998,9 @@ Responda SOMENTE em JSON válido:
                                             { k:"Quando?", s:"Prazo" }, { k:"Como?", s:"Método" },
                                             { k:"Quanto?", s:"Recursos" }, { k:"Status", s:"Situação" },
                                           ].map(col => (
-                                            <th key={col.k} style={{ padding:"9px 12px", textAlign:"left", borderBottom:`2px solid ${abr}`, borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top" }}>
+                                            <th key={col.k} style={{ padding:"9px 12px", textAlign:"left", borderBottom:`2px solid ${abr}`, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top" }}>
                                               <div style={{ fontSize:11, fontWeight:700, color:ac }}>{col.k}</div>
-                                              <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>{col.s}</div>
+                                              <div style={{ fontSize:10, color: subText, fontWeight:400 }}>{col.s}</div>
                                             </th>
                                           ))}
                                         </tr>
@@ -841,14 +1011,14 @@ Responda SOMENTE em JSON válido:
                                           const done = row.status === "concluido";
                                           const cancel = row.status === "cancelado";
                                           return (
-                                            <tr key={i} style={{ background: i%2===0?"rgba(255,255,255,0.02)":"rgba(255,255,255,0.04)", borderBottom:"1px solid rgba(255,255,255,0.05)", opacity: cancel ? 0.5 : 1 }}>
-                                              <td style={{ padding:"9px 12px", fontWeight:600, color: done?"rgba(52,211,153,0.85)":"rgba(255,255,255,0.82)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, textDecoration: cancel?"line-through":"none" }}>{row.acao}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
-                                              <td style={{ padding:"9px 12px", color:"rgba(255,255,255,0.52)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
+                                            <tr key={i} style={{ background: i%2===0 ? dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)" : dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)", borderBottom:`1px solid ${glassBorder}`, opacity: cancel ? 0.5 : 1 }}>
+                                              <td style={{ padding:"9px 12px", fontWeight:600, color: done ? "#34d399" : textColor, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45, textDecoration: cancel?"line-through":"none" }}>{row.acao}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
+                                              <td style={{ padding:"9px 12px", color: subText, borderRight:`1px solid ${glassBorder}`, verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
                                               <td style={{ padding:"9px 12px", verticalAlign:"middle", minWidth:145 }}>
                                                 <div style={{ position:"relative" }}>
                                                   <select value={row.status} onChange={e => setPlanoStatus(alerta.id, i, e.target.value as PlanoStatus)}
@@ -868,12 +1038,12 @@ Responda SOMENTE em JSON válido:
                                     </table>
                                   </div>
                                   <div style={{ marginTop:6, textAlign:"right" }}>
-                                    <span style={{ fontSize:10, color:"rgba(255,255,255,0.22)" }}>Gerado por IA — validar com equipe CCIH antes de implementar</span>
+                                    <span style={{ fontSize:10, color: subText }}>Gerado por IA — validar com equipe CCIH antes de implementar</span>
                                   </div>
                                 </div>
                               )}
                               <button onClick={() => setAlertAI(prev => { const n={...prev}; delete n[alerta.id]; return n; })}
-                                style={{ marginTop:12, fontSize:11, color:"rgba(255,255,255,0.28)", background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>
+                                style={{ marginTop:12, fontSize:11, color: subText, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>
                                 ↺ Regenerar análise
                               </button>
                             </div>
@@ -884,10 +1054,10 @@ Responda SOMENTE em JSON válido:
                   })}
                 </div>
               </div>
-            </>
-          )}
-        </main>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

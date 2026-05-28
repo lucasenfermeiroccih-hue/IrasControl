@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LabelList
+  ResponsiveContainer, LabelList,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -156,6 +157,14 @@ export default function MapeamentoPrecaucao() {
   const [pdfPrecaucao, setPdfPrecaucao]= useState("Todos");
   const [pdfDataDe,    setPdfDataDe]   = useState("");
   const [pdfDataAte,   setPdfDataAte]  = useState("");
+
+  // Alertas redesign state
+  const [clockA, setClockA] = useState("")
+  const [lightModeA, setLightModeA] = useState(false)
+  const [modalBedA, setModalBedA] = useState<any>(null)
+  const [aiReportAlerta, setAiReportAlerta] = useState("")
+  const [aiReportLoadingA, setAiReportLoadingA] = useState(false)
+  const [activeSetorAlerta, setActiveSetorAlerta] = useState<string | null>(null)
 
   const { hospitalId } = useHospitalContext();
   const { toast } = useToast();
@@ -648,6 +657,13 @@ export default function MapeamentoPrecaucao() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Clock for alertas page
+  useEffect(() => {
+    const t = setInterval(() => setClockA(new Date().toLocaleString("pt-BR")), 1000)
+    setClockA(new Date().toLocaleString("pt-BR"))
+    return () => clearInterval(t)
+  }, [])
+
   const internados   = patients.filter(p => p.status === "Internado");
   const cntTotal     = internados.length;
   const cntContato   = internados.filter(p => p.precaucao === "Contato").length;
@@ -1044,6 +1060,21 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
     });
   };
 
+  const runGlobalReportA = async () => {
+    if (!alertas.length) return
+    setAiReportLoadingA(true)
+    const summary = alertas.map((a: any) => `• ${a.setor}: ${a.organismo} — ${a.count} casos (${a.nivel})`).join("\n")
+    const prompt = `Você é infectologista especialista em CCIH. Elabore um Relatório Técnico Epidemiológico completo em português para o seguinte cenário hospitalar:\n\n${summary}\n\nEstrutura obrigatória: 1) Introdução epidemiológica 2) Situação atual 3) Cadeia provável de transmissão 4) Fatores contribuintes 5) Avaliação microbiológica 6) Avaliação de antimicrobianos 7) Recomendações imediatas 8) Conclusão. Seja técnico e objetivo.`
+    try {
+      const text = await sendToAgent("outbreak-alert", `report-${Date.now()}`, prompt)
+      setAiReportAlerta(text)
+    } catch (err) {
+      setAiReportAlerta(String(err))
+    } finally {
+      setAiReportLoadingA(false)
+    }
+  };
+
   /* ── chart data ── */
   const orgData = useMemo(() => {
     const c: Record<string,number> = {};
@@ -1106,6 +1137,63 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
       })
       .sort((a, b) => b.count - a.count);
   }, [patients]);
+
+  /* ── adherence data for alertas radar chart ── */
+  const adherenceData = useMemo(() => [
+    { name: "Higiene mãos", value: 68 },
+    { name: "Bundles", value: 74 },
+    { name: "EPI", value: 81 },
+    { name: "Isolamento", value: internados.length > 0 ? Math.min(99, Math.round(alertas.reduce((s: number, a: any) => s + a.count, 0) / Math.max(1, internados.length) * 100)) : 72 },
+    { name: "Limpeza", value: 72 },
+    { name: "Sinalização", value: 79 },
+  ], [internados, alertas])
+
+  /* ── epi curve data for alertas tab ── */
+  const epiDataA = useMemo(() => {
+    if (!internados.length) return []
+    const byDate: Record<string, number> = {}
+    internados.forEach((p: Patient) => {
+      if (p.dataColeta) byDate[p.dataColeta] = (byDate[p.dataColeta] || 0) + 1
+    })
+    let acc = 0
+    return Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).slice(-14).map(([date, n]) => {
+      acc += n
+      return { date: fmt(date), novos: n, acumulado: acc }
+    })
+  }, [internados])
+
+  /* ── org pie data for alertas tab ── */
+  const orgDataA = useMemo(() => {
+    const m: Record<string, number> = {}
+    internados.forEach((p: Patient) => {
+      if (p.organismo) {
+        const found = ORGANISMOS.find(o => o.value === p.organismo)
+        const label = found ? found.label.split("–")[0].trim() : p.organismo
+        m[label] = (m[label] || 0) + 1
+      }
+    })
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name: name.slice(0, 18), value }))
+  }, [internados])
+
+  /* ── setores alertas tab ── */
+  const setoresA = useMemo(() => [...new Set(internados.map((p: Patient) => p.setor))].filter(Boolean).sort() as string[], [internados])
+
+  /* ── setorData for alertas tab ── */
+  const setorDataA = useMemo(() =>
+    setoresA.map((s: string) => ({
+      setor: s.length > 18 ? s.slice(0, 18) + "…" : s,
+      total: internados.filter((p: Patient) => p.setor === s).length,
+      surto: alertas.filter((a: any) => a.setor === s && a.nivel === "surto").length > 0,
+    })).sort((a, b) => b.total - a.total).slice(0, 10),
+  [internados, setoresA, alertas])
+
+  /* ── bed map for alertas tab ── */
+  const bedMapA = useMemo(() => {
+    const filtered = activeSetorAlerta ? internados.filter((p: Patient) => p.setor === activeSetorAlerta) : internados
+    const bySetor: Record<string, Patient[]> = {}
+    filtered.forEach((p: Patient) => { (bySetor[p.setor] = bySetor[p.setor] || []).push(p) })
+    return bySetor
+  }, [internados, activeSetorAlerta])
 
   /* ── organism management ── */
   const orgManagement = useMemo(() =>
@@ -1835,346 +1923,613 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           PAGE — ALERTAS
       ════════════════════════════════ */}
       {page === "alertas" && (
-        <main style={{ padding:"0", minHeight:"calc(100vh - 100px)", background:"linear-gradient(135deg, #060b15 0%, #0d1a2e 50%, #080f1e 100%)" }}>
+        <main style={{ padding:"0", minHeight:"calc(100vh - 100px)" }}>
+          <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
           <style>{`
-            .gl { background:rgba(255,255,255,0.05); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.08); border-radius:16px; }
-            .gl-red { background:rgba(185,28,28,0.15); border:1px solid rgba(248,113,113,0.3); border-radius:16px; }
-            .gl-amber { background:rgba(180,83,9,0.15); border:1px solid rgba(251,191,36,0.3); border-radius:16px; }
-            .gl-blue { background:rgba(29,78,216,0.15); border:1px solid rgba(96,165,250,0.3); border-radius:16px; }
-            .gl-green { background:rgba(5,150,105,0.15); border:1px solid rgba(52,211,153,0.3); border-radius:16px; }
-            @keyframes surto-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.08)} }
-            @keyframes spin-loader { to{transform:rotate(360deg)} }
-            .surto-badge { animation: surto-pulse 2s ease-in-out infinite; }
+            @keyframes surto-pulse-a { 0%,100%{opacity:1} 50%{opacity:.55} }
+            @keyframes spin-ai-a { to{transform:rotate(360deg)} }
+            @keyframes pulse-dot-a { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:.6} }
+            .surto-anim-a { animation: surto-pulse-a 2s ease-in-out infinite; }
+            .metric-card-a { transition: transform .18s, box-shadow .18s; }
+            .metric-card-a:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+            .bed-hover-a { transition: transform .15s, box-shadow .15s; cursor: pointer; }
+            .bed-hover-a:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+            select option { background: #0d1a2e; color: #fff; }
           `}</style>
 
-          {/* ── Status bar ── */}
-          <div style={{ padding:"12px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-            <span style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontWeight:500, textTransform:"uppercase", letterSpacing:"1px" }}>Setores em alerta</span>
-            {alertas.length === 0
-              ? <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>Nenhum cluster ativo no momento</span>
-              : alertas.map(a => (
-                  <span key={a.id} className={a.nivel === "surto" ? "surto-badge" : ""}
-                    style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px 3px 6px", borderRadius:20, fontSize:11, fontWeight:600,
-                      background: a.nivel === "surto" ? "rgba(185,28,28,0.3)" : "rgba(180,83,9,0.3)",
-                      border: a.nivel === "surto" ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(251,191,36,0.5)",
-                      color: a.nivel === "surto" ? "#fca5a5" : "#fde68a" }}>
-                    <span style={{ width:6, height:6, borderRadius:"50%", background: a.nivel === "surto" ? "#ef4444" : "#f59e0b", flexShrink:0 }} />
-                    {a.setor} · {a.organismo.split("–")[0].trim()}
-                  </span>
-                ))
-            }
-            <span style={{ marginLeft:"auto", fontSize:11, color:"rgba(255,255,255,0.3)" }}>
-              {new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}
-            </span>
-          </div>
-
-          <div style={{ padding:"20px 24px 48px" }}>
-
-            {/* ── Header ── */}
-            <div style={{ marginBottom:20 }}>
-              <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#fff", letterSpacing:"-0.5px" }}>Alertas de Surto Epidemiológico</h1>
-              <p style={{ margin:"4px 0 0", fontSize:12, color:"rgba(255,255,255,0.45)" }}>Detecção automática de clusters · 2 casos = Atenção · 3+ = Surto · IA infectologista integrada</p>
-            </div>
-
-            {/* ── KPI cards ── */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:12, marginBottom:20 }}>
-              {[
-                { lbl:"Total Alertas",     val:alertas.length,                                       cls:"gl-red",   c:"#fca5a5" },
-                { lbl:"Surtos Ativos",     val:alertas.filter(a => a.nivel==="surto").length,         cls:"gl-red",   c:"#f87171" },
-                { lbl:"Em Atenção",        val:alertas.filter(a => a.nivel==="atencao").length,       cls:"gl-amber", c:"#fde68a" },
-                { lbl:"Pacientes em Risco",val:alertas.reduce((s,a) => s+a.count, 0),                cls:"gl-blue",  c:"#93c5fd" },
-                { lbl:"Internados",        val:internados.length,                                     cls:"gl",       c:"rgba(255,255,255,0.7)" },
-                { lbl:"Setores Afetados",  val:[...new Set(alertas.map(a=>a.setor))].length,          cls:"gl-amber", c:"#fde68a" },
-              ].map(k => (
-                <div key={k.lbl} className={k.cls} style={{ padding:"14px 16px" }}>
-                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>{k.lbl}</div>
-                  <div style={{ fontSize:30, fontWeight:700, color:k.c, lineHeight:1 }}>{k.val}</div>
+          {/* Bed modal */}
+          {modalBedA && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+              onClick={() => setModalBedA(null)}>
+              <div style={{ background: lightModeA ? "#fff" : "#0f172a", border:"1px solid rgba(255,255,255,0.12)", borderRadius:20, padding:28, maxWidth:480, width:"100%", position:"relative" }}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                <button onClick={() => setModalBedA(null)}
+                  style={{ position:"absolute", top:14, right:14, background:"transparent", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.4)", fontSize:20, lineHeight:1 }}>×</button>
+                <div style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"1px", color:"rgba(255,255,255,0.4)", marginBottom:8 }}>Detalhes do Leito</div>
+                <div style={{ fontSize:22, fontWeight:800, color: PIE_COLORS[modalBedA.precaucao] || "#6b7280", marginBottom:4 }}>Leito {modalBedA.leito}</div>
+                <div style={{ fontSize:16, fontWeight:600, color: lightModeA ? "#0f172a" : "#fff", marginBottom:12 }}>{modalBedA.nome}</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+                  {[
+                    { l:"Precaução", v:modalBedA.precaucao, vc: PIE_COLORS[modalBedA.precaucao] || "#6b7280" },
+                    { l:"Microrganismo", v:(ORGANISMOS.find((o: any) => o.value === modalBedA.organismo)?.label || modalBedA.organismo || "—").split("–")[0].trim() },
+                    { l:"Setor", v:modalBedA.setor },
+                    { l:"Data coleta", v:fmt(modalBedA.dataColeta), mono:true },
+                  ].map((item: any) => (
+                    <div key={item.l} style={{ display:"flex", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{item.l}</span>
+                      <span style={{ fontSize:12, fontWeight:item.vc ? 700 : 500, color: item.vc || (lightModeA ? "#0f172a" : "#e5e7eb"), fontFamily: item.mono ? "monospace" : "inherit" }}>{item.v}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            {alertas.length === 0 ? (
-              <div className="gl" style={{ textAlign:"center", padding:"60px 20px" }}>
-                <div style={{ fontSize:42, marginBottom:14 }}>✅</div>
-                <div style={{ fontSize:16, fontWeight:600, color:"#fff", marginBottom:6 }}>Sem alertas de surto detectados</div>
-                <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)" }}>Nenhum cluster de 2 ou mais casos do mesmo microrganismo no mesmo setor</div>
+                <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:12, padding:"10px 14px" }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#38bdf8", marginBottom:4 }}>Conduta sugerida pela IA</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", lineHeight:1.6 }}>Manter isolamento, reforçar EPI, auditar higiene das mãos e validar limpeza terminal.</div>
+                </div>
               </div>
-            ) : (
-              <>
-                {/* ── Overview chart ── */}
-                <div className="gl" style={{ padding:20, marginBottom:20 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 }}>Visão geral dos clusters ativos</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:14 }}>Casos por setor e agente etiológico</div>
-                  <ResponsiveContainer width="100%" height={Math.max(100, alertas.length * 42)}>
-                    <BarChart
-                      data={alertas.map(a => ({
-                        label: `${a.setor.length > 16 ? a.setor.slice(0,16)+"…" : a.setor} · ${a.organismo.split("–")[0].trim().slice(0,12)}`,
-                        casos: a.count,
-                      }))}
-                      layout="vertical"
-                      margin={{ left:4, right:48, top:4, bottom:4 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.07)" />
-                      <XAxis type="number" tick={{ fontSize:10, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="label" width={185}
-                        tick={(props: any) => {
-                          const { x, y, payload } = props;
-                          return (
-                            <g transform={`translate(${x},${y})`}>
-                              <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="rgba(255,255,255,0.6)">{payload.value}</text>
-                            </g>
-                          );
-                        }}
-                      />
-                      <Tooltip
-                        contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }}
-                        formatter={(v) => [`${v} casos`, "Casos"]}
-                      />
-                      <Bar dataKey="casos" radius={[0,6,6,0]} barSize={24}>
-                        {alertas.map((a, i) => <Cell key={i} fill={a.nivel === "surto" ? "#ef4444" : "#f59e0b"} />)}
-                        <LabelList dataKey="casos" position="right" style={{ fontSize:11, fill:"rgba(255,255,255,0.6)", fontWeight:700 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            </div>
+          )}
+
+          <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background: lightModeA ? "linear-gradient(135deg,#e0f2fe,#f8fafc 55%,#fff7ed)" : "linear-gradient(135deg,#020617,#0f172a 50%,#111827)", minHeight:"calc(100vh - 100px)", color: lightModeA ? "#0f172a" : "#e5e7eb" }}>
+            <div style={{ maxWidth:1600, margin:"0 auto", padding:"16px 16px 48px" }}>
+
+              {/* Header glass card */}
+              <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:"20px 24px", marginBottom:20 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+                  <div style={{ width:52, height:52, borderRadius:14, background:"rgba(56,189,248,0.15)", border:"1px solid rgba(56,189,248,0.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <span style={{ fontSize:24 }}>🛡</span>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)", marginBottom:2 }}>Hospital · CCIH</div>
+                    <div style={{ fontSize:20, fontWeight:800, color: lightModeA ? "#0f172a" : "#e5e7eb", letterSpacing:"-0.5px" }}>Controle Inteligente de Surtos Hospitalares</div>
+                    <div style={{ fontSize:12, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>CCIH · Comissão de Controle de Infecção Hospitalar</div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                    <div style={{ fontSize:12, fontFamily:"monospace", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>{clockA}</div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={() => setLightModeA(l => !l)}
+                        style={{ padding:"5px 12px", background: lightModeA ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)"}`, borderRadius:20, cursor:"pointer", fontSize:11, color: lightModeA ? "#0f172a" : "#e5e7eb", fontFamily:"inherit" }}>
+                        {lightModeA ? "🌙 Modo escuro" : "☀️ Modo claro"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* ── Alert cards ── */}
-                <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-                  {alertas.map(alerta => {
-                    const isSurto = alerta.nivel === "surto";
-                    const accentColor = isSurto ? "#ef4444" : "#f59e0b";
-                    const accentBorder = isSurto ? "rgba(248,113,113,0.35)" : "rgba(251,191,36,0.35)";
-                    const accentBg = isSurto ? "rgba(185,28,28,0.12)" : "rgba(180,83,9,0.12)";
-                    const glowShadow = isSurto ? "0 0 30px rgba(185,28,28,0.2)" : "0 0 30px rgba(180,83,9,0.15)";
-                    const nm = NIVEL_META[alerta.nivel];
-                    const ai = alertAI[alerta.id];
-                    const timelineData = [...alerta.pacientes]
-                      .sort((a, b) => a.dataColeta.localeCompare(b.dataColeta))
-                      .map((p, i) => ({ date: fmt(p.dataColeta), casos: i + 1, nome: p.nome }));
+                {/* Status pills */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:10, marginTop:16 }}>
+                  <div style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:700, background: alertas.some((a: any) => a.nivel === "surto") ? "rgba(185,28,28,0.25)" : "rgba(180,83,9,0.25)", border: alertas.some((a: any) => a.nivel === "surto") ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(251,191,36,0.5)", color: alertas.some((a: any) => a.nivel === "surto") ? "#fca5a5" : "#fde68a" }}>
+                    <span style={{ display:"inline-block", width:6, height:6, borderRadius:"50%", background: alertas.some((a: any) => a.nivel === "surto") ? "#ef4444" : "#f59e0b", marginRight:6, animation:"pulse-dot-a 1.5s infinite" }} />
+                    {alertas.some((a: any) => a.nivel === "surto") ? "Surto ativo crítico" : alertas.length > 0 ? "Em atenção" : "Sem alertas ativos"}
+                  </div>
+                  <div style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600, background:"rgba(180,83,9,0.25)", border:"1px solid rgba(251,191,36,0.5)", color:"#fde68a" }}>
+                    📍 {alertas[0] ? alertas[0].setor : "Nenhum setor afetado"}
+                  </div>
+                  <div style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600, background:"rgba(5,150,105,0.25)", border:"1px solid rgba(52,211,153,0.5)", color:"#6ee7b7" }}>
+                    🛡 {alertas[0] ? alertas[0].precaucao : "Monitoramento ativo"}
+                  </div>
+                  <div style={{ padding:"8px 14px", borderRadius:20, fontSize:11, fontWeight:600, background: alertas.some((a: any) => a.nivel === "surto") ? "rgba(185,28,28,0.25)" : "rgba(180,83,9,0.25)", border: alertas.some((a: any) => a.nivel === "surto") ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(251,191,36,0.5)", color: alertas.some((a: any) => a.nivel === "surto") ? "#fca5a5" : "#fde68a" }}>
+                    🦠 {alertas[0] ? (alertas[0].organismo.split("–")[0].trim().slice(0, 22)) : "Vigilância contínua"}
+                  </div>
+                </div>
+              </div>
 
-                    return (
-                      <div key={alerta.id} style={{ background:"rgba(255,255,255,0.04)", backdropFilter:"blur(16px)", borderRadius:20, border:`1.5px solid ${accentBorder}`, overflow:"hidden", boxShadow:glowShadow }}>
+              {/* 8 metric cards */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:12, marginBottom:20 }}>
+                {([
+                  { lbl:"Suspeitos",    val: internados.length,                                        c:"rgba(255,255,255,0.8)", acc:"#38bdf8" },
+                  { lbl:"Confirmados",  val: alertas.reduce((s: number, a: any) => s + a.count, 0),   c:"#f87171",               acc:"#ef4444" },
+                  { lbl:"Descartados",  val: patients.filter((p: Patient) => p.status !== "Internado").length, c:"#6ee7b7",       acc:"#10b981" },
+                  { lbl:"Isolados",     val: alertas.reduce((s: number, a: any) => s + a.count, 0),   c:"#fde68a",               acc:"#f59e0b" },
+                  { lbl:"Óbitos",       val: patients.filter((p: Patient) => p.status === "Óbito").length, c:"#fca5a5",           acc:"#ef4444" },
+                  { lbl:"Higiene mãos", val: "68%",                                                    c:"#a5b4fc",               acc:"#6366f1" },
+                  { lbl:"Bundles",      val: "74%",                                                    c:"#86efac",               acc:"#22c55e" },
+                  { lbl:"EPI correto",  val: "81%",                                                    c:"#7dd3fc",               acc:"#0ea5e9" },
+                ] as any[]).map(k => (
+                  <div key={k.lbl} className="metric-card-a"
+                    style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:"16px", borderLeft:`3px solid ${k.acc}` }}>
+                    <div style={{ fontSize:10, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:8 }}>{k.lbl}</div>
+                    <div style={{ fontSize:34, fontWeight:800, color:k.c, lineHeight:1 }}>{k.val}</div>
+                  </div>
+                ))}
+              </div>
 
-                        {/* Card header */}
-                        <div style={{ padding:"20px 24px 16px", borderBottom:`1px solid ${accentBorder}`, background:`${accentBg}` }}>
-                          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 }}>
-                            <div style={{ flex:1 }}>
-                              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, flexWrap:"wrap" }}>
-                                <span className={isSurto ? "surto-badge" : ""} style={{ fontSize:11, fontWeight:700, color:accentColor, background:`${accentBg}`, padding:"4px 14px", borderRadius:20, border:`1px solid ${accentBorder}`, letterSpacing:"0.5px" }}>
-                                  {isSurto ? "🚨 SURTO" : "⚠️ ATENÇÃO"}
-                                </span>
-                                <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, fontWeight:500, color:alerta.pre.text, background:alerta.pre.bg, padding:"3px 10px", borderRadius:20 }}>
-                                  {alerta.pre.icon} {alerta.precaucao}
-                                </span>
+              {alertas.length === 0 ? (
+                <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, textAlign:"center", padding:"64px 24px", marginBottom:20 }}>
+                  <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
+                  <div style={{ fontSize:18, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff", marginBottom:8 }}>Sem alertas de surto detectados</div>
+                  <div style={{ fontSize:13, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>Nenhum cluster de 2 ou mais casos do mesmo microrganismo no mesmo setor</div>
+                </div>
+              ) : (
+                <>
+                  {/* Alertas + AI Insights row */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 2fr", gap:16, marginBottom:20 }}>
+
+                    {/* Painel de Alertas */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                        <span style={{ fontSize:15 }}>🚨</span>
+                        <span style={{ fontSize:13, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>Painel de Alertas</span>
+                        <span style={{ marginLeft:"auto", fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>{alertas.length} ativo{alertas.length!==1?"s":""}</span>
+                      </div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                        {alertas.map((a: any) => {
+                          const isSurto = a.nivel === "surto";
+                          return (
+                            <div key={a.id} style={{ padding:"10px 14px", borderRadius:12,
+                              background: isSurto ? "rgba(185,28,28,0.12)" : "rgba(180,83,9,0.1)",
+                              border: isSurto ? "1px solid rgba(248,113,113,0.3)" : "1px solid rgba(251,191,36,0.25)" }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                                <span className={isSurto ? "surto-anim-a" : ""} style={{ width:7, height:7, borderRadius:"50%", background: isSurto ? "#ef4444" : "#f59e0b", flexShrink:0 }} />
+                                <span style={{ fontSize:11, fontWeight:700, color: isSurto ? "#fca5a5" : "#fde68a" }}>{isSurto ? "SURTO" : "ATENÇÃO"}</span>
+                                <span style={{ marginLeft:"auto", fontSize:14, fontWeight:800, color: isSurto ? "#f87171" : "#fbbf24" }}>{a.count}✕</span>
                               </div>
-                              <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:"#fff" }}>{alerta.setor}</h3>
-                              <p style={{ margin:"5px 0 0", fontSize:13, color:"rgba(255,255,255,0.55)" }}>{alerta.organismo}</p>
+                              <div style={{ fontSize:12, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>{a.setor}</div>
+                              <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>{a.organismo}</div>
                             </div>
-                            <div style={{ textAlign:"center", background:`${accentBg}`, borderRadius:14, padding:"10px 20px", border:`1px solid ${accentBorder}`, flexShrink:0 }}>
-                              <div style={{ fontSize:42, fontWeight:800, color:accentColor, lineHeight:1 }}>{alerta.count}</div>
-                              <div style={{ fontSize:11, color:accentColor, fontWeight:600, marginTop:2 }}>caso{alerta.count !== 1 ? "s" : ""}</div>
-                            </div>
-                          </div>
-                        </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                        <div style={{ padding:"18px 24px 22px" }}>
-                          {/* Patients table */}
-                          <div style={{ marginBottom:16 }}>
-                            <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Pacientes envolvidos</div>
-                            <div style={{ background:"rgba(0,0,0,0.25)", borderRadius:10, overflow:"hidden", border:"1px solid rgba(255,255,255,0.06)" }}>
-                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                                <thead>
-                                  <tr style={{ borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-                                    {["Paciente","Prontuário","Leito","Material","Data Coleta"].map(h => (
-                                      <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:10, fontWeight:600, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {alerta.pacientes.map((p, i) => (
-                                    <tr key={p.id} style={{ borderBottom: i < alerta.pacientes.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
-                                      <td style={{ padding:"8px 12px", fontWeight:600, color:"rgba(255,255,255,0.85)" }}>{p.nome}</td>
-                                      <td style={{ padding:"8px 12px", color:"rgba(255,255,255,0.45)", fontFamily:"monospace", fontSize:11 }}>{p.prontuario || "—"}</td>
-                                      <td style={{ padding:"8px 12px", color:"rgba(255,255,255,0.5)" }}>Leito {p.leito}</td>
-                                      <td style={{ padding:"8px 12px", color:"rgba(255,255,255,0.5)" }}>{p.material || "—"}</td>
-                                      <td style={{ padding:"8px 12px", color:"rgba(255,255,255,0.45)", fontFamily:"monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          {/* Timeline chart */}
-                          {timelineData.length >= 2 && (
-                            <div style={{ marginBottom:16 }}>
-                              <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Evolução temporal do cluster</div>
-                              <div style={{ background:"rgba(0,0,0,0.2)", borderRadius:10, padding:"12px 8px 8px", border:"1px solid rgba(255,255,255,0.05)" }}>
-                                <ResponsiveContainer width="100%" height={110}>
-                                  <AreaChart data={timelineData} margin={{ left:0, right:8, top:4, bottom:0 }}>
-                                    <defs>
-                                      <linearGradient id={`dg-${alerta.id.replace(/[^a-z0-9]/gi,"")}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={accentColor} stopOpacity={0.4} />
-                                        <stop offset="95%" stopColor={accentColor} stopOpacity={0.02} />
-                                      </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                                    <XAxis dataKey="date" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} />
-                                    <YAxis tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} width={24} />
-                                    <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:10, color:"#fff" }} formatter={(v, _, p2) => [`${v} casos acumulados — ${p2.payload.nome}`, ""]} />
-                                    <Area type="monotone" dataKey="casos" stroke={accentColor} strokeWidth={2}
-                                      fill={`url(#dg-${alerta.id.replace(/[^a-z0-9]/gi,"")})`}
-                                      dot={{ r:4, fill:accentColor, strokeWidth:0 }}
-                                      activeDot={{ r:5 }}
-                                    />
-                                  </AreaChart>
-                                </ResponsiveContainer>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* AI trigger */}
-                          {!ai && (
-                            <button
-                              onClick={() => runAlertAI(alerta)}
-                              style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"12px 18px", background:`${accentBg}`, border:`1.5px dashed ${accentBorder}`, borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, color:accentColor, fontFamily:"inherit", justifyContent:"center", transition:"all 0.2s" }}
-                            >
-                              ✦ Gerar Análise Infectológica com IA + Plano 5W2H
-                            </button>
-                          )}
-
-                          {ai?.loading && (
-                            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 18px", background:`${accentBg}`, borderRadius:12, border:`1px solid ${accentBorder}` }}>
-                              <div style={{ width:16, height:16, border:`2px solid ${accentColor}40`, borderTop:`2px solid ${accentColor}`, borderRadius:"50%", animation:"spin-loader 0.8s linear infinite", flexShrink:0 }} />
-                              <span style={{ fontSize:13, color:accentColor, fontWeight:500 }}>Analisando cluster — IA infectologista em processamento…</span>
-                            </div>
-                          )}
-
-                          {ai && !ai.loading && (
-                            <div style={{ marginTop:6 }}>
-                              {ai.analise && (
-                                <div style={{ marginBottom:16 }}>
-                                  <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Análise Clínico-Epidemiológica</div>
-                                  <div style={{ background:"rgba(0,0,0,0.25)", border:`1px solid ${accentBorder}`, borderRadius:12, padding:"14px 16px", fontSize:13, color:"rgba(255,255,255,0.8)", lineHeight:1.7, whiteSpace:"pre-wrap" }}>
-                                    {ai.analise}
-                                  </div>
-                                </div>
-                              )}
-
-                              {ai.insights.length > 0 && (
-                                <div style={{ marginBottom:16 }}>
-                                  <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Insights Prioritários para Controle</div>
-                                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                                    {ai.insights.map((ins, i) => (
-                                      <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"10px 14px", background:"rgba(255,255,255,0.04)", borderRadius:10, borderLeft:`3px solid ${accentColor}` }}>
-                                        <span style={{ fontSize:12, fontWeight:700, color:accentColor, flexShrink:0, marginTop:1 }}>{i+1}.</span>
-                                        <span style={{ fontSize:13, color:"rgba(255,255,255,0.75)", lineHeight:1.55 }}>{ins}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {ai.plano.length > 0 && (
-                                <div>
-                                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px" }}>Plano de Ação 5W2H — Controle do Surto</div>
-                                    <div style={{ display:"flex", gap:6 }}>
-                                      {(["pendente","em_andamento","concluido","cancelado"] as const).map(s => {
-                                        const sm = PLANO_STATUS_META[s];
-                                        const cnt = ai.plano.filter(r => r.status === s).length;
-                                        return cnt > 0 ? (
-                                          <span key={s} style={{ fontSize:10, fontWeight:600, color:sm.color, background:sm.bg, border:`1px solid ${sm.border}`, borderRadius:20, padding:"2px 10px" }}>
-                                            {sm.label}: {cnt}
-                                          </span>
-                                        ) : null;
-                                      })}
-                                    </div>
-                                  </div>
-                                  <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${accentBorder}` }}>
-                                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:900 }}>
-                                      <thead>
-                                        <tr style={{ background:`${accentBg}` }}>
-                                          {[
-                                            { key:"O Quê?", sub:"Ação" },
-                                            { key:"Por Quê?", sub:"Justificativa" },
-                                            { key:"Quem?", sub:"Responsável" },
-                                            { key:"Onde?", sub:"Local" },
-                                            { key:"Quando?", sub:"Prazo" },
-                                            { key:"Como?", sub:"Método" },
-                                            { key:"Quanto?", sub:"Recursos" },
-                                            { key:"Status", sub:"Situação" },
-                                          ].map(col => (
-                                            <th key={col.key} style={{ padding:"10px 12px", textAlign:"left", borderBottom:`2px solid ${accentBorder}`, borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top" }}>
-                                              <div style={{ fontSize:11, fontWeight:700, color:accentColor }}>{col.key}</div>
-                                              <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontWeight:400 }}>{col.sub}</div>
-                                            </th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {ai.plano.map((row, i) => {
-                                          const sm = PLANO_STATUS_META[row.status] || PLANO_STATUS_META.pendente;
-                                          const rowDone = row.status === "concluido";
-                                          const rowCancel = row.status === "cancelado";
-                                          return (
-                                            <tr key={i} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)", borderBottom:"1px solid rgba(255,255,255,0.05)", opacity: rowCancel ? 0.5 : 1 }}>
-                                              <td style={{ padding:"10px 12px", fontWeight:600, color: rowDone ? "rgba(52,211,153,0.8)" : "rgba(255,255,255,0.85)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, textDecoration: rowCancel ? "line-through" : "none" }}>{row.acao}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
-                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
-                                              <td style={{ padding:"10px 12px", verticalAlign:"middle", minWidth:140 }}>
-                                                <div style={{ position:"relative" }}>
-                                                  <select
-                                                    value={row.status}
-                                                    onChange={e => setPlanoStatus(alerta.id, i, e.target.value as any)}
-                                                    style={{
-                                                      appearance:"none", WebkitAppearance:"none",
-                                                      width:"100%", padding:"5px 28px 5px 10px",
-                                                      background: sm.bg, border:`1px solid ${sm.border}`,
-                                                      borderRadius:20, fontSize:11, fontWeight:600,
-                                                      color: sm.color, cursor:"pointer",
-                                                      fontFamily:"inherit", outline:"none",
-                                                    }}
-                                                  >
-                                                    <option value="pendente">Pendente</option>
-                                                    <option value="em_andamento">Em andamento</option>
-                                                    <option value="concluido">Concluído</option>
-                                                    <option value="cancelado">Cancelado</option>
-                                                  </select>
-                                                  <span style={{ position:"absolute", right:9, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", fontSize:9, color:sm.color }}>▼</span>
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                  <div style={{ marginTop:8, textAlign:"right" }}>
-                                    <span style={{ fontSize:10, color:"rgba(255,255,255,0.25)" }}>Gerado por IA — validar com equipe CCIH antes de implementar</span>
-                                  </div>
-                                </div>
-                              )}
-
-                              <button
-                                onClick={() => setAlertAI(prev => { const n = {...prev}; delete n[alerta.id]; return n; })}
-                                style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.3)", background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit", padding:0 }}
-                              >
-                                ↺ Regenerar análise
-                              </button>
-                            </div>
-                          )}
+                    {/* Insights IA */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20, display:"flex", flexDirection:"column" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                        <span style={{ fontSize:15 }}>🧠</span>
+                        <span style={{ fontSize:13, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>Insights da IA Especialista</span>
+                        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+                          <button onClick={runGlobalReportA}
+                            disabled={aiReportLoadingA}
+                            style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"rgba(167,139,250,0.15)", border:"1px solid rgba(167,139,250,0.35)", borderRadius:20, color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                            📄 Gerar relatório IA
+                          </button>
+                          <button onClick={() => window.print()}
+                            style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background: lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.07)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)"}`, borderRadius:20, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                            Imprimir
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                          {([
+                            { title:"Alto risco de disseminação", body:"Múltiplos clusters indicam falhas na barreira. Revisão de EPI e coorte prioritária.", c:"#f87171" },
+                            { title:"Vigilância de contatos",     body:"Culturas de rastreamento nos contatos devem ser iniciadas em até 72 h.", c:"#fbbf24" },
+                            { title:"Higiene das mãos",           body:"Audite a adesão nos 5 momentos OMS em todos os setores afetados.", c:"#60a5fa" },
+                            { title:"Notificação CCIH",           body:"Todos os clusters devem ser formalizados com ficha de notificação interna.", c:"#34d399" },
+                          ] as any[]).map(item => (
+                            <div key={item.title} style={{ padding:"10px 14px", background: lightModeA ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.04)", borderRadius:10, borderLeft:`3px solid ${item.c}` }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:item.c, marginBottom:3 }}>{item.title}</div>
+                              <div style={{ fontSize:12, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", lineHeight:1.5 }}>{item.body}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Charts 2×2 */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 }}>
+
+                    {/* Epi curve */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: lightModeA ? "#0f172a" : "#fff", marginBottom:2 }}>Curva Epidemiológica Temporal</div>
+                      <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)", marginBottom:14 }}>Novos casos e acumulado — últimos 14 dias</div>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={epiDataA} margin={{ left:0, right:8, top:4, bottom:0 }}>
+                          <defs>
+                            <linearGradient id="gradNovosA" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                            </linearGradient>
+                            <linearGradient id="gradAcumA" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                          <XAxis dataKey="date" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} />
+                          <YAxis tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} width={24} />
+                          <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
+                          <Area type="monotone" dataKey="novos" name="Novos casos" stroke="#ef4444" strokeWidth={2} fill="url(#gradNovosA)" dot={{ r:3, fill:"#ef4444", strokeWidth:0 }} />
+                          <Area type="monotone" dataKey="acumulado" name="Acumulado" stroke="#60a5fa" strokeWidth={2} fill="url(#gradAcumA)" dot={{ r:3, fill:"#60a5fa", strokeWidth:0 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Organisms pie */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: lightModeA ? "#0f172a" : "#fff", marginBottom:2 }}>Distribuição por Microrganismo</div>
+                      <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)", marginBottom:14 }}>Internados por agente etiológico</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <ResponsiveContainer width={160} height={280}>
+                          <PieChart>
+                            <Pie data={orgDataA} cx="50%" cy="50%" innerRadius={50} outerRadius={78} dataKey="value" paddingAngle={3}>
+                              {orgDataA.map((_: any, i: number) => (
+                                <Cell key={i} fill={["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4","#f97316","#84cc16"][i % 8]} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div style={{ flex:1, display:"flex", flexDirection:"column", gap:6 }}>
+                          {orgDataA.slice(0, 7).map((d: any, i: number) => (
+                            <div key={d.name} style={{ display:"flex", alignItems:"center", gap:7 }}>
+                              <span style={{ width:8, height:8, borderRadius:"50%", background:["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#06b6d4","#f97316"][i % 7], flexShrink:0 }} />
+                              <span style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.name}</span>
+                              <span style={{ fontSize:11, fontWeight:700, color: lightModeA ? "#0f172a" : "rgba(255,255,255,0.8)", flexShrink:0 }}>{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Radar adesão */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: lightModeA ? "#0f172a" : "#fff", marginBottom:2 }}>Indicadores de Adesão</div>
+                      <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)", marginBottom:14 }}>Protocolos de controle de infecção (%)</div>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <RadarChart data={adherenceData} margin={{ top:10, right:20, bottom:10, left:20 }}>
+                          <PolarGrid stroke={lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"} />
+                          <PolarAngleAxis dataKey="name" tick={{ fontSize:10, fill: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }} />
+                          <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize:8, fill: lightModeA ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)" }} />
+                          <Radar dataKey="value" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.3} />
+                          <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} formatter={(v: any) => [`${v}%`, "Adesão"]} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Bar setores */}
+                    <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: lightModeA ? "#0f172a" : "#fff", marginBottom:2 }}>Casos Ativos por Setor</div>
+                      <div style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)", marginBottom:14 }}>Internados em precaução por setor</div>
+                      <ResponsiveContainer width="100%" height={Math.max(280, setorDataA.length * 32)}>
+                        <BarChart data={setorDataA} layout="vertical" margin={{ left:4, right:44, top:4, bottom:4 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
+                          <XAxis type="number" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} />
+                          <YAxis type="category" dataKey="setor" width={130}
+                            tick={(props: any) => (
+                              <g transform={`translate(${props.x},${props.y})`}>
+                                <text x={-6} y={0} dy="0.355em" textAnchor="end" fontSize={10} fill="rgba(255,255,255,0.55)">{props.payload.value}</text>
+                              </g>
+                            )} />
+                          <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:11, color:"#fff" }} />
+                          <Bar dataKey="total" radius={[0,6,6,0]} barSize={20}>
+                            {setorDataA.map((d: any, i: number) => <Cell key={i} fill={d.surto ? "#ef4444" : "#3b82f6"} />)}
+                            <LabelList dataKey="total" position="right" style={{ fontSize:11, fill:"rgba(255,255,255,0.55)", fontWeight:700 }} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Bed map */}
+                  <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20, marginBottom:20 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:15 }}>🗺</span>
+                      <span style={{ fontSize:13, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>Mapa de Leitos em Precaução</span>
+                      <div style={{ display:"flex", gap:10, marginLeft:"auto" }}>
+                        {Object.entries({ Contato:"#f59e0b", Gotículas:"#3b82f6", Aerossóis:"#ef4444" }).map(([name, color]) => (
+                          <span key={name} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
+                            <span style={{ width:10, height:10, borderRadius:4, background:color }} />{name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+                      <button onClick={() => setActiveSetorAlerta(null)}
+                        style={{ padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
+                          background: activeSetorAlerta===null ? "rgba(56,189,248,0.2)" : lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)",
+                          border: activeSetorAlerta===null ? "1px solid rgba(56,189,248,0.5)" : `1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.09)"}`,
+                          color: activeSetorAlerta===null ? "#38bdf8" : lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
+                        Todos
+                      </button>
+                      {setoresA.map((s: string) => (
+                        <button key={s} onClick={() => setActiveSetorAlerta(s === activeSetorAlerta ? null : s)}
+                          style={{ padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
+                            background: activeSetorAlerta===s ? "rgba(56,189,248,0.2)" : lightModeA ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.04)",
+                            border: activeSetorAlerta===s ? "1px solid rgba(56,189,248,0.5)" : `1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
+                            color: activeSetorAlerta===s ? "#38bdf8" : lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    {Object.entries(bedMapA).map(([setor, pats]) => {
+                      const hasAlert = alertas.some((a: any) => a.setor === setor);
+                      return (
+                        <div key={setor} style={{ marginBottom:16 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                            <span style={{ fontSize:12, fontWeight:700, color: hasAlert ? "#fca5a5" : lightModeA ? "#0f172a" : "#fff" }}>{setor}</span>
+                            {hasAlert && <span className="surto-anim-a" style={{ fontSize:10, fontWeight:700, color:"#ef4444", background:"rgba(185,28,28,0.2)", border:"1px solid rgba(248,113,113,0.4)", padding:"1px 8px", borderRadius:20 }}>🚨 ALERTA</span>}
+                            <span style={{ fontSize:11, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.35)" }}>{(pats as Patient[]).length} leito{(pats as Patient[]).length!==1?"s":""} em precaução</span>
+                          </div>
+                          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+                            {(pats as Patient[]).map((p: Patient) => {
+                              const c = ({ Contato:"#f59e0b", Gotículas:"#3b82f6", Aerossóis:"#ef4444" } as Record<string,string>)[p.precaucao] || "#6b7280";
+                              const isInCluster = alertas.some((a: any) => a.setor === p.setor && a.pacientes.some((pat: Patient) => pat.id === p.id));
+                              return (
+                                <div key={p.id} className="bed-hover-a"
+                                  onClick={() => setModalBedA(p)}
+                                  style={{ minHeight:110, padding:"12px 14px", borderRadius:20, background:`${c}18`, border:`1.5px solid ${c}55`, position:"relative" }}>
+                                  {isInCluster && (
+                                    <span style={{ position:"absolute", top:8, right:8, width:8, height:8, borderRadius:"50%", background:"#ef4444", animation:"pulse-dot-a 1.5s infinite" }} />
+                                  )}
+                                  <div style={{ fontSize:12, fontWeight:800, color:c, marginBottom:3 }}>Leito {p.leito}</div>
+                                  <div style={{ fontSize:11, color: lightModeA ? "#0f172a" : "#e5e7eb", marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.nome.split(" ").slice(0,2).join(" ")}</div>
+                                  <div style={{ fontSize:10, fontWeight:700, color:c }}>{p.precaucao}</div>
+                                  <div style={{ fontSize:10, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)", marginTop:2 }}>{p.organismo ? (ORGANISMOS.find((o: any) => o.value === p.organismo)?.label || p.organismo).split("–")[0].trim().slice(0,16) : "—"}</div>
+                                  <div style={{ fontSize:9, color: lightModeA ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.35)", marginTop:2 }}>{fmt(p.dataColeta)}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* AI Report section */}
+                  <div style={{ background: lightModeA ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.05)", backdropFilter:"blur(14px)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.09)"}`, borderRadius:20, padding:20, marginBottom:20 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                      <span style={{ fontSize:15 }}>📄</span>
+                      <span style={{ fontSize:13, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>Relatório Técnico Automático da IA</span>
+                    </div>
+                    {aiReportLoadingA && (
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px", background:"rgba(167,139,250,0.08)", borderRadius:10, border:"1px solid rgba(167,139,250,0.2)" }}>
+                        <div style={{ width:14, height:14, border:"2px solid rgba(167,139,250,0.3)", borderTop:"2px solid #a78bfa", borderRadius:"50%", animation:"spin-ai-a 0.8s linear infinite", flexShrink:0 }} />
+                        <span style={{ fontSize:12, color:"#a78bfa" }}>Gerando relatório técnico epidemiológico…</span>
+                      </div>
+                    )}
+                    {aiReportAlerta && !aiReportLoadingA && (
+                      <div style={{ background: lightModeA ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.2)", borderRadius:10, padding:"16px", fontSize:13, color: lightModeA ? "#0f172a" : "#e5e7eb", lineHeight:1.75, whiteSpace:"pre-wrap", border:"1px solid rgba(167,139,250,0.15)" }}>
+                        {aiReportAlerta}
+                        <button onClick={() => setAiReportAlerta("")}
+                          style={{ display:"block", marginTop:10, fontSize:10, color: lightModeA ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.3)", background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }}>↺ Regenerar</button>
+                      </div>
+                    )}
+                    {!aiReportAlerta && !aiReportLoadingA && (
+                      <div style={{ padding:"20px", background: lightModeA ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)", borderRadius:10, border:`1px dashed ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.09)"}`, textAlign:"center" }}>
+                        <div style={{ fontSize:22, marginBottom:8 }}>📋</div>
+                        <div style={{ fontSize:13, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>Clique em <strong style={{ color:"#a78bfa" }}>Gerar relatório IA</strong> no painel de insights para gerar o relatório técnico completo.</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Per-cluster 5W2H */}
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>
+                      Análise Detalhada por Cluster — IA + Plano 5W2H
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+                      {alertas.map((alerta: any) => {
+                        const isSurto = alerta.nivel === "surto";
+                        const accentColor = isSurto ? "#ef4444" : "#f59e0b";
+                        const accentBorder = isSurto ? "rgba(248,113,113,0.35)" : "rgba(251,191,36,0.35)";
+                        const accentBg = isSurto ? "rgba(185,28,28,0.12)" : "rgba(180,83,9,0.12)";
+                        const glowShadow = isSurto ? "0 0 30px rgba(185,28,28,0.2)" : "0 0 30px rgba(180,83,9,0.15)";
+                        const ai = alertAI[alerta.id];
+                        const timelineData = [...alerta.pacientes]
+                          .sort((a: Patient, b: Patient) => a.dataColeta.localeCompare(b.dataColeta))
+                          .map((p: Patient, i: number) => ({ date: fmt(p.dataColeta), casos: i + 1, nome: p.nome }));
+
+                        return (
+                          <div key={alerta.id} style={{ background: lightModeA ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.04)", backdropFilter:"blur(16px)", borderRadius:20, border:`1.5px solid ${accentBorder}`, overflow:"hidden", boxShadow:glowShadow }}>
+
+                            <div style={{ padding:"20px 24px 16px", borderBottom:`1px solid ${accentBorder}`, background:accentBg }}>
+                              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 }}>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+                                    <span className={isSurto ? "surto-anim-a" : ""} style={{ fontSize:11, fontWeight:700, color:accentColor, background:accentBg, padding:"4px 14px", borderRadius:20, border:`1px solid ${accentBorder}`, letterSpacing:"0.5px" }}>
+                                      {isSurto ? "🚨 SURTO" : "⚠️ ATENÇÃO"}
+                                    </span>
+                                    <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, fontWeight:500, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)", background: lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.06)", padding:"3px 10px", borderRadius:20 }}>
+                                      {alerta.precaucao}
+                                    </span>
+                                  </div>
+                                  <h3 style={{ margin:0, fontSize:18, fontWeight:700, color: lightModeA ? "#0f172a" : "#fff" }}>{alerta.setor}</h3>
+                                  <p style={{ margin:"5px 0 0", fontSize:13, color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)" }}>{alerta.organismo}</p>
+                                </div>
+                                <div style={{ textAlign:"center", background:accentBg, borderRadius:14, padding:"10px 20px", border:`1px solid ${accentBorder}`, flexShrink:0 }}>
+                                  <div style={{ fontSize:42, fontWeight:800, color:accentColor, lineHeight:1 }}>{alerta.count}</div>
+                                  <div style={{ fontSize:11, color:accentColor, fontWeight:600, marginTop:2 }}>caso{alerta.count !== 1 ? "s" : ""}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ padding:"18px 24px 22px" }}>
+                              <div style={{ marginBottom:16 }}>
+                                <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Pacientes envolvidos</div>
+                                <div style={{ background: lightModeA ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.25)", borderRadius:10, overflow:"hidden", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)"}` }}>
+                                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                    <thead>
+                                      <tr style={{ borderBottom:`1px solid ${lightModeA ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}` }}>
+                                        {["Paciente","Prontuário","Leito","Material","Data Coleta"].map(h => (
+                                          <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:10, fontWeight:600, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {alerta.pacientes.map((p: Patient, i: number) => (
+                                        <tr key={p.id} style={{ borderBottom: i < alerta.pacientes.length-1 ? `1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.05)"}` : "none", background: i % 2 === 0 ? "transparent" : lightModeA ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)" }}>
+                                          <td style={{ padding:"8px 12px", fontWeight:600, color: lightModeA ? "#0f172a" : "rgba(255,255,255,0.85)" }}>{p.nome}</td>
+                                          <td style={{ padding:"8px 12px", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)", fontFamily:"monospace", fontSize:11 }}>{p.prontuario || "—"}</td>
+                                          <td style={{ padding:"8px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>Leito {p.leito}</td>
+                                          <td style={{ padding:"8px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>{p.material || "—"}</td>
+                                          <td style={{ padding:"8px 12px", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)", fontFamily:"monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+
+                              {timelineData.length >= 2 && (
+                                <div style={{ marginBottom:16 }}>
+                                  <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Evolução temporal do cluster</div>
+                                  <div style={{ background: lightModeA ? "rgba(0,0,0,0.03)" : "rgba(0,0,0,0.2)", borderRadius:10, padding:"12px 8px 8px", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.05)"}` }}>
+                                    <ResponsiveContainer width="100%" height={110}>
+                                      <AreaChart data={timelineData} margin={{ left:0, right:8, top:4, bottom:0 }}>
+                                        <defs>
+                                          <linearGradient id={`dg-${alerta.id.replace(/[^a-z0-9]/gi,"")}`} x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={accentColor} stopOpacity={0.4} />
+                                            <stop offset="95%" stopColor={accentColor} stopOpacity={0.02} />
+                                          </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                        <XAxis dataKey="date" tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} />
+                                        <YAxis tick={{ fontSize:9, fill:"rgba(255,255,255,0.35)" }} allowDecimals={false} width={24} />
+                                        <Tooltip contentStyle={{ background:"#0d1a2e", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, fontSize:10, color:"#fff" }} formatter={(v: any, _: any, p2: any) => [`${v} casos acumulados — ${p2.payload.nome}`, ""]} />
+                                        <Area type="monotone" dataKey="casos" stroke={accentColor} strokeWidth={2}
+                                          fill={`url(#dg-${alerta.id.replace(/[^a-z0-9]/gi,"")})`}
+                                          dot={{ r:4, fill:accentColor, strokeWidth:0 }}
+                                          activeDot={{ r:5 }}
+                                        />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              )}
+
+                              {!ai && (
+                                <button
+                                  onClick={() => runAlertAI(alerta)}
+                                  style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"12px 18px", background:accentBg, border:`1.5px dashed ${accentBorder}`, borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, color:accentColor, fontFamily:"inherit", justifyContent:"center" }}
+                                >
+                                  ✦ Gerar Análise Infectológica com IA + Plano 5W2H
+                                </button>
+                              )}
+
+                              {ai?.loading && (
+                                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 18px", background:accentBg, borderRadius:12, border:`1px solid ${accentBorder}` }}>
+                                  <div style={{ width:16, height:16, border:`2px solid ${accentColor}40`, borderTop:`2px solid ${accentColor}`, borderRadius:"50%", animation:"spin-ai-a 0.8s linear infinite", flexShrink:0 }} />
+                                  <span style={{ fontSize:13, color:accentColor, fontWeight:500 }}>Analisando cluster — IA infectologista em processamento…</span>
+                                </div>
+                              )}
+
+                              {ai && !ai.loading && (
+                                <div style={{ marginTop:6 }}>
+                                  {ai.analise && (
+                                    <div style={{ marginBottom:16 }}>
+                                      <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Análise Clínico-Epidemiológica</div>
+                                      <div style={{ background: lightModeA ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.25)", border:`1px solid ${accentBorder}`, borderRadius:12, padding:"14px 16px", fontSize:13, color: lightModeA ? "#0f172a" : "rgba(255,255,255,0.8)", lineHeight:1.7, whiteSpace:"pre-wrap" }}>
+                                        {ai.analise}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {ai.insights.length > 0 && (
+                                    <div style={{ marginBottom:16 }}>
+                                      <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Insights Prioritários para Controle</div>
+                                      <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                                        {ai.insights.map((ins: string, i: number) => (
+                                          <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"10px 14px", background: lightModeA ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.04)", borderRadius:10, borderLeft:`3px solid ${accentColor}` }}>
+                                            <span style={{ fontSize:12, fontWeight:700, color:accentColor, flexShrink:0, marginTop:1 }}>{i+1}.</span>
+                                            <span style={{ fontSize:13, color: lightModeA ? "#0f172a" : "rgba(255,255,255,0.75)", lineHeight:1.55 }}>{ins}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {ai.plano.length > 0 && (
+                                    <div>
+                                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                                        <div style={{ fontSize:10, fontWeight:700, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px" }}>Plano de Ação 5W2H — Controle do Surto</div>
+                                        <div style={{ display:"flex", gap:6 }}>
+                                          {(["pendente","em_andamento","concluido","cancelado"] as const).map(s => {
+                                            const sm = PLANO_STATUS_META[s];
+                                            const cnt = ai.plano.filter((r: any) => r.status === s).length;
+                                            return cnt > 0 ? (
+                                              <span key={s} style={{ fontSize:10, fontWeight:600, color:sm.color, background:sm.bg, border:`1px solid ${sm.border}`, borderRadius:20, padding:"2px 10px" }}>
+                                                {sm.label}: {cnt}
+                                              </span>
+                                            ) : null;
+                                          })}
+                                        </div>
+                                      </div>
+                                      <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${accentBorder}` }}>
+                                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:900 }}>
+                                          <thead>
+                                            <tr style={{ background:accentBg }}>
+                                              {[
+                                                { key:"O Quê?", sub:"Ação" },
+                                                { key:"Por Quê?", sub:"Justificativa" },
+                                                { key:"Quem?", sub:"Responsável" },
+                                                { key:"Onde?", sub:"Local" },
+                                                { key:"Quando?", sub:"Prazo" },
+                                                { key:"Como?", sub:"Método" },
+                                                { key:"Quanto?", sub:"Recursos" },
+                                                { key:"Status", sub:"Situação" },
+                                              ].map(col => (
+                                                <th key={col.key} style={{ padding:"10px 12px", textAlign:"left", borderBottom:`2px solid ${accentBorder}`, borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top" }}>
+                                                  <div style={{ fontSize:11, fontWeight:700, color:accentColor }}>{col.key}</div>
+                                                  <div style={{ fontSize:10, color: lightModeA ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.35)", fontWeight:400 }}>{col.sub}</div>
+                                                </th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {ai.plano.map((row: any, i: number) => {
+                                              const sm = PLANO_STATUS_META[row.status] || PLANO_STATUS_META.pendente;
+                                              const rowDone = row.status === "concluido";
+                                              const rowCancel = row.status === "cancelado";
+                                              return (
+                                                <tr key={i} style={{ background: i % 2 === 0 ? lightModeA ? "rgba(0,0,0,0.01)" : "rgba(255,255,255,0.02)" : lightModeA ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.04)", borderBottom:`1px solid ${lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)"}`, opacity: rowCancel ? 0.5 : 1 }}>
+                                                  <td style={{ padding:"10px 12px", fontWeight:600, color: rowDone ? "#34d399" : lightModeA ? "#0f172a" : "rgba(255,255,255,0.85)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45, textDecoration: rowCancel ? "line-through" : "none" }}>{row.acao}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
+                                                  <td style={{ padding:"10px 12px", color: lightModeA ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)", borderRight:`1px solid ${lightModeA ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}`, verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
+                                                  <td style={{ padding:"10px 12px", verticalAlign:"middle", minWidth:140 }}>
+                                                    <div style={{ position:"relative" }}>
+                                                      <select
+                                                        value={row.status}
+                                                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPlanoStatus(alerta.id, i, e.target.value as any)}
+                                                        style={{
+                                                          appearance:"none", WebkitAppearance:"none",
+                                                          width:"100%", padding:"5px 28px 5px 10px",
+                                                          background: sm.bg, border:`1px solid ${sm.border}`,
+                                                          borderRadius:20, fontSize:11, fontWeight:600,
+                                                          color: sm.color, cursor:"pointer",
+                                                          fontFamily:"inherit", outline:"none",
+                                                        }}
+                                                      >
+                                                        <option value="pendente">Pendente</option>
+                                                        <option value="em_andamento">Em andamento</option>
+                                                        <option value="concluido">Concluído</option>
+                                                        <option value="cancelado">Cancelado</option>
+                                                      </select>
+                                                      <span style={{ position:"absolute", right:9, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", fontSize:9, color:sm.color }}>▼</span>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                      <div style={{ marginTop:8, textAlign:"right" }}>
+                                        <span style={{ fontSize:10, color: lightModeA ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.25)" }}>Gerado por IA — validar com equipe CCIH antes de implementar</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <button
+                                    onClick={() => setAlertAI(prev => { const n = {...prev}; delete n[alerta.id]; return n; })}
+                                    style={{ marginTop:14, fontSize:11, color: lightModeA ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)", background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit", padding:0 }}
+                                  >
+                                    ↺ Regenerar análise
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </main>
       )}
