@@ -137,7 +137,7 @@ export default function MapeamentoPrecaucao() {
   const [aiLoading,  setAiLoading] = useState(false);
   const [alertAI,    setAlertAI]   = useState<Record<string, {
     loading: boolean; analise: string; insights: string[];
-    plano: { acao: string; porQue: string; quem: string; onde: string; quando: string; como: string; quanto: string }[];
+    plano: { acao: string; porQue: string; quem: string; onde: string; quando: string; como: string; quanto: string; status: "pendente"|"em_andamento"|"concluido"|"cancelado" }[];
   }>>({});
   const [sortKey,    setSortKey]   = useState("setor");
   const [sortDir,    setSortDir]   = useState<"asc"|"desc">("asc");
@@ -951,13 +951,13 @@ export default function MapeamentoPrecaucao() {
   };
 
   const build5W2HTemplate = (alerta: { setor: string; organismo: string; precaucao: string; count: number }) => [
-    { acao: `Implementar/reforçar precaução de ${alerta.precaucao.toLowerCase()} para todos os casos`, porQue: `Bloquear a cadeia de transmissão de ${alerta.organismo.split("–")[0].trim()} em ${alerta.setor}`, quem: "Enfermagem + CCIH", onde: alerta.setor, quando: "Imediatamente", como: "Sinalização de precaução, EPI adequado no corredor, coorte ou quarto privativo se disponível", quanto: "EPI por atendimento: R$ 15–25" },
-    { acao: "Notificar CCIH e Vigilância Epidemiológica Hospitalar", porQue: "Cumprimento de protocolo institucional e investigação epidemiológica formal do cluster", quem: "Médico assistente + Enfermeiro-chefe do setor", onde: "Chefia de setor / CCIH", quando: "Em até 24 horas da identificação do cluster", como: "Preenchimento de ficha de notificação interna e registro no sistema de vigilância", quanto: "Recursos humanos disponíveis" },
-    { acao: "Auditoria de adesão à higiene das mãos", porQue: "Principal via de transmissão cruzada de microrganismos multirresistentes entre pacientes", quem: "Enfermeiro de Controle de Infecção / CCIH", onde: alerta.setor, quando: "Em 48 h, com reavaliação semanal durante o surto", como: "Observação direta nos 5 momentos OMS, feedback imediato aos profissionais", quanto: "Álcool gel 70% adicional: ~R$ 50/semana" },
-    { acao: "Culturas de vigilância nos pacientes contato", porQue: "Rastrear portadores assintomáticos e identificar extensão real do cluster", quem: "Médico assistente + Laboratório de Microbiologia", onde: alerta.setor, quando: "Em até 72 h após identificação do cluster", como: "Swab nasal/retal (conforme agente) em todos os pacientes do setor; resultado esperado em 48–72 h", quanto: "Custo por cultura: R$ 80–150" },
-    { acao: "Limpeza e desinfecção terminal intensificada", porQue: `${alerta.organismo.split("–")[0].trim()} pode persistir em superfícies por horas a dias, mantendo reservatório ambiental`, quem: "Equipe de higienização + supervisão da CCIH", onde: `Quartos dos pacientes afetados e áreas comuns de ${alerta.setor}`, quando: "Imediato e a cada alta ou transferência de paciente afetado", como: "Hipoclorito de sódio 0,5% em superfícies; clorexidina 2% em equipamentos conforme protocolo institucional", quanto: "Insumos: R$ 100–200 por limpeza terminal" },
-    { acao: "Capacitação emergencial da equipe multiprofissional", porQue: "Reforçar conhecimento sobre o agente, via de transmissão e uso correto de EPI específico para a precaução indicada", quem: "CCIH / Educação Continuada", onde: alerta.setor, quando: "Em até 48 h, abrangendo todos os turnos (manhã, tarde, noite)", como: "Treinamento in loco de 30 min por turno com demonstração prática de paramentação/desparamentação", quanto: "1 hora de CCIH × 3 turnos + material didático" },
-    { acao: "Monitoramento diário de novos casos e indicadores do surto", porQue: "Avaliar efetividade das medidas implantadas e identificar precocemente progressão ou resolução do surto", quem: "CCIH + Chefia de Enfermagem + Médico Infectologista", onde: `${alerta.setor} — reunião diária de ponto de situação`, quando: "Diariamente enquanto houver casos ativos", como: "Reunião rápida (15 min) com atualização de planilha de casos, coleta de dados e reavaliação das medidas", quanto: "Recursos humanos; tempo estimado 15–20 min/dia" },
+    { acao: `Implementar/reforçar precaução de ${alerta.precaucao.toLowerCase()} para todos os casos`, porQue: `Bloquear a cadeia de transmissão de ${alerta.organismo.split("–")[0].trim()} em ${alerta.setor}`, quem: "Enfermagem + CCIH", onde: alerta.setor, quando: "Imediatamente", como: "Sinalização de precaução, EPI adequado no corredor, coorte ou quarto privativo se disponível", quanto: "EPI por atendimento: R$ 15–25", status: "pendente" as const },
+    { acao: "Notificar CCIH e Vigilância Epidemiológica Hospitalar", porQue: "Cumprimento de protocolo institucional e investigação epidemiológica formal do cluster", quem: "Médico assistente + Enfermeiro-chefe do setor", onde: "Chefia de setor / CCIH", quando: "Em até 24 horas da identificação do cluster", como: "Preenchimento de ficha de notificação interna e registro no sistema de vigilância", quanto: "Recursos humanos disponíveis", status: "pendente" as const },
+    { acao: "Auditoria de adesão à higiene das mãos", porQue: "Principal via de transmissão cruzada de microrganismos multirresistentes entre pacientes", quem: "Enfermeiro de Controle de Infecção / CCIH", onde: alerta.setor, quando: "Em 48 h, com reavaliação semanal durante o surto", como: "Observação direta nos 5 momentos OMS, feedback imediato aos profissionais", quanto: "Álcool gel 70% adicional: ~R$ 50/semana", status: "pendente" as const },
+    { acao: "Culturas de vigilância nos pacientes contato", porQue: "Rastrear portadores assintomáticos e identificar extensão real do cluster", quem: "Médico assistente + Laboratório de Microbiologia", onde: alerta.setor, quando: "Em até 72 h após identificação do cluster", como: "Swab nasal/retal (conforme agente) em todos os pacientes do setor; resultado esperado em 48–72 h", quanto: "Custo por cultura: R$ 80–150", status: "pendente" as const },
+    { acao: "Limpeza e desinfecção terminal intensificada", porQue: `${alerta.organismo.split("–")[0].trim()} pode persistir em superfícies por horas a dias, mantendo reservatório ambiental`, quem: "Equipe de higienização + supervisão da CCIH", onde: `Quartos dos pacientes afetados e áreas comuns de ${alerta.setor}`, quando: "Imediato e a cada alta ou transferência de paciente afetado", como: "Hipoclorito de sódio 0,5% em superfícies; clorexidina 2% em equipamentos conforme protocolo institucional", quanto: "Insumos: R$ 100–200 por limpeza terminal", status: "pendente" as const },
+    { acao: "Capacitação emergencial da equipe multiprofissional", porQue: "Reforçar conhecimento sobre o agente, via de transmissão e uso correto de EPI específico para a precaução indicada", quem: "CCIH / Educação Continuada", onde: alerta.setor, quando: "Em até 48 h, abrangendo todos os turnos (manhã, tarde, noite)", como: "Treinamento in loco de 30 min por turno com demonstração prática de paramentação/desparamentação", quanto: "1 hora de CCIH × 3 turnos + material didático", status: "pendente" as const },
+    { acao: "Monitoramento diário de novos casos e indicadores do surto", porQue: "Avaliar efetividade das medidas implantadas e identificar precocemente progressão ou resolução do surto", quem: "CCIH + Chefia de Enfermagem + Médico Infectologista", onde: `${alerta.setor} — reunião diária de ponto de situação`, quando: "Diariamente enquanto houver casos ativos", como: "Reunião rápida (15 min) com atualização de planilha de casos, coleta de dados e reavaliação das medidas", quanto: "Recursos humanos; tempo estimado 15–20 min/dia", status: "pendente" as const },
   ];
 
   const runAlertAI = async (alerta: { id: string; setor: string; organismo: string; precaucao: string; nivel: string; count: number; pacientes: Patient[] }) => {
@@ -1010,6 +1010,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           const plano = (p.plano_5w2h || []).map((r: any) => ({
             acao: r.acao || "", porQue: r.por_que || "", quem: r.quem || "",
             onde: r.onde || "", quando: r.quando || "", como: r.como || "", quanto: r.quanto || "",
+            status: "pendente" as const,
           }));
           setAlertAI(prev => ({
             ...prev,
@@ -1023,6 +1024,22 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
     } catch (err) {
       setAlertAI(prev => ({ ...prev, [id]: { loading: false, analise: err instanceof Error ? err.message : "Erro ao conectar.", insights: [], plano: build5W2HTemplate(alerta) } }));
     }
+  };
+
+  const PLANO_STATUS_META = {
+    pendente:     { label: "Pendente",      color: "#fbbf24", bg: "rgba(251,191,36,0.15)",  border: "rgba(251,191,36,0.4)"  },
+    em_andamento: { label: "Em andamento",  color: "#60a5fa", bg: "rgba(96,165,250,0.15)",  border: "rgba(96,165,250,0.4)"  },
+    concluido:    { label: "Concluído",     color: "#34d399", bg: "rgba(52,211,153,0.15)",  border: "rgba(52,211,153,0.4)"  },
+    cancelado:    { label: "Cancelado",     color: "#9ca3af", bg: "rgba(156,163,175,0.12)", border: "rgba(156,163,175,0.3)" },
+  } as const;
+
+  const setPlanoStatus = (alertId: string, rowIdx: number, status: "pendente"|"em_andamento"|"concluido"|"cancelado") => {
+    setAlertAI(prev => {
+      const entry = prev[alertId];
+      if (!entry) return prev;
+      const plano = entry.plano.map((r, i) => i === rowIdx ? { ...r, status } : r);
+      return { ...prev, [alertId]: { ...entry, plano } };
+    });
   };
 
   /* ── chart data ── */
@@ -2054,9 +2071,22 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
                               {ai.plano.length > 0 && (
                                 <div>
-                                  <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Plano de Ação 5W2H — Controle do Surto</div>
+                                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"1px" }}>Plano de Ação 5W2H — Controle do Surto</div>
+                                    <div style={{ display:"flex", gap:6 }}>
+                                      {(["pendente","em_andamento","concluido","cancelado"] as const).map(s => {
+                                        const sm = PLANO_STATUS_META[s];
+                                        const cnt = ai.plano.filter(r => r.status === s).length;
+                                        return cnt > 0 ? (
+                                          <span key={s} style={{ fontSize:10, fontWeight:600, color:sm.color, background:sm.bg, border:`1px solid ${sm.border}`, borderRadius:20, padding:"2px 10px" }}>
+                                            {sm.label}: {cnt}
+                                          </span>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                  </div>
                                   <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${accentBorder}` }}>
-                                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:780 }}>
+                                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:900 }}>
                                       <thead>
                                         <tr style={{ background:`${accentBg}` }}>
                                           {[
@@ -2067,6 +2097,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                                             { key:"Quando?", sub:"Prazo" },
                                             { key:"Como?", sub:"Método" },
                                             { key:"Quanto?", sub:"Recursos" },
+                                            { key:"Status", sub:"Situação" },
                                           ].map(col => (
                                             <th key={col.key} style={{ padding:"10px 12px", textAlign:"left", borderBottom:`2px solid ${accentBorder}`, borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top" }}>
                                               <div style={{ fontSize:11, fontWeight:700, color:accentColor }}>{col.key}</div>
@@ -2076,17 +2107,44 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {ai.plano.map((row, i) => (
-                                          <tr key={i} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
-                                            <td style={{ padding:"10px 12px", fontWeight:600, color:"rgba(255,255,255,0.85)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.acao}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
-                                            <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.6)", verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
-                                          </tr>
-                                        ))}
+                                        {ai.plano.map((row, i) => {
+                                          const sm = PLANO_STATUS_META[row.status] || PLANO_STATUS_META.pendente;
+                                          const rowDone = row.status === "concluido";
+                                          const rowCancel = row.status === "cancelado";
+                                          return (
+                                            <tr key={i} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)", borderBottom:"1px solid rgba(255,255,255,0.05)", opacity: rowCancel ? 0.5 : 1 }}>
+                                              <td style={{ padding:"10px 12px", fontWeight:600, color: rowDone ? "rgba(52,211,153,0.8)" : "rgba(255,255,255,0.85)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, textDecoration: rowCancel ? "line-through" : "none" }}>{row.acao}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.porQue}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quem}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.onde}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45, whiteSpace:"nowrap" }}>{row.quando}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.como}</td>
+                                              <td style={{ padding:"10px 12px", color:"rgba(255,255,255,0.55)", borderRight:"1px solid rgba(255,255,255,0.06)", verticalAlign:"top", lineHeight:1.45 }}>{row.quanto}</td>
+                                              <td style={{ padding:"10px 12px", verticalAlign:"middle", minWidth:140 }}>
+                                                <div style={{ position:"relative" }}>
+                                                  <select
+                                                    value={row.status}
+                                                    onChange={e => setPlanoStatus(alerta.id, i, e.target.value as any)}
+                                                    style={{
+                                                      appearance:"none", WebkitAppearance:"none",
+                                                      width:"100%", padding:"5px 28px 5px 10px",
+                                                      background: sm.bg, border:`1px solid ${sm.border}`,
+                                                      borderRadius:20, fontSize:11, fontWeight:600,
+                                                      color: sm.color, cursor:"pointer",
+                                                      fontFamily:"inherit", outline:"none",
+                                                    }}
+                                                  >
+                                                    <option value="pendente">Pendente</option>
+                                                    <option value="em_andamento">Em andamento</option>
+                                                    <option value="concluido">Concluído</option>
+                                                    <option value="cancelado">Cancelado</option>
+                                                  </select>
+                                                  <span style={{ position:"absolute", right:9, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", fontSize:9, color:sm.color }}>▼</span>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
                                       </tbody>
                                     </table>
                                   </div>
