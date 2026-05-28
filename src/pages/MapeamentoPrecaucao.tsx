@@ -676,6 +676,7 @@ export default function MapeamentoPrecaucao() {
     (fDataColeta === "" || p.dataColeta === fDataColeta) &&
     (fOrganismo === "Todos" || (p.organismo || "").split(" | ").includes(fOrganismo)) &&
     (fPrecaucao === "Todos" || p.precaucao === fPrecaucao) &&
+    (fMaterial === "Todos" || (p.material || "").split(" | ").includes(fMaterial)) &&
     (search === "" ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.prontuario.includes(search) ||
