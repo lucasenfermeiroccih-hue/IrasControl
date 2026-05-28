@@ -116,9 +116,68 @@ export default function AlertasSurto() {
   const [aiReport, setAiReport] = useState("")
   const [aiReportLoading, setAiReportLoading] = useState(false)
 
+  /* ── localStorage keys ── */
+  const lsAI      = hospitalId ? `iras_as_ai_${hospitalId}`      : null;
+  const lsInsight = hospitalId ? `iras_as_insight_${hospitalId}` : null;
+  const lsReport  = hospitalId ? `iras_as_report_${hospitalId}`  : null;
+
+  /* ── restore from localStorage on mount ── */
+  useEffect(() => {
+    if (!lsAI) return;
+    try {
+      const saved = localStorage.getItem(lsAI);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, AIEntry>;
+        const clean: Record<string, AIEntry> = {};
+        Object.entries(parsed).forEach(([k, v]) => { clean[k] = { ...v, loading: false }; });
+        setAlertAI(clean);
+      }
+    } catch {}
+    try {
+      const saved = localStorage.getItem(lsInsight!);
+      if (saved) setAiInsight({ ...JSON.parse(saved), loading: false });
+    } catch {}
+    try {
+      const saved = localStorage.getItem(lsReport!);
+      if (saved) setAiReport(saved);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lsAI]);
+
+  /* ── persist alertAI whenever it changes ── */
+  useEffect(() => {
+    if (!lsAI) return;
+    const toSave: Record<string, AIEntry> = {};
+    Object.entries(alertAI).forEach(([k, v]) => { if (!v.loading) toSave[k] = v; });
+    if (Object.keys(toSave).length > 0) localStorage.setItem(lsAI, JSON.stringify(toSave));
+  }, [alertAI, lsAI]);
+
+  /* ── persist aiInsight ── */
+  useEffect(() => {
+    if (!lsInsight || !aiInsight.text) return;
+    localStorage.setItem(lsInsight, JSON.stringify({ text: aiInsight.text, loading: false }));
+  }, [aiInsight, lsInsight]);
+
+  /* ── persist aiReport ── */
+  useEffect(() => {
+    if (!lsReport || !aiReport) return;
+    localStorage.setItem(lsReport, aiReport);
+  }, [aiReport, lsReport]);
+
   /* ── fetch ── */
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (clearCache = false) => {
     if (!hospitalId) return;
+    if (clearCache) {
+      const k1 = `iras_as_ai_${hospitalId}`;
+      const k2 = `iras_as_insight_${hospitalId}`;
+      const k3 = `iras_as_report_${hospitalId}`;
+      localStorage.removeItem(k1);
+      localStorage.removeItem(k2);
+      localStorage.removeItem(k3);
+      setAlertAI({});
+      setAiInsight({ loading: false, text: "" });
+      setAiReport("");
+    }
     setLoading(true);
 
     const { data: pData } = await supabase
@@ -450,7 +509,7 @@ Responda SOMENTE em JSON válido:
               <ArrowLeft size={15} /> Mapa de Precaução
             </button>
             <span style={{ color: subText }}>·</span>
-            <button onClick={fetchData}
+            <button onClick={() => fetchData(true)}
               style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)", border:`1px solid ${glassBorder}`, borderRadius:8, cursor:"pointer", color: subText, fontSize:11, fontFamily:"inherit" }}>
               <RefreshCw size={11} /> Atualizar
             </button>

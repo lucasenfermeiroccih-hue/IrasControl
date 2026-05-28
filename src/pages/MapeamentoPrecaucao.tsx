@@ -668,6 +668,54 @@ export default function MapeamentoPrecaucao() {
     return () => clearInterval(t)
   }, [])
 
+  /* ── localStorage persistence for alertas AI ── */
+  const lsAlertasAI     = hospitalId ? `iras_mp_ai_${hospitalId}`     : null;
+  const lsAlertasReport = hospitalId ? `iras_mp_report_${hospitalId}` : null;
+
+  // restore on mount
+  useEffect(() => {
+    if (!lsAlertasAI) return;
+    try {
+      const saved = localStorage.getItem(lsAlertasAI);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const clean: typeof alertAI = {};
+        Object.entries(parsed).forEach(([k, v]: [string, any]) => { clean[k] = { ...v, loading: false }; });
+        setAlertAI(clean);
+      }
+    } catch {}
+    try {
+      const saved = localStorage.getItem(lsAlertasReport!);
+      if (saved) setAiReportAlerta(saved);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lsAlertasAI]);
+
+  // persist alertAI
+  useEffect(() => {
+    if (!lsAlertasAI) return;
+    const toSave: typeof alertAI = {};
+    Object.entries(alertAI).forEach(([k, v]) => { if (!v.loading) toSave[k] = v; });
+    if (Object.keys(toSave).length > 0) localStorage.setItem(lsAlertasAI, JSON.stringify(toSave));
+  }, [alertAI, lsAlertasAI]);
+
+  // persist aiReportAlerta
+  useEffect(() => {
+    if (!lsAlertasReport || !aiReportAlerta) return;
+    localStorage.setItem(lsAlertasReport, aiReportAlerta);
+  }, [aiReportAlerta, lsAlertasReport]);
+
+  // clear cache + reload (called by Atualizar button in alertas tab)
+  const handleAlertasRefresh = useCallback(() => {
+    if (hospitalId) {
+      localStorage.removeItem(`iras_mp_ai_${hospitalId}`);
+      localStorage.removeItem(`iras_mp_report_${hospitalId}`);
+    }
+    setAlertAI({});
+    setAiReportAlerta("");
+    fetchData();
+  }, [hospitalId, fetchData]);
+
   const internados   = patients.filter(p => p.status === "Internado");
   const cntTotal     = internados.length;
   const cntContato   = internados.filter(p => p.precaucao === "Contato").length;
@@ -2054,6 +2102,10 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                     <div style={{ fontSize:12, fontFamily:"monospace", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>{clockA}</div>
                     <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={handleAlertasRefresh}
+                        style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background: lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.07)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)"}`, borderRadius:20, cursor:"pointer", fontSize:11, color: lightModeA ? "#0f172a" : "#e5e7eb", fontFamily:"inherit" }}>
+                        🔄 Atualizar
+                      </button>
                       <button onClick={() => setLightModeA(l => !l)}
                         style={{ padding:"5px 12px", background: lightModeA ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)"}`, borderRadius:20, cursor:"pointer", fontSize:11, color: lightModeA ? "#0f172a" : "#e5e7eb", fontFamily:"inherit" }}>
                         {lightModeA ? "🌙 Modo escuro" : "☀️ Modo claro"}
