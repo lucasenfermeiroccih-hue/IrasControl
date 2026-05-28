@@ -148,6 +148,7 @@ export default function MapeamentoPrecaucao() {
   const [fDataColeta,setFDataColeta]= useState("");
   const [fOrganismo, setFOrganismo]= useState("Todos");
   const [fPrecaucao, setFPrecaucao]= useState("Todos");
+  const [fMaterial,  setFMaterial] = useState("Todos");
   const [pdfModal,     setPdfModal]    = useState(false);
   const [pdfStatus,    setPdfStatus]   = useState("Todos");
   const [pdfSetor,     setPdfSetor]    = useState("Todos");
