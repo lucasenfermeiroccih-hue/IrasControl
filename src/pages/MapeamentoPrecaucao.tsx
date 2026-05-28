@@ -1440,7 +1440,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           </div>
 
           {/* filtros avançados */}
-          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(6, minmax(0,1fr)) auto", gap:8, marginBottom:14 }}>
+          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(7, minmax(0,1fr)) auto", gap:8, marginBottom:14 }}>
             <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={inpStyle}>
               <option value="Todos">Setor: Todos</option>
               {SETORES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1458,9 +1458,13 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <option value="Todos">Precaução: Todas</option>
               {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+            <select value={fMaterial} onChange={e => setFMaterial(e.target.value)} style={inpStyle}>
+              <option value="Todos">Material: Todos</option>
+              {MATERIAIS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
             <button
               type="button"
-              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setSearch(""); }}
+              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setFMaterial("Todos"); setSearch(""); }}
               style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}
             >
               Limpar
