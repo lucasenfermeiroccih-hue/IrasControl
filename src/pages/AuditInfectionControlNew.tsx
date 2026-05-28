@@ -13,8 +13,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, BarChart3, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
-import { useHospitalEmployees } from "@/hooks/useHospitalEmployees";
 import AuditHistory from "@/components/AuditHistory";
+import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
 const shifts = ["Manhã", "Tarde", "Noite"];
@@ -57,8 +57,7 @@ const mapStatus = (v: ResponseValue) => v === "conforme" ? "compliant" as const 
 
 export default function AuditInfectionControlNew() {
   const navigate = useNavigate();
-  const { saveAudit } = useAuditSave();
-  const { employees: auditors } = useHospitalEmployees();
+  const { saveAudit, hospitalId } = useAuditSave();
   const [saving, setSaving] = useState(false);
   const [auditDate, setAuditDate] = useState("");
   const [sector, setSector] = useState("");
@@ -152,7 +151,7 @@ export default function AuditInfectionControlNew() {
           <div className="space-y-2"><Label>Setor *</Label><Select value={sector} onValueChange={setSector}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{sectors.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Turno *</Label><Select value={shift} onValueChange={setShift}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{shifts.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Leito</Label><Input placeholder="Ex: 12A" value={bed} onChange={e => setBed(e.target.value)} /></div>
-          <div className="space-y-2 md:col-span-2"><Label>Auditor *</Label><Select value={auditor} onValueChange={setAuditor}><SelectTrigger><SelectValue placeholder="Selecione o auditor" /></SelectTrigger><SelectContent>{auditors.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-2 md:col-span-2"><Label>Auditor *</Label><EmployeeCombobox hospitalId={hospitalId} value={auditor} onChange={setAuditor} placeholder="Selecione o auditor" /></div>
         </CardContent>
       </Card>
 
