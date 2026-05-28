@@ -3,7 +3,7 @@ import {
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
-  KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck
+  KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -59,6 +59,7 @@ const publicSections = [
       { title: "Consumo H.M", url: "/audits/hand-hygiene/consumption/new", icon: HandMetal },
       { title: "Precauções", url: "/precautions/monitoring", icon: Shield },
       { title: "Mapeamento", url: "/precautions/mapping", icon: Shield },
+      { title: "Alertas Surto", url: "/precautions/alertas-surto", icon: ShieldAlert },
     ],
   },
   {
