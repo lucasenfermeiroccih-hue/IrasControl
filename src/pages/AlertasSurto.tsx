@@ -176,7 +176,7 @@ export default function AlertasSurto() {
         const [setor, org] = key.split("||");
         return {
           id: key,
-          nivel: ps.length >= 3 ? "surto" : "atencao",
+          nivel: (ps.length >= 3 ? "surto" : "atencao") as "surto" | "atencao",
           setor, organismo: org,
           orgLabel: orgLabel(org),
           precaucao: ps[0].precaucao,
