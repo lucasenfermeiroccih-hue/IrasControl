@@ -149,7 +149,9 @@ export default function MapeamentoPrecaucao() {
   const [fDataColeta,setFDataColeta]= useState("");
   const [fOrganismo, setFOrganismo]= useState("Todos");
   const [fPrecaucao, setFPrecaucao]= useState("Todos");
-  const [fMaterial,  setFMaterial] = useState("Todos");
+  const [fMaterial,  setFMaterial] = useState<string[]>([]);
+  const [fMaterialOpen, setFMaterialOpen] = useState(false);
+  const fMaterialRef = useRef<HTMLDivElement>(null);
   const [pdfModal,     setPdfModal]    = useState(false);
   const [pdfStatus,    setPdfStatus]   = useState("Todos");
   const [pdfSetor,     setPdfSetor]    = useState("Todos");
@@ -692,7 +694,7 @@ export default function MapeamentoPrecaucao() {
     (fDataColeta === "" || p.dataColeta === fDataColeta) &&
     (fOrganismo === "Todos" || (p.organismo || "").split(" | ").includes(fOrganismo)) &&
     (fPrecaucao === "Todos" || p.precaucao === fPrecaucao) &&
-    (fMaterial === "Todos" || (p.material || "").split(" | ").includes(fMaterial)) &&
+    (fMaterial.length === 0 || fMaterial.some(m => (p.material || "").split(" | ").map(s => s.trim()).includes(m))) &&
     (search === "" ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.prontuario.includes(search) ||
@@ -1546,13 +1548,45 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <option value="Todos">Precaução: Todas</option>
               {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <select value={fMaterial} onChange={e => setFMaterial(e.target.value)} style={inpStyle}>
-              <option value="Todos">Material: Todos</option>
-              {MATERIAIS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <div ref={fMaterialRef} style={{ position:"relative" }}>
+              <button
+                type="button"
+                onClick={() => setFMaterialOpen(o => !o)}
+                onBlur={e => { if (!fMaterialRef.current?.contains(e.relatedTarget as Node)) setFMaterialOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}
+              >
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fMaterial.length === 0 ? "Material: Todos" : fMaterial.length === 1 ? fMaterial[0] : `Material: ${fMaterial.length} selecionados`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fMaterialOpen && (
+                <div
+                  style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:200, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}
+                >
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fMaterial.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fMaterial.length === 0} onChange={() => setFMaterial([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todos
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {MATERIAIS.map(m => (
+                    <label key={m} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fMaterial.includes(m) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                      <input
+                        type="checkbox"
+                        checked={fMaterial.includes(m)}
+                        onChange={() => setFMaterial(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                        style={{ accentColor:"#0F4C75", width:14, height:14 }}
+                      />
+                      {m}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setFMaterial("Todos"); setSearch(""); }}
+              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setFMaterial([]); setFMaterialOpen(false); setSearch(""); }}
               style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}
             >
               Limpar
