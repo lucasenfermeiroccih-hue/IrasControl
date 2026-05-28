@@ -162,6 +162,9 @@ export default function MapeamentoPrecaucao() {
   const [fMaterial,  setFMaterial] = useState<string[]>([]);
   const [fMaterialOpen, setFMaterialOpen] = useState(false);
   const fMaterialRef = useRef<HTMLDivElement>(null);
+  const [dStatus,     setDStatus]    = useState<string[]>(["Internado"]);
+  const [dStatusOpen, setDStatusOpen]= useState(false);
+  const dStatusRef = useRef<HTMLDivElement>(null);
   const [pdfModal,     setPdfModal]    = useState(false);
   const [pdfStatus,    setPdfStatus]   = useState("Todos");
   const [pdfSetor,     setPdfSetor]    = useState("Todos");
@@ -732,6 +735,15 @@ export default function MapeamentoPrecaucao() {
   const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
   const cntAerossol  = internados.filter(p => p.precaucao === "Aerossóis").length;
 
+  const dashPatients = useMemo(() =>
+    dStatus.length === 0 ? patients : patients.filter(p => dStatus.includes(p.status)),
+    [patients, dStatus]
+  );
+  const dashCntTotal     = dashPatients.length;
+  const dashCntContato   = dashPatients.filter(p => p.precaucao === "Contato").length;
+  const dashCntGoticulas = dashPatients.filter(p => p.precaucao === "Gotículas").length;
+  const dashCntAerossol  = dashPatients.filter(p => p.precaucao === "Aerossóis").length;
+
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
@@ -1171,6 +1183,40 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
     });
     return Object.entries(c).map(([name,value]) => ({ name, value })).sort((a,b) => b.value - a.value);
   }, [patients]);
+
+  const dashOrgData = useMemo(() => {
+    const c: Record<string,number> = {};
+    dashPatients.forEach(p => {
+      const parts = (p.organismo || "").split(" | ").map(s => s.trim()).filter(Boolean);
+      parts.forEach(org => {
+        const found = ORGANISMOS.find(o => o.value === org);
+        const label = found ? found.label.split("–")[0].trim() : org;
+        if (label) c[label] = (c[label] || 0) + 1;
+      });
+    });
+    return Object.entries(c).map(([name,value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+  }, [dashPatients]);
+
+  const dashPrecData = useMemo(() => {
+    const c: Record<string,number> = { Contato:0, "Gotículas":0, "Aerossóis":0 };
+    dashPatients.forEach(p => { if (p.precaucao in c) c[p.precaucao]++; });
+    return Object.entries(c).filter(([,v]) => v > 0).map(([name,value]) => ({ name, value }));
+  }, [dashPatients]);
+
+  const dashSetorData = useMemo(() => {
+    const c: Record<string,number> = {};
+    dashPatients.forEach(p => { c[p.setor] = (c[p.setor] || 0) + 1; });
+    return Object.entries(c).map(([setor,total]) => ({ setor, total })).sort((a,b) => b.total - a.total);
+  }, [dashPatients]);
+
+  const dashMatData = useMemo(() => {
+    const c: Record<string,number> = {};
+    dashPatients.forEach(p => {
+      const parts = (p.material || "").split(" | ").map(s => s.trim()).filter(Boolean);
+      parts.forEach(mat => { c[mat] = (c[mat] || 0) + 1; });
+    });
+    return Object.entries(c).map(([name,value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+  }, [dashPatients]);
 
   /* ── alerts ── */
   const alertas = useMemo(() => {
@@ -1977,17 +2023,48 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Dashboard — Mapeamento de Precaução</h1>
               <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>Análise epidemiológica interativa dos isolamentos ativos</p>
             </div>
-            <button onClick={() => setPdfModal(true)} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
-              ⎙ Exportar PDF
-            </button>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div ref={dStatusRef} style={{ position:"relative" }}>
+                <button type="button"
+                  onClick={() => setDStatusOpen(o => !o)}
+                  onBlur={e => { if (!dStatusRef.current?.contains(e.relatedTarget as Node)) setDStatusOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit", minWidth:150 }}>
+                  <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {dStatus.length === 0 ? "Status: Todos" : dStatus.length === 1 ? dStatus[0] : `Status: ${dStatus.length} sel.`}
+                  </span>
+                  <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+                </button>
+                {dStatusOpen && (
+                  <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:180, padding:"6px 0" }}
+                    onMouseDown={e => e.preventDefault()}>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: dStatus.length === 0 ? 600 : 400 }}>
+                      <input type="checkbox" checked={dStatus.length === 0} onChange={() => setDStatus([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                      Todos
+                    </label>
+                    <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                    {Object.keys(SMETA).map(s => (
+                      <label key={s} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: dStatus.includes(s) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                        <input type="checkbox" checked={dStatus.includes(s)}
+                          onChange={() => setDStatus(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                          style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setPdfModal(true)} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"var(--color-background-primary)", color:"var(--color-text-primary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:"inherit" }}>
+                ⎙ Exportar PDF
+              </button>
+            </div>
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
             {[
-              { lbl:"Em Isolamento", val:cntTotal,     c:"#0F4C75", bg:"#EFF6FF" },
-              { lbl:"Contato",       val:cntContato,   c:"#92400E", bg:"#FFFBEB" },
-              { lbl:"Gotículas",     val:cntGoticulas, c:"#1E40AF", bg:"#EFF6FF" },
-              { lbl:"Aerossóis",     val:cntAerossol,  c:"#991B1B", bg:"#FEF2F2" },
+              { lbl:"Em Isolamento", val:dashCntTotal,     c:"#0F4C75", bg:"#EFF6FF" },
+              { lbl:"Contato",       val:dashCntContato,   c:"#92400E", bg:"#FFFBEB" },
+              { lbl:"Gotículas",     val:dashCntGoticulas, c:"#1E40AF", bg:"#EFF6FF" },
+              { lbl:"Aerossóis",     val:dashCntAerossol,  c:"#991B1B", bg:"#FEF2F2" },
             ].map(k => (
               <div key={k.lbl} style={{ background:k.bg, borderRadius:10, padding:"14px 16px", border:`1px solid ${k.c}22` }}>
                 <div style={{ fontSize:10, color:k.c, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{k.lbl}</div>
@@ -2003,13 +2080,13 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 <ChartActions chartRef={chartRefs.org} chartTitle="Distribuição por Microrganismo" metaValue={metas.org} onMetaChange={v => setMeta("org", v)} metaUnit="casos" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Pacientes ativos por agente etiológico</div>
-              {orgData.length === 0 ? (
+              {dashOrgData.length === 0 ? (
                 <div style={{ textAlign:"center", color:"#9CA3AF", fontSize:12, padding:"20px 0" }}>Sem pacientes em isolamento com microrganismo registrado</div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {(() => {
-                    const max = Math.max(...orgData.map(d => d.value), 1);
-                    return orgData.map((d, i) => (
+                    const max = Math.max(...dashOrgData.map(d => d.value), 1);
+                    return dashOrgData.map((d, i) => (
                       <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <div style={{ width:160, fontSize:11, color:"var(--color-text-secondary,#4B5563)", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
                         <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
@@ -2031,15 +2108,15 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Proporção por categoria</div>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
-                  <Pie data={precData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35} paddingAngle={3}>
-                    {precData.map((d, i) => <Cell key={i} fill={PIE_COLORS[d.name] || CHART_COLORS[i]} />)}
+                  <Pie data={dashPrecData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35} paddingAngle={3}>
+                    {dashPrecData.map((d, i) => <Cell key={i} fill={PIE_COLORS[d.name] || CHART_COLORS[i]} />)}
                   </Pie>
                   <Tooltip contentStyle={{ fontSize:11, borderRadius:8 }} />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:4 }}>
-                {precData.map(d => {
-                  const tot = precData.reduce((a, b) => a + b.value, 0);
+                {dashPrecData.map(d => {
+                  const tot = dashPrecData.reduce((a, b) => a + b.value, 0);
                   const pct = tot > 0 ? Math.round(d.value / tot * 100) : 0;
                   return (
                     <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -2061,7 +2138,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Concentração de isolamentos por unidade</div>
               <ResponsiveContainer width="100%" height={190}>
-                <BarChart data={setorData} margin={{ bottom:30 }}>
+                <BarChart data={dashSetorData} margin={{ bottom:30 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                   <XAxis dataKey="setor" tick={{ fontSize:9, fill:"#6B7280" }} interval={0} angle={-30} textAnchor="end" height={52} />
                   <YAxis tick={{ fontSize:10, fill:"#9CA3AF" }} allowDecimals={false} />
@@ -2079,13 +2156,13 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 <ChartActions chartRef={chartRefs.mat} chartTitle="Material Coletado" metaValue={metas.mat} onMetaChange={v => setMeta("mat", v)} metaUnit="coletas" />
               </div>
               <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:14 }}>Frequência por tipo de espécime</div>
-              {matData.length === 0 ? (
+              {dashMatData.length === 0 ? (
                 <div style={{ textAlign:"center", color:"#9CA3AF", fontSize:12, padding:"20px 0" }}>Sem material coletado registrado para pacientes em isolamento</div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {(() => {
-                    const max = Math.max(...matData.map(d => d.value), 1);
-                    return matData.map((d) => (
+                    const max = Math.max(...dashMatData.map(d => d.value), 1);
+                    return dashMatData.map((d) => (
                       <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <div style={{ width:160, fontSize:11, color:"var(--color-text-secondary,#4B5563)", textAlign:"right", flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={d.name}>{d.name}</div>
                         <div style={{ flex:1, background:"#F3F4F6", borderRadius:4, height:20, overflow:"hidden" }}>
