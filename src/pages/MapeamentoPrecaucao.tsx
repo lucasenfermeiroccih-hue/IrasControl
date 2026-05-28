@@ -130,7 +130,7 @@ export default function MapeamentoPrecaucao() {
   const [patientQuery,     setPatientQuery]     = useState("");
   const [patientResults,   setPatientResults]   = useState<{id:string;full_name:string;medical_record:string;sector:string;bed:string}[]>([]);
   const [patientSearching, setPatientSearching] = useState(false);
-  const [fStatus,    setFStatus]   = useState("Internado");
+  const [fStatus,    setFStatus]   = useState<string[]>(["Internado"]);
   const [search,     setSearch]    = useState("");
   const [stModal,    setStModal]   = useState<string | null>(null);
   const [aiModal,    setAiModal]   = useState(false);
@@ -144,13 +144,21 @@ export default function MapeamentoPrecaucao() {
   const [sortDir,    setSortDir]   = useState<"asc"|"desc">("asc");
   const [evtFilter,  setEvtFilter] = useState("Todos");
   const [orgDetail,  setOrgDetail] = useState<null | (typeof orgManagement)[0]>(null);
-  const [fSetor,     setFSetor]    = useState("Todos");
-  const [fLeito,     setFLeito]    = useState("");
-  const [fDataColeta,setFDataColeta]= useState("");
+  const [fSetor,     setFSetor]    = useState<string[]>([]);
+  const [fSetorOpen, setFSetorOpen]= useState(false);
+  const fSetorRef = useRef<HTMLDivElement>(null);
+  const [fLeito,     setFLeito]    = useState<string[]>([]);
+  const [fLeitoOpen, setFLeitoOpen]= useState(false);
+  const fLeitoRef = useRef<HTMLDivElement>(null);
+  const [fDataColeta,setFDataColeta]= useState<string[]>([]);
+  const [fDataColetaOpen, setFDataColetaOpen]= useState(false);
+  const fDataColetaRef = useRef<HTMLDivElement>(null);
   const [fOrganismo, setFOrganismo]= useState<string[]>([]);
   const [fOrganismoOpen, setFOrganismoOpen] = useState(false);
   const fOrganismoRef = useRef<HTMLDivElement>(null);
-  const [fPrecaucao, setFPrecaucao]= useState("Todos");
+  const [fPrecaucao, setFPrecaucao]= useState<string[]>([]);
+  const [fPrecaucaoOpen, setFPrecaucaoOpen]= useState(false);
+  const fPrecaucaoRef = useRef<HTMLDivElement>(null);
   const [fMaterial,  setFMaterial] = useState<string[]>([]);
   const [fMaterialOpen, setFMaterialOpen] = useState(false);
   const fMaterialRef = useRef<HTMLDivElement>(null);
@@ -717,6 +725,8 @@ export default function MapeamentoPrecaucao() {
   }, [hospitalId, fetchData]);
 
   const internados   = patients.filter(p => p.status === "Internado");
+  const availableLeitos = useMemo(() => [...new Set(patients.map(p => p.leito).filter(Boolean))].sort() as string[], [patients]);
+  const availableDatas  = useMemo(() => [...new Set(patients.map(p => p.dataColeta).filter(Boolean))].sort() as string[], [patients]);
   const cntTotal     = internados.length;
   const cntContato   = internados.filter(p => p.precaucao === "Contato").length;
   const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
@@ -738,12 +748,12 @@ export default function MapeamentoPrecaucao() {
     });
 
   const displayed = applySort(patients.filter(p =>
-    p.status === fStatus &&
-    (fSetor === "Todos" || p.setor === fSetor) &&
-    (fLeito === "" || p.leito.toLowerCase().includes(fLeito.toLowerCase())) &&
-    (fDataColeta === "" || p.dataColeta === fDataColeta) &&
+    (fStatus.length === 0 || fStatus.includes(p.status)) &&
+    (fSetor.length === 0 || fSetor.includes(p.setor)) &&
+    (fLeito.length === 0 || fLeito.includes(p.leito)) &&
+    (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
     (fOrganismo.length === 0 || fOrganismo.some(o => (p.organismo || "").split(" | ").map(s => s.trim()).includes(o))) &&
-    (fPrecaucao === "Todos" || p.precaucao === fPrecaucao) &&
+    (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
     (fMaterial.length === 0 || fMaterial.some(m => (p.material || "").split(" | ").map(s => s.trim()).includes(m))) &&
     (search === "" ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -1568,9 +1578,18 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
           {/* filter + search */}
           <div className="np" style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-            <div style={{ display:"flex", gap:4 }}>
+            <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+              <button
+                onClick={() => setFStatus([])}
+                style={btnFilter(fStatus.length === 0, "#0F4C75")}
+              >
+                Todos
+              </button>
               {Object.entries(SMETA).map(([s, m]) => (
-                <button key={s} onClick={() => setFStatus(s)} style={btnFilter(fStatus === s, m.color)}>
+                <button key={s}
+                  onClick={() => setFStatus(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                  style={btnFilter(fStatus.includes(s), m.color)}
+                >
                   {s} ({patients.filter(p => p.status === s).length})
                 </button>
               ))}
@@ -1580,16 +1599,137 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           </div>
 
           {/* filtros avançados */}
-          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(7, minmax(0,1fr)) auto", gap:8, marginBottom:14 }}>
-            <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={inpStyle}>
-              <option value="Todos">Setor: Todos</option>
-              {SETORES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <input value={fLeito} onChange={e => setFLeito(e.target.value)} placeholder="Leito" style={inpStyle} />
-            <input type="date" value={fDataColeta} onChange={e => setFDataColeta(e.target.value)} style={inpStyle} title="Data da Coleta" />
-            <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={inpStyle}>
-              {Object.keys(SMETA).map(s => <option key={s} value={s}>Status: {s}</option>)}
-            </select>
+          <div className="np" style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14, alignItems:"center" }}>
+
+            {/* Setor */}
+            <div ref={fSetorRef} style={{ position:"relative" }}>
+              <button type="button"
+                onClick={() => setFSetorOpen(o => !o)}
+                onBlur={e => { if (!fSetorRef.current?.contains(e.relatedTarget as Node)) setFSetorOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}>
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fSetor.length === 0 ? "Setor: Todos" : fSetor.length === 1 ? fSetor[0] : `Setor: ${fSetor.length} sel.`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fSetorOpen && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:220, maxHeight:280, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}>
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fSetor.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fSetor.length === 0} onChange={() => setFSetor([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todos
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {SETORES.map(s => (
+                    <label key={s} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fSetor.includes(s) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                      <input type="checkbox" checked={fSetor.includes(s)}
+                        onChange={() => setFSetor(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                        style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Leito */}
+            <div ref={fLeitoRef} style={{ position:"relative" }}>
+              <button type="button"
+                onClick={() => setFLeitoOpen(o => !o)}
+                onBlur={e => { if (!fLeitoRef.current?.contains(e.relatedTarget as Node)) setFLeitoOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:140 }}>
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fLeito.length === 0 ? "Leito: Todos" : fLeito.length === 1 ? `Leito ${fLeito[0]}` : `Leito: ${fLeito.length} sel.`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fLeitoOpen && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:160, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}>
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fLeito.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fLeito.length === 0} onChange={() => setFLeito([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todos
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {availableLeitos.length === 0
+                    ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhum leito cadastrado</div>
+                    : availableLeitos.map(l => (
+                      <label key={l} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fLeito.includes(l) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                        <input type="checkbox" checked={fLeito.includes(l)}
+                          onChange={() => setFLeito(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])}
+                          style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                        Leito {l}
+                      </label>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Data de Coleta */}
+            <div ref={fDataColetaRef} style={{ position:"relative" }}>
+              <button type="button"
+                onClick={() => setFDataColetaOpen(o => !o)}
+                onBlur={e => { if (!fDataColetaRef.current?.contains(e.relatedTarget as Node)) setFDataColetaOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:170 }}>
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fDataColeta.length === 0 ? "Data coleta: Todas" : fDataColeta.length === 1 ? fDataColeta[0].split("-").reverse().join("/") : `Datas: ${fDataColeta.length} sel.`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fDataColetaOpen && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:180, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}>
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fDataColeta.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fDataColeta.length === 0} onChange={() => setFDataColeta([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todas as datas
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {availableDatas.length === 0
+                    ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhuma data disponível</div>
+                    : availableDatas.map(d => (
+                      <label key={d} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fDataColeta.includes(d) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                        <input type="checkbox" checked={fDataColeta.includes(d)}
+                          onChange={() => setFDataColeta(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                          style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                        {d.split("-").reverse().join("/")}
+                      </label>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Precaução */}
+            <div ref={fPrecaucaoRef} style={{ position:"relative" }}>
+              <button type="button"
+                onClick={() => setFPrecaucaoOpen(o => !o)}
+                onBlur={e => { if (!fPrecaucaoRef.current?.contains(e.relatedTarget as Node)) setFPrecaucaoOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}>
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fPrecaucao.length === 0 ? "Precaução: Todas" : fPrecaucao.length === 1 ? fPrecaucao[0] : `Precaução: ${fPrecaucao.length} sel.`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fPrecaucaoOpen && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:180, maxHeight:220, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}>
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fPrecaucao.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fPrecaucao.length === 0} onChange={() => setFPrecaucao([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todas
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {Object.entries(PMETA).map(([p, m]) => (
+                    <label key={p} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fPrecaucao.includes(p) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                      <input type="checkbox" checked={fPrecaucao.includes(p)}
+                        onChange={() => setFPrecaucao(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                        style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                      <span style={{ color: m.color, fontWeight:500 }}>{m.icon} {p}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Microrganismo */}
             <div ref={fOrganismoRef} style={{ position:"relative" }}>
               <button
                 type="button"
@@ -1626,10 +1766,8 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 </div>
               )}
             </div>
-            <select value={fPrecaucao} onChange={e => setFPrecaucao(e.target.value)} style={inpStyle}>
-              <option value="Todos">Precaução: Todas</option>
-              {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+
+            {/* Material */}
             <div ref={fMaterialRef} style={{ position:"relative" }}>
               <button
                 type="button"
@@ -1666,10 +1804,11 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                 </div>
               )}
             </div>
+
             <button
               type="button"
-              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo([]); setFOrganismoOpen(false); setFPrecaucao("Todos"); setFMaterial([]); setFMaterialOpen(false); setSearch(""); }}
-              style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}
+              onClick={() => { setFSetor([]); setFSetorOpen(false); setFLeito([]); setFLeitoOpen(false); setFDataColeta([]); setFDataColetaOpen(false); setFStatus(["Internado"]); setFOrganismo([]); setFOrganismoOpen(false); setFPrecaucao([]); setFPrecaucaoOpen(false); setFMaterial([]); setFMaterialOpen(false); setSearch(""); }}
+              style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}
             >
               Limpar
             </button>
