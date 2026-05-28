@@ -147,7 +147,9 @@ export default function MapeamentoPrecaucao() {
   const [fSetor,     setFSetor]    = useState("Todos");
   const [fLeito,     setFLeito]    = useState("");
   const [fDataColeta,setFDataColeta]= useState("");
-  const [fOrganismo, setFOrganismo]= useState("Todos");
+  const [fOrganismo, setFOrganismo]= useState<string[]>([]);
+  const [fOrganismoOpen, setFOrganismoOpen] = useState(false);
+  const fOrganismoRef = useRef<HTMLDivElement>(null);
   const [fPrecaucao, setFPrecaucao]= useState("Todos");
   const [fMaterial,  setFMaterial] = useState<string[]>([]);
   const [fMaterialOpen, setFMaterialOpen] = useState(false);
@@ -692,7 +694,7 @@ export default function MapeamentoPrecaucao() {
     (fSetor === "Todos" || p.setor === fSetor) &&
     (fLeito === "" || p.leito.toLowerCase().includes(fLeito.toLowerCase())) &&
     (fDataColeta === "" || p.dataColeta === fDataColeta) &&
-    (fOrganismo === "Todos" || (p.organismo || "").split(" | ").includes(fOrganismo)) &&
+    (fOrganismo.length === 0 || fOrganismo.some(o => (p.organismo || "").split(" | ").map(s => s.trim()).includes(o))) &&
     (fPrecaucao === "Todos" || p.precaucao === fPrecaucao) &&
     (fMaterial.length === 0 || fMaterial.some(m => (p.material || "").split(" | ").map(s => s.trim()).includes(m))) &&
     (search === "" ||
@@ -1540,10 +1542,42 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
             <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={inpStyle}>
               {Object.keys(SMETA).map(s => <option key={s} value={s}>Status: {s}</option>)}
             </select>
-            <select value={fOrganismo} onChange={e => setFOrganismo(e.target.value)} style={inpStyle}>
-              <option value="Todos">Microrganismo: Todos</option>
-              {ORGANISMOS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <div ref={fOrganismoRef} style={{ position:"relative" }}>
+              <button
+                type="button"
+                onClick={() => setFOrganismoOpen(o => !o)}
+                onBlur={e => { if (!fOrganismoRef.current?.contains(e.relatedTarget as Node)) setFOrganismoOpen(false); }}
+                style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:200 }}
+              >
+                <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {fOrganismo.length === 0 ? "Microrganismo: Todos" : fOrganismo.length === 1 ? ORGANISMOS.find(o => o.value === fOrganismo[0])?.label.split("–")[0].trim() ?? fOrganismo[0] : `Microrganismo: ${fOrganismo.length} selecionados`}
+                </span>
+                <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+              </button>
+              {fOrganismoOpen && (
+                <div
+                  style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:280, maxHeight:300, overflowY:"auto", padding:"6px 0" }}
+                  onMouseDown={e => e.preventDefault()}
+                >
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fOrganismo.length === 0 ? 600 : 400 }}>
+                    <input type="checkbox" checked={fOrganismo.length === 0} onChange={() => setFOrganismo([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                    Todos
+                  </label>
+                  <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+                  {ORGANISMOS.map(o => (
+                    <label key={o.value} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fOrganismo.includes(o.value) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                      <input
+                        type="checkbox"
+                        checked={fOrganismo.includes(o.value)}
+                        onChange={() => setFOrganismo(prev => prev.includes(o.value) ? prev.filter(x => x !== o.value) : [...prev, o.value])}
+                        style={{ accentColor:"#0F4C75", width:14, height:14 }}
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <select value={fPrecaucao} onChange={e => setFPrecaucao(e.target.value)} style={inpStyle}>
               <option value="Todos">Precaução: Todas</option>
               {Object.keys(PMETA).map(p => <option key={p} value={p}>{p}</option>)}
@@ -1586,7 +1620,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
             </div>
             <button
               type="button"
-              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo("Todos"); setFPrecaucao("Todos"); setFMaterial([]); setFMaterialOpen(false); setSearch(""); }}
+              onClick={() => { setFSetor("Todos"); setFLeito(""); setFDataColeta(""); setFOrganismo([]); setFOrganismoOpen(false); setFPrecaucao("Todos"); setFMaterial([]); setFMaterialOpen(false); setSearch(""); }}
               style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}
             >
               Limpar
