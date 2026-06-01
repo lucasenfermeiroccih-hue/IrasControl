@@ -523,7 +523,7 @@ const CasesInvestigation = () => {
   };
 
   // Finalize investigation
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     if (!conclusao.classificacaoFinal) { toast.error("Classificação final é obrigatória"); setDetailStep(8); return; }
     if (!conclusao.conclusaoEpidemiologica) { toast.error("Conclusão epidemiológica é obrigatória"); setDetailStep(8); return; }
     if (!conclusao.condutas) { toast.error("Condutas são obrigatórias"); setDetailStep(8); return; }
@@ -536,6 +536,15 @@ const CasesInvestigation = () => {
       toast.error(`Complete o checklist (${incompleteChecklist.length} itapens pendentes)`);
       setDetailStep(7);
       return;
+    }
+
+    if (detailCase?.id) {
+      const { error } = await supabase.from("infection_cases").update({
+        status: "closed",
+        confirmation_date: new Date().toISOString().split("T")[0],
+      }).eq("id", detailCase.id);
+      if (error) { toast.error("Erro ao finalizar: " + error.message); return; }
+      await fetchCases();
     }
 
     setInvestigationStatus("closed");
