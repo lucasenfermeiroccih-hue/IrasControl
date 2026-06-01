@@ -158,6 +158,7 @@ const CasesInvestigation = () => {
   // ── Full investigation detail view ──
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStep, setDetailStep] = useState(0);
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
 
   // 1. Identificação
   const [ident, setIdent] = useState({
