@@ -519,18 +519,32 @@ const CasesInvestigation = () => {
   };
 
   // Status change with history
-  const changeInvestigationStatus = (newStatus: string) => {
-    if (!statusJustificativa.trim() && newStatus !== investigationStatus) {
+  const changeInvestigationStatus = async (newStatus: string) => {
+    if (newStatus === investigationStatus) return;
+    if (!statusJustificativa.trim()) {
       toast.error("Informe a justificativa da alteração de status");
       return;
     }
-    setStatusHistory(prev => [...prev, {
-      status: newStatus, user: "Usuário atual", date: new Date().toLocaleString("pt-BR"), justificativa: statusJustificativa,
-    }]);
+    const newHistory = [...statusHistory, {
+      status: newStatus, user: responsavel || "Usuário atual", date: new Date().toLocaleString("pt-BR"), justificativa: statusJustificativa,
+    }];
+    setStatusHistory(newHistory);
     setInvestigationStatus(newStatus);
     setStatusJustificativa("");
+
+    if (editingCaseId) {
+      const updates: any = {
+        status: newStatus as CaseStatus,
+        investigation_data: { ...buildInvestigationData(), statusHistory: newHistory },
+      };
+      if (newStatus === "confirmed") updates.confirmation_date = new Date().toISOString().split("T")[0];
+      const { error } = await supabase.from("infection_cases").update(updates).eq("id", editingCaseId);
+      if (error) { toast.error("Erro ao atualizar status: " + error.message); return; }
+      await fetchCases();
+    }
     toast.success(`Status alterado para: ${newStatus}`);
   };
+
 
   const buildInvestigationData = () => ({
     ident, classif, ocorrencia, criteriosSelecionados, justificativaClinica,
