@@ -462,6 +462,9 @@ export default function IndicadoresDashboard() {
           taxaInfCVC: safeDiv(m.infeccaoCVC, m.utilizacaoCVC, 1000),
           taxaInfVM: safeDiv(m.infeccaoVM, m.utilizacaoVM, 1000),
           taxaInfSVD: safeDiv(m.infeccaoSVD, m.utilizacaoSVD, 1000),
+          taxaUtilCVC: safeDiv(m.utilizacaoCVC, m.numPacienteDiaTotal, 100),
+          taxaUtilVM: safeDiv(m.utilizacaoVM, m.numPacienteDiaTotal, 100),
+          taxaUtilSVD: safeDiv(m.utilizacaoSVD, m.numPacienteDiaTotal, 100),
           infeccoesDispositivo: m.infeccaoCVC + m.infeccaoVM + m.infeccaoSVD,
           tempoPermanencia: safeDiv(
             m.numPacientesUtiInicio + m.numPacienteDiaTotal + m.numDiasUtiSubsequente,
@@ -766,6 +769,16 @@ export default function IndicadoresDashboard() {
             </div>
           )}
           {renderYearComparisonChart("Infecções por Dispositivo (CVC+SVD+VM)", "infeccoesDispositivo", "")}
+
+          {/* Comparativo Anual - Taxa de Utilização dos Dispositivos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {renderYearComparisonChart("Taxa de Utilização CVC", "taxaUtilCVC", "%", "cmpTaxaUtilCVC")}
+            {renderYearComparisonChart("Taxa de Utilização SVD", "taxaUtilSVD", "%", "cmpTaxaUtilSVD")}
+            {renderYearComparisonChart("Taxa de Utilização VM", "taxaUtilVM", "%", "cmpTaxaUtilVM")}
+            {renderYearComparisonChart("Taxa de Infecção CVC", "taxaInfCVC", "‰", "cmpTaxaInfCVC")}
+            {renderYearComparisonChart("Taxa de Infecção SVD", "taxaInfSVD", "‰", "cmpTaxaInfSVD")}
+            {renderYearComparisonChart("Taxa de Infecção VM", "taxaInfVM", "‰", "cmpTaxaInfVM")}
+          </div>
           </div>
         </TabsContent>
 
