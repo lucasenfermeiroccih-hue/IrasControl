@@ -159,8 +159,11 @@ export default function DashboardHygiene() {
 
       {/* Hygiene Sim/Não charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Higienizou? (Sim / Não)</CardTitle></CardHeader>
+        <Card ref={refPie}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Higienizou? (Sim / Não)</CardTitle>
+            <ChartActions chartRef={refPie} chartTitle="Higienizou (Sim/Não)" metaValue={metaPie} onMetaChange={setMetaPie} metaUnit="%" />
+          </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width="100%" height={250}>
@@ -169,7 +172,7 @@ export default function DashboardHygiene() {
                     {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                   </Pie>
                   <Tooltip formatter={(v: number) => v} />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
               {hygieneStats.total > 0 && (
@@ -190,24 +193,33 @@ export default function DashboardHygiene() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Resumo de Higienização</CardTitle></CardHeader>
+        <Card ref={refResumo}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Resumo de Higienização</CardTitle>
+            <ChartActions chartRef={refResumo} chartTitle="Resumo de Higienização" metaValue={metaResumo} onMetaChange={setMetaResumo} />
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={[
                 { name: "Formulários", value: stats.totalAudits },
                 { name: "Com Higienização", value: hygieneStats.sim },
                 { name: "Sem Higienização", value: hygieneStats.nao },
-              ]}>
+              ]} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                 <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="value" name="Quantidade" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="value" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
                   <Cell fill="hsl(199, 89%, 48%)" />
                   <Cell fill="hsl(168, 66%, 34%)" />
                   <Cell fill="hsl(0, 72%, 51%)" />
                 </Bar>
+                {metaResumo !== undefined && (
+                  <ReferenceLine y={metaResumo} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                    label={{ value: `Meta: ${metaResumo}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -215,46 +227,76 @@ export default function DashboardHygiene() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Conformidade por Categoria (%)</CardTitle></CardHeader>
+        <Card ref={refProf}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Comparativo por Profissional (%)</CardTitle>
+            <ChartActions chartRef={refProf} chartTitle="Comparativo por Profissional" metaValue={metaProf} onMetaChange={setMetaProf} metaUnit="%" />
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={stats.categoryData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="compliance" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {professionalData.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Sem dados de profissional informados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={professionalData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number, n: string) => n === "compliance" ? `${v}%` : v} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={() => "Adesão (%)"} />
+                  <Bar dataKey="compliance" name="Adesão (%)" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="compliance" position="top" formatter={(v: number) => `${v}%`} style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
+                  </Bar>
+                  {metaProf !== undefined && (
+                    <ReferenceLine y={metaProf} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                      label={{ value: `Meta: ${metaProf}%`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Conformidade por Setor</CardTitle></CardHeader>
+        <Card ref={refSetor}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Conformidade por Setor (%)</CardTitle>
+            <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
+          </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={stats.sectorData.map(s => ({ name: s.name, value: s.compliance }))} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={3}>
-                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
+            {stats.sectorData.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Sem dados de setor.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={stats.sectorData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => `${v}%`} />
-                </PieChart>
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={() => "Conformidade (%)"} />
+                  <Bar dataKey="compliance" name="Conformidade (%)" radius={[4, 4, 0, 0]}>
+                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <LabelList dataKey="compliance" position="top" formatter={(v: number) => `${v}%`} style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
+                  </Bar>
+                  {metaSetor !== undefined && (
+                    <ReferenceLine y={metaSetor} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                      label={{ value: `Meta: ${metaSetor}%`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                  )}
+                </BarChart>
               </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {stats.sectorData.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-muted-foreground">{d.name}</span>
-                    <span className="font-semibold ml-auto">{d.compliance}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {yearComparisonYears.length > 0 && (
+        <YearComparisonChart
+          title="Adesão à Higienização das Mãos"
+          unit="%"
+          years={yearComparisonYears}
+          data={yearComparisonData}
+          metaValue={metaAno}
+          onMetaChange={setMetaAno}
+        />
+      )}
 
       {stats.topFailures.length > 0 && (
         <Card>
