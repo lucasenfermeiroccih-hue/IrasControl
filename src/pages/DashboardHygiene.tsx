@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, LabelList, ReferenceLine
 } from "recharts";
 import { HandMetal, CheckCircle, AlertTriangle, Users, Loader2, Download, ClipboardCheck, XCircle } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
@@ -11,18 +11,33 @@ import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import ChartActions from "@/components/ChartActions";
+import YearComparisonChart from "@/components/YearComparisonChart";
 
 const COLORS = ["hsl(168, 66%, 34%)", "hsl(199, 89%, 48%)", "hsl(38, 92%, 50%)", "hsl(280, 65%, 60%)", "hsl(0, 72%, 51%)"];
 const PIE_COLORS = ["hsl(168, 66%, 34%)", "hsl(0, 72%, 51%)"];
 
 export default function DashboardHygiene() {
   const { hospitalId } = useHospitalContext();
-  const { stats, items, loading } = useAuditDashboard("hand_hygiene");
+  const { stats, items, audits, loading } = useAuditDashboard("hand_hygiene");
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
+
+  // Metas por gráfico
+  const [metaPie, setMetaPie] = useState<number | undefined>();
+  const [metaResumo, setMetaResumo] = useState<number | undefined>();
+  const [metaProf, setMetaProf] = useState<number | undefined>(90);
+  const [metaSetor, setMetaSetor] = useState<number | undefined>(90);
+  const [metaAno, setMetaAno] = useState<number | undefined>(90);
+
+  // Refs por gráfico
+  const refPie = useRef<HTMLDivElement>(null);
+  const refResumo = useRef<HTMLDivElement>(null);
+  const refProf = useRef<HTMLDivElement>(null);
+  const refSetor = useRef<HTMLDivElement>(null);
 
   // Compute hygiene-specific stats from audit items
   const hygieneStats = useMemo(() => {
@@ -37,6 +52,50 @@ export default function DashboardHygiene() {
     { name: "Sim", value: hygieneStats.sim },
     { name: "Não", value: hygieneStats.nao },
   ], [hygieneStats]);
+
+  // Comparativo por profissional (parseado de observations: "Profissional: X")
+  const professionalData = useMemo(() => {
+    const map: Record<string, { sum: number; count: number }> = {};
+    audits.forEach(a => {
+      const m = a.observations?.match(/Profissional:\s*([^|]+)/i);
+      const prof = (m?.[1] || "Não informado").trim();
+      if (!map[prof]) map[prof] = { sum: 0, count: 0 };
+      map[prof].sum += a.compliance_rate || 0;
+      map[prof].count++;
+    });
+    return Object.entries(map)
+      .map(([name, v]) => ({ name, compliance: Math.round((v.sum / v.count) * 10) / 10, audits: v.count }))
+      .sort((a, b) => b.compliance - a.compliance);
+  }, [audits]);
+
+  // Anos disponíveis e dataset de comparativo anual (média de adesão por mês x ano)
+  const yearComparisonYears = useMemo(() => {
+    const set = new Set<string>();
+    audits.forEach(a => { if (a.audit_date) set.add(a.audit_date.substring(0, 4)); });
+    return Array.from(set).sort();
+  }, [audits]);
+
+  const yearComparisonData = useMemo(() => {
+    const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const acc: Record<number, Record<string, { sum: number; count: number }>> = {};
+    audits.forEach(a => {
+      if (!a.audit_date) return;
+      const y = a.audit_date.substring(0, 4);
+      const mi = parseInt(a.audit_date.substring(5, 7), 10) - 1;
+      if (!acc[mi]) acc[mi] = {};
+      if (!acc[mi][y]) acc[mi][y] = { sum: 0, count: 0 };
+      acc[mi][y].sum += a.compliance_rate || 0;
+      acc[mi][y].count++;
+    });
+    return monthLabels.map((mes, i) => {
+      const row: Record<string, any> = { mes };
+      const monthData = acc[i] || {};
+      yearComparisonYears.forEach(y => {
+        if (monthData[y]) row[y] = Math.round((monthData[y].sum / monthData[y].count) * 10) / 10;
+      });
+      return row;
+    });
+  }, [audits, yearComparisonYears]);
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -100,8 +159,11 @@ export default function DashboardHygiene() {
 
       {/* Hygiene Sim/Não charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Higienizou? (Sim / Não)</CardTitle></CardHeader>
+        <Card ref={refPie}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Higienizou? (Sim / Não)</CardTitle>
+            <ChartActions chartRef={refPie} chartTitle="Higienizou (Sim/Não)" metaValue={metaPie} onMetaChange={setMetaPie} metaUnit="%" />
+          </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width="100%" height={250}>
@@ -110,7 +172,7 @@ export default function DashboardHygiene() {
                     {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                   </Pie>
                   <Tooltip formatter={(v: number) => v} />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
               {hygieneStats.total > 0 && (
@@ -131,24 +193,33 @@ export default function DashboardHygiene() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Resumo de Higienização</CardTitle></CardHeader>
+        <Card ref={refResumo}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Resumo de Higienização</CardTitle>
+            <ChartActions chartRef={refResumo} chartTitle="Resumo de Higienização" metaValue={metaResumo} onMetaChange={setMetaResumo} />
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={[
                 { name: "Formulários", value: stats.totalAudits },
                 { name: "Com Higienização", value: hygieneStats.sim },
                 { name: "Sem Higienização", value: hygieneStats.nao },
-              ]}>
+              ]} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                 <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="value" name="Quantidade" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="value" position="top" style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
                   <Cell fill="hsl(199, 89%, 48%)" />
                   <Cell fill="hsl(168, 66%, 34%)" />
                   <Cell fill="hsl(0, 72%, 51%)" />
                 </Bar>
+                {metaResumo !== undefined && (
+                  <ReferenceLine y={metaResumo} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                    label={{ value: `Meta: ${metaResumo}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -156,46 +227,76 @@ export default function DashboardHygiene() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Conformidade por Categoria (%)</CardTitle></CardHeader>
+        <Card ref={refProf}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Comparativo por Profissional (%)</CardTitle>
+            <ChartActions chartRef={refProf} chartTitle="Comparativo por Profissional" metaValue={metaProf} onMetaChange={setMetaProf} metaUnit="%" />
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={stats.categoryData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="compliance" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {professionalData.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Sem dados de profissional informados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={professionalData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number, n: string) => n === "compliance" ? `${v}%` : v} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={() => "Adesão (%)"} />
+                  <Bar dataKey="compliance" name="Adesão (%)" fill="hsl(168, 66%, 34%)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="compliance" position="top" formatter={(v: number) => `${v}%`} style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
+                  </Bar>
+                  {metaProf !== undefined && (
+                    <ReferenceLine y={metaProf} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                      label={{ value: `Meta: ${metaProf}%`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Conformidade por Setor</CardTitle></CardHeader>
+        <Card ref={refSetor}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Conformidade por Setor (%)</CardTitle>
+            <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
+          </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={stats.sectorData.map(s => ({ name: s.name, value: s.compliance }))} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={3}>
-                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
+            {stats.sectorData.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Sem dados de setor.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={stats.sectorData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => `${v}%`} />
-                </PieChart>
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={() => "Conformidade (%)"} />
+                  <Bar dataKey="compliance" name="Conformidade (%)" radius={[4, 4, 0, 0]}>
+                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <LabelList dataKey="compliance" position="top" formatter={(v: number) => `${v}%`} style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
+                  </Bar>
+                  {metaSetor !== undefined && (
+                    <ReferenceLine y={metaSetor} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2}
+                      label={{ value: `Meta: ${metaSetor}%`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />
+                  )}
+                </BarChart>
               </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {stats.sectorData.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-muted-foreground">{d.name}</span>
-                    <span className="font-semibold ml-auto">{d.compliance}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {yearComparisonYears.length > 0 && (
+        <YearComparisonChart
+          title="Adesão à Higienização das Mãos"
+          unit="%"
+          years={yearComparisonYears}
+          data={yearComparisonData}
+          metaValue={metaAno}
+          onMetaChange={setMetaAno}
+        />
+      )}
 
       {stats.topFailures.length > 0 && (
         <Card>
