@@ -18,7 +18,7 @@ import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
 import { mesesOptions, setorOptions } from "@/data/indicadores-config";
@@ -640,7 +640,7 @@ export default function IndicadoresDashboard() {
                         <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} width={35} />
                         <Tooltip />
-                        <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
+                        <Bar dataKey="taxaInfeccao" name="Taxa Infecção" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} ><LabelList dataKey="taxaInfeccao" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                         {metas.taxaInfeccao !== undefined && <ReferenceLine y={metas.taxaInfeccao} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxaInfeccao}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       </BarChart>
                     </ResponsiveContainer>
@@ -659,8 +659,8 @@ export default function IndicadoresDashboard() {
                         <YAxis tick={{ fontSize: 10 }} width={35} />
                         <Tooltip />
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
-                        <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="numInfeccoes" name="Infecções" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
+                        <Line type="monotone" dataKey="numObitosInfeccao" name="Óbitos" stroke="hsl(262 83% 58%)" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
                         {metas.obitosInfeccoes !== undefined && <ReferenceLine y={metas.obitosInfeccoes} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.obitosInfeccoes}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       </LineChart>
                     </ResponsiveContainer>
@@ -678,7 +678,7 @@ export default function IndicadoresDashboard() {
                         <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} width={35} />
                         <Tooltip />
-                        <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} />
+                        <Bar dataKey="taxaLetalidade" name="Letalidade %" fill="hsl(330 81% 60%)" radius={[4,4,0,0]} ><LabelList dataKey="taxaLetalidade" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                         {metas.taxaLetalidade !== undefined && <ReferenceLine y={metas.taxaLetalidade} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxaLetalidade}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       </BarChart>
                     </ResponsiveContainer>
@@ -729,9 +729,9 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={35} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Bar dataKey="infeccaoCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} />
-                      <Bar dataKey="infeccaoSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
-                      <Bar dataKey="infeccaoVM" name="VM" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} />
+                      <Bar dataKey="infeccaoCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} ><LabelList dataKey="infeccaoCVC" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
+                      <Bar dataKey="infeccaoSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} ><LabelList dataKey="infeccaoSVD" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
+                      <Bar dataKey="infeccaoVM" name="VM" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} ><LabelList dataKey="infeccaoVM" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                       {metas.infCVC !== undefined && <ReferenceLine y={metas.infCVC} stroke="hsl(217 91% 60%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta CVC: ${metas.infCVC}`, position: "right", fontSize: 10, fill: "hsl(217 91% 60%)" }} />}
                       {metas.infSVD !== undefined && <ReferenceLine y={metas.infSVD} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta SVD: ${metas.infSVD}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       {metas.infVM !== undefined && <ReferenceLine y={metas.infVM} stroke="hsl(38 92% 50%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta VM: ${metas.infVM}`, position: "right", fontSize: 10, fill: "hsl(38 92% 50%)" }} />}
@@ -756,9 +756,9 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={35} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="taxaInfCVC" name="CVC ‰" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="taxaInfSVD" name="SVD ‰" stroke="hsl(168 66% 34%)" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="taxaInfVM" name="VM ‰" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="taxaInfCVC" name="CVC ‰" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
+                      <Line type="monotone" dataKey="taxaInfSVD" name="SVD ‰" stroke="hsl(168 66% 34%)" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
+                      <Line type="monotone" dataKey="taxaInfVM" name="VM ‰" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
                       {metas.taxaInfCVC !== undefined && <ReferenceLine y={metas.taxaInfCVC} stroke="hsl(217 91% 60%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta CVC: ${metas.taxaInfCVC}‰`, position: "right", fontSize: 10, fill: "hsl(217 91% 60%)" }} />}
                       {metas.taxaInfSVD !== undefined && <ReferenceLine y={metas.taxaInfSVD} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta SVD: ${metas.taxaInfSVD}‰`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                       {metas.taxaInfVM !== undefined && <ReferenceLine y={metas.taxaInfVM} stroke="hsl(38 92% 50%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta VM: ${metas.taxaInfVM}‰`, position: "right", fontSize: 10, fill: "hsl(38 92% 50%)" }} />}
@@ -808,9 +808,9 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={35} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Bar dataKey="taxaInfVM" name="PAV (VM)" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} />
-                      <Bar dataKey="taxaInfCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} />
-                      <Bar dataKey="taxaInfSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
+                      <Bar dataKey="taxaInfVM" name="PAV (VM)" fill="hsl(38 92% 50%)" radius={[4,4,0,0]} ><LabelList dataKey="taxaInfVM" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
+                      <Bar dataKey="taxaInfCVC" name="CVC" fill="hsl(217 91% 60%)" radius={[4,4,0,0]} ><LabelList dataKey="taxaInfCVC" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
+                      <Bar dataKey="taxaInfSVD" name="SVD" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} ><LabelList dataKey="taxaInfSVD" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                       {metas.taxasPav !== undefined && <ReferenceLine y={metas.taxasPav} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.taxasPav}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
@@ -829,8 +829,8 @@ export default function IndicadoresDashboard() {
                       <YAxis tick={{ fontSize: 10 }} width={35} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Bar dataKey="numInfeccoesImportadas" name="Importadas" fill="hsl(262 83% 58%)" radius={[4,4,0,0]} />
-                      <Bar dataKey="numInfeccoes" name="Hospitalares" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} />
+                      <Bar dataKey="numInfeccoesImportadas" name="Importadas" fill="hsl(262 83% 58%)" radius={[4,4,0,0]} ><LabelList dataKey="numInfeccoesImportadas" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
+                      <Bar dataKey="numInfeccoes" name="Hospitalares" fill="hsl(0 72% 51%)" radius={[4,4,0,0]} ><LabelList dataKey="numInfeccoes" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                       {metas.importadas !== undefined && <ReferenceLine y={metas.importadas} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.importadas}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
@@ -866,7 +866,7 @@ export default function IndicadoresDashboard() {
                       <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} width={40} />
                       <Tooltip />
-                      <Bar dataKey="tempoPermanencia" name="Permanência" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} />
+                      <Bar dataKey="tempoPermanencia" name="Permanência" fill="hsl(168 66% 34%)" radius={[4,4,0,0]} ><LabelList dataKey="tempoPermanencia" position="top" style={{ fontSize: 9, fill: "hsl(var(--foreground))" }} /></Bar>
                       {metas.permanencia !== undefined && <ReferenceLine y={metas.permanencia} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.permanencia}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </BarChart>
                   </ResponsiveContainer>
@@ -884,7 +884,7 @@ export default function IndicadoresDashboard() {
                       <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} width={40} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="taxaUsoAtb" name="Uso ATB %" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="taxaUsoAtb" name="Uso ATB %" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 4 }}  label={{ position: "top", fontSize: 9, fill: "hsl(var(--foreground))" }} />
                       {metas.usoAtb !== undefined && <ReferenceLine y={metas.usoAtb} stroke="hsl(0 72% 51%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.usoAtb}`, position: "right", fontSize: 10, fill: "hsl(0 72% 51%)" }} />}
                     </LineChart>
                   </ResponsiveContainer>
