@@ -1292,6 +1292,11 @@ export const CHECKLISTS_DATA: ChecklistsData = {
   },
 };
 
+// Duplicatas da UTI Adulto com nomes diferentes (mesmo modelo de auditoria)
+CHECKLISTS_DATA.uti_2 = { ...CHECKLISTS_DATA.uti, nome: "UTI 2" };
+CHECKLISTS_DATA.uti_3 = { ...CHECKLISTS_DATA.uti, nome: "UTI 3" };
+CHECKLISTS_DATA.uti_4 = { ...CHECKLISTS_DATA.uti, nome: "UTI 4 (UPO)" };
+
 export function inferSeverity(question: string): "Crítica" | "Maior" | "Menor" {
   const q = question.toLowerCase();
   if (q.includes("higieniz") || q.includes("esteriliz") || q.includes("precaução") || q.includes("epi") || q.includes("invasiv")) return "Crítica";
