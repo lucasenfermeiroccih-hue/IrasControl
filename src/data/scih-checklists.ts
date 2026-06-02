@@ -757,6 +757,9 @@ export const CHECKLISTS_DATA: ChecklistsData = {
       ]},
     ],
   },
+  uti_2: { ...({} as any), nome: "UTI 2", icon: "HeartPulse", grupos: [] },
+  uti_3: { ...({} as any), nome: "UTI 3", icon: "HeartPulse", grupos: [] },
+  uti_4: { ...({} as any), nome: "UTI 4 (UPO)", icon: "HeartPulse", grupos: [] },
   uti_neo: {
     nome: "UTI Neonatal", icon: "HeartPulse",
     grupos: [
