@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HandMetal, FileText, TrendingUp, Droplets, Activity, Loader2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, ComposedChart, Line } from "recharts";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -101,6 +101,16 @@ export default function HygieneConsumptionDashboard() {
     });
     return Object.values(bySetor);
   }, [filtered]);
+
+  const comparativoSetores = useMemo(() => {
+    return tableData.map(r => ({
+      setor: r.setor,
+      adesao: r.com + r.sem > 0 ? Number(((r.com / (r.com + r.sem)) * 100).toFixed(1)) : 0,
+      consumoPD: r.pd > 0 ? Number(((r.alcool + r.sabonete) / r.pd).toFixed(2)) : 0,
+      alcoolPD: r.pd > 0 ? Number((r.alcool / r.pd).toFixed(2)) : 0,
+      sabonetePD: r.pd > 0 ? Number((r.sabonete / r.pd).toFixed(2)) : 0,
+    }));
+  }, [tableData]);
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -233,9 +243,39 @@ export default function HygieneConsumptionDashboard() {
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(v: number) => `${v.toLocaleString("pt-BR")} ML`} />
                       <Legend />
-                      <Bar dataKey="alcool" name="Prep. Alcoólica" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="sabonete" name="Sabonete Líquido" fill="hsl(var(--primary) / 0.5)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="alcool" name="Prep. Alcoólica" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="alcool" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} formatter={(v: number) => v.toLocaleString("pt-BR")} />
+                      </Bar>
+                      <Bar dataKey="sabonete" name="Sabonete Líquido" fill="hsl(var(--primary) / 0.5)" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="sabonete" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} formatter={(v: number) => v.toLocaleString("pt-BR")} />
+                      </Bar>
                     </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {comparativoSetores.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Comparativo entre Setores — Adesão (%) vs Consumo / Paciente-Dia (ML)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[360px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={comparativoSetores} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis dataKey="setor" tick={{ fontSize: 12 }} />
+                      <YAxis yAxisId="left" tick={{ fontSize: 12 }} label={{ value: "Adesão (%)", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} label={{ value: "ML/PD", angle: 90, position: "insideRight", style: { fontSize: 11 } }} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar yAxisId="left" dataKey="adesao" name="Taxa de Adesão (%)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="adesao" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} formatter={(v: number) => `${v}%`} />
+                      </Bar>
+                      <Line yAxisId="right" type="monotone" dataKey="consumoPD" name="Consumo / PD (ML)" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 4 }} label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
