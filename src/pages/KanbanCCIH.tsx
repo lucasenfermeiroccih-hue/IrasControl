@@ -228,10 +228,12 @@ function TarefaCard({
 
 export default function KanbanCCIH() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isAdmin: isAdminHook, loading: adminLoading } = useIsAdmin();
 
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [hospitalUsers, setHospitalUsers] = useState<HospitalUser[]>([]);
+  const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
+  const isAdmin = isAdminHook || isPrimaryAdmin;
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"kanban" | "manage">("kanban");
   const [recurrenceFilter, setRecurrenceFilter] = useState<"all" | "daily" | "weekly" | "monthly" | "once">("all");
