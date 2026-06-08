@@ -805,6 +805,7 @@ export default function DashboardISC() {
                       {barClinicaData.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     </Bar>
                     {metas.clinica !== undefined && (
                       <ReferenceLine y={metas.clinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.clinica}`, position: "right", fontSize: 11 }} />
