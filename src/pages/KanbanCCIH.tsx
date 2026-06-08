@@ -305,6 +305,7 @@ export default function KanbanCCIH() {
         .maybeSingle() as any),
     ]);
     const adminNow = Boolean(isSuper) || Boolean(isHospAdmin) || Boolean((primary as any)?.is_primary_admin);
+    setIsPrimaryAdmin(adminNow);
 
     let query = (supabase.from("kanban_ccih_tarefas" as any).select("*") as any)
       .eq("hospital_id", hospitalId);
