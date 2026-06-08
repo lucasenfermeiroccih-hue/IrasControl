@@ -228,10 +228,12 @@ function TarefaCard({
 
 export default function KanbanCCIH() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isAdmin: isAdminHook, loading: adminLoading } = useIsAdmin();
 
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [hospitalUsers, setHospitalUsers] = useState<HospitalUser[]>([]);
+  const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
+  const isAdmin = isAdminHook || isPrimaryAdmin;
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"kanban" | "manage">("kanban");
   const [recurrenceFilter, setRecurrenceFilter] = useState<"all" | "daily" | "weekly" | "monthly" | "once">("all");
@@ -292,15 +294,46 @@ export default function KanbanCCIH() {
   const loadTarefas = useCallback(async () => {
     if (!hospitalId || !userId) return;
 
+    // Robust admin check (independent of hook timing): role-based OR primary admin of this hospital
+    const [{ data: isSuper }, { data: isHospAdmin }, { data: primary }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+      supabase.rpc("has_role", { _user_id: userId, _role: "hospital_admin" }),
+      (supabase.from("hospital_users" as any)
+        .select("is_primary_admin")
+        .eq("user_id", userId)
+        .eq("hospital_id", hospitalId)
+        .maybeSingle() as any),
+    ]);
+    const adminNow = Boolean(isSuper) || Boolean(isHospAdmin) || Boolean((primary as any)?.is_primary_admin);
+    setIsPrimaryAdmin(adminNow);
+
     let query = (supabase.from("kanban_ccih_tarefas" as any).select("*") as any)
       .eq("hospital_id", hospitalId);
-    if (!isAdmin) query = query.contains("assigned_to_ids", [userId]);
+    if (!adminNow) query = query.contains("assigned_to_ids", [userId]);
     const { data, error } = await query.order("created_at", { ascending: true });
     if (error) { toast.error("Erro ao carregar tarefas"); return; }
 
     const toReset = (data as Tarefa[]).filter(shouldReset).map((t) => t.id);
     if (toReset.length > 0) {
       await (supabase.from("kanban_ccih_tarefas" as any).update({ status: "in_progress" }).in("id", toReset) as any);
+    }
+
+    // Build a name map: prefer hospitalUsers, fall back to a one-off profiles lookup for assignees outside the list
+    const knownIds = new Set(hospitalUsers.map((u) => u.user_id));
+    const missingIds = Array.from(new Set(
+      (data as any[]).flatMap((t) => {
+        const ids: string[] = Array.isArray(t.assigned_to_ids) && t.assigned_to_ids.length > 0
+          ? t.assigned_to_ids
+          : t.assigned_to ? [t.assigned_to] : [];
+        return ids;
+      }).filter((id) => id && !knownIds.has(id))
+    ));
+    const extraNames: Record<string, string> = {};
+    if (missingIds.length > 0) {
+      const { data: profs } = await (supabase.from("profiles" as any)
+        .select("user_id, full_name")
+        .in("user_id", missingIds) as any);
+      (profs as any[] | null)?.forEach((p) => { extraNames[p.user_id] = p.full_name || ""; });
     }
 
     const enriched: Tarefa[] = (data as any[]).map((t) => {
@@ -312,25 +345,26 @@ export default function KanbanCCIH() {
         assigned_to_ids: ids,
         status: toReset.includes(t.id) ? "in_progress" : t.status,
         assigned_to_names: ids
-          .map((id) => hospitalUsers.find((u) => u.user_id === id)?.full_name)
+          .map((id) => hospitalUsers.find((u) => u.user_id === id)?.full_name || extraNames[id])
           .filter(Boolean) as string[],
         source: (t.source ?? "ccih") as "ccih" | "guardiao",
       };
     });
 
     setTarefas(enriched);
-  }, [hospitalId, userId, isAdmin, hospitalUsers]);
+  }, [hospitalId, userId, hospitalUsers]);
 
   useEffect(() => {
     if (ctxLoading || adminLoading || !hospitalId || !userId) return;
     const init = async () => {
       setLoading(true);
-      if (isAdmin) await loadHospitalUsers();
+      // Always load hospital users so admin names show up; cheap query.
+      await loadHospitalUsers();
       await loadTarefas();
       setLoading(false);
     };
     init();
-  }, [ctxLoading, adminLoading, hospitalId, userId, isAdmin]);
+  }, [ctxLoading, adminLoading, hospitalId, userId]);
 
   useEffect(() => {
     if (hospitalUsers.length > 0) loadTarefas();
