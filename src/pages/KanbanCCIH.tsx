@@ -345,6 +345,7 @@ export default function KanbanCCIH() {
         ...t,
         assigned_to_ids: ids,
         status: toReset.includes(t.id) ? "in_progress" : t.status,
+        last_completed_at: toReset.includes(t.id) ? null : t.last_completed_at,
         assigned_to_names: ids
           .map((id) => hospitalUsers.find((u) => u.user_id === id)?.full_name || extraNames[id])
           .filter(Boolean) as string[],
