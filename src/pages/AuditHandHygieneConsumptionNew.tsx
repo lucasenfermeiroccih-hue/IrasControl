@@ -10,7 +10,7 @@ import { HandMetal, Save, Calculator, TrendingUp, Droplets, Users, Loader2 } fro
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-import AuditHistory from "@/components/AuditHistory";
+import HygieneConsumptionHistory from "@/components/HygieneConsumptionHistory";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
