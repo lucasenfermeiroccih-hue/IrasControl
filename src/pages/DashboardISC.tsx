@@ -15,7 +15,7 @@ import {
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
 } from "recharts";
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
