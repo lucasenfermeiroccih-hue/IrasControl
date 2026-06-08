@@ -295,6 +295,33 @@ export default function HospitalUsers() {
     await fetchUsers(hospitalId);
   };
 
+  // --- Delete ---
+  const openDeleteDialog = (user: HospitalUser) => {
+    setDeleteTarget(user);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget || !hospitalId) return;
+    setDeleting(true);
+    const { data, error } = await supabase.functions.invoke("manage-hospital-user", {
+      body: {
+        action: "delete",
+        user_id: deleteTarget.user_id,
+        hospital_id: hospitalId,
+      },
+    });
+    setDeleting(false);
+    if (error || data?.error) {
+      toast.error("Erro ao excluir: " + (data?.error || error?.message));
+      return;
+    }
+    toast.success("Usuário excluído com sucesso");
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+    await fetchUsers(hospitalId);
+  };
+
   const getAssignableRole = (user: HospitalUser) => {
     return (user.user_roles || []).find(
       (r) => r.role !== "super_admin" && r.role !== "hospital_admin"
