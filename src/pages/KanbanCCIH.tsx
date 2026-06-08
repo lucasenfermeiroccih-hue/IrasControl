@@ -314,7 +314,9 @@ export default function KanbanCCIH() {
 
     const toReset = (data as Tarefa[]).filter(shouldReset).map((t) => t.id);
     if (toReset.length > 0) {
-      await (supabase.from("kanban_ccih_tarefas" as any).update({ status: "in_progress" }).in("id", toReset) as any);
+      await (supabase.from("kanban_ccih_tarefas" as any)
+        .update({ status: "in_progress", last_completed_at: null })
+        .in("id", toReset) as any);
     }
 
     // Build a name map: prefer hospitalUsers, fall back to a one-off profiles lookup for assignees outside the list
