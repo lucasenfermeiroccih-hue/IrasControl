@@ -372,6 +372,18 @@ export default function KanbanCCIH() {
     if (hospitalUsers.length > 0) loadTarefas();
   }, [hospitalUsers]);
 
+  // Recheck resets when tab becomes visible and every 5 minutes
+  useEffect(() => {
+    if (ctxLoading || adminLoading || !hospitalId || !userId) return;
+    const onVisible = () => { if (document.visibilityState === "visible") loadTarefas(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(loadTarefas, 5 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(interval);
+    };
+  }, [ctxLoading, adminLoading, hospitalId, userId, loadTarefas]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const handleComplete = async (id: string) => {
