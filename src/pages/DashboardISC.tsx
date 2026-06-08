@@ -15,7 +15,7 @@ import {
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
 } from "recharts";
 import {
   Stethoscope, Phone, AlertTriangle, Activity, Award, Brain,
@@ -740,7 +740,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="telefonico" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_tel !== undefined && (
                         <ReferenceLine y={metas.contatos_tel} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_tel}`, position: "right", fontSize: 11 }} />
                       )}
@@ -754,7 +756,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="ambulatorio" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_amb !== undefined && (
                         <ReferenceLine y={metas.contatos_amb} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_amb}`, position: "right", fontSize: 11 }} />
                       )}
@@ -768,7 +772,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="whatsapp" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_wpp !== undefined && (
                         <ReferenceLine y={metas.contatos_wpp} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_wpp}`, position: "right", fontSize: 11 }} />
                       )}
@@ -799,6 +805,7 @@ export default function DashboardISC() {
                       {barClinicaData.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     </Bar>
                     {metas.clinica !== undefined && (
                       <ReferenceLine y={metas.clinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.clinica}`, position: "right", fontSize: 11 }} />
@@ -822,7 +829,7 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
-                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     {metas.evolucao !== undefined && (
                       <ReferenceLine y={metas.evolucao} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.evolucao}%`, position: "right", fontSize: 11 }} />
                     )}
@@ -867,7 +874,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.reintClinica !== undefined && (
                       <ReferenceLine y={metas.reintClinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintClinica}`, position: "right", fontSize: 11 }} />
                     )}
@@ -893,7 +902,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.reintMes !== undefined && (
                       <ReferenceLine y={metas.reintMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintMes}`, position: "right", fontSize: 11 }} />
                     )}
@@ -916,7 +927,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.iscMes !== undefined && (
                       <ReferenceLine y={metas.iscMes} stroke="hsl(var(--primary))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.iscMes}`, position: "right", fontSize: 11 }} />
                     )}
@@ -932,21 +945,21 @@ export default function DashboardISC() {
                   <ChartActions chartRef={refSitio} chartTitle="Sítio de Cirurgia" metaValue={metas.sitio} onMetaChange={setMeta("sitio")} />
                 </div>
               </CardHeader>
-              <CardContent className="h-[300px]">
+              <CardContent className="h-[340px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 10, right: 70, bottom: 10, left: 70 }}>
                     <Pie
-                      data={sitioData} cx="50%" cy="50%" outerRadius={100}
+                      data={sitioData} cx="50%" cy="50%" outerRadius={80}
                       dataKey="value" nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                      labelLine={{ stroke: "hsl(var(--muted-foreground))" }}
                     >
                       {sitioData.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -966,7 +979,7 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
-                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     {metas.taxaIscMes !== undefined && (
                       <ReferenceLine y={metas.taxaIscMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.taxaIscMes}%`, position: "right", fontSize: 11 }} />
                     )}
