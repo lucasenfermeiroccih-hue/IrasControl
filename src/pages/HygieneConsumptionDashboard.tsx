@@ -102,6 +102,16 @@ export default function HygieneConsumptionDashboard() {
     return Object.values(bySetor);
   }, [filtered]);
 
+  const comparativoSetores = useMemo(() => {
+    return tableData.map(r => ({
+      setor: r.setor,
+      adesao: r.com + r.sem > 0 ? Number(((r.com / (r.com + r.sem)) * 100).toFixed(1)) : 0,
+      consumoPD: r.pd > 0 ? Number(((r.alcool + r.sabonete) / r.pd).toFixed(2)) : 0,
+      alcoolPD: r.pd > 0 ? Number((r.alcool / r.pd).toFixed(2)) : 0,
+      sabonetePD: r.pd > 0 ? Number((r.sabonete / r.pd).toFixed(2)) : 0,
+    }));
+  }, [tableData]);
+
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
