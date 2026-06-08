@@ -21,7 +21,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, UserPlus, Users, RefreshCw, MoreHorizontal,
-  Pencil, UserX, UserCheck, ShieldAlert,
+  Pencil, UserX, UserCheck, ShieldAlert, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
