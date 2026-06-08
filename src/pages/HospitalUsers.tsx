@@ -94,6 +94,11 @@ export default function HospitalUsers() {
   const [confirmTarget, setConfirmTarget] = useState<HospitalUser | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Delete confirmation
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<HospitalUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     if (!isReady || !authUser) return;
     loadHospitalAndUsers();
