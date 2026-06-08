@@ -740,7 +740,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="telefonico" name="Contatos Telefônicos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="telefonico" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_tel !== undefined && (
                         <ReferenceLine y={metas.contatos_tel} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_tel}`, position: "right", fontSize: 11 }} />
                       )}
@@ -754,7 +756,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="ambulatorio" name="Retorno Ambulatório" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="ambulatorio" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_amb !== undefined && (
                         <ReferenceLine y={metas.contatos_amb} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_amb}`, position: "right", fontSize: 11 }} />
                       )}
@@ -768,7 +772,9 @@ export default function DashboardISC() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="whatsapp" name="Retorno WhatsApp" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="whatsapp" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                       {metas.contatos_wpp !== undefined && (
                         <ReferenceLine y={metas.contatos_wpp} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.contatos_wpp}`, position: "right", fontSize: 11 }} />
                       )}
@@ -822,7 +828,7 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
-                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     {metas.evolucao !== undefined && (
                       <ReferenceLine y={metas.evolucao} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.evolucao}%`, position: "right", fontSize: 11 }} />
                     )}
@@ -867,7 +873,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.reintClinica !== undefined && (
                       <ReferenceLine y={metas.reintClinica} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintClinica}`, position: "right", fontSize: 11 }} />
                     )}
@@ -893,7 +901,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Reinternações" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.reintMes !== undefined && (
                       <ReferenceLine y={metas.reintMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.reintMes}`, position: "right", fontSize: 11 }} />
                     )}
@@ -916,7 +926,9 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" name="Infecções de Sítio Cirúrgico" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="value" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    </Bar>
                     {metas.iscMes !== undefined && (
                       <ReferenceLine y={metas.iscMes} stroke="hsl(var(--primary))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.iscMes}`, position: "right", fontSize: 11 }} />
                     )}
@@ -966,7 +978,7 @@ export default function DashboardISC() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis unit="%" />
                     <Tooltip formatter={(v: number) => `${v}%`} />
-                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="taxa" name="Taxa ISC" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }}  label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     {metas.taxaIscMes !== undefined && (
                       <ReferenceLine y={metas.taxaIscMes} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.taxaIscMes}%`, position: "right", fontSize: 11 }} />
                     )}
