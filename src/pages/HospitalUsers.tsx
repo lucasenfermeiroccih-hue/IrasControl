@@ -21,7 +21,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, UserPlus, Users, RefreshCw, MoreHorizontal,
-  Pencil, UserX, UserCheck, ShieldAlert,
+  Pencil, UserX, UserCheck, ShieldAlert, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +93,11 @@ export default function HospitalUsers() {
   const [confirmAction, setConfirmAction] = useState<"deactivate" | "activate">("deactivate");
   const [confirmTarget, setConfirmTarget] = useState<HospitalUser | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Delete confirmation
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<HospitalUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!isReady || !authUser) return;
@@ -287,6 +292,33 @@ export default function HospitalUsers() {
     );
     setConfirmOpen(false);
     setConfirmTarget(null);
+    await fetchUsers(hospitalId);
+  };
+
+  // --- Delete ---
+  const openDeleteDialog = (user: HospitalUser) => {
+    setDeleteTarget(user);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget || !hospitalId) return;
+    setDeleting(true);
+    const { data, error } = await supabase.functions.invoke("manage-hospital-user", {
+      body: {
+        action: "delete",
+        user_id: deleteTarget.user_id,
+        hospital_id: hospitalId,
+      },
+    });
+    setDeleting(false);
+    if (error || data?.error) {
+      toast.error("Erro ao excluir: " + (data?.error || error?.message));
+      return;
+    }
+    toast.success("Usuário excluído com sucesso");
+    setDeleteOpen(false);
+    setDeleteTarget(null);
     await fetchUsers(hospitalId);
   };
 
@@ -518,6 +550,7 @@ export default function HospitalUsers() {
                         </TableCell>
                         <TableCell className="align-top">
                           {!u.is_primary_admin && !isSelf && (
+                            <div className="flex items-center justify-end gap-1">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -545,8 +578,26 @@ export default function HospitalUsers() {
                                   <UserCheck className="h-4 w-4 mr-2" />
                                   Reativar
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => openDeleteDialog(u)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteDialog(u)}
+                              title="Excluir usuário"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -671,6 +722,36 @@ export default function HospitalUsers() {
             >
               {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               {confirmAction === "deactivate" ? "Desativar" : "Reativar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" /> Excluir Usuário
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir permanentemente{" "}
+              <span className="font-medium text-foreground">
+                {deleteTarget?.profiles?.full_name}
+              </span>
+              ? Esta ação não pode ser desfeita. O usuário será removido deste hospital
+              e, caso não pertença a outros hospitais, sua conta será excluída por completo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Excluir Definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

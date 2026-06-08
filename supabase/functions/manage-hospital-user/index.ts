@@ -212,7 +212,33 @@ Deno.serve(async (req) => {
       return json({ success: true, action: "activated" });
     }
 
-    return json({ error: "Invalid action. Use: update, deactivate, activate" }, 400);
+    if (action === "delete") {
+      if (user_id === caller.id) {
+        return json({ error: "You cannot delete yourself" }, 400);
+      }
+
+      // Remove hospital membership
+      await adminClient.from("hospital_users").delete().eq("user_id", user_id).eq("hospital_id", hospital_id);
+
+      // Check if user still belongs to any hospital
+      const { data: otherMemberships } = await adminClient
+        .from("hospital_users")
+        .select("id")
+        .eq("user_id", user_id);
+
+      if (!otherMemberships || otherMemberships.length === 0) {
+        await adminClient.from("user_roles").delete().eq("user_id", user_id);
+        await adminClient.from("profiles").delete().eq("user_id", user_id);
+        const { error: delError } = await adminClient.auth.admin.deleteUser(user_id);
+        if (delError) {
+          return json({ error: `Failed to delete auth user: ${delError.message}` }, 500);
+        }
+      }
+
+      return json({ success: true, action: "deleted" });
+    }
+
+    return json({ error: "Invalid action. Use: update, deactivate, activate, delete" }, 400);
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
