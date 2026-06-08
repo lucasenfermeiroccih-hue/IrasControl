@@ -550,6 +550,7 @@ export default function HospitalUsers() {
                         </TableCell>
                         <TableCell className="align-top">
                           {!u.is_primary_admin && !isSelf && (
+                            <div className="flex items-center justify-end gap-1">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
