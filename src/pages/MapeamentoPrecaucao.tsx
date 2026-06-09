@@ -3062,7 +3062,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                     </tr>
                   </thead>
                   <tbody>
-                    {orgManagement.map((org, i) => {
+                    {orgManagementF.map((org, i) => {
                       const pre = PMETA[org.precaucao] || PMETA.Contato;
                       return (
                         <tr key={org.value} style={{ borderTop:"0.5px solid var(--color-border-tertiary)", background: i%2===0?"transparent":"var(--color-background-secondary)" }}>
