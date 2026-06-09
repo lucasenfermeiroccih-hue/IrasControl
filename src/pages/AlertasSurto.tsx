@@ -236,8 +236,42 @@ export default function AlertasSurto() {
     return () => clearInterval(t)
   }, [])
 
+  /* ── filtros avançados (Setor, Leito, Data Coleta, Precaução, Microorganismo, Material) ── */
+  const [fSetor, setFSetor] = useState<string[]>([]);
+  const [fLeito, setFLeito] = useState<string[]>([]);
+  const [fDataColeta, setFDataColeta] = useState<string[]>([]);
+  const [fPrecaucao, setFPrecaucao] = useState<string[]>([]);
+  const [fOrganismo, setFOrganismo] = useState<string[]>([]);
+  const [fMaterial, setFMaterial] = useState<string[]>([]);
+
+  const matchAdv = useCallback((p: Patient) =>
+    (fSetor.length === 0 || fSetor.includes(p.setor)) &&
+    (fLeito.length === 0 || fLeito.includes(p.leito)) &&
+    (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+    (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
+    (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
+    (fMaterial.length === 0 || fMaterial.includes(p.material)),
+    [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial]);
+
   /* ── derivados ── */
-  const internados = useMemo(() => patients.filter(p => p.status === "Internado"), [patients]);
+  const patientsF = useMemo(() => patients.filter(matchAdv), [patients, matchAdv]);
+  const internados = useMemo(() => patientsF.filter(p => p.status === "Internado"), [patientsF]);
+
+  /* ── opções dos filtros (a partir do dataset completo) ── */
+  const optSetor = useMemo(() => [...new Set(patients.map(p => p.setor).filter(Boolean))].sort(), [patients]);
+  const optLeito = useMemo(() => [...new Set(patients.map(p => p.leito).filter(Boolean))].sort(), [patients]);
+  const optData  = useMemo(() => [...new Set(patients.map(p => p.dataColeta).filter(Boolean))].sort().reverse(), [patients]);
+  const optPrec  = ["Contato", "Gotículas", "Aerossóis"];
+  const optOrg   = useMemo(() => {
+    const used = [...new Set(patients.map(p => p.organismo).filter(Boolean))];
+    return [...new Set([...used, ...MICROORGANISMS])];
+  }, [patients]);
+  const optMat   = useMemo(() => [...new Set(patients.map(p => p.material).filter(Boolean))].sort(), [patients]);
+
+  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length;
+  const clearAllFilters = () => {
+    setFSetor([]); setFLeito([]); setFDataColeta([]); setFPrecaucao([]); setFOrganismo([]); setFMaterial([]);
+  };
 
   const alertas = useMemo((): Alerta[] => {
     const map: Record<string, Patient[]> = {};
