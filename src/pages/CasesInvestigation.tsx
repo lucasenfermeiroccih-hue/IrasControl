@@ -705,7 +705,7 @@ const CasesInvestigation = () => {
         </div>
 
         <div className="mt-6 space-y-4 max-w-5xl">
-            {detailStep === 0 && (
+            {(detailStep === 0 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -733,7 +733,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 1: Classificação do Evento ── */}
-            {detailStep === 1 && (
+            {(detailStep === 1 || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4 text-primary" />Classificação do Evento</CardTitle></CardHeader>
@@ -812,7 +812,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 2: Dados da Ocorrência ── */}
-            {detailStep === 2 && (
+            {(detailStep === 2 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Dados da Ocorrência</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -833,7 +833,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 3: Critérios Diagnósticos ── */}
-            {detailStep === 3 && (
+            {(detailStep === 3 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Stethoscope className="h-4 w-4 text-primary" />Critérios Diagnósticos Padronizados</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -859,7 +859,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 4: Lab ── */}
-            {detailStep === 4 && (
+            {(detailStep === 4 || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -918,7 +918,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 5: Dispositivos & Fatores de Risco ── */}
-            {detailStep === 5 && (
+            {(detailStep === 5 || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos Invasivos</CardTitle></CardHeader>
@@ -967,7 +967,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 6: Cirurgias ── */}
-            {detailStep === 6 && (
+            {(detailStep === 6 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Procedimentos Cirúrgicos e Exposições</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -994,7 +994,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 7: Checklist ── */}
-            {detailStep === 7 && (
+            {(detailStep === 7 || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -1025,7 +1025,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 8: Conclusão ── */}
-            {detailStep === 8 && (
+            {(detailStep === 8 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" />Conclusão e Encerramento</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
