@@ -690,7 +690,7 @@ const CasesInvestigation = () => {
             <div><span className="text-muted-foreground">Origem:</span> <span className="font-medium">{ident.origem || "—"}</span></div>
           </div>
           {/* Step nav */}
-          <div className="mt-3 ml-10">
+          <div className="mt-3 ml-10 print:hidden">
             <Progress value={detailProgress} className="h-1.5 mb-2" />
             <div className="flex gap-1 overflow-x-auto pb-1">
               {DETAIL_STEPS.map((s, i) => (
