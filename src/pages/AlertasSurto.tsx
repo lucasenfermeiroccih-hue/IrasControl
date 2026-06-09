@@ -603,7 +603,7 @@ Responda SOMENTE em JSON válido:
         ) : (
           <>
             {/* ══ FILTROS AVANÇADOS ══ */}
-            <div className="gl" style={{ padding:"14px 16px", marginBottom:16 }}>
+            <div className="gl dark" style={{ padding:"14px 16px", marginBottom:16 }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, flexWrap:"wrap" }}>
                 <Filter size={14} style={{ color: subText }} />
                 <span style={{ fontSize:12, fontWeight:700, color: textColor, textTransform:"uppercase", letterSpacing:"0.5px" }}>Filtros</span>
