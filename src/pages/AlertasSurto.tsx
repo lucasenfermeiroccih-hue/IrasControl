@@ -607,9 +607,9 @@ Responda SOMENTE em JSON válido:
               {[
                 { lbl:"Suspeitos",      val: internados.length,                                        c:"rgba(255,255,255,0.8)",  acc:"#38bdf8" },
                 { lbl:"Confirmados",    val: alertas.reduce((s,a)=>s+a.count,0),                       c:"#f87171",                acc:"#ef4444" },
-                { lbl:"Descartados",    val: patients.filter(p=>p.status!=="Internado").length,         c:"#6ee7b7",                acc:"#10b981" },
+                { lbl:"Descartados",    val: patientsF.filter(p=>p.status!=="Internado").length,        c:"#6ee7b7",                acc:"#10b981" },
                 { lbl:"Isolados",       val: alertas.reduce((s,a)=>s+a.count,0),                       c:"#fde68a",                acc:"#f59e0b" },
-                { lbl:"Óbitos",         val: patients.filter(p=>p.status==="Óbito").length,            c:"#fca5a5",                acc:"#ef4444" },
+                { lbl:"Óbitos",         val: patientsF.filter(p=>p.status==="Óbito").length,           c:"#fca5a5",                acc:"#ef4444" },
                 { lbl:"Higiene mãos",   val: "68%",                                                    c:"#a5b4fc",                acc:"#6366f1" },
                 { lbl:"Bundles",        val: "74%",                                                    c:"#86efac",                acc:"#22c55e" },
                 { lbl:"EPI correto",    val: "81%",                                                    c:"#7dd3fc",                acc:"#0ea5e9" },
