@@ -1412,6 +1412,207 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
     ["microorganismos","Microrganismos"],
   ];
 
+  const advFiltersBlock = (
+    <div className="np" style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14, alignItems:"center" }}>
+      {/* Setor */}
+      <div ref={fSetorRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFSetorOpen(o => !o)}
+          onBlur={e => { if (!fSetorRef.current?.contains(e.relatedTarget as Node)) setFSetorOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fSetor.length === 0 ? "Setor: Todos" : fSetor.length === 1 ? fSetor[0] : `Setor: ${fSetor.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fSetorOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:220, maxHeight:280, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fSetor.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fSetor.length === 0} onChange={() => setFSetor([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {SETORES.map(s => (
+              <label key={s} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fSetor.includes(s) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                <input type="checkbox" checked={fSetor.includes(s)}
+                  onChange={() => setFSetor(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                  style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                {s}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Leito */}
+      <div ref={fLeitoRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFLeitoOpen(o => !o)}
+          onBlur={e => { if (!fLeitoRef.current?.contains(e.relatedTarget as Node)) setFLeitoOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:140 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fLeito.length === 0 ? "Leito: Todos" : fLeito.length === 1 ? `Leito ${fLeito[0]}` : `Leito: ${fLeito.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fLeitoOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:160, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fLeito.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fLeito.length === 0} onChange={() => setFLeito([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {availableLeitos.length === 0
+              ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhum leito cadastrado</div>
+              : availableLeitos.map(l => (
+                <label key={l} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fLeito.includes(l) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                  <input type="checkbox" checked={fLeito.includes(l)}
+                    onChange={() => setFLeito(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])}
+                    style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                  Leito {l}
+                </label>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Data de Coleta */}
+      <div ref={fDataColetaRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFDataColetaOpen(o => !o)}
+          onBlur={e => { if (!fDataColetaRef.current?.contains(e.relatedTarget as Node)) setFDataColetaOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:170 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fDataColeta.length === 0 ? "Data coleta: Todas" : fDataColeta.length === 1 ? fDataColeta[0].split("-").reverse().join("/") : `Datas: ${fDataColeta.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fDataColetaOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:180, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fDataColeta.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fDataColeta.length === 0} onChange={() => setFDataColeta([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todas as datas
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {availableDatas.length === 0
+              ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhuma data disponível</div>
+              : availableDatas.map(d => (
+                <label key={d} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fDataColeta.includes(d) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                  <input type="checkbox" checked={fDataColeta.includes(d)}
+                    onChange={() => setFDataColeta(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                    style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                  {d.split("-").reverse().join("/")}
+                </label>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Precaução */}
+      <div ref={fPrecaucaoRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFPrecaucaoOpen(o => !o)}
+          onBlur={e => { if (!fPrecaucaoRef.current?.contains(e.relatedTarget as Node)) setFPrecaucaoOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fPrecaucao.length === 0 ? "Precaução: Todas" : fPrecaucao.length === 1 ? fPrecaucao[0] : `Precaução: ${fPrecaucao.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fPrecaucaoOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:180, maxHeight:220, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fPrecaucao.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fPrecaucao.length === 0} onChange={() => setFPrecaucao([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todas
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {Object.entries(PMETA).map(([p, m]) => (
+              <label key={p} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fPrecaucao.includes(p) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                <input type="checkbox" checked={fPrecaucao.includes(p)}
+                  onChange={() => setFPrecaucao(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                  style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                <span style={{ color: m.color, fontWeight:500 }}>{m.icon} {p}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Microrganismo */}
+      <div ref={fOrganismoRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFOrganismoOpen(o => !o)}
+          onBlur={e => { if (!fOrganismoRef.current?.contains(e.relatedTarget as Node)) setFOrganismoOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:200 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fOrganismo.length === 0 ? "Microrganismo: Todos" : fOrganismo.length === 1 ? ORGANISMOS.find(o => o.value === fOrganismo[0])?.label.split("–")[0].trim() ?? fOrganismo[0] : `Microrganismo: ${fOrganismo.length} selecionados`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fOrganismoOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:280, maxHeight:300, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fOrganismo.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fOrganismo.length === 0} onChange={() => setFOrganismo([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {ORGANISMOS.map(o => (
+              <label key={o.value} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fOrganismo.includes(o.value) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                <input type="checkbox" checked={fOrganismo.includes(o.value)}
+                  onChange={() => setFOrganismo(prev => prev.includes(o.value) ? prev.filter(x => x !== o.value) : [...prev, o.value])}
+                  style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Material */}
+      <div ref={fMaterialRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFMaterialOpen(o => !o)}
+          onBlur={e => { if (!fMaterialRef.current?.contains(e.relatedTarget as Node)) setFMaterialOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:160 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fMaterial.length === 0 ? "Material: Todos" : fMaterial.length === 1 ? fMaterial[0] : `Material: ${fMaterial.length} selecionados`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fMaterialOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:200, maxHeight:260, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fMaterial.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fMaterial.length === 0} onChange={() => setFMaterial([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {MATERIAIS.map(m => (
+              <label key={m} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fMaterial.includes(m) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                <input type="checkbox" checked={fMaterial.includes(m)}
+                  onChange={() => setFMaterial(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                  style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                {m}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button type="button"
+        onClick={() => { setFSetor([]); setFSetorOpen(false); setFLeito([]); setFLeitoOpen(false); setFDataColeta([]); setFDataColetaOpen(false); setFOrganismo([]); setFOrganismoOpen(false); setFPrecaucao([]); setFPrecaucaoOpen(false); setFMaterial([]); setFMaterialOpen(false); }}
+        style={{ padding:"7px 12px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", fontSize:11, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+        Limpar
+      </button>
+    </div>
+  );
+
+
   return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"var(--color-background-tertiary)", minHeight:"100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
