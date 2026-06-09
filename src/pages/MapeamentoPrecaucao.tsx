@@ -3049,7 +3049,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <div style={{ marginBottom:16 }}>
                 <h1 style={{ margin:0, fontSize:19, fontWeight:600, color:"var(--color-text-primary)" }}>Gestão de Microrganismos</h1>
                 <p style={{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" }}>
-                  Visão por agente etiológico · {orgManagement.length} identificado{orgManagement.length !== 1 ? "s" : ""}
+                  Visão por agente etiológico · {orgManagementF.length} identificado{orgManagementF.length !== 1 ? "s" : ""}
                 </p>
               </div>
               <div style={{ background:"var(--color-background-primary)", borderRadius:12, border:"0.5px solid var(--color-border-tertiary)", overflow:"hidden" }}>
