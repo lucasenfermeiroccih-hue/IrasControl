@@ -2079,6 +2079,10 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
             </div>
           </div>
 
+          {advFiltersBlock}
+
+
+
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:20 }}>
             {[
               { lbl:"Em Isolamento", val:dashCntTotal,     c:"#0F4C75", bg:"#EFF6FF" },
