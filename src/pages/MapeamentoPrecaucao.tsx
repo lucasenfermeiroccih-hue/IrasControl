@@ -1238,7 +1238,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
   /* ── alerts ── */
   const alertas = useMemo(() => {
     const clusterMap: Record<string, Patient[]> = {};
-    internados.forEach(p => {
+    internadosA.forEach(p => {
       const key = `${p.setor}||${p.organismo}`;
       if (!clusterMap[key]) clusterMap[key] = [];
       clusterMap[key].push(p);
@@ -1261,23 +1261,23 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
         };
       })
       .sort((a, b) => b.count - a.count);
-  }, [patients]);
+  }, [internadosA]);
 
   /* ── adherence data for alertas radar chart ── */
   const adherenceData = useMemo(() => [
     { name: "Higiene mãos", value: 68 },
     { name: "Bundles", value: 74 },
     { name: "EPI", value: 81 },
-    { name: "Isolamento", value: internados.length > 0 ? Math.min(99, Math.round(alertas.reduce((s: number, a: any) => s + a.count, 0) / Math.max(1, internados.length) * 100)) : 72 },
+    { name: "Isolamento", value: internadosA.length > 0 ? Math.min(99, Math.round(alertas.reduce((s: number, a: any) => s + a.count, 0) / Math.max(1, internadosA.length) * 100)) : 72 },
     { name: "Limpeza", value: 72 },
     { name: "Sinalização", value: 79 },
-  ], [internados, alertas])
+  ], [internadosA, alertas])
 
   /* ── epi curve data for alertas tab ── */
   const epiDataA = useMemo(() => {
-    if (!internados.length) return []
+    if (!internadosA.length) return []
     const byDate: Record<string, number> = {}
-    internados.forEach((p: Patient) => {
+    internadosA.forEach((p: Patient) => {
       if (p.dataColeta) byDate[p.dataColeta] = (byDate[p.dataColeta] || 0) + 1
     })
     let acc = 0
@@ -1285,12 +1285,12 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
       acc += n
       return { date: fmt(date), novos: n, acumulado: acc }
     })
-  }, [internados])
+  }, [internadosA])
 
   /* ── org pie data for alertas tab ── */
   const orgDataA = useMemo(() => {
     const m: Record<string, number> = {}
-    internados.forEach((p: Patient) => {
+    internadosA.forEach((p: Patient) => {
       if (p.organismo) {
         const found = ORGANISMOS.find(o => o.value === p.organismo)
         const label = found ? found.label.split("–")[0].trim() : p.organismo
@@ -1298,27 +1298,27 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
       }
     })
     return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name: name.slice(0, 18), value }))
-  }, [internados])
+  }, [internadosA])
 
   /* ── setores alertas tab ── */
-  const setoresA = useMemo(() => [...new Set(internados.map((p: Patient) => p.setor))].filter(Boolean).sort() as string[], [internados])
+  const setoresA = useMemo(() => [...new Set(internadosA.map((p: Patient) => p.setor))].filter(Boolean).sort() as string[], [internadosA])
 
   /* ── setorData for alertas tab ── */
   const setorDataA = useMemo(() =>
     setoresA.map((s: string) => ({
       setor: s.length > 18 ? s.slice(0, 18) + "…" : s,
-      total: internados.filter((p: Patient) => p.setor === s).length,
+      total: internadosA.filter((p: Patient) => p.setor === s).length,
       surto: alertas.filter((a: any) => a.setor === s && a.nivel === "surto").length > 0,
     })).sort((a, b) => b.total - a.total).slice(0, 10),
-  [internados, setoresA, alertas])
+  [internadosA, setoresA, alertas])
 
   /* ── bed map for alertas tab ── */
   const bedMapA = useMemo(() => {
-    const filtered = activeSetorAlerta ? internados.filter((p: Patient) => p.setor === activeSetorAlerta) : internados
+    const filtered = activeSetorAlerta ? internadosA.filter((p: Patient) => p.setor === activeSetorAlerta) : internadosA
     const bySetor: Record<string, Patient[]> = {}
     filtered.forEach((p: Patient) => { (bySetor[p.setor] = bySetor[p.setor] || []).push(p) })
     return bySetor
-  }, [internados, activeSetorAlerta])
+  }, [internadosA, activeSetorAlerta])
 
   /* ── organism management ── */
   const orgManagement = useMemo(() =>
@@ -1333,6 +1333,21 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
       .filter(o => o.total > 0)
       .sort((a, b) => b.active - a.active || b.total - a.total),
   [patients]);
+
+  /* ── organism management (filtrado para aba microrganismos) ── */
+  const orgManagementF = useMemo(() =>
+    ORGANISMOS
+      .map(org => {
+        const allPats  = patientsA.filter(p => p.organismo === org.value);
+        const activePats = internadosA.filter(p => p.organismo === org.value);
+        const setores  = [...new Set(allPats.map(p => p.setor))];
+        const mats     = [...new Set(allPats.map(p => p.material).filter(Boolean))];
+        return { ...org, total: allPats.length, active: activePats.length, setores, mats, pacientes: allPats };
+      })
+      .filter(o => o.total > 0)
+      .sort((a, b) => b.active - a.active || b.total - a.total),
+  [patientsA, internadosA]);
+
 
   /* ── report ── */
   const reportData = useMemo(() => ({
