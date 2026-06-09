@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download, Info,
   FileText, Syringe, ShieldAlert, ClipboardList, User, Save, CheckCircle2, XCircle, Trash2,
-  ChevronLeft, ChevronRight, Stethoscope, Activity
+  ChevronLeft, ChevronRight, Stethoscope, Activity, Printer
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
@@ -158,6 +158,7 @@ const CasesInvestigation = () => {
   // ── Full investigation detail view ──
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStep, setDetailStep] = useState(0);
+  const [printMode, setPrintMode] = useState(false);
   const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
 
   // 1. Identificação
@@ -651,7 +652,7 @@ const CasesInvestigation = () => {
         <div className="sticky top-0 z-10 bg-background border-b p-4 -mx-4 md:-mx-6 -mt-4 md:-mt-6 px-4 md:px-6">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailOpen(false)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 print:hidden" onClick={() => setDetailOpen(false)}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <User className="h-5 w-5 text-primary" />
@@ -661,6 +662,22 @@ const CasesInvestigation = () => {
                 {investigationStatus === "open" ? "Notificado" : investigationStatus === "investigating" ? "Em Investigação" : investigationStatus === "confirmed" ? "Confirmado" : investigationStatus === "closed" ? "Encerrado" : investigationStatus}
               </Badge>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 print:hidden"
+              onClick={() => {
+                setPrintMode(true);
+                setTimeout(() => {
+                  window.print();
+                  setPrintMode(false);
+                }, 200);
+              }}
+              title="Imprimir investigação completa"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-4 gap-y-1 text-xs ml-10">
             <div><span className="text-muted-foreground">Prontuário:</span> <span className="font-medium">{ident.prontuario || "—"}</span></div>
@@ -673,7 +690,7 @@ const CasesInvestigation = () => {
             <div><span className="text-muted-foreground">Origem:</span> <span className="font-medium">{ident.origem || "—"}</span></div>
           </div>
           {/* Step nav */}
-          <div className="mt-3 ml-10">
+          <div className="mt-3 ml-10 print:hidden">
             <Progress value={detailProgress} className="h-1.5 mb-2" />
             <div className="flex gap-1 overflow-x-auto pb-1">
               {DETAIL_STEPS.map((s, i) => (
@@ -688,7 +705,7 @@ const CasesInvestigation = () => {
         </div>
 
         <div className="mt-6 space-y-4 max-w-5xl">
-            {detailStep === 0 && (
+            {(detailStep === 0 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -716,7 +733,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 1: Classificação do Evento ── */}
-            {detailStep === 1 && (
+            {(detailStep === 1 || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4 text-primary" />Classificação do Evento</CardTitle></CardHeader>
@@ -795,7 +812,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 2: Dados da Ocorrência ── */}
-            {detailStep === 2 && (
+            {(detailStep === 2 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Dados da Ocorrência</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -816,7 +833,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 3: Critérios Diagnósticos ── */}
-            {detailStep === 3 && (
+            {(detailStep === 3 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Stethoscope className="h-4 w-4 text-primary" />Critérios Diagnósticos Padronizados</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -842,7 +859,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 4: Lab ── */}
-            {detailStep === 4 && (
+            {(detailStep === 4 || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -901,7 +918,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 5: Dispositivos & Fatores de Risco ── */}
-            {detailStep === 5 && (
+            {(detailStep === 5 || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos Invasivos</CardTitle></CardHeader>
@@ -950,7 +967,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 6: Cirurgias ── */}
-            {detailStep === 6 && (
+            {(detailStep === 6 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Procedimentos Cirúrgicos e Exposições</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -977,7 +994,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 7: Checklist ── */}
-            {detailStep === 7 && (
+            {(detailStep === 7 || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -1008,7 +1025,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 8: Conclusão ── */}
-            {detailStep === 8 && (
+            {(detailStep === 8 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" />Conclusão e Encerramento</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
@@ -1055,7 +1072,7 @@ const CasesInvestigation = () => {
             )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t p-3">
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t p-3 print:hidden">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={detailStep === 0} onClick={() => setDetailStep(s => s - 1)}>
