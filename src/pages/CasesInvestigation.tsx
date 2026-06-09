@@ -667,12 +667,11 @@ const CasesInvestigation = () => {
               size="sm"
               className="gap-2 print:hidden"
               onClick={() => {
-                // Mostra todas as etapas para impressão
-                document.body.classList.add("printing-investigation");
+                setPrintMode(true);
                 setTimeout(() => {
                   window.print();
-                  document.body.classList.remove("printing-investigation");
-                }, 100);
+                  setPrintMode(false);
+                }, 200);
               }}
               title="Imprimir investigação completa"
             >
