@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download, Info,
   FileText, Syringe, ShieldAlert, ClipboardList, User, Save, CheckCircle2, XCircle, Trash2,
-  ChevronLeft, ChevronRight, Stethoscope, Activity
+  ChevronLeft, ChevronRight, Stethoscope, Activity, Printer
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
