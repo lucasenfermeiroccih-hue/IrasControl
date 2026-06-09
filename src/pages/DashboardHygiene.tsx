@@ -181,10 +181,10 @@ export default function DashboardHygiene() {
           <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
-            ins.push(`📊 Taxa de adesão geral de ${stats.avgCompliance}% com ${stats.totalAudits} formulários.`);
+            ins.push(`📊 Taxa de adesão geral de ${fStats.avgCompliance}% com ${fStats.totalAudits} formulários.`);
             ins.push(`✅ ${hygieneStats.sim} instâncias com higienização realizada.`);
             ins.push(`❌ ${hygieneStats.nao} instâncias sem higienização.`);
-            if (stats.topFailures.length > 0) ins.push(`🔻 Item mais crítico: "${stats.topFailures[0].item}".`);
+            if (fStats.topFailures.length > 0) ins.push(`🔻 Item mais crítico: "${fStats.topFailures[0].item}".`);
             ins.push("💡 Recomendação: feedback em tempo real e campanhas focadas nos momentos mais frágeis.");
             return ins;
           }} />
@@ -253,7 +253,7 @@ export default function DashboardHygiene() {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={[
-                { name: "Formulários", value: stats.totalAudits },
+                { name: "Formulários", value: fStats.totalAudits },
                 { name: "Com Higienização", value: hygieneStats.sim },
                 { name: "Sem Higienização", value: hygieneStats.nao },
               ]} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
@@ -314,18 +314,18 @@ export default function DashboardHygiene() {
             <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
           </CardHeader>
           <CardContent>
-            {stats.sectorData.length === 0 ? (
+            {fStats.sectorData.length === 0 ? (
               <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Sem dados de setor.</div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={stats.sectorData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
+                <BarChart data={fStats.sectorData} margin={{ top: 24, right: 16, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => `${v}%`} />
                   <Legend wrapperStyle={{ fontSize: 12 }} formatter={() => "Conformidade (%)"} />
                   <Bar dataKey="compliance" name="Conformidade (%)" radius={[4, 4, 0, 0]}>
-                    {stats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    {fStats.sectorData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     <LabelList dataKey="compliance" position="top" formatter={(v: number) => `${v}%`} style={{ fontSize: 11, fill: "hsl(var(--foreground))" }} />
                   </Bar>
                   {metaSetor !== undefined && (
@@ -350,11 +350,11 @@ export default function DashboardHygiene() {
         />
       )}
 
-      {stats.topFailures.length > 0 && (
+      {fStats.topFailures.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-base">Principais Não Conformidades</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {stats.topFailures.map((f, i) => (
+            {fStats.topFailures.map((f, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">{i + 1}</span>
@@ -367,7 +367,7 @@ export default function DashboardHygiene() {
         </Card>
       )}
 
-      {stats.totalAudits === 0 && (
+      {fStats.totalAudits === 0 && (
         <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground"><p className="text-sm">Nenhuma auditoria de higienização registrada.</p></CardContent></Card>
       )}
     </div>
