@@ -821,6 +821,60 @@ Regras:
     );
   }
 
+  async function printCronograma() {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cronograma de Auditorias", margin, 18);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(110);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, margin, 24);
+    doc.setTextColor(0);
+
+    let y = 34;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(26, 158, 117);
+    doc.setTextColor(255);
+    doc.rect(margin, y - 5, pageW - margin * 2, 8, "F");
+    doc.text("Setor", margin + 2, y);
+    doc.text("Tipo", margin + 80, y);
+    doc.text("Responsável", margin + 115, y);
+    doc.text("Data", margin + 150, y);
+    doc.text("Status", margin + 172, y);
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "normal");
+    y += 8;
+
+    if (appData.cronograma.length === 0) {
+      doc.setTextColor(120);
+      doc.text("Nenhum agendamento cadastrado.", margin, y);
+    } else {
+      appData.cronograma.forEach((c, i) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        if (i % 2 === 0) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y - 5, pageW - margin * 2, 8, "F");
+        }
+        const setor = CHECKLISTS_DATA[c.setor]?.nome || c.setor || "-";
+        doc.text(String(setor).slice(0, 45), margin + 2, y);
+        doc.text(String(c.tipo || "-").slice(0, 20), margin + 80, y);
+        doc.text(String(c.resp || "-").slice(0, 20), margin + 115, y);
+        doc.text(String(c.data || "-"), margin + 150, y);
+        doc.setTextColor(c.realizado ? 26 : 200, c.realizado ? 158 : 120, c.realizado ? 117 : 0);
+        doc.text(c.realizado ? "Realizado" : "Pendente", margin + 172, y);
+        doc.setTextColor(0);
+        y += 8;
+      });
+    }
+
+    doc.save(`cronograma-auditorias-${new Date().toISOString().split("T")[0]}.pdf`);
+  }
+
   function renderCronograma() {
     return (
       <div>
@@ -829,7 +883,10 @@ Regras:
             <div className="scih-page-title">Cronograma de Auditorias</div>
             <div className="scih-page-sub">Gerencie os agendamentos de visitas e auditorias</div>
           </div>
-          <button className="scih-btn scih-btn-teal" onClick={() => setShowCronoModal(true)}>+ Agendar</button>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="scih-btn scih-btn-outline" onClick={printCronograma} title="Imprimir cronograma em PDF" aria-label="Imprimir cronograma em PDF">🖨️ Imprimir PDF</button>
+            <button className="scih-btn scih-btn-teal" onClick={() => setShowCronoModal(true)}>+ Agendar</button>
+          </div>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           {appData.cronograma.length === 0 && <div className="scih-card" style={{ color:"var(--text2)", fontSize:13 }}>Nenhum agendamento cadastrado.</div>}
