@@ -12,8 +12,9 @@ import {
 import {
   HandMetal, CheckCircle2, AlertTriangle, ClipboardCheck, Loader2, Download,
   XCircle, AlertCircle, Target, TrendingUp, ArrowRight, Brain, ClipboardList,
-  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck,
+  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck, RefreshCw,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
 import ChartActions from "@/components/ChartActions";
