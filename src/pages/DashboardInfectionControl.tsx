@@ -284,6 +284,27 @@ export default function DashboardInfectionControl() {
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
   const [selectedIshikawa, setSelectedIshikawa] = useState<string | null>(null);
+  const [ishikawaKey, setIshikawaKey] = useState(0);
+
+  const [metas, setMetas] = useState<Record<string, number | undefined>>({
+    evolucao: 85, categoria: 85, setor: 85, pareto: 80, radar: 85,
+  });
+  const setMeta = (k: string, v: number | undefined) => setMetas(p => ({ ...p, [k]: v }));
+
+  const refs = {
+    evolucao: useRef<HTMLDivElement>(null),
+    categoria: useRef<HTMLDivElement>(null),
+    setor: useRef<HTMLDivElement>(null),
+    pareto: useRef<HTMLDivElement>(null),
+    radar: useRef<HTMLDivElement>(null),
+    ishikawa: useRef<HTMLDivElement>(null),
+  };
+
+  const handleRefreshIshikawa = () => {
+    setSelectedIshikawa(null);
+    setIshikawaKey(k => k + 1);
+    toast.success("Análise de causa raiz atualizada");
+  };
 
   // ── Derived metrics ──
   const derived = useMemo(() => {
