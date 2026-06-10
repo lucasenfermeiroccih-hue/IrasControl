@@ -320,9 +320,9 @@ export default function DashboardAntimicrobials() {
                     </TableRow>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
+
         </CardContent>
       </Card>
 
