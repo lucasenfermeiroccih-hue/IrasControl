@@ -206,7 +206,8 @@ export default function DashboardAntimicrobials() {
   ];
 
   return (
-    <div className="space-y-4 md:space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6 w-full">
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Dashboard — Antimicrobianos</h1>
@@ -273,58 +274,55 @@ export default function DashboardAntimicrobials() {
             <Button size="sm" variant="outline" onClick={openNew} className="gap-1 h-7 text-xs"><Plus className="h-3 w-3" /> Nova</Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0 md:p-6 md:pt-0">
-          <div className="overflow-x-auto">
-            <Table className="text-sm">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead>Leito</TableHead>
-                  <TableHead>Antimicrobiano</TableHead>
-                  <TableHead>Dose</TableHead>
-                  <TableHead className="text-center">Via</TableHead>
-                  <TableHead>Início</TableHead>
-                  <TableHead>Término</TableHead>
-                  <TableHead className="text-center">Dias</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead>Indicação</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {prescriptions.slice(0, 20).map((p) => {
-                  const days = daysBetween(p.start_date, p.end_date);
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium whitespace-nowrap">{p.patients?.full_name || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{p.patients?.sector || "—"}</TableCell>
-                      <TableCell>{p.patients?.bed || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{p.drug_name}</TableCell>
-                      <TableCell>{p.dose || "—"}</TableCell>
-                      <TableCell className="text-center">{p.route || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{p.start_date ? format(parseISO(p.start_date), "dd/MM/yyyy") : "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{p.end_date ? format(parseISO(p.end_date), "dd/MM/yyyy") : "—"}</TableCell>
-                      <TableCell className="text-center">
-                        {days !== null ? (
-                          <Badge variant="outline" className="text-[10px]">{days}d</Badge>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell className="text-center">{getStatusBadge(p.is_active ? "Em uso" : "Suspenso")}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{p.indication || "—"}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Visualizar" onClick={() => setViewItem(p)}><Eye className="h-3.5 w-3.5" /></Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir" onClick={() => setDeleteItem(p)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
+        <CardContent className="p-2 md:p-4 md:pt-0">
+          <Table className="text-xs w-full table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[14%]">Paciente</TableHead>
+                <TableHead className="w-[9%]">Setor</TableHead>
+                <TableHead className="w-[5%]">Leito</TableHead>
+                <TableHead className="w-[12%]">Antimicrobiano</TableHead>
+                <TableHead className="w-[8%]">Dose</TableHead>
+                <TableHead className="w-[5%] text-center">Via</TableHead>
+                <TableHead className="w-[8%]">Início</TableHead>
+                <TableHead className="w-[8%]">Término</TableHead>
+                <TableHead className="w-[5%] text-center">Dias</TableHead>
+                <TableHead className="w-[7%] text-center">Status</TableHead>
+                <TableHead className="w-[10%]">Indicação</TableHead>
+                <TableHead className="w-[9%] text-center">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {prescriptions.slice(0, 20).map((p) => {
+                const days = daysBetween(p.start_date, p.end_date);
+                return (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium truncate" title={p.patients?.full_name || ""}>{p.patients?.full_name || "—"}</TableCell>
+                    <TableCell className="truncate" title={p.patients?.sector || ""}>{p.patients?.sector || "—"}</TableCell>
+                    <TableCell className="truncate">{p.patients?.bed || "—"}</TableCell>
+                    <TableCell className="truncate" title={p.drug_name}>{p.drug_name}</TableCell>
+                    <TableCell className="truncate" title={p.dose || ""}>{p.dose || "—"}</TableCell>
+                    <TableCell className="text-center">{p.route || "—"}</TableCell>
+                    <TableCell className="text-[11px] whitespace-nowrap">{p.start_date ? format(parseISO(p.start_date), "dd/MM/yy") : "—"}</TableCell>
+                    <TableCell className="text-[11px] whitespace-nowrap">{p.end_date ? format(parseISO(p.end_date), "dd/MM/yy") : "—"}</TableCell>
+                    <TableCell className="text-center">
+                      {days !== null ? <Badge variant="outline" className="text-[10px] px-1">{days}d</Badge> : "—"}
+                    </TableCell>
+                    <TableCell className="text-center">{getStatusBadge(p.is_active ? "Em uso" : "Suspenso")}</TableCell>
+                    <TableCell className="text-[11px] text-muted-foreground truncate" title={p.indication || ""}>{p.indication || "—"}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" title="Visualizar" onClick={() => setViewItem(p)}><Eye className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar" onClick={() => openEdit(p)}><Pencil className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" title="Excluir" onClick={() => setDeleteItem(p)}><Trash2 className="h-3 w-3" /></Button>
+                      </div>
                       </TableCell>
                     </TableRow>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
+
         </CardContent>
       </Card>
 
