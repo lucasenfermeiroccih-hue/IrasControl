@@ -1044,19 +1044,38 @@ export default function PatientsMonitoring() {
                         </Button>
                       )}
                       {!readOnly && (
-                        <Button size="sm" variant="default" className="gap-1.5" onClick={() => {
+                        <Button size="sm" variant="default" className="gap-1.5" onClick={async () => {
                           if (!sinaisVitais.temperatura && !sinaisVitais.leucocitos && !sinaisVitais.pressaoArterial && !sinaisVitais.spo2) {
                             toast.error("Preencha pelo menos um campo antes de salvar");
                             return;
                           }
                           const now = new Date();
-                          setSinaisVitaisHistorico(prev => [{
+                          const novoRegistro = {
                             ...sinaisVitais,
                             data: now.toLocaleDateString("pt-BR"),
                             hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-                          }, ...prev]);
+                          };
+                          const novoHistorico = [novoRegistro, ...sinaisVitaisHistorico];
+                          setSinaisVitaisHistorico(novoHistorico);
                           setSinaisVitais({ temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" });
-                          toast.success("Sinais vitais salvos no histórico");
+
+                          // Persistir imediatamente no banco para não perder ao recarregar
+                          if (selected && selectedId) {
+                            const ok = await updatePatient(selectedId, {
+                              ...selected,
+                              _tabData: {
+                                dispositivos, dispInvasivos, antibioticos, evolucao,
+                                sinaisVitais: { temperatura: "", leucocitos: "", pressaoArterial: "", fio2Peep: "", hematuria: "", spo2: "" },
+                                sinaisVitaisHistorico: novoHistorico,
+                                iras, conclusao, criteriosSelecionados, justificativa, ocorrencia,
+                                labPanel, exames, vdrl, responsavel,
+                              },
+                            } as any);
+                            if (ok) toast.success("Registro salvo no histórico");
+                            else toast.error("Erro ao salvar registro");
+                          } else {
+                            toast.success("Sinais vitais salvos no histórico");
+                          }
                         }}>
                           <Save className="h-3.5 w-3.5" /> Salvar registro
                         </Button>
