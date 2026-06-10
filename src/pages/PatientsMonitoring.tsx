@@ -1146,7 +1146,21 @@ export default function PatientsMonitoring() {
                                   <TableCell>{entry.hematuria || "—"}</TableCell>
                                   {!readOnly && (
                                     <TableCell>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setSinaisVitaisHistorico(prev => prev.filter((_, i) => i !== idx))}>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                                        const novoHistorico = sinaisVitaisHistorico.filter((_, i) => i !== idx);
+                                        setSinaisVitaisHistorico(novoHistorico);
+                                        if (selected && selectedId) {
+                                          await updatePatient(selectedId, {
+                                            ...selected,
+                                            _tabData: {
+                                              dispositivos, dispInvasivos, antibioticos, evolucao,
+                                              sinaisVitais, sinaisVitaisHistorico: novoHistorico,
+                                              iras, conclusao, criteriosSelecionados, justificativa, ocorrencia,
+                                              labPanel, exames, vdrl, responsavel,
+                                            },
+                                          } as any);
+                                        }
+                                      }}>
                                         <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
                                     </TableCell>
