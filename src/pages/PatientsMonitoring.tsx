@@ -125,7 +125,7 @@ const emptyNewForm = { nome: "", prontuario: "", unidade: "", leito: "", sexo: "
 // ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
   const navigate = useNavigate();
-  const { patients, loading: patientsLoading, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
+  const { patients, loading: patientsLoading, hospitalId, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
   const { isAdmin } = useIsAdmin();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [statusChangeId, setStatusChangeId] = useState<string | null>(null);
