@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +17,11 @@ import {
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
+import ChartActions from "@/components/ChartActions";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { toast } from "@/hooks/use-toast";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
