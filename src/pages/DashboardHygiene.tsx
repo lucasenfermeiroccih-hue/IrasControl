@@ -722,45 +722,60 @@ export default function DashboardHygiene() {
 
       {/* ── Radar + Category Bar ── */}
       {fStats.categoryData.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-5">
           {fStats.categoryData.length >= 3 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Radar — Conformidade por Categoria</CardTitle>
-                <CardDescription className="text-xs">Visão multidimensional com referência de meta</CardDescription>
+            <Card ref={refRadar} className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                <div>
+                  <CardTitle className="text-sm">Radar — Conformidade por Categoria</CardTitle>
+                  <CardDescription className="text-xs">Visão multidimensional com referência de meta</CardDescription>
+                </div>
+                <ChartActions chartRef={refRadar} chartTitle="Radar — Conformidade por Categoria" metaValue={metaRadar} onMetaChange={setMetaRadar} metaUnit="%" />
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
-                  <RadarChart data={fStats.categoryData.map(c => ({ subject: c.name.length > 12 ? c.name.substring(0, 11) + "…" : c.name, A: c.compliance, meta: META_OMS }))}>
+                <ResponsiveContainer width="100%" height={320}>
+                  <RadarChart
+                    data={fStats.categoryData.map(c => ({ subject: c.name.length > 14 ? c.name.substring(0, 13) + "…" : c.name, A: c.compliance, meta: metaRadar ?? META_OMS }))}
+                    margin={{ top: 16, right: 24, bottom: 16, left: 24 }}
+                  >
                     <PolarGrid className="stroke-border" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
                     <Radar dataKey="A" name="Adesão" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
                     <Radar dataKey="meta" name="Meta" stroke="#ef4444" fill="transparent" strokeDasharray="4 2" />
                     <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                    <Tooltip content={<CustomTooltip />} />
                   </RadarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Conformidade por Categoria de Protocolo</CardTitle>
-              <CardDescription className="text-xs">% conformidade por tipo de item auditado</CardDescription>
+          <Card ref={refCategoria} className={fStats.categoryData.length >= 3 ? "lg:col-span-3" : "lg:col-span-5"}>
+            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+              <div>
+                <CardTitle className="text-sm">Conformidade por Categoria de Protocolo</CardTitle>
+                <CardDescription className="text-xs">% conformidade por tipo de item auditado</CardDescription>
+              </div>
+              <ChartActions chartRef={refCategoria} chartTitle="Conformidade por Categoria" metaValue={metaCategoria} onMetaChange={setMetaCategoria} metaUnit="%" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={Math.max(240, fStats.categoryData.length * 36)}>
                 <BarChart data={fStats.categoryData} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META_OMS} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metaCategoria !== undefined && (
+                    <ReferenceLine x={metaCategoria} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.categoryData.map((entry, i) => (
-                      <Cell key={i} fill={entry.compliance >= META_OMS ? "#10b981" : entry.compliance >= 70 ? "#f59e0b" : "#ef4444"} />
-                    ))}
+                    {fStats.categoryData.map((entry, i) => {
+                      const goal = metaCategoria ?? META_OMS;
+                      return (
+                        <Cell key={i} fill={entry.compliance >= goal ? "#10b981" : entry.compliance >= goal * 0.875 ? "#f59e0b" : "#ef4444"} />
+                      );
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
