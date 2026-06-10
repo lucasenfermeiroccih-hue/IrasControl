@@ -19,9 +19,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
-const SPECIALTIES = [
+const SPECIALTIES_DEFAULT = [
   "Clínica médica", "Cirurgia Geral", "Cirurgia Cardíaca",
   "Cirurgia Oftalmológica", "Neurocirurgia", "Cirurgia Vascular", "Cirurgia Ortopédica",
+];
+
+const SPECIALTIES_MATERNIDADE = [
+  "Obstetrícia", "Ginecologia", "Neonatologia",
+  "Centro Obstétrico", "Alojamento Conjunto", "UTI Neonatal", "UTI Materna",
 ];
 
 const MONTHS = [
@@ -105,7 +110,9 @@ function getPatientPeriodStart(patient: PatientRow) {
 }
 
 const PatientDashboardIndicators = () => {
-  const { hospitalId, loading: ctxLoading } = useHospitalContext();
+  const { hospitalId, hospitalName, loading: ctxLoading } = useHospitalContext();
+  const isMaternidade = (hospitalName || "").toLowerCase().includes("maternidade");
+  const SPECIALTIES = isMaternidade ? SPECIALTIES_MATERNIDADE : SPECIALTIES_DEFAULT;
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const [year, setYear] = useState<string[]>([String(currentYear)]);
