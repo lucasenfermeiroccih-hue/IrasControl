@@ -172,6 +172,24 @@ export default function DashboardAntimicrobials() {
 
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    const { error } = await supabase.from("antimicrobial_prescriptions").delete().eq("id", deleteItem.id);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    // Também remove do clinical_data do paciente (se existir)
+    if (deleteItem.patient_id) {
+      const { data: pat } = await supabase.from("patients").select("clinical_data").eq("id", deleteItem.patient_id).single();
+      const cd: any = pat?.clinical_data || {};
+      if (Array.isArray(cd.antibioticos)) {
+        cd.antibioticos = cd.antibioticos.filter((a: any) => a.id !== deleteItem.id);
+        await supabase.from("patients").update({ clinical_data: cd }).eq("id", deleteItem.patient_id);
+      }
+    }
+    setPrescriptions(prev => prev.filter(p => p.id !== deleteItem.id));
+    setDeleteItem(null);
+    toast.success("Prescrição excluída!");
+  };
+
   const dayCount = useMemo(() => {
     if (!form.startDate) return null;
     const end = form.endDate || new Date();
