@@ -98,7 +98,13 @@ const LaboratoryResults = () => {
       .select("*, patient:patients(full_name, medical_record, sector), antibiogram_results(*)")
       .eq("hospital_id", hospitalId)
       .order("collection_date", { ascending: false });
-    setResults(data || []);
+    // Mostrar apenas resultados cadastrados em /audits/antimicrobial-sensitivity/new
+    // (possuem antibiograma associado ou foram criados pelo formulário de auditoria)
+    const filtered = (data || []).filter((r: any) =>
+      (Array.isArray(r.antibiogram_results) && r.antibiogram_results.length > 0) ||
+      (typeof r.notes === "string" && r.notes.startsWith("Setor:"))
+    );
+    setResults(filtered);
     setLoading(false);
   };
 
