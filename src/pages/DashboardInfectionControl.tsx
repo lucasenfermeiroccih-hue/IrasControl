@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +13,15 @@ import {
 import {
   ShieldCheck, AlertTriangle, TrendingUp, ClipboardCheck, Loader2, Download,
   Target, Activity, ArrowRight, GitBranch, CheckCircle2, XCircle,
-  AlertCircle, Brain, ClipboardList, Flame, Layers, Info,
+  AlertCircle, Brain, ClipboardList, Flame, Layers, Info, RefreshCw,
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
+import ChartActions from "@/components/ChartActions";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { toast } from "sonner";
 
 // ─── Ishikawa Diagram ─────────────────────────────────────────────────────────
 
