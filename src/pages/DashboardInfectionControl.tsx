@@ -728,29 +728,39 @@ export default function DashboardInfectionControl() {
       )}
 
       {/* ── Causa Raiz + Ishikawa ── */}
-      <Card>
+      <Card ref={refs.ishikawa}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Brain className="h-4 w-4 text-primary" />
-              <div>
+            <div className="flex items-center gap-2 min-w-0">
+              <Brain className="h-4 w-4 text-primary shrink-0" />
+              <div className="min-w-0">
                 <CardTitle className="text-sm">Análise de Causa Raiz — Diagrama de Ishikawa (6M)</CardTitle>
-                <CardDescription className="text-xs">Clique em uma categoria para focar na análise · identifica causas raiz das não conformidades</CardDescription>
+                <CardDescription className="text-xs">Clique em uma categoria para focar · identifica causas raiz das não conformidades</CardDescription>
               </div>
             </div>
-            {selectedIshikawa && (
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
-                <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar seleção
+            <div className="flex items-center gap-1">
+              {selectedIshikawa && (
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleRefreshIshikawa} title="Atualizar análise">
+                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
-            )}
+              <ChartActions chartRef={refs.ishikawa} chartTitle="Análise de Causa Raiz - Ishikawa" />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <IshikawaDiagram
-            selectedId={selectedIshikawa}
-            onSelect={setSelectedIshikawa}
-            topFailures={stats.topFailures}
-          />
+          <div key={ishikawaKey} className="w-full overflow-x-auto">
+            <div className="min-w-[760px]">
+              <IshikawaDiagram
+                selectedId={selectedIshikawa}
+                onSelect={setSelectedIshikawa}
+                topFailures={stats.topFailures}
+              />
+            </div>
+          </div>
 
           {/* Selected category detail panel */}
           {selectedIshikawa && (() => {
