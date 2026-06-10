@@ -435,6 +435,48 @@ export default function DashboardAntimicrobials() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Visualizar */}
+      <Dialog open={!!viewItem} onOpenChange={(o) => !o && setViewItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Detalhes da Prescrição</DialogTitle></DialogHeader>
+          {viewItem && (
+            <div className="space-y-2 text-sm">
+              <div><span className="text-muted-foreground">Paciente:</span> <strong>{viewItem.patients?.full_name || "—"}</strong></div>
+              <div><span className="text-muted-foreground">Setor:</span> {viewItem.patients?.sector || "—"}</div>
+              <div><span className="text-muted-foreground">Leito:</span> {viewItem.patients?.bed || "—"}</div>
+              <div><span className="text-muted-foreground">Antimicrobiano:</span> <strong>{viewItem.drug_name}</strong></div>
+              <div><span className="text-muted-foreground">Dose:</span> {viewItem.dose || "—"}</div>
+              <div><span className="text-muted-foreground">Via:</span> {viewItem.route || "—"}</div>
+              <div><span className="text-muted-foreground">Início:</span> {viewItem.start_date ? format(parseISO(viewItem.start_date), "dd/MM/yyyy") : "—"}</div>
+              <div><span className="text-muted-foreground">Término:</span> {viewItem.end_date ? format(parseISO(viewItem.end_date), "dd/MM/yyyy") : "Em curso"}</div>
+              <div><span className="text-muted-foreground">Dias:</span> {daysBetween(viewItem.start_date, viewItem.end_date) ?? "—"}</div>
+              <div className="flex items-center gap-2"><span className="text-muted-foreground">Status:</span> {getStatusBadge(viewItem.is_active ? "Em uso" : "Suspenso")}</div>
+              <div><span className="text-muted-foreground">Indicação:</span> {viewItem.indication || "—"}</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewItem(null)}>Fechar</Button>
+            {viewItem && <Button onClick={() => { openEdit(viewItem); setViewItem(null); }}>Editar</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir */}
+      <AlertDialog open={!!deleteItem} onOpenChange={(o) => !o && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir prescrição?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá permanentemente a prescrição de <strong>{deleteItem?.drug_name}</strong> do paciente <strong>{deleteItem?.patients?.full_name || "—"}</strong>. Não é possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
