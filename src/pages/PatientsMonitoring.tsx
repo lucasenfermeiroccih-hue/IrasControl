@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
+import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ComboboxSearch } from "@/components/ComboboxSearch";
 import { MICROORGANISMS } from "@/data/microorganisms";
@@ -125,7 +126,7 @@ const emptyNewForm = { nome: "", prontuario: "", unidade: "", leito: "", sexo: "
 // ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
   const navigate = useNavigate();
-  const { patients, loading: patientsLoading, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
+  const { patients, loading: patientsLoading, hospitalId, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
   const { isAdmin } = useIsAdmin();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [statusChangeId, setStatusChangeId] = useState<string | null>(null);
@@ -233,13 +234,37 @@ export default function PatientsMonitoring() {
     return newAtb.nome;
   };
 
+  const syncAtbToDashboard = async (action: "insert" | "update" | "delete", atb: AntibioticEntry) => {
+    if (!selectedId || !hospitalId) return;
+    try {
+      if (action === "delete") {
+        await supabase.from("antimicrobial_prescriptions").delete().eq("id", atb.id);
+        return;
+      }
+      const payload = {
+        id: atb.id,
+        hospital_id: hospitalId,
+        patient_id: selectedId,
+        drug_name: atb.nome,
+        start_date: atb.dataInicio,
+        end_date: atb.dataFim || null,
+        is_active: !atb.dataFim,
+      };
+      await supabase.from("antimicrobial_prescriptions").upsert(payload, { onConflict: "id" });
+    } catch (err) {
+      console.error("Erro ao sincronizar antibiótico com dashboard:", err);
+    }
+  };
+
   const handleAddAtb = () => {
     const nomeFinal = resolveAtbNome();
     if (!nomeFinal || !newAtb.dataInicio) {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => [...prev, { id: crypto.randomUUID(), nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim }]);
+    const novo: AntibioticEntry = { id: crypto.randomUUID(), nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim };
+    setAntibioticos(prev => [...prev, novo]);
+    syncAtbToDashboard("insert", novo);
     setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
@@ -258,7 +283,9 @@ export default function PatientsMonitoring() {
       toast.error("Informe o nome e a data de início do antibiótico");
       return;
     }
-    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? { ...a, nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim } : a));
+    const atualizado: AntibioticEntry = { id: editingAtbId!, nome: nomeFinal, dataInicio: newAtb.dataInicio, dataFim: newAtb.dataFim };
+    setAntibioticos(prev => prev.map(a => a.id === editingAtbId ? atualizado : a));
+    syncAtbToDashboard("update", atualizado);
     setNewAtb({ nome: "", nomeOutros: "", dataInicio: "", dataFim: "" });
     setEditingAtbId(null);
     setNewAtbOpen(false);
@@ -266,7 +293,9 @@ export default function PatientsMonitoring() {
   };
 
   const handleRemoveAtb = (id: string) => {
+    const removido = antibioticos.find(a => a.id === id);
     setAntibioticos(prev => prev.filter(a => a.id !== id));
+    if (removido) syncAtbToDashboard("delete", removido);
   };
 
   const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
