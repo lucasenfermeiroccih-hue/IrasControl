@@ -93,7 +93,7 @@ function MultiSelect({
               </Button>
             )}
           </div>
-          <ScrollArea className="max-h-[260px]">
+          <ScrollArea className="h-[260px]">
             <div className="p-2 space-y-0.5">
               {options.map((opt) => (
                 <label
@@ -110,6 +110,18 @@ function MultiSelect({
               ))}
             </div>
           </ScrollArea>
+          {selected.length > 0 && (
+            <div className="border-t px-3 py-2 flex flex-wrap gap-1 max-h-[80px] overflow-y-auto">
+              {selected.map((s) => (
+                <Badge key={s} variant="secondary" className="text-[10px] px-1.5 py-0.5 gap-1">
+                  {s}
+                  <button onClick={() => toggle(s)} className="hover:text-destructive">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>
