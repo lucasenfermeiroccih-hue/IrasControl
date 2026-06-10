@@ -110,7 +110,9 @@ function getPatientPeriodStart(patient: PatientRow) {
 }
 
 const PatientDashboardIndicators = () => {
-  const { hospitalId, loading: ctxLoading } = useHospitalContext();
+  const { hospitalId, hospitalName, loading: ctxLoading } = useHospitalContext();
+  const isMaternidade = (hospitalName || "").toLowerCase().includes("maternidade");
+  const SPECIALTIES = isMaternidade ? SPECIALTIES_MATERNIDADE : SPECIALTIES_DEFAULT;
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const [year, setYear] = useState<string[]>([String(currentYear)]);
