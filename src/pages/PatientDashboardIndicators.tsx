@@ -113,6 +113,20 @@ function countDistinctCivilDaysInPeriods(startDate?: string | null, endDate?: st
   return occupiedDays.size;
 }
 
+function intersectDaySets(...sets: Array<Set<string> | null | undefined>) {
+  const validSets = sets.filter((set): set is Set<string> => !!set);
+  if (validSets.length === 0) return new Set<string>();
+
+  const [first, ...rest] = validSets;
+  const result = new Set<string>();
+
+  first.forEach((day) => {
+    if (rest.every(set => set.has(day))) result.add(day);
+  });
+
+  return result;
+}
+
 
 function getPatientPeriodStart(patient: PatientRow) {
   return patient.icu_admission_date || patient.admission_date;
@@ -263,6 +277,9 @@ const PatientDashboardIndicators = () => {
     const calcDeviceDays = (type: string, insKey: string, remKey: string, novaInsKey: string, novaRemKey: string) => {
       let total = 0;
       filteredPatients.forEach(p => {
+        const patientDays = new Set<string>();
+        collectDaysInPeriods(getPatientPeriodStart(p), p.discharge_date, periods, patientDays);
+
         const occupiedDays = new Set<string>();
         filteredDevices
           .filter(d => d.patient_id === p.id && d.device_type === type)
@@ -274,7 +291,8 @@ const PatientDashboardIndicators = () => {
           collectDaysInPeriods(di[insKey], di[remKey], periods, occupiedDays);
           collectDaysInPeriods(di[novaInsKey], di[novaRemKey], periods, occupiedDays);
         }
-        total += occupiedDays.size;
+
+        total += intersectDaySets(patientDays, occupiedDays).size;
       });
       return total;
     };
