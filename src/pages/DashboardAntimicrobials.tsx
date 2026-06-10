@@ -62,6 +62,8 @@ export default function DashboardAntimicrobials() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [viewItem, setViewItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
