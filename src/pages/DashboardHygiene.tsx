@@ -12,8 +12,9 @@ import {
 import {
   HandMetal, CheckCircle2, AlertTriangle, ClipboardCheck, Loader2, Download,
   XCircle, AlertCircle, Target, TrendingUp, ArrowRight, Brain, ClipboardList,
-  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck,
+  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck, RefreshCw,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
 import ChartActions from "@/components/ChartActions";
@@ -236,9 +237,20 @@ export default function DashboardHygiene() {
   const [metaProf, setMetaProf] = useState<number | undefined>(META_OMS);
   const [metaSetor, setMetaSetor] = useState<number | undefined>(META_OMS);
   const [metaAno, setMetaAno] = useState<number | undefined>(META_OMS);
+  const [metaEvolucao, setMetaEvolucao] = useState<number | undefined>(META_OMS);
+  const [metaCategoria, setMetaCategoria] = useState<number | undefined>(META_OMS);
+  const [metaPareto, setMetaPareto] = useState<number | undefined>(80);
+  const [metaRadar, setMetaRadar] = useState<number | undefined>(META_OMS);
+  const [ishikawaKey, setIshikawaKey] = useState(0);
 
   const refProf  = useRef<HTMLDivElement>(null);
   const refSetor = useRef<HTMLDivElement>(null);
+  const refEvolucao = useRef<HTMLDivElement>(null);
+  const refPie = useRef<HTMLDivElement>(null);
+  const refCategoria = useRef<HTMLDivElement>(null);
+  const refPareto = useRef<HTMLDivElement>(null);
+  const refRadar = useRef<HTMLDivElement>(null);
+  const refIshikawa = useRef<HTMLDivElement>(null);
 
   // ── Filtered data ──
   const filteredAudits = useMemo(() => audits.filter(a => {
@@ -575,10 +587,13 @@ export default function DashboardHygiene() {
 
       {/* ── Charts Row 1: Trend + Pie ── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Evolução Mensal da Taxa de Adesão</CardTitle>
-            <CardDescription className="text-xs">Tendência vs meta OMS de {META_OMS}% · linha tracejada = referência</CardDescription>
+        <Card ref={refEvolucao} className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Evolução Mensal da Taxa de Adesão</CardTitle>
+              <CardDescription className="text-xs">Tendência vs meta OMS de {metaEvolucao ?? META_OMS}% · linha tracejada = referência</CardDescription>
+            </div>
+            <ChartActions chartRef={refEvolucao} chartTitle="Evolução Mensal da Adesão" metaValue={metaEvolucao} onMetaChange={setMetaEvolucao} metaUnit="%" />
           </CardHeader>
           <CardContent>
             {fStats.monthlyTrend.length === 0 ? (
@@ -596,8 +611,10 @@ export default function DashboardHygiene() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={META_OMS} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
-                    label={{ value: `Meta ${META_OMS}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  {metaEvolucao !== undefined && (
+                    <ReferenceLine y={metaEvolucao} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                      label={{ value: `Meta ${metaEvolucao}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  )}
                   <Area dataKey="compliance" name="Adesão" stroke="#3b82f6" fill="url(#gradHygiene)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -605,10 +622,13 @@ export default function DashboardHygiene() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Higienizou? Sim / Não</CardTitle>
-            <CardDescription className="text-xs">Distribuição das instâncias observadas</CardDescription>
+        <Card ref={refPie}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Higienizou? Sim / Não</CardTitle>
+              <CardDescription className="text-xs">Distribuição das instâncias observadas</CardDescription>
+            </div>
+            <ChartActions chartRef={refPie} chartTitle="Higienizou Sim/Não" />
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={190}>
@@ -702,45 +722,60 @@ export default function DashboardHygiene() {
 
       {/* ── Radar + Category Bar ── */}
       {fStats.categoryData.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-5">
           {fStats.categoryData.length >= 3 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Radar — Conformidade por Categoria</CardTitle>
-                <CardDescription className="text-xs">Visão multidimensional com referência de meta</CardDescription>
+            <Card ref={refRadar} className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                <div>
+                  <CardTitle className="text-sm">Radar — Conformidade por Categoria</CardTitle>
+                  <CardDescription className="text-xs">Visão multidimensional com referência de meta</CardDescription>
+                </div>
+                <ChartActions chartRef={refRadar} chartTitle="Radar — Conformidade por Categoria" metaValue={metaRadar} onMetaChange={setMetaRadar} metaUnit="%" />
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
-                  <RadarChart data={fStats.categoryData.map(c => ({ subject: c.name.length > 12 ? c.name.substring(0, 11) + "…" : c.name, A: c.compliance, meta: META_OMS }))}>
+                <ResponsiveContainer width="100%" height={320}>
+                  <RadarChart
+                    data={fStats.categoryData.map(c => ({ subject: c.name.length > 14 ? c.name.substring(0, 13) + "…" : c.name, A: c.compliance, meta: metaRadar ?? META_OMS }))}
+                    margin={{ top: 16, right: 24, bottom: 16, left: 24 }}
+                  >
                     <PolarGrid className="stroke-border" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
                     <Radar dataKey="A" name="Adesão" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
                     <Radar dataKey="meta" name="Meta" stroke="#ef4444" fill="transparent" strokeDasharray="4 2" />
                     <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                    <Tooltip content={<CustomTooltip />} />
                   </RadarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Conformidade por Categoria de Protocolo</CardTitle>
-              <CardDescription className="text-xs">% conformidade por tipo de item auditado</CardDescription>
+          <Card ref={refCategoria} className={fStats.categoryData.length >= 3 ? "lg:col-span-3" : "lg:col-span-5"}>
+            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+              <div>
+                <CardTitle className="text-sm">Conformidade por Categoria de Protocolo</CardTitle>
+                <CardDescription className="text-xs">% conformidade por tipo de item auditado</CardDescription>
+              </div>
+              <ChartActions chartRef={refCategoria} chartTitle="Conformidade por Categoria" metaValue={metaCategoria} onMetaChange={setMetaCategoria} metaUnit="%" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={Math.max(240, fStats.categoryData.length * 36)}>
                 <BarChart data={fStats.categoryData} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META_OMS} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metaCategoria !== undefined && (
+                    <ReferenceLine x={metaCategoria} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.categoryData.map((entry, i) => (
-                      <Cell key={i} fill={entry.compliance >= META_OMS ? "#10b981" : entry.compliance >= 70 ? "#f59e0b" : "#ef4444"} />
-                    ))}
+                    {fStats.categoryData.map((entry, i) => {
+                      const goal = metaCategoria ?? META_OMS;
+                      return (
+                        <Cell key={i} fill={entry.compliance >= goal ? "#10b981" : entry.compliance >= goal * 0.875 ? "#f59e0b" : "#ef4444"} />
+                      );
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -811,22 +846,29 @@ export default function DashboardHygiene() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Análise de Pareto — Não Conformidades</CardTitle>
-              <CardDescription className="text-xs">80% dos problemas concentrados em poucas causas</CardDescription>
+          <Card ref={refPareto}>
+            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+              <div>
+                <CardTitle className="text-sm">Análise de Pareto — Não Conformidades</CardTitle>
+                <CardDescription className="text-xs">80% dos problemas concentrados em poucas causas</CardDescription>
+              </div>
+              <ChartActions chartRef={refPareto} chartTitle="Análise de Pareto" metaValue={metaPareto} onMetaChange={setMetaPareto} metaUnit="%" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={fStats.paretoData} margin={{ left: -10, right: 16 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={fStats.paretoData} margin={{ top: 8, left: -6, right: 16, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 8 }} interval={0} angle={-20} textAnchor="end" height={45} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={70} />
                   <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
                   <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
                   <Bar yAxisId="left" dataKey="count" name="Ocorrências" fill="#3b82f6" radius={[3, 3, 0, 0]} />
                   <Line yAxisId="right" dataKey="acumulado" name="% Acumulado" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                  <ReferenceLine yAxisId="right" y={80} stroke="#f59e0b" strokeDasharray="4 2" />
+                  {metaPareto !== undefined && (
+                    <ReferenceLine yAxisId="right" y={metaPareto} stroke="#f59e0b" strokeDasharray="4 2"
+                      label={{ value: `Meta ${metaPareto}%`, position: "insideTopRight", fontSize: 10, fill: "#f59e0b" }} />
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
@@ -847,7 +889,7 @@ export default function DashboardHygiene() {
       )}
 
       {/* ── Ishikawa Causa Raiz ── */}
-      <Card>
+      <Card ref={refIshikawa}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
@@ -857,15 +899,35 @@ export default function DashboardHygiene() {
                 <CardDescription className="text-xs">Causas da baixa adesão à HM · Clique em uma categoria para detalhar</CardDescription>
               </div>
             </div>
-            {selectedIshikawa && (
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
-                <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar seleção
+            <div className="flex items-center gap-1">
+              {selectedIshikawa && (
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar seleção
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => {
+                  setSelectedIshikawa(null);
+                  setIshikawaKey(k => k + 1);
+                  toast({ title: "Análise atualizada", description: "Diagrama de Ishikawa recalculado com os dados do filtro atual." });
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Atualizar análise
               </Button>
-            )}
+              <ChartActions chartRef={refIshikawa} chartTitle="Ishikawa — Causa Raiz HM" />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <IshikawaHygiene selectedId={selectedIshikawa} onSelect={setSelectedIshikawa} topFailures={fStats.topFailures} />
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[760px]" style={{ minHeight: 340 }}>
+              <IshikawaHygiene key={ishikawaKey} selectedId={selectedIshikawa} onSelect={setSelectedIshikawa} topFailures={fStats.topFailures} />
+            </div>
+          </div>
+
 
           {selectedIshikawa && (() => {
             const cat = HM_ISHIKAWA.find(c => c.id === selectedIshikawa);
