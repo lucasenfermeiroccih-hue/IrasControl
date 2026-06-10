@@ -640,26 +640,34 @@ export default function DashboardDispenser() {
 
       {/* ── Charts Row 2: Sector + Category ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Conformidade por Setor</CardTitle>
-            <CardDescription className="text-xs">Verde ≥90% · Amarelo 75–89% · Vermelho &lt;75% · linha = meta</CardDescription>
+        <Card ref={refSetor}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Conformidade por Setor</CardTitle>
+              <CardDescription className="text-xs">Verde ≥{metaSetor ?? META}% · Amarelo intermediário · Vermelho abaixo · linha = meta</CardDescription>
+            </div>
+            <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
           </CardHeader>
           <CardContent>
             {fStats.sectorData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por setor</div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={Math.max(240, fStats.sectorData.length * 32)}>
                 <ComposedChart data={fStats.sectorData} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metaSetor !== undefined && (
+                    <ReferenceLine x={metaSetor} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.sectorData.map((entry, i) => (
-                      <Cell key={i} fill={entry.compliance >= META ? "#10b981" : entry.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
-                    ))}
+                    {fStats.sectorData.map((entry, i) => {
+                      const goal = metaSetor ?? META;
+                      return (
+                        <Cell key={i} fill={entry.compliance >= goal ? "#10b981" : entry.compliance >= goal * 0.83 ? "#f59e0b" : "#ef4444"} />
+                      );
+                    })}
                   </Bar>
                 </ComposedChart>
               </ResponsiveContainer>
@@ -667,26 +675,34 @@ export default function DashboardDispenser() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Conformidade por Categoria de Item</CardTitle>
-            <CardDescription className="text-xs">Itens ordenados do pior para o melhor desempenho</CardDescription>
+        <Card ref={refCategoria}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Conformidade por Categoria de Item</CardTitle>
+              <CardDescription className="text-xs">Itens ordenados do pior para o melhor desempenho</CardDescription>
+            </div>
+            <ChartActions chartRef={refCategoria} chartTitle="Conformidade por Categoria" metaValue={metaCategoria} onMetaChange={setMetaCategoria} metaUnit="%" />
           </CardHeader>
           <CardContent>
             {fStats.categoryData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por categoria</div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={Math.max(240, fStats.categoryData.length * 32)}>
                 <BarChart data={fStats.categoryData} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metaCategoria !== undefined && (
+                    <ReferenceLine x={metaCategoria} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.categoryData.map((entry, i) => (
-                      <Cell key={i} fill={entry.compliance >= META ? "#10b981" : entry.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
-                    ))}
+                    {fStats.categoryData.map((entry, i) => {
+                      const goal = metaCategoria ?? META;
+                      return (
+                        <Cell key={i} fill={entry.compliance >= goal ? "#10b981" : entry.compliance >= goal * 0.83 ? "#f59e0b" : "#ef4444"} />
+                      );
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
