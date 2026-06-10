@@ -249,6 +249,7 @@ export default function PatientsMonitoring() {
         start_date: atb.dataInicio,
         end_date: atb.dataFim || null,
         is_active: !atb.dataFim,
+        prescriber_id: userId || null,
       };
       await supabase.from("antimicrobial_prescriptions").upsert(payload, { onConflict: "id" });
     } catch (err) {
