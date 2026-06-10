@@ -712,26 +712,33 @@ export default function DashboardDispenser() {
       </div>
 
       {/* ── Radar + Sector Risk Table ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-5">
         {fStats.categoryData.length >= 3 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Radar — Conformidade Multidimensional</CardTitle>
-              <CardDescription className="text-xs">Visão 360° por categoria de dispenser · linha vermelha = meta</CardDescription>
+          <Card ref={refRadar} className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+              <div>
+                <CardTitle className="text-sm">Radar — Conformidade Multidimensional</CardTitle>
+                <CardDescription className="text-xs">Visão 360° por categoria · linha vermelha = meta</CardDescription>
+              </div>
+              <ChartActions chartRef={refRadar} chartTitle="Radar — Conformidade" metaValue={metaRadar} onMetaChange={setMetaRadar} metaUnit="%" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <RadarChart data={fStats.categoryData.map(c => ({
-                  subject: c.name.length > 12 ? c.name.substring(0, 11) + "…" : c.name,
-                  A: c.compliance,
-                  meta: META,
-                }))}>
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart
+                  data={fStats.categoryData.map(c => ({
+                    subject: c.name.length > 14 ? c.name.substring(0, 13) + "…" : c.name,
+                    A: c.compliance,
+                    meta: metaRadar ?? META,
+                  }))}
+                  margin={{ top: 16, right: 24, bottom: 16, left: 24 }}
+                >
                   <PolarGrid className="stroke-border" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                   <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
                   <Radar dataKey="A" name="Conformidade" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
                   <Radar dataKey="meta" name="Meta" stroke="#ef4444" fill="transparent" strokeDasharray="4 2" />
                   <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                  <Tooltip content={<CustomTooltip />} />
                 </RadarChart>
               </ResponsiveContainer>
             </CardContent>
