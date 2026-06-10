@@ -313,7 +313,11 @@ export default function DashboardAntimicrobials() {
                       <TableCell className="text-center">{getStatusBadge(p.is_active ? "Em uso" : "Suspenso")}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.indication || "—"}</TableCell>
                       <TableCell className="text-center">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Visualizar" onClick={() => setViewItem(p)}><Eye className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" title="Excluir" onClick={() => setDeleteItem(p)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
