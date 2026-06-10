@@ -258,32 +258,31 @@ const PatientDashboardIndicators = () => {
       0,
     );
 
-    // Dispositivos: tenta primeiro tabela patient_devices; se vazio, soma de clinical_data.dispInvasivos
-    const calcDeviceDaysFromTable = (type: string) => {
-      let total = 0;
-      filteredDevices.filter(d => d.device_type === type).forEach(dev => {
-          total += countDistinctCivilDaysInPeriods(dev.insertion_date, dev.removal_date, periods);
-      });
-      return total;
-    };
-
-    const calcDeviceDaysFromClinical = (insKey: string, remKey: string, novaInsKey: string, novaRemKey: string) => {
+    // Dispositivo-dias: consolida por paciente×dia entre patient_devices e clinical_data.dispInvasivos
+    // para evitar dupla contagem (mesma inserção em duas fontes ou sobreposição inserção/nova inserção).
+    const calcDeviceDays = (type: string, insKey: string, remKey: string, novaInsKey: string, novaRemKey: string) => {
       let total = 0;
       filteredPatients.forEach(p => {
+        const occupiedDays = new Set<string>();
+        filteredDevices
+          .filter(d => d.patient_id === p.id && d.device_type === type)
+          .forEach(dev => {
+            collectDaysInPeriods(dev.insertion_date, dev.removal_date, periods, occupiedDays);
+          });
         const di = p.clinical_data?.dispInvasivos;
-        if (!di) return;
-        total += countDistinctCivilDaysInPeriods(di[insKey], di[remKey], periods);
-        total += countDistinctCivilDaysInPeriods(di[novaInsKey], di[novaRemKey], periods);
+        if (di) {
+          collectDaysInPeriods(di[insKey], di[remKey], periods, occupiedDays);
+          collectDaysInPeriods(di[novaInsKey], di[novaRemKey], periods, occupiedDays);
+        }
+        total += occupiedDays.size;
       });
       return total;
     };
 
-    const cvcDays = calcDeviceDaysFromTable("cvc") +
-      calcDeviceDaysFromClinical("cvcInsercao", "cvcRetirada", "cvcNovaInsercao", "cvcNovaRetirada");
-    const svuDays = calcDeviceDaysFromTable("svu") +
-      calcDeviceDaysFromClinical("svuInsercao", "svuRetirada", "svuNovaInsercao", "svuNovaRetirada");
-    const vmDays = calcDeviceDaysFromTable("vm") +
-      calcDeviceDaysFromClinical("vmInsercao", "vmRetirada", "vmNovaInsercao", "vmNovaRetirada");
+    const cvcDays = calcDeviceDays("cvc", "cvcInsercao", "cvcRetirada", "cvcNovaInsercao", "cvcNovaRetirada");
+    const svuDays = calcDeviceDays("svu", "svuInsercao", "svuRetirada", "svuNovaInsercao", "svuNovaRetirada");
+    const vmDays = calcDeviceDays("vm", "vmInsercao", "vmRetirada", "vmNovaInsercao", "vmNovaRetirada");
+
 
     // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
     const abFromTable = filteredPrescriptions.filter(rx => {
