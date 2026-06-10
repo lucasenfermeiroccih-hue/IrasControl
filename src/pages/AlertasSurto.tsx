@@ -445,6 +445,89 @@ Responda SOMENTE em JSON válido:
     }
   }
 
+  /* ── Print helpers ── */
+  const escapeHtml = (s: string) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]!));
+
+  const openPrintWindow = (title: string, bodyHtml: string) => {
+    const w = window.open("", "_blank", "width=1024,height=768");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
+<style>
+  *{box-sizing:border-box} body{font-family:'DM Sans',system-ui,Arial,sans-serif;color:#111;margin:24px;line-height:1.5}
+  h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:18px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  h3{font-size:13px;margin:12px 0 6px} .muted{color:#555;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin:6px 0 12px}
+  th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-weight:700}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-right:6px}
+  .surto{background:#fee2e2;color:#991b1b} .aten{background:#fef3c7;color:#92400e}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 14px}
+  .card{border:1px solid #ddd;border-radius:6px;padding:8px} .card .lbl{font-size:10px;color:#666;text-transform:uppercase}
+  .card .val{font-size:20px;font-weight:800}
+  pre{white-space:pre-wrap;font-family:inherit;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px}
+  @media print { @page{margin:14mm} body{margin:0} button{display:none} }
+</style></head><body>${bodyHtml}
+<script>window.onload=()=>{setTimeout(()=>window.print(),300)}</script>
+</body></html>`);
+    w.document.close();
+  };
+
+  const printPageData = () => {
+    const now = new Date().toLocaleString("pt-BR");
+    const metricsHtml = `<div class="grid">
+      <div class="card"><div class="lbl">Suspeitos</div><div class="val">${internados.length}</div></div>
+      <div class="card"><div class="lbl">Confirmados</div><div class="val">${alertas.reduce((s,a)=>s+a.count,0)}</div></div>
+      <div class="card"><div class="lbl">Descartados</div><div class="val">${patientsF.filter(p=>p.status!=="Internado").length}</div></div>
+      <div class="card"><div class="lbl">Óbitos</div><div class="val">${patientsF.filter(p=>p.status==="Óbito").length}</div></div>
+    </div>`;
+    const alertasHtml = alertas.length === 0 ? `<p class="muted">Nenhum cluster ativo.</p>` :
+      `<table><thead><tr><th>Nível</th><th>Setor</th><th>Microrganismo</th><th>Precaução</th><th>Casos</th></tr></thead><tbody>
+      ${alertas.map(a => `<tr><td><span class="badge ${a.nivel==="surto"?"surto":"aten"}">${a.nivel==="surto"?"SURTO":"ATENÇÃO"}</span></td><td>${escapeHtml(a.setor)}</td><td>${escapeHtml(a.orgLabel)}</td><td>${escapeHtml(a.precaucao)}</td><td>${a.count}</td></tr>`).join("")}
+      </tbody></table>`;
+    const pacHtml = `<table><thead><tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Material</th><th>Microrganismo</th><th>Precaução</th><th>Data Coleta</th><th>Status</th></tr></thead><tbody>
+      ${patientsF.map(p => `<tr><td>${escapeHtml(p.nome)}</td><td>${escapeHtml(p.prontuario)}</td><td>${escapeHtml(p.setor)}</td><td>${escapeHtml(p.leito)}</td><td>${escapeHtml(p.material)}</td><td>${escapeHtml(p.organismo ? orgLabel(p.organismo) : "")}</td><td>${escapeHtml(p.precaucao)}</td><td>${fmt(p.dataColeta)}</td><td>${escapeHtml(p.status)}</td></tr>`).join("")}
+      </tbody></table>`;
+    const html = `
+      <h1>Controle Inteligente de Surtos Hospitalares</h1>
+      <div class="muted">${escapeHtml(hospitalName || "Hospital")} · Emitido em ${now}</div>
+      <h2>Indicadores</h2>${metricsHtml}
+      <h2>Alertas e Clusters Ativos</h2>${alertasHtml}
+      <h2>Pacientes em Precaução (${patientsF.length})</h2>${pacHtml}
+    `;
+    openPrintWindow("Dados — Alertas de Surto", html);
+  };
+
+  const printAIAnalysis = () => {
+    const now = new Date().toLocaleString("pt-BR");
+    const insightHtml = aiInsight.text ? `<h2>Insight Geral da IA</h2><pre>${escapeHtml(aiInsight.text)}</pre>` : "";
+    const reportHtml = aiReport ? `<h2>Relatório Técnico da IA</h2><pre>${escapeHtml(aiReport)}</pre>` : "";
+    const clusters = alertas.map(a => {
+      const ai = alertAI[a.id];
+      if (!ai || ai.loading) return "";
+      const planoRows = ai.plano.map(r => `<tr>
+        <td>${escapeHtml(r.acao)}</td><td>${escapeHtml(r.porQue)}</td><td>${escapeHtml(r.quem)}</td>
+        <td>${escapeHtml(r.onde)}</td><td>${escapeHtml(r.quando)}</td><td>${escapeHtml(r.como)}</td>
+        <td>${escapeHtml(r.quanto)}</td><td>${escapeHtml(STATUS_META[r.status]?.label || r.status)}</td></tr>`).join("");
+      const insights = ai.insights.length ? `<h3>Insights Prioritários</h3><ol>${ai.insights.map(i => `<li>${escapeHtml(i)}</li>`).join("")}</ol>` : "";
+      return `<h2><span class="badge ${a.nivel==="surto"?"surto":"aten"}">${a.nivel==="surto"?"SURTO":"ATENÇÃO"}</span> ${escapeHtml(a.setor)} — ${escapeHtml(a.orgLabel)} (${a.count} casos)</h2>
+        ${ai.analise ? `<h3>Análise Clínico-Epidemiológica</h3><pre>${escapeHtml(ai.analise)}</pre>` : ""}
+        ${insights}
+        <h3>Plano de Ação 5W2H</h3>
+        <table><thead><tr><th>O Quê?</th><th>Por Quê?</th><th>Quem?</th><th>Onde?</th><th>Quando?</th><th>Como?</th><th>Quanto?</th><th>Status</th></tr></thead><tbody>${planoRows}</tbody></table>`;
+    }).join("");
+    if (!insightHtml && !reportHtml && !clusters) {
+      alert("Nenhuma análise de IA ou plano 5W2H disponível para impressão. Gere a análise primeiro.");
+      return;
+    }
+    const html = `
+      <h1>Análise IA + Plano de Ação 5W2H</h1>
+      <div class="muted">${escapeHtml(hospitalName || "Hospital")} · Emitido em ${now}</div>
+      ${insightHtml}${reportHtml}${clusters}
+    `;
+    openPrintWindow("Análise IA — Alertas de Surto", html);
+  };
+
   /* ── status do plano ── */
   const setPlanoStatus = (alertId: string, idx: number, status: PlanoStatus) => {
     setAlertAI(prev => {
@@ -548,6 +631,10 @@ Responda SOMENTE em JSON válido:
             <button onClick={() => fetchData(true)}
               style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)", border:`1px solid ${glassBorder}`, borderRadius:8, cursor:"pointer", color: subText, fontSize:11, fontFamily:"inherit" }}>
               <RefreshCw size={11} /> Atualizar
+            </button>
+            <button onClick={printPageData}
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background:"rgba(56,189,248,0.12)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:8, cursor:"pointer", color:"#38bdf8", fontSize:11, fontWeight:600, fontFamily:"inherit" }}>
+              <FileText size={11} /> Imprimir Dados da Página
             </button>
           </div>
 
@@ -724,9 +811,9 @@ Responda SOMENTE em JSON válido:
                           style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"rgba(167,139,250,0.15)", border:"1px solid rgba(167,139,250,0.35)", borderRadius:20, color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                           <FileText size={12} /> Gerar relatório IA
                         </button>
-                        <button onClick={() => window.print()}
-                          style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)", border:`1px solid ${glassBorder}`, borderRadius:20, color: subText, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                          Imprimir
+                        <button onClick={printAIAnalysis}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", background:"rgba(167,139,250,0.12)", border:"1px solid rgba(167,139,250,0.3)", borderRadius:20, color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          <FileText size={12} /> Imprimir Análise + 5W2H
                         </button>
                       </div>
                     </div>
