@@ -568,10 +568,13 @@ export default function DashboardDispenser() {
 
       {/* ── Charts Row 1: Trend + Pie ── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Evolução Mensal da Conformidade</CardTitle>
-            <CardDescription className="text-xs">Tendência vs meta de {META}% · linha vermelha = referência</CardDescription>
+        <Card ref={refEvolucao} className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Evolução Mensal da Conformidade</CardTitle>
+              <CardDescription className="text-xs">Tendência vs meta de {metaEvolucao ?? META}% · linha vermelha = referência</CardDescription>
+            </div>
+            <ChartActions chartRef={refEvolucao} chartTitle="Evolução Mensal da Conformidade" metaValue={metaEvolucao} onMetaChange={setMetaEvolucao} metaUnit="%" />
           </CardHeader>
           <CardContent>
             {fStats.monthlyTrend.length === 0 ? (
@@ -589,8 +592,10 @@ export default function DashboardDispenser() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={META} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
-                    label={{ value: `Meta ${META}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  {metaEvolucao !== undefined && (
+                    <ReferenceLine y={metaEvolucao} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                      label={{ value: `Meta ${metaEvolucao}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  )}
                   <Area dataKey="compliance" name="Conformidade" stroke="#f59e0b" fill="url(#gradDisp)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -598,10 +603,13 @@ export default function DashboardDispenser() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Status Geral dos Itens</CardTitle>
-            <CardDescription className="text-xs">Distribuição de conformidade dos itens auditados</CardDescription>
+        <Card ref={refPie}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Status Geral dos Itens</CardTitle>
+              <CardDescription className="text-xs">Distribuição de conformidade dos itens auditados</CardDescription>
+            </div>
+            <ChartActions chartRef={refPie} chartTitle="Status Geral dos Itens" />
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={190}>
