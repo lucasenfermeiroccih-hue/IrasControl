@@ -846,22 +846,29 @@ export default function DashboardHygiene() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Análise de Pareto — Não Conformidades</CardTitle>
-              <CardDescription className="text-xs">80% dos problemas concentrados em poucas causas</CardDescription>
+          <Card ref={refPareto}>
+            <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+              <div>
+                <CardTitle className="text-sm">Análise de Pareto — Não Conformidades</CardTitle>
+                <CardDescription className="text-xs">80% dos problemas concentrados em poucas causas</CardDescription>
+              </div>
+              <ChartActions chartRef={refPareto} chartTitle="Análise de Pareto" metaValue={metaPareto} onMetaChange={setMetaPareto} metaUnit="%" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={fStats.paretoData} margin={{ left: -10, right: 16 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={fStats.paretoData} margin={{ top: 8, left: -6, right: 16, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 8 }} interval={0} angle={-20} textAnchor="end" height={45} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={70} />
                   <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
                   <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
                   <Bar yAxisId="left" dataKey="count" name="Ocorrências" fill="#3b82f6" radius={[3, 3, 0, 0]} />
                   <Line yAxisId="right" dataKey="acumulado" name="% Acumulado" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                  <ReferenceLine yAxisId="right" y={80} stroke="#f59e0b" strokeDasharray="4 2" />
+                  {metaPareto !== undefined && (
+                    <ReferenceLine yAxisId="right" y={metaPareto} stroke="#f59e0b" strokeDasharray="4 2"
+                      label={{ value: `Meta ${metaPareto}%`, position: "insideTopRight", fontSize: 10, fill: "#f59e0b" }} />
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
