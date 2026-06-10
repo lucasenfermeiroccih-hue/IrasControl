@@ -587,10 +587,13 @@ export default function DashboardHygiene() {
 
       {/* ── Charts Row 1: Trend + Pie ── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Evolução Mensal da Taxa de Adesão</CardTitle>
-            <CardDescription className="text-xs">Tendência vs meta OMS de {META_OMS}% · linha tracejada = referência</CardDescription>
+        <Card ref={refEvolucao} className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Evolução Mensal da Taxa de Adesão</CardTitle>
+              <CardDescription className="text-xs">Tendência vs meta OMS de {metaEvolucao ?? META_OMS}% · linha tracejada = referência</CardDescription>
+            </div>
+            <ChartActions chartRef={refEvolucao} chartTitle="Evolução Mensal da Adesão" metaValue={metaEvolucao} onMetaChange={setMetaEvolucao} metaUnit="%" />
           </CardHeader>
           <CardContent>
             {fStats.monthlyTrend.length === 0 ? (
@@ -608,8 +611,10 @@ export default function DashboardHygiene() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={META_OMS} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
-                    label={{ value: `Meta ${META_OMS}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  {metaEvolucao !== undefined && (
+                    <ReferenceLine y={metaEvolucao} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                      label={{ value: `Meta ${metaEvolucao}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  )}
                   <Area dataKey="compliance" name="Adesão" stroke="#3b82f6" fill="url(#gradHygiene)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -617,10 +622,13 @@ export default function DashboardHygiene() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Higienizou? Sim / Não</CardTitle>
-            <CardDescription className="text-xs">Distribuição das instâncias observadas</CardDescription>
+        <Card ref={refPie}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div>
+              <CardTitle className="text-sm">Higienizou? Sim / Não</CardTitle>
+              <CardDescription className="text-xs">Distribuição das instâncias observadas</CardDescription>
+            </div>
+            <ChartActions chartRef={refPie} chartTitle="Higienizou Sim/Não" />
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={190}>
