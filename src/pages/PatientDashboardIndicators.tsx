@@ -186,10 +186,27 @@ const PatientDashboardIndicators = () => {
     const filteredDevices = devices.filter(d => patientIdSet.has(d.patient_id));
     const filteredPrescriptions = prescriptions.filter(rx => patientIdSet.has(rx.patient_id));
 
-    const admittedInMonth = filteredPatients.filter(p => {
-      const d = parseLocalDate(getPatientPeriodStart(p));
-      return !!d && matchPeriod(d);
+    // Períodos = exatamente os meses/anos selecionados (cada combinação vira um intervalo)
+    const periods: Array<{ start: Date; end: Date }> = [];
+    selectedYears.forEach(y => {
+      selectedMonths.forEach(m => {
+        periods.push({
+          start: new Date(y, m, 1, 0, 0, 0, 0),
+          end: new Date(y, m + 1, 0, 23, 59, 59, 999),
+        });
+      });
     });
+
+    // Paciente conta em CADA mês em que esteve internado (intersecção de período)
+    // Se internou em janeiro e teve alta em março, conta em jan, fev e mar — separados.
+    const patientPresentInPeriods = (p: PatientRow) => {
+      const start = parseLocalDate(getPatientPeriodStart(p));
+      if (!start) return false;
+      const end = parseLocalDate(p.discharge_date) || new Date();
+      return periods.some(({ start: ps, end: pe }) => start <= pe && end >= ps);
+    };
+
+    const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
 
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
