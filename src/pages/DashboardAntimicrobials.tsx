@@ -15,7 +15,8 @@ import { ptBR } from "date-fns/locale";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Pill, TrendingDown, AlertTriangle, Activity, Plus, Pencil, Loader2, Download, CalendarIcon } from "lucide-react";
+import { Pill, TrendingDown, AlertTriangle, Activity, Plus, Pencil, Loader2, Download, CalendarIcon, Eye, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { toast } from "sonner";
