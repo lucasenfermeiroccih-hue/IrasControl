@@ -251,13 +251,15 @@ export default function DashboardStructure() {
   const [selectedIshikawa, setSelectedIshikawa] = useState<string | null>(null);
 
   // ── Filtered data ──
+  const MES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const filteredAudits = useMemo(() => audits.filter(a => {
     if (!a.audit_date) return false;
     const y  = a.audit_date.substring(0, 4);
     const mi = parseInt(a.audit_date.substring(5, 7), 10);
     const di = parseInt(a.audit_date.substring(8, 10), 10);
+    const mesNome = MES_NOMES[mi - 1];
     if (ano.length   > 0 && !ano.includes(y)) return false;
-    if (mes.length   > 0 && !mes.includes(String(mi))) return false;
+    if (mes.length   > 0 && !mes.includes(mesNome) && !mes.includes(String(mi))) return false;
     if (dia.length   > 0 && !dia.includes(String(di))) return false;
     if (setor.length > 0 && !setor.includes(a.sector || "Sem setor")) return false;
     return true;
