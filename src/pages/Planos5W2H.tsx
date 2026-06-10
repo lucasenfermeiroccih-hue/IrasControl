@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -193,6 +194,8 @@ function KanbanColumn({ status, actions, onDelete, onMoveNext, onMovePrev }: {
 
 export default function Planos5W2H() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const location = useLocation();
+  const prefillApplied = useRef(false);
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
@@ -205,6 +208,25 @@ export default function Planos5W2H() {
   const [rptSetor, setRptSetor] = useState(ALL);
   const [rptType, setRptType] = useState(ALL);
   const [rptStatus, setRptStatus] = useState(ALL);
+
+  // ── Pre-fill from Dashboard navigation state ──────────────────────────────
+  useEffect(() => {
+    const prefill = (location.state as any)?.prefill;
+    if (!prefill || prefillApplied.current) return;
+    prefillApplied.current = true;
+    setForm({
+      what: prefill.what || "",
+      why: prefill.why || "",
+      where: prefill.sector || "",
+      who: "",
+      when: "",
+      how: "",
+      howMuch: "",
+      infectionType: prefill.infectionType || "",
+    });
+    setShowDialog(true);
+    toast.info("Dados importados do Dashboard de Controle de Infecção");
+  }, [location.state]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
