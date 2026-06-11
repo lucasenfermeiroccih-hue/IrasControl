@@ -607,13 +607,22 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
 
           {/* ── Tab 3: Matriz de Risco ────────────────────── */}
           <TabsContent value="risco" className="space-y-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">Avaliação de riscos por probabilidade × impacto</p>
-              <Button size="sm" className="gap-1 text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={() => go5W2H("risk")}>
-                <FileText className="h-3.5 w-3.5" /> Gerar 5W2H
-              </Button>
+            <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+              <p className="text-sm text-muted-foreground flex-1 min-w-[180px]">Avaliação 5×5 — probabilidade × impacto (gerada por IA ou editável)</p>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={resetRisks} title="Restaurar lista padrão">
+                  <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+                </Button>
+                <Button size="sm" variant="secondary" className="gap-1 text-xs h-7" disabled={aiLoading === "risk"} onClick={() => generateWithAI("risk")}>
+                  {aiLoading === "risk" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Gerar com IA
+                </Button>
+                <Button size="sm" className="gap-1 text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white" onClick={() => go5W2H("risk")}>
+                  <FileText className="h-3.5 w-3.5" /> 5W2H
+                </Button>
+              </div>
             </div>
+
 
             {/* 5×5 grid */}
             <div className="overflow-x-auto">
