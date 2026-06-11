@@ -419,9 +419,9 @@ export default function HygieneConsumptionDashboard() {
                   <CardTitle className="text-base">Consumo por Setor (ML)</CardTitle>
                   <ChartActions
                     chartRef={refConsumo}
-                    title="Consumo por Setor"
-                    meta={metaConsumo}
-                    onSetMeta={(v) => setMetaConsumo(v)}
+                    chartTitle="Consumo por Setor"
+                    metaValue={metaConsumo ?? undefined}
+                    onMetaChange={(v) => setMetaConsumo(v as number)}
                   />
                 </div>
               </CardHeader>
@@ -455,9 +455,9 @@ export default function HygieneConsumptionDashboard() {
                   <CardTitle className="text-base">Comparativo entre Setores — Adesão (%) vs Consumo / Paciente-Dia (ML)</CardTitle>
                   <ChartActions
                     chartRef={refComparativo}
-                    title="Comparativo Setores"
-                    meta={metaAdesao}
-                    onSetMeta={(v) => setMetaAdesao(v)}
+                    chartTitle="Comparativo Setores"
+                    metaValue={metaAdesao ?? undefined}
+                    onMetaChange={(v) => setMetaAdesao(v as number)}
                   />
                 </div>
               </CardHeader>
