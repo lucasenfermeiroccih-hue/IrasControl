@@ -443,7 +443,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                           <span className="text-[9px] font-mono opacity-60">{prob * imp}</span>
                           {risksHere.map((r, i) => (
                             <div key={i} className="text-[8px] font-medium text-center leading-tight px-0.5 max-w-full truncate">
-                              {r.name.split(" ")[0]}
+                              {(r.name ?? "Risco").split(" ")[0]}
                             </div>
                           ))}
                         </div>
