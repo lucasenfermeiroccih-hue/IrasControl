@@ -217,15 +217,17 @@ export default function Planos5W2H() {
     setForm({
       what: prefill.what || "",
       why: prefill.why || "",
-      where: prefill.sector || "",
-      who: "",
-      when: "",
-      how: "",
-      howMuch: "",
+      where: prefill.where || prefill.sector || "",
+      who: prefill.who || "",
+      when: prefill.when || "",
+      how: prefill.how || "",
+      howMuch: prefill.howMuch || "",
       infectionType: prefill.infectionType || "",
     });
     setShowDialog(true);
-    toast.info("Dados importados do Dashboard de Controle de Infecção");
+    toast.info(prefill.title ? `Importado: ${prefill.title}` : "Dados importados do Dashboard");
+    // Clear location state so prefill doesn't reapply on refresh
+    window.history.replaceState({}, document.title);
   }, [location.state]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
