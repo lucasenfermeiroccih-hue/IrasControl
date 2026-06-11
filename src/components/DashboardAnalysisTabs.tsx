@@ -23,18 +23,18 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────
 export interface IshikawaCategory {
-  id: string;
-  label: string;
-  color: string;
-  causes: string[];
+  id?: string;
+  label?: string;
+  color?: string;
+  causes?: string[];
   [key: string]: any;
 }
 
 export interface ParetoItem {
-  question: string;
+  question?: string;
   fullQuestion?: string;
-  count: number;
-  acumulado: number;
+  count?: number;
+  acumulado?: number;
   [key: string]: any;
 }
 
@@ -46,7 +46,7 @@ export interface SWOTData {
 }
 
 export interface RiskItem {
-  name: string;
+  name?: string;
   probability: number; // 1-5
   impact: number;      // 1-5
   category?: string;
