@@ -142,7 +142,15 @@ const ISHIKAWA_FALLBACK_COLORS = [
 export default function DashboardAnalysisTabs({ config }: { config: AnalysisConfig }) {
   const navigate = useNavigate();
   const refPareto = useRef<HTMLDivElement>(null);
-  const cats = (config.ishikawaCategories ?? []).slice(0, 6).map((cat, index) => ({
+
+  // Ishikawa + Pareto editable (AI-generatable) state
+  const [ishikawaOverride, setIshikawaOverride] = useState<IshikawaCategory[] | null>(null);
+  const [paretoOverride, setParetoOverride] = useState<ParetoItem[] | null>(null);
+
+  const sourceIshikawa = ishikawaOverride ?? config.ishikawaCategories ?? [];
+  const sourcePareto = paretoOverride ?? config.paretoData ?? [];
+
+  const cats = sourceIshikawa.slice(0, 6).map((cat, index) => ({
     ...cat,
     id: cat.id ?? `ishikawa-${index}`,
     label: cat.label ?? cat.name ?? `Categoria ${index + 1}`,
@@ -150,7 +158,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
     causes: (Array.isArray(cat.causes) ? cat.causes : Array.isArray(cat.items) ? cat.items : []).filter(Boolean),
   }));
   const normalizedPareto = (() => {
-    const items = (config.paretoData ?? []).map((item) => ({
+    const items = sourcePareto.map((item) => ({
       ...item,
       question: item.question ?? item.name ?? item.fullQuestion ?? "Não conformidade",
       fullQuestion: item.fullQuestion ?? item.question ?? item.name ?? "Não conformidade",
@@ -171,6 +179,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
       };
     });
   })();
+
 
   // Ishikawa state
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
@@ -215,7 +224,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
   };
 
   // ─── AI generation ──────────────────────────────────────────
-  const [aiLoading, setAiLoading] = useState<null | "swot" | "risk" | "pdca">(null);
+  const [aiLoading, setAiLoading] = useState<null | "swot" | "risk" | "pdca" | "ishikawa" | "pareto">(null);
 
   const buildContext = () => {
     const s = config.stats || {};
@@ -241,7 +250,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
     return parts.join("\n");
   };
 
-  const generateWithAI = async (kind: "swot" | "risk" | "pdca") => {
+  const generateWithAI = async (kind: "swot" | "risk" | "pdca" | "ishikawa" | "pareto") => {
     setAiLoading(kind);
     try {
       const { data, error } = await supabase.functions.invoke("generate-analysis", {
@@ -269,6 +278,14 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
           act: data.pdca.act ?? [],
         });
         toast({ title: "PDCA atualizado", description: "Ciclo gerado a partir dos indicadores atuais." });
+      } else if (kind === "ishikawa" && Array.isArray(data?.ishikawa)) {
+        setIshikawaOverride(data.ishikawa);
+        setSelectedCat(null);
+        setIshikawaKey((k) => k + 1);
+        toast({ title: "Ishikawa atualizado", description: `${data.ishikawa.length} categorias geradas pela IA.` });
+      } else if (kind === "pareto" && Array.isArray(data?.pareto)) {
+        setParetoOverride(data.pareto);
+        toast({ title: "Pareto atualizado", description: `${data.pareto.length} não conformidades geradas pela IA.` });
       } else {
         throw new Error("Resposta da IA sem dados utilizáveis.");
       }
@@ -356,16 +373,22 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                 <p className="font-semibold text-sm">Diagrama de Ishikawa (6M)</p>
                 <p className="text-xs text-muted-foreground">{config.effectLabel}</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="h-7 w-7" title="Atualizar"
-                  onClick={() => { setIshikawaKey(k => k + 1); setSelectedCat(null); }}>
-                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-wrap gap-1.5">
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7" title="Restaurar dados originais"
+                  onClick={() => { setIshikawaOverride(null); setIshikawaKey(k => k + 1); setSelectedCat(null); }}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+                </Button>
+                <Button size="sm" variant="secondary" className="gap-1 text-xs h-7"
+                  disabled={aiLoading === "ishikawa"} onClick={() => generateWithAI("ishikawa")}>
+                  {aiLoading === "ishikawa" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Gerar com IA
                 </Button>
                 <Button size="sm" className="gap-1 text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={() => go5W2H("ishikawa")}>
-                  <FileText className="h-3.5 w-3.5" /> Gerar 5W2H
+                  <FileText className="h-3.5 w-3.5" /> 5W2H
                 </Button>
               </div>
+
             </div>
 
             {/* Desktop / tablet: SVG fishbone */}
@@ -496,7 +519,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
             )}
 
             {/* Pareto */}
-            {normalizedPareto.length > 0 && (() => {
+            {(() => {
               const data = normalizedPareto.map((d, i) => ({
                 ...d,
                 shortLabel: `#${i + 1}`,
@@ -504,20 +527,44 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
               const total = data.reduce((s, d) => s + (d.count ?? 0), 0);
               const top80Index = data.findIndex(d => (d.acumulado ?? 0) >= 80);
               const vital = top80Index === -1 ? data.length : top80Index + 1;
+              const hasData = data.length > 0;
               return (
                 <div className="mt-4">
                   <Card>
-                    <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
-                      <div>
+                    <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2 flex-wrap">
+                      <div className="flex-1 min-w-[180px]">
                         <CardTitle className="text-sm">Análise de Pareto — Não Conformidades</CardTitle>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          <span className="font-semibold text-foreground">{vital}</span> de {data.length} causas concentram
-                          {" "}<span className="font-semibold text-destructive">≥80%</span> das {total} ocorrências (regra 80/20)
+                          {hasData ? (
+                            <>
+                              <span className="font-semibold text-foreground">{vital}</span> de {data.length} causas concentram
+                              {" "}<span className="font-semibold text-destructive">≥80%</span> das {total} ocorrências (regra 80/20)
+                            </>
+                          ) : (
+                            <>Sem dados ainda — gere com IA a partir dos indicadores do dashboard.</>
+                          )}
                         </p>
                       </div>
-                      <ChartActions chartRef={refPareto} chartTitle="Pareto — Não Conformidades" />
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <Button size="sm" variant="outline" className="gap-1 text-xs h-7" title="Restaurar dados originais"
+                          onClick={() => setParetoOverride(null)}>
+                          <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+                        </Button>
+                        <Button size="sm" variant="secondary" className="gap-1 text-xs h-7"
+                          disabled={aiLoading === "pareto"} onClick={() => generateWithAI("pareto")}>
+                          {aiLoading === "pareto" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                          Gerar com IA
+                        </Button>
+                        {hasData && <ChartActions chartRef={refPareto} chartTitle="Pareto — Não Conformidades" />}
+                      </div>
                     </CardHeader>
                     <CardContent ref={refPareto} className="px-2 sm:px-4">
+                      {!hasData ? (
+                        <div className="py-10 text-center text-xs text-muted-foreground">
+                          Clique em <span className="font-semibold">"Gerar com IA"</span> para preencher a Análise de Pareto com base nos dados deste dashboard.
+                        </div>
+                      ) : (
+                      <>
                       <ResponsiveContainer width="100%" height={260}>
                         <ComposedChart data={data} margin={{ top: 16, right: 16, left: -8, bottom: 8 }}>
                           <defs>
@@ -576,6 +623,8 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                           </div>
                         ))}
                       </div>
+                      </>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

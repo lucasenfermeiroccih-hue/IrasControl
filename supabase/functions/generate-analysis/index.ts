@@ -54,12 +54,16 @@ serve(async (req) => {
       swot: kind === "all" || kind === "swot",
       risk: kind === "all" || kind === "risk",
       pdca: kind === "all" || kind === "pdca",
+      ishikawa: kind === "all" || kind === "ishikawa",
+      pareto: kind === "all" || kind === "pareto",
     };
 
     const sections: string[] = [];
     if (wants.swot) sections.push(`"swot": { "strengths": string[3-5], "weaknesses": string[3-5], "opportunities": string[3-5], "threats": string[3-5] }`);
     if (wants.risk) sections.push(`"risks": Array<{ "name": string (curto, 2-5 palavras), "probability": 1-5, "impact": 1-5, "category": string }> (5 a 7 itens, cobrindo riscos críticos, altos e médios)`);
     if (wants.pdca) sections.push(`"pdca": { "plan": string[3-5], "do": string[3-5], "check": string[3-5], "act": string[3-5] }`);
+    if (wants.ishikawa) sections.push(`"ishikawa": Array<{ "label": "Método"|"Máquina"|"Material"|"Mão de obra"|"Medida"|"Meio Ambiente", "causes": string[3-5] (causas raízes específicas e concretas) }> (exatamente 6 itens, um por M)`);
+    if (wants.pareto) sections.push(`"pareto": Array<{ "question": string (NC curta), "fullQuestion": string (descrição completa), "count": number (ocorrências realistas, decrescente) }> (6 a 10 itens, ordenados do maior para o menor)`);
 
     const systemPrompt = `Você é um especialista em controle de infecções hospitalares (CCIH/SCIH) e gestão da qualidade no Brasil.
 Gere uma análise estratégica baseada nos dados reais do dashboard.
@@ -136,6 +140,38 @@ Retorne um JSON com EXATAMENTE este formato:
           impact: Math.max(1, Math.min(5, Number(r.impact) || 3)),
           category: String(r.category ?? "Geral").slice(0, 40),
         }));
+    }
+
+    // Sanitize ishikawa
+    if (parsed.ishikawa && Array.isArray(parsed.ishikawa)) {
+      parsed.ishikawa = parsed.ishikawa
+        .filter((c: any) => c && typeof c === "object")
+        .slice(0, 6)
+        .map((c: any) => ({
+          label: String(c.label ?? "Categoria").slice(0, 30),
+          causes: Array.isArray(c.causes)
+            ? c.causes.filter((x: any) => typeof x === "string").slice(0, 6).map((x: string) => x.slice(0, 140))
+            : [],
+        }));
+    }
+
+    // Sanitize pareto + compute acumulado
+    if (parsed.pareto && Array.isArray(parsed.pareto)) {
+      const items = parsed.pareto
+        .filter((p: any) => p && typeof p === "object")
+        .slice(0, 10)
+        .map((p: any) => ({
+          question: String(p.question ?? p.fullQuestion ?? "Não conformidade").slice(0, 80),
+          fullQuestion: String(p.fullQuestion ?? p.question ?? "Não conformidade").slice(0, 200),
+          count: Math.max(0, Math.round(Number(p.count) || 0)),
+        }))
+        .sort((a: any, b: any) => b.count - a.count);
+      const total = items.reduce((s: number, p: any) => s + p.count, 0);
+      let running = 0;
+      parsed.pareto = items.map((p: any) => {
+        running += p.count;
+        return { ...p, acumulado: total > 0 ? Number(((running / total) * 100).toFixed(1)) : 0 };
+      });
     }
 
     return new Response(JSON.stringify(parsed), {
