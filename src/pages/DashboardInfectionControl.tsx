@@ -338,13 +338,23 @@ export default function DashboardInfectionControl() {
       auditorias: s.audits,
     }));
 
-    // Pareto data for failures
-    const total = stats.topFailures.reduce((s, f) => s + f.count, 0);
+    // Pareto data for failures (with demo fallback when there are no audits yet)
+    const DEMO_TOP_FAILURES_IC = [
+      { item: "Higienização das mãos antes do paciente",       count: 10, category: "Bundle Higiene" },
+      { item: "Bundle CVC — clorexidina 2% antes do acesso",   count: 7,  category: "Bundle CVC" },
+      { item: "Bundle PAV — cabeceira elevada ≥30°",           count: 6,  category: "Bundle PAV" },
+      { item: "Bundle ITU — retirada precoce de SVD",          count: 5,  category: "Bundle ITU" },
+      { item: "Higienização do estetoscópio entre pacientes",  count: 4,  category: "Equipamentos" },
+      { item: "Descarte adequado de perfurocortantes",         count: 3,  category: "Biossegurança" },
+    ];
+    const effectiveTopFailures = stats.topFailures.length > 0 ? stats.topFailures : DEMO_TOP_FAILURES_IC;
+    const total = effectiveTopFailures.reduce((s, f) => s + f.count, 0);
     let acc = 0;
-    const paretoData = stats.topFailures.map((f) => {
+    const paretoData = effectiveTopFailures.map((f) => {
       acc += f.count;
       return { name: f.item.length > 28 ? f.item.substring(0, 27) + "…" : f.item, count: f.count, acumulado: total > 0 ? Math.round((acc / total) * 100) : 0, categoria: f.category };
     });
+
 
     // OKR Key Results
     const kr1Progress = Math.min(100, Math.round((stats.avgCompliance / 90) * 100));
@@ -355,7 +365,7 @@ export default function DashboardInfectionControl() {
     const kr4Progress = bundleCat ? Math.min(100, Math.round((bundleCat.compliance / 80) * 100)) : kr1Progress;
     const kr5Progress = Math.min(100, goodSectors > 0 ? Math.round((goodSectors / Math.max(1, stats.sectorData.length)) * 100) : 0);
 
-    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
+    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
   }, [stats, items]);
 
   // ── Export PDF ──
@@ -674,7 +684,7 @@ export default function DashboardInfectionControl() {
       )}
 
       {/* ── Top Non-conformities + Pareto ── */}
-      {stats.topFailures.length > 0 && (
+      {derived.effectiveTopFailures.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="pb-2">
@@ -682,7 +692,7 @@ export default function DashboardInfectionControl() {
               <CardDescription className="text-xs">Itens com maior frequência de falha no período</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {stats.topFailures.map((f, i) => (
+              {derived.effectiveTopFailures.map((f, i) => (
                 <div key={i} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -694,7 +704,7 @@ export default function DashboardInfectionControl() {
                       <span className="text-sm font-bold text-destructive">{f.count}×</span>
                     </div>
                   </div>
-                  <Progress value={stats.topFailures[0] ? (f.count / stats.topFailures[0].count) * 100 : 0} className="h-1.5" />
+                  <Progress value={derived.effectiveTopFailures[0] ? (f.count / derived.effectiveTopFailures[0].count) * 100 : 0} className="h-1.5" />
                 </div>
               ))}
             </CardContent>
@@ -757,7 +767,7 @@ export default function DashboardInfectionControl() {
               <IshikawaDiagram
                 selectedId={selectedIshikawa}
                 onSelect={setSelectedIshikawa}
-                topFailures={stats.topFailures}
+                topFailures={derived.effectiveTopFailures}
               />
             </div>
           </div>
@@ -777,7 +787,7 @@ export default function DashboardInfectionControl() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {cat.causes.map((cause, i) => {
-                    const relatedFailure = stats.topFailures.find((f) =>
+                    const relatedFailure = derived.effectiveTopFailures.find((f) =>
                       f.item.toLowerCase().includes(cause.split(" ")[0].toLowerCase())
                     );
                     return (
@@ -804,9 +814,9 @@ export default function DashboardInfectionControl() {
           })()}
 
           {/* Summary of detected failures mapped to categories */}
-          {stats.topFailures.length > 0 && (
+          {derived.effectiveTopFailures.length > 0 && (
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {stats.topFailures.slice(0, 6).map((f, i) => (
+              {derived.effectiveTopFailures.slice(0, 6).map((f, i) => (
                 <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg border bg-muted/30">
                   <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                   <div className="min-w-0">
@@ -835,9 +845,9 @@ export default function DashboardInfectionControl() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 Gere um Plano de Ação 5W2H com o contexto desta análise pré-preenchido — O quê, Por quê, Onde, Quem, Quando, Como e Quanto.
               </p>
-              {stats.topFailures[0] && (
+              {derived.effectiveTopFailures[0] && (
                 <p className="text-xs text-primary font-medium mt-1">
-                  Principal falha identificada: "{stats.topFailures[0].item}" ({stats.topFailures[0].count}×)
+                  Principal falha identificada: "{derived.effectiveTopFailures[0].item}" ({derived.effectiveTopFailures[0].count}×)
                 </p>
               )}
             </div>

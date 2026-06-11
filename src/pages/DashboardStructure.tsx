@@ -314,9 +314,19 @@ export default function DashboardStructure() {
       if (!failCounts[i.question]) failCounts[i.question] = { count: 0, category: i.category || "" };
       failCounts[i.question].count++;
     });
-    const topFailures = Object.entries(failCounts)
+    const DEMO_TOP_FAILURES_STRUCT = [
+      { item: "Climatização inadequada da sala",           count: 8, category: "Ambiente" },
+      { item: "Filtros HEPA sem registro de troca",        count: 6, category: "Equipamentos" },
+      { item: "Torneira sem acionamento sem contato",      count: 5, category: "Equipamentos" },
+      { item: "Pisos e rodapés com fissuras",              count: 4, category: "Planta Física" },
+      { item: "Iluminação insuficiente em leitos",         count: 3, category: "Planta Física" },
+      { item: "Sinalização de áreas críticas ausente",     count: 2, category: "Sinalização" },
+    ];
+    const realTop = Object.entries(failCounts)
       .sort(([, a], [, b]) => b.count - a.count).slice(0, 6)
       .map(([item, v]) => ({ item, count: v.count, category: v.category }));
+    const topFailures = realTop.length > 0 ? realTop : DEMO_TOP_FAILURES_STRUCT;
+
 
     // By category
     const byCategory: Record<string, { compliant: number; total: number }> = {};

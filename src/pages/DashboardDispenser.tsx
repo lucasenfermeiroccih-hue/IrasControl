@@ -308,9 +308,19 @@ export default function DashboardDispenser() {
       if (!failCounts[i.question]) failCounts[i.question] = { count: 0, category: i.category || "" };
       failCounts[i.question].count++;
     });
-    const topFailures = Object.entries(failCounts)
+    const DEMO_TOP_FAILURES_DISP = [
+      { item: "Reservatório vazio no momento da auditoria",   count: 9, category: "Abastecimento" },
+      { item: "Dispenser sem identificação do produto",        count: 6, category: "Identificação" },
+      { item: "Localização inadequada (longe do leito)",       count: 5, category: "Instalação" },
+      { item: "Acionamento difícil ou quebrado",               count: 4, category: "Manutenção" },
+      { item: "Sem manutenção registrada nos últimos 30 dias", count: 3, category: "Manutenção" },
+      { item: "Sabonete comum em vez de antisséptico em UTI",  count: 2, category: "Produto" },
+    ];
+    const realTopDisp = Object.entries(failCounts)
       .sort(([, a], [, b]) => b.count - a.count).slice(0, 6)
       .map(([item, v]) => ({ item, count: v.count, category: v.category }));
+    const topFailures = realTopDisp.length > 0 ? realTopDisp : DEMO_TOP_FAILURES_DISP;
+
 
     // By category
     const byCategory: Record<string, { compliant: number; total: number }> = {};
