@@ -365,7 +365,7 @@ export default function DashboardInfectionControl() {
     const kr4Progress = bundleCat ? Math.min(100, Math.round((bundleCat.compliance / 80) * 100)) : kr1Progress;
     const kr5Progress = Math.min(100, goodSectors > 0 ? Math.round((goodSectors / Math.max(1, stats.sectorData.length)) * 100) : 0);
 
-    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
+    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
   }, [stats, items]);
 
   // ── Export PDF ──
