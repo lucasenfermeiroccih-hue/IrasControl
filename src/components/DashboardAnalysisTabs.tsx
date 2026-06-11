@@ -27,6 +27,7 @@ export interface IshikawaCategory {
   label: string;
   color: string;
   causes: string[];
+  name?: string;
 }
 
 export interface ParetoItem {
@@ -34,6 +35,7 @@ export interface ParetoItem {
   fullQuestion?: string;
   count: number;
   acumulado: number;
+  name?: string;
 }
 
 export interface SWOTData {
@@ -48,6 +50,7 @@ export interface RiskItem {
   probability: number; // 1-5
   impact: number;      // 1-5
   category?: string;
+  id?: string;
 }
 
 export interface PDCAData {
