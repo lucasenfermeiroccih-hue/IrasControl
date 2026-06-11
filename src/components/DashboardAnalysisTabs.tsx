@@ -150,6 +150,13 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
 
   // Risk editable state
   const [risks, setRisks] = useState<RiskItem[]>(config.risks);
+  const [riskDraft, setRiskDraft] = useState<{ name: string; probability: number; impact: number }>({ name: "", probability: 3, impact: 3 });
+  const addRisk = () => {
+    const name = riskDraft.name.trim();
+    if (!name) return;
+    setRisks(prev => [...prev, { name, probability: riskDraft.probability, impact: riskDraft.impact, category: "Manual" }]);
+    setRiskDraft({ name: "", probability: 3, impact: 3 });
+  };
 
   // PDCA editable state
   const [pdca, setPdca] = useState<PDCAData>({ ...config.pdcaData });
@@ -164,6 +171,76 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
   const removePdcaItem = (key: keyof PDCAData, idx: number) => {
     setPdca(prev => ({ ...prev, [key]: prev[key].filter((_, i) => i !== idx) }));
   };
+
+  // ─── AI generation ──────────────────────────────────────────
+  const [aiLoading, setAiLoading] = useState<null | "swot" | "risk" | "pdca">(null);
+
+  const buildContext = () => {
+    const s = config.stats || {};
+    const parts: string[] = [];
+    parts.push(`Domínio: ${config.domain}`);
+    parts.push(`Efeito monitorado: ${config.effectLabel}`);
+    if (s.value !== undefined) parts.push(`Indicador principal: ${s.value} ${s.label ? `(${s.label})` : ""}`);
+    if (s.issues !== undefined) parts.push(`Ocorrências: ${s.issues}`);
+    if (s.topIssue) parts.push(`Principal não conformidade: ${s.topIssue}`);
+    if (s.sector) parts.push(`Setor crítico: ${s.sector}`);
+    if (config.paretoData?.length) {
+      parts.push(`\nTop não conformidades (Pareto):`);
+      config.paretoData.slice(0, 6).forEach((p, i) => {
+        parts.push(`${i + 1}. ${p.fullQuestion || p.question} — ${p.count} ocorrências (${p.acumulado}% acumulado)`);
+      });
+    }
+    if (config.ishikawaCategories?.length) {
+      parts.push(`\nCategorias 6M e causas identificadas:`);
+      config.ishikawaCategories.forEach((c) => {
+        parts.push(`- ${c.label}: ${(c.causes ?? []).slice(0, 3).join("; ")}`);
+      });
+    }
+    return parts.join("\n");
+  };
+
+  const generateWithAI = async (kind: "swot" | "risk" | "pdca") => {
+    setAiLoading(kind);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-analysis", {
+        body: { context: buildContext(), pageTitle: config.domain, kind },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (kind === "swot" && data?.swot) {
+        setSwot({
+          strengths: data.swot.strengths ?? [],
+          weaknesses: data.swot.weaknesses ?? [],
+          opportunities: data.swot.opportunities ?? [],
+          threats: data.swot.threats ?? [],
+        });
+        toast({ title: "SWOT atualizada", description: "Análise gerada com base nos dados do dashboard." });
+      } else if (kind === "risk" && Array.isArray(data?.risks)) {
+        setRisks(data.risks);
+        toast({ title: "Matriz de Risco atualizada", description: `${data.risks.length} riscos identificados.` });
+      } else if (kind === "pdca" && data?.pdca) {
+        setPdca({
+          plan: data.pdca.plan ?? [],
+          do: data.pdca.do ?? [],
+          check: data.pdca.check ?? [],
+          act: data.pdca.act ?? [],
+        });
+        toast({ title: "PDCA atualizado", description: "Ciclo gerado a partir dos indicadores atuais." });
+      } else {
+        throw new Error("Resposta da IA sem dados utilizáveis.");
+      }
+    } catch (e: any) {
+      toast({ title: "Não foi possível gerar com IA", description: e?.message ?? "Tente novamente.", variant: "destructive" });
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  const resetSwot = () => setSwot({ ...config.swotData });
+  const resetRisks = () => setRisks(config.risks);
+  const resetPdca = () => setPdca({ ...config.pdcaData });
+
 
   // 5W2H navigation
   const go5W2H = (source: "ishikawa" | "swot" | "risk" | "pdca") => {
