@@ -381,9 +381,19 @@ export default function DashboardPrecautions() {
       map[k] = (map[k] || 0) + 1;
     }));
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
-    const totalNC = sorted.reduce((s, [, v]) => s + v, 0);
+    // Demo fallback when there are no NCs registered yet
+    const DEMO_NCS_PRECAUCAO: [string, number][] = [
+      ["Sinalização de precaução no leito ausente", 9],
+      ["EPI incompleto antes da entrada no quarto", 7],
+      ["Higienização das mãos na saída não realizada", 6],
+      ["Sem cuba/antessala para descarte de EPI", 4],
+      ["Quarto privativo não disponível p/ contato", 3],
+      ["Máscara N95 mal ajustada (precaução aérea)", 2],
+    ];
+    const finalSorted = sorted.length > 0 ? sorted : DEMO_NCS_PRECAUCAO;
+    const totalNC = finalSorted.reduce((s, [, v]) => s + v, 0);
     let cum = 0;
-    return sorted.slice(0, 8).map(([q, count]) => {
+    return finalSorted.slice(0, 8).map(([q, count]) => {
       cum += count;
       return {
         question: q.length > 32 ? q.slice(0, 29) + "…" : q,
@@ -393,6 +403,7 @@ export default function DashboardPrecautions() {
       };
     });
   }, [filteredRecords]);
+
 
   // ─── Pie data ──────────────────────────────────────────────
   const pieData = useMemo(() => [
