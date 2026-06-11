@@ -293,7 +293,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                   {cats[selectedCat].label} — Causas Identificadas
                 </p>
                 <ul className="space-y-1.5">
-                  {cats[selectedCat].causes.map((cause, i) => (
+                  {(cats[selectedCat].causes ?? []).map((cause, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: cats[selectedCat].color }} />
