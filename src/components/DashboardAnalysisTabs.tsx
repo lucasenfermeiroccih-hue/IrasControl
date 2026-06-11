@@ -28,16 +28,20 @@ import {
 export interface IshikawaCategory {
   id?: string;
   label?: string;
+  name?: string;
   color?: string;
   causes?: string[];
+  items?: string[];
   [key: string]: any;
 }
 
 export interface ParetoItem {
   question?: string;
   fullQuestion?: string;
+  name?: string;
   count?: number;
   acumulado?: number;
+  value?: number;
   [key: string]: any;
 }
 
@@ -125,10 +129,48 @@ const PDCA_CONFIG = [
   { key: "act",   label: "ACT — Agir",      icon: RotateCcw,    color: "border-purple-400", bg: "bg-purple-50 dark:bg-purple-950/30",text: "text-purple-700" },
 ] as const;
 
+const ISHIKAWA_FALLBACK_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--info))",
+];
+
 // ─── Main Component ───────────────────────────────────────────
 export default function DashboardAnalysisTabs({ config }: { config: AnalysisConfig }) {
   const navigate = useNavigate();
   const refPareto = useRef<HTMLDivElement>(null);
+  const cats = (config.ishikawaCategories ?? []).slice(0, 6).map((cat, index) => ({
+    ...cat,
+    id: cat.id ?? `ishikawa-${index}`,
+    label: cat.label ?? cat.name ?? `Categoria ${index + 1}`,
+    color: cat.color ?? ISHIKAWA_FALLBACK_COLORS[index % ISHIKAWA_FALLBACK_COLORS.length],
+    causes: (Array.isArray(cat.causes) ? cat.causes : Array.isArray(cat.items) ? cat.items : []).filter(Boolean),
+  }));
+  const normalizedPareto = (() => {
+    const items = (config.paretoData ?? []).map((item) => ({
+      ...item,
+      question: item.question ?? item.name ?? item.fullQuestion ?? "Não conformidade",
+      fullQuestion: item.fullQuestion ?? item.question ?? item.name ?? "Não conformidade",
+      count: typeof item.count === "number" ? item.count : typeof item.value === "number" ? item.value : 0,
+    }));
+    const total = items.reduce((sum, item) => sum + (item.count ?? 0), 0);
+    let running = 0;
+
+    return items.map((item) => {
+      running += item.count ?? 0;
+      return {
+        ...item,
+        acumulado: typeof item.acumulado === "number"
+          ? item.acumulado
+          : total > 0
+            ? Number(((running / total) * 100).toFixed(1))
+            : 0,
+      };
+    });
+  })();
 
   // Ishikawa state
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
@@ -184,15 +226,15 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
     if (s.issues !== undefined) parts.push(`Ocorrências: ${s.issues}`);
     if (s.topIssue) parts.push(`Principal não conformidade: ${s.topIssue}`);
     if (s.sector) parts.push(`Setor crítico: ${s.sector}`);
-    if (config.paretoData?.length) {
+    if (normalizedPareto.length) {
       parts.push(`\nTop não conformidades (Pareto):`);
-      config.paretoData.slice(0, 6).forEach((p, i) => {
+      normalizedPareto.slice(0, 6).forEach((p, i) => {
         parts.push(`${i + 1}. ${p.fullQuestion || p.question} — ${p.count} ocorrências (${p.acumulado}% acumulado)`);
       });
     }
-    if (config.ishikawaCategories?.length) {
+    if (cats.length) {
       parts.push(`\nCategorias 6M e causas identificadas:`);
-      config.ishikawaCategories.forEach((c) => {
+      cats.forEach((c) => {
         parts.push(`- ${c.label}: ${(c.causes ?? []).slice(0, 3).join("; ")}`);
       });
     }
@@ -244,14 +286,14 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
 
   // 5W2H navigation
   const go5W2H = (source: "ishikawa" | "swot" | "risk" | "pdca") => {
-    const topIssue = config.stats?.topIssue || config.ishikawaCategories[0]?.causes[0] || "Problema identificado";
+    const topIssue = config.stats?.topIssue || cats[0]?.causes[0] || "Problema identificado";
     const sector = config.stats?.sector || "Unidades do hospital";
     const metric = config.stats?.value !== undefined ? `${config.stats.value} (${config.stats.label || ""})` : "—";
 
     let what = "", why = "", how = "";
 
     if (source === "ishikawa") {
-      const topCat = selectedCat !== null ? config.ishikawaCategories[selectedCat] : config.ishikawaCategories[0];
+      const topCat = selectedCat !== null ? cats[selectedCat] : cats[0];
       what = `Corrigir causa raiz: ${topCat?.causes[0] || topIssue} — Categoria: ${topCat?.label || "Não definido"}`;
       why = `Indicador principal: ${metric}. ${config.stats?.issues ? `${config.stats.issues} ocorrências identificadas.` : ""}`;
       how = topCat?.causes.slice(1).join("; ") || "Ações corretivas a definir";
@@ -288,8 +330,6 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
       },
     });
   };
-
-  const cats = config.ishikawaCategories;
 
   return (
     <Card className="mt-2">
@@ -456,8 +496,8 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
             )}
 
             {/* Pareto */}
-            {config.paretoData && config.paretoData.length > 0 && (() => {
-              const data = config.paretoData!.map((d, i) => ({
+            {normalizedPareto.length > 0 && (() => {
+              const data = normalizedPareto.map((d, i) => ({
                 ...d,
                 shortLabel: `#${i + 1}`,
               }));
