@@ -142,7 +142,15 @@ const ISHIKAWA_FALLBACK_COLORS = [
 export default function DashboardAnalysisTabs({ config }: { config: AnalysisConfig }) {
   const navigate = useNavigate();
   const refPareto = useRef<HTMLDivElement>(null);
-  const cats = (config.ishikawaCategories ?? []).slice(0, 6).map((cat, index) => ({
+
+  // Ishikawa + Pareto editable (AI-generatable) state
+  const [ishikawaOverride, setIshikawaOverride] = useState<IshikawaCategory[] | null>(null);
+  const [paretoOverride, setParetoOverride] = useState<ParetoItem[] | null>(null);
+
+  const sourceIshikawa = ishikawaOverride ?? config.ishikawaCategories ?? [];
+  const sourcePareto = paretoOverride ?? config.paretoData ?? [];
+
+  const cats = sourceIshikawa.slice(0, 6).map((cat, index) => ({
     ...cat,
     id: cat.id ?? `ishikawa-${index}`,
     label: cat.label ?? cat.name ?? `Categoria ${index + 1}`,
@@ -150,7 +158,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
     causes: (Array.isArray(cat.causes) ? cat.causes : Array.isArray(cat.items) ? cat.items : []).filter(Boolean),
   }));
   const normalizedPareto = (() => {
-    const items = (config.paretoData ?? []).map((item) => ({
+    const items = sourcePareto.map((item) => ({
       ...item,
       question: item.question ?? item.name ?? item.fullQuestion ?? "Não conformidade",
       fullQuestion: item.fullQuestion ?? item.question ?? item.name ?? "Não conformidade",
@@ -171,6 +179,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
       };
     });
   })();
+
 
   // Ishikawa state
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
