@@ -373,16 +373,22 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                 <p className="font-semibold text-sm">Diagrama de Ishikawa (6M)</p>
                 <p className="text-xs text-muted-foreground">{config.effectLabel}</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="h-7 w-7" title="Atualizar"
-                  onClick={() => { setIshikawaKey(k => k + 1); setSelectedCat(null); }}>
-                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-wrap gap-1.5">
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7" title="Restaurar dados originais"
+                  onClick={() => { setIshikawaOverride(null); setIshikawaKey(k => k + 1); setSelectedCat(null); }}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+                </Button>
+                <Button size="sm" variant="secondary" className="gap-1 text-xs h-7"
+                  disabled={aiLoading === "ishikawa"} onClick={() => generateWithAI("ishikawa")}>
+                  {aiLoading === "ishikawa" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Gerar com IA
                 </Button>
                 <Button size="sm" className="gap-1 text-xs h-7 bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={() => go5W2H("ishikawa")}>
-                  <FileText className="h-3.5 w-3.5" /> Gerar 5W2H
+                  <FileText className="h-3.5 w-3.5" /> 5W2H
                 </Button>
               </div>
+
             </div>
 
             {/* Desktop / tablet: SVG fishbone */}
