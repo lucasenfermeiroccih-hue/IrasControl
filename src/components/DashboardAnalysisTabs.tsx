@@ -15,10 +15,13 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from "recharts";
 import ChartActions from "@/components/ChartActions";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 import {
   RefreshCw, FileText, AlertTriangle, CheckCircle2, Target,
   TrendingUp, Lightbulb, Eye, Plus, Trash2, RotateCcw,
-  Shield, Zap, GitMerge,
+  Shield, Zap, GitMerge, Sparkles, Loader2,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────
