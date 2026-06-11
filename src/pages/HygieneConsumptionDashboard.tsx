@@ -420,7 +420,7 @@ export default function HygieneConsumptionDashboard() {
                   <ChartActions
                     chartRef={refConsumo}
                     chartTitle="Consumo por Setor"
-                    metaValue={metaConsumo}
+                    metaValue={metaConsumo ?? undefined}
                     onMetaChange={(v) => setMetaConsumo(v as number)}
                   />
                 </div>
@@ -456,7 +456,7 @@ export default function HygieneConsumptionDashboard() {
                   <ChartActions
                     chartRef={refComparativo}
                     chartTitle="Comparativo Setores"
-                    metaValue={metaAdesao}
+                    metaValue={metaAdesao ?? undefined}
                     onMetaChange={(v) => setMetaAdesao(v as number)}
                   />
                 </div>
