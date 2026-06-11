@@ -224,7 +224,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
   };
 
   // ─── AI generation ──────────────────────────────────────────
-  const [aiLoading, setAiLoading] = useState<null | "swot" | "risk" | "pdca">(null);
+  const [aiLoading, setAiLoading] = useState<null | "swot" | "risk" | "pdca" | "ishikawa" | "pareto">(null);
 
   const buildContext = () => {
     const s = config.stats || {};
