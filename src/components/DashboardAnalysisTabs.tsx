@@ -250,7 +250,7 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
     return parts.join("\n");
   };
 
-  const generateWithAI = async (kind: "swot" | "risk" | "pdca") => {
+  const generateWithAI = async (kind: "swot" | "risk" | "pdca" | "ishikawa" | "pareto") => {
     setAiLoading(kind);
     try {
       const { data, error } = await supabase.functions.invoke("generate-analysis", {
@@ -278,6 +278,14 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
           act: data.pdca.act ?? [],
         });
         toast({ title: "PDCA atualizado", description: "Ciclo gerado a partir dos indicadores atuais." });
+      } else if (kind === "ishikawa" && Array.isArray(data?.ishikawa)) {
+        setIshikawaOverride(data.ishikawa);
+        setSelectedCat(null);
+        setIshikawaKey((k) => k + 1);
+        toast({ title: "Ishikawa atualizado", description: `${data.ishikawa.length} categorias geradas pela IA.` });
+      } else if (kind === "pareto" && Array.isArray(data?.pareto)) {
+        setParetoOverride(data.pareto);
+        toast({ title: "Pareto atualizado", description: `${data.pareto.length} não conformidades geradas pela IA.` });
       } else {
         throw new Error("Resposta da IA sem dados utilizáveis.");
       }
