@@ -625,6 +625,8 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
                           </div>
                         ))}
                       </div>
+                      </>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
