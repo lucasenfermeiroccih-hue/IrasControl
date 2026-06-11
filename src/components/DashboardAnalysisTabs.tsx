@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer,
+  Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from "recharts";
 import ChartActions from "@/components/ChartActions";
 import {
