@@ -402,7 +402,7 @@ export default function AuditAntibiogramNew() {
     setEditingId(null);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType(""); setMdr("ignorado");
     setResults(buildDefaultResults());
   };
 
