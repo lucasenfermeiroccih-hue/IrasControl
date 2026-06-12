@@ -614,6 +614,20 @@ export default function AuditAntibiogramNew() {
                 )}
               </div>
             </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Multirresistente (MDR)?</Label>
+              <p className="text-xs text-muted-foreground">
+                Marque como Sim se o microrganismo é classificado como multirresistente (resistente a ≥1 agente em ≥3 classes de antimicrobianos).
+              </p>
+              <ToggleGroup type="single" value={mdr} onValueChange={(v) => v && setMdr(v as any)} className="justify-start">
+                <ToggleGroupItem value="sim" className="data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground">Sim (MDR)</ToggleGroupItem>
+                <ToggleGroupItem value="nao">Não</ToggleGroupItem>
+                <ToggleGroupItem value="ignorado">Ignorado</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </CardContent>
         </Card>
 
