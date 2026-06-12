@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,16 +9,17 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ComposedChart, ReferenceLine, PieChart, Pie, Cell, Legend,
-  AreaChart, Area, LineChart, Line,
+  AreaChart, Area, LineChart, Line, LabelList,
 } from "recharts";
 import {
   Building2, CheckCircle2, AlertTriangle, TrendingUp, Loader2, Download,
   XCircle, AlertCircle, Target, ArrowRight, Brain, ClipboardList,
   GitBranch, Activity, Info, Flame, ShieldCheck, Layers,
-  Wind, Droplets, Wrench, ClipboardCheck, MapPin,
+  Wind, Droplets, Wrench, ClipboardCheck, MapPin, RefreshCw,
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
+import ChartActions from "@/components/ChartActions";
 import { useAuditDashboard as useAudit } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
