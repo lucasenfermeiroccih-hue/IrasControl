@@ -353,7 +353,7 @@ export default function AuditAntibiogramNew() {
     setRefreshKey(k => k + 1);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType(""); setMdr("ignorado");
     setResults(buildDefaultResults());
     window.scrollTo(0, 0);
   };
