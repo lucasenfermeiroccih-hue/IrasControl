@@ -298,7 +298,7 @@ export default function AuditAntibiogramNew() {
       carbapenemase,
       carbapenemase_type: carbapenemase === "sim" ? carbapenemaseType : null,
       status: "completed" as const,
-      notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId}`,
+      notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId} | MDR: ${mdr}`,
     };
 
     let labResultId = editingId;
