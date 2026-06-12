@@ -979,15 +979,24 @@ export default function DashboardStructure() {
                 <CardDescription className="text-xs">Causas das não conformidades estruturais · Clique em uma categoria para detalhar</CardDescription>
               </div>
             </div>
-            {selectedIshikawa && (
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
-                <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar seleção
+            <div className="flex items-center gap-1">
+              {selectedIshikawa && (
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIshikawa(null)}>
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar seleção
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Atualizar análise"
+                onClick={() => { setSelectedIshikawa(null); setIshikawaKey(k => k + 1); }}>
+                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
-            )}
+              <ChartActions chartRef={chartRefs.ishikawa} chartTitle="Diagrama de Ishikawa (6M)" />
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <IshikawaStructure selectedId={selectedIshikawa} onSelect={setSelectedIshikawa} topFailures={fStats.topFailures} />
+        <CardContent ref={chartRefs.ishikawa}>
+          <div key={ishikawaKey}>
+            <IshikawaStructure selectedId={selectedIshikawa} onSelect={setSelectedIshikawa} topFailures={fStats.topFailures} />
+          </div>
 
           {selectedIshikawa && (() => {
             const cat = STRUCT_ISHIKAWA.find(c => c.id === selectedIshikawa);
