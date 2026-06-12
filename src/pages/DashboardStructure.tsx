@@ -611,10 +611,16 @@ export default function DashboardStructure() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Evolução Mensal da Conformidade Estrutural</CardTitle>
-            <CardDescription className="text-xs">Tendência vs meta de {META}% · linha vermelha = referência ANVISA</CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm">Evolução Mensal da Conformidade Estrutural</CardTitle>
+                <CardDescription className="text-xs">Tendência vs meta de {metas.trend ?? META}% · linha vermelha = referência</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.trend} chartTitle="Evolução Mensal da Conformidade Estrutural"
+                metaValue={metas.trend} onMetaChange={(v) => setMeta("trend", v)} metaUnit="%" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent ref={chartRefs.trend}>
             {fStats.monthlyTrend.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados de tendência</div>
             ) : (
@@ -630,8 +636,10 @@ export default function DashboardStructure() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={META} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
-                    label={{ value: `Meta ${META}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  {metas.trend !== undefined && (
+                    <ReferenceLine y={metas.trend} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                      label={{ value: `Meta ${metas.trend}%`, position: "insideTopRight", fontSize: 10, fill: "#ef4444" }} />
+                  )}
                   <Area dataKey="compliance" name="Conformidade" stroke="#10b981" fill="url(#gradStruct)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -641,10 +649,15 @@ export default function DashboardStructure() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Distribuição dos Itens Auditados</CardTitle>
-            <CardDescription className="text-xs">Conformes · Não Conformes · N/A por período</CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm">Distribuição dos Itens Auditados</CardTitle>
+                <CardDescription className="text-xs">Conformes · Não Conformes · N/A</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.pie} chartTitle="Distribuição dos Itens Auditados" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent ref={chartRefs.pie}>
             <ResponsiveContainer width="100%" height={190}>
               <PieChart>
                 <Pie data={fStats.pieData} cx="50%" cy="48%" innerRadius={48} outerRadius={74} paddingAngle={3} dataKey="value">
