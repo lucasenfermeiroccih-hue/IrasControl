@@ -69,12 +69,16 @@ interface LabRecord {
 }
 
 const parseNotes = (notes: string | null): { mdr: boolean; criticidade: string; statusRegistro: string } => {
-  try {
-    if (notes) {
+  if (notes) {
+    try {
       const parsed = JSON.parse(notes);
       return { mdr: !!parsed.mdr, criticidade: parsed.criticidade || "baixo", statusRegistro: parsed.statusRegistro || "pendente" };
-    }
-  } catch {}
+    } catch {}
+    // Plain-text fallback (used by /audits/antimicrobial-sensitivity/new)
+    const m = notes.match(/MDR:\s*(sim|nao|ignorado|true|false)/i);
+    const mdr = m ? /^(sim|true)$/i.test(m[1]) : false;
+    return { mdr, criticidade: "baixo", statusRegistro: "pendente" };
+  }
   return { mdr: false, criticidade: "baixo", statusRegistro: "pendente" };
 };
 
