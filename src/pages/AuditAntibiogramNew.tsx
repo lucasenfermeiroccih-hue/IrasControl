@@ -379,9 +379,11 @@ export default function AuditAntibiogramNew() {
     const setorMatch = notes.match(/Setor:\s*([^|]+)/);
     const amostraMatch = notes.match(/Amostra:\s*([^|]+)/);
     const pacMatch = notes.match(/Paciente:\s*([^|]+)/);
+    const mdrMatch = notes.match(/MDR:\s*(sim|nao|ignorado)/i);
     setSector(setorMatch ? setorMatch[1].trim() : "");
     setSampleId(amostraMatch ? amostraMatch[1].trim() : "");
     setPatientId(pacMatch ? pacMatch[1].trim() : "");
+    setMdr((mdrMatch ? mdrMatch[1].toLowerCase() : "ignorado") as any);
     // Load antibiogram rows
     const rows: AntibioticResult[] = (record.results || []).map(r => ({
       id: newId(),
