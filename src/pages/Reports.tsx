@@ -69,12 +69,16 @@ interface LabRecord {
 }
 
 const parseNotes = (notes: string | null): { mdr: boolean; criticidade: string; statusRegistro: string } => {
-  try {
-    if (notes) {
+  if (notes) {
+    try {
       const parsed = JSON.parse(notes);
       return { mdr: !!parsed.mdr, criticidade: parsed.criticidade || "baixo", statusRegistro: parsed.statusRegistro || "pendente" };
-    }
-  } catch {}
+    } catch {}
+    // Plain-text fallback (used by /audits/antimicrobial-sensitivity/new)
+    const m = notes.match(/MDR:\s*(sim|nao|ignorado|true|false)/i);
+    const mdr = m ? /^(sim|true)$/i.test(m[1]) : false;
+    return { mdr, criticidade: "baixo", statusRegistro: "pendente" };
+  }
   return { mdr: false, criticidade: "baixo", statusRegistro: "pendente" };
 };
 
@@ -98,6 +102,7 @@ const Reports = () => {
   const [filterMes, setFilterMes] = useState<string>("all");
   const [filterAno, setFilterAno] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterMdr, setFilterMdr] = useState<"all" | "mdr" | "non-mdr">("all");
   const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
 
   // Pagination
@@ -163,9 +168,14 @@ const Reports = () => {
         const year = String(new Date(r.collection_date).getFullYear());
         if (year !== filterAno) return false;
       }
+      if (filterMdr !== "all") {
+        const isMdr = parseNotes(r.notes).mdr;
+        if (filterMdr === "mdr" && !isMdr) return false;
+        if (filterMdr === "non-mdr" && isMdr) return false;
+      }
       return true;
     });
-  }, [records, filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
+  }, [records, filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno, filterMdr]);
 
   // Reset page when filters change
   useEffect(() => { setTablePage(1); }, [filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
@@ -654,7 +664,7 @@ const Reports = () => {
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Filter className="h-4 w-4" /> Filtros
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
               {/* Multi-select Microorganismo */}
               <div className="space-y-1 col-span-2 sm:col-span-1">
                 <Label className="text-xs">Microorganismo</Label>
@@ -703,6 +713,18 @@ const Reports = () => {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     {ANOS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">MDR</Label>
+                <Select value={filterMdr} onValueChange={(v) => setFilterMdr(v as any)}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="mdr">Somente MDR</SelectItem>
+                    <SelectItem value="non-mdr">Não MDR</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

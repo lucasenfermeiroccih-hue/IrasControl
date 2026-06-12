@@ -161,6 +161,7 @@ export default function AuditAntibiogramNew() {
   const [esbl, setEsbl] = useState<"sim" | "nao" | "ignorado">("ignorado");
   const [carbapenemase, setCarbapenemase] = useState<"sim" | "nao" | "ignorado">("ignorado");
   const [carbapenemaseType, setCarbapenemaseType] = useState("");
+  const [mdr, setMdr] = useState<"sim" | "nao" | "ignorado">("ignorado");
 
   // Resultados
   const buildDefaultResults = (): AntibioticResult[] => [
@@ -297,7 +298,7 @@ export default function AuditAntibiogramNew() {
       carbapenemase,
       carbapenemase_type: carbapenemase === "sim" ? carbapenemaseType : null,
       status: "completed" as const,
-      notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId}`,
+      notes: `Setor: ${sector} | Amostra: ${sampleId} | Paciente: ${patientId} | MDR: ${mdr}`,
     };
 
     let labResultId = editingId;
@@ -352,7 +353,7 @@ export default function AuditAntibiogramNew() {
     setRefreshKey(k => k + 1);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType(""); setMdr("ignorado");
     setResults(buildDefaultResults());
     window.scrollTo(0, 0);
   };
@@ -378,9 +379,11 @@ export default function AuditAntibiogramNew() {
     const setorMatch = notes.match(/Setor:\s*([^|]+)/);
     const amostraMatch = notes.match(/Amostra:\s*([^|]+)/);
     const pacMatch = notes.match(/Paciente:\s*([^|]+)/);
+    const mdrMatch = notes.match(/MDR:\s*(sim|nao|ignorado)/i);
     setSector(setorMatch ? setorMatch[1].trim() : "");
     setSampleId(amostraMatch ? amostraMatch[1].trim() : "");
     setPatientId(pacMatch ? pacMatch[1].trim() : "");
+    setMdr((mdrMatch ? mdrMatch[1].toLowerCase() : "ignorado") as any);
     // Load antibiogram rows
     const rows: AntibioticResult[] = (record.results || []).map(r => ({
       id: newId(),
@@ -399,7 +402,7 @@ export default function AuditAntibiogramNew() {
     setEditingId(null);
     setCollectionDate(""); setSampleId(""); setSector(""); setPatientId("");
     setSampleCategory(""); setSampleMaterial(""); setLocationEnabled("na"); setLocationDetail("");
-    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType("");
+    setOrganisms([]); setOrganismCustom(false); setOrganismCustomText(""); setEsbl("ignorado"); setCarbapenemase("ignorado"); setCarbapenemaseType(""); setMdr("ignorado");
     setResults(buildDefaultResults());
   };
 
@@ -610,6 +613,20 @@ export default function AuditAntibiogramNew() {
                   </div>
                 )}
               </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Multirresistente (MDR)?</Label>
+              <p className="text-xs text-muted-foreground">
+                Marque como Sim se o microrganismo é classificado como multirresistente (resistente a ≥1 agente em ≥3 classes de antimicrobianos).
+              </p>
+              <ToggleGroup type="single" value={mdr} onValueChange={(v) => v && setMdr(v as any)} className="justify-start">
+                <ToggleGroupItem value="sim" className="data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground">Sim (MDR)</ToggleGroupItem>
+                <ToggleGroupItem value="nao">Não</ToggleGroupItem>
+                <ToggleGroupItem value="ignorado">Ignorado</ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </CardContent>
         </Card>
