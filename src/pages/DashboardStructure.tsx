@@ -688,10 +688,16 @@ export default function DashboardStructure() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Conformidade por Setor Hospitalar</CardTitle>
-            <CardDescription className="text-xs">Verde ≥85% · Amarelo 75–84% · Vermelho &lt;75% · linha = meta ANVISA</CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm">Conformidade por Setor Hospitalar</CardTitle>
+                <CardDescription className="text-xs">Verde ≥{metas.sector ?? META}% · Amarelo 75–{(metas.sector ?? META) - 1}% · Vermelho &lt;75%</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.sector} chartTitle="Conformidade por Setor"
+                metaValue={metas.sector} onMetaChange={(v) => setMeta("sector", v)} metaUnit="%" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent ref={chartRefs.sector}>
             {fStats.sectorData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por setor</div>
             ) : (
@@ -701,10 +707,12 @@ export default function DashboardStructure() {
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metas.sector !== undefined && (
+                    <ReferenceLine x={metas.sector} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
                     {fStats.sectorData.map((e, i) => (
-                      <Cell key={i} fill={e.compliance >= META ? "#10b981" : e.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
+                      <Cell key={i} fill={e.compliance >= (metas.sector ?? META) ? "#10b981" : e.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
                     ))}
                   </Bar>
                 </ComposedChart>
@@ -715,10 +723,16 @@ export default function DashboardStructure() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Conformidade por Categoria de Estrutura</CardTitle>
-            <CardDescription className="text-xs">Itens ordenados do pior para o melhor desempenho</CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm">Conformidade por Categoria de Estrutura</CardTitle>
+                <CardDescription className="text-xs">Itens ordenados do pior para o melhor desempenho</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.category} chartTitle="Conformidade por Categoria"
+                metaValue={metas.category} onMetaChange={(v) => setMeta("category", v)} metaUnit="%" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent ref={chartRefs.category}>
             {fStats.categoryData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por categoria</div>
             ) : (
@@ -728,10 +742,12 @@ export default function DashboardStructure() {
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={META} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  {metas.category !== undefined && (
+                    <ReferenceLine x={metas.category} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
+                  )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
                     {fStats.categoryData.map((e, i) => (
-                      <Cell key={i} fill={e.compliance >= META ? "#10b981" : e.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
+                      <Cell key={i} fill={e.compliance >= (metas.category ?? META) ? "#10b981" : e.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -745,21 +761,29 @@ export default function DashboardStructure() {
       {fStats.categoryData.length >= 3 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Radar — Conformidade Multidimensional por Categoria</CardTitle>
-            <CardDescription className="text-xs">Visão 360° da estrutura hospitalar · linha vermelha = meta ANVISA {META}%</CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm">Radar — Conformidade Multidimensional por Categoria</CardTitle>
+                <CardDescription className="text-xs">Visão 360° · linha vermelha = meta {metas.radar ?? META}%</CardDescription>
+              </div>
+              <ChartActions chartRef={chartRefs.radar} chartTitle="Radar de Conformidade"
+                metaValue={metas.radar} onMetaChange={(v) => setMeta("radar", v)} metaUnit="%" />
+            </div>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent ref={chartRefs.radar} className="flex justify-center">
             <ResponsiveContainer width="100%" height={280}>
               <RadarChart data={fStats.categoryData.map(c => ({
                 subject: c.name.length > 14 ? c.name.substring(0, 13) + "…" : c.name,
                 A: c.compliance,
-                meta: META,
+                meta: metas.radar ?? META,
               }))}>
                 <PolarGrid className="stroke-border" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
                 <Radar dataKey="A" name="Conformidade" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                <Radar dataKey="meta" name={`Meta ${META}%`} stroke="#ef4444" fill="transparent" strokeDasharray="4 2" />
+                {metas.radar !== undefined && (
+                  <Radar dataKey="meta" name={`Meta ${metas.radar}%`} stroke="#ef4444" fill="transparent" strokeDasharray="4 2" />
+                )}
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>
