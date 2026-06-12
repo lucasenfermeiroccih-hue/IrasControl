@@ -102,6 +102,7 @@ const Reports = () => {
   const [filterMes, setFilterMes] = useState<string>("all");
   const [filterAno, setFilterAno] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterMdr, setFilterMdr] = useState<"all" | "mdr" | "non-mdr">("all");
   const [microPopoverOpen, setMicroPopoverOpen] = useState(false);
 
   // Pagination
