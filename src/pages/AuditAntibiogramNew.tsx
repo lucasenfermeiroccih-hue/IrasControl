@@ -487,27 +487,95 @@ export default function AuditAntibiogramNew() {
           <CardHeader><CardTitle className="text-lg">Microrganismo / Patógeno</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Microrganismo *</Label>
-              <ComboboxSearch
-                options={[...microorganismsList, "Outros (descrever)"]}
-                value={organismCustom ? "Outros (descrever)" : organism}
-                onValueChange={(v) => {
-                  if (v === "Outros (descrever)") {
-                    setOrganismCustom(true);
-                    setOrganism("");
-                  } else {
-                    setOrganismCustom(false);
-                    setOrganism(v);
-                  }
-                }}
-                placeholder="Digite para buscar microrganismo"
-              />
+              <Label>Microrganismo(s) *</Label>
+              <Popover open={organismOpen} onOpenChange={setOrganismOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal"
+                  >
+                    <span className="truncate text-left">
+                      {organisms.length === 0 && !organismCustom
+                        ? "Selecione um ou mais microrganismos"
+                        : `${organisms.length + (organismCustom ? 1 : 0)} selecionado(s)`}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover z-50" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Digite para buscar..."
+                      value={organismQuery}
+                      onValueChange={setOrganismQuery}
+                    />
+                    <CommandList className="max-h-[300px]">
+                      <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredOrganismOptions.map(opt => (
+                          <CommandItem
+                            key={opt}
+                            value={opt}
+                            onSelect={() => toggleOrganism(opt)}
+                            className="gap-2"
+                          >
+                            <Checkbox checked={organisms.includes(opt)} className="pointer-events-none" />
+                            <span className="truncate">{opt}</span>
+                          </CommandItem>
+                        ))}
+                        <CommandItem
+                          value="__outros__"
+                          onSelect={() => setOrganismCustom(v => !v)}
+                          className="gap-2 border-t mt-1 pt-2"
+                        >
+                          <Checkbox checked={organismCustom} className="pointer-events-none" />
+                          <span>Outros (descrever)</span>
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {(organisms.length > 0 || organismCustom) && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {organisms.map(o => (
+                    <Badge key={o} variant="secondary" className="gap-1 pr-1">
+                      <span className="truncate max-w-[260px]">{o}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleOrganism(o)}
+                        className="ml-1 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                        aria-label={`Remover ${o}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {organismCustom && (
+                    <Badge variant="secondary" className="gap-1 pr-1">
+                      <span>Outros</span>
+                      <button
+                        type="button"
+                        onClick={() => { setOrganismCustom(false); setOrganismCustomText(""); }}
+                        className="ml-1 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                        aria-label="Remover Outros"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               {organismCustom && (
                 <Input
                   className="mt-2"
-                  placeholder="Descreva o microrganismo"
-                  value={organism}
-                  onChange={e => setOrganism(e.target.value)}
+                  placeholder="Descreva o(s) microrganismo(s) — separe múltiplos por vírgula"
+                  value={organismCustomText}
+                  onChange={e => setOrganismCustomText(e.target.value)}
                 />
               )}
             </div>
