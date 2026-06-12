@@ -133,9 +133,29 @@ export default function AuditAntibiogramNew() {
   const [locationEnabled, setLocationEnabled] = useState<"sim" | "nao" | "na">("na");
   const [locationDetail, setLocationDetail] = useState("");
 
-  // Microrganismo
-  const [organism, setOrganism] = useState("");
+  // Microrganismo (multi-seleção)
+  const [organisms, setOrganisms] = useState<string[]>([]);
   const [organismCustom, setOrganismCustom] = useState(false);
+  const [organismCustomText, setOrganismCustomText] = useState("");
+  const [organismOpen, setOrganismOpen] = useState(false);
+  const [organismQuery, setOrganismQuery] = useState("");
+
+  const organismJoined = useMemo(() => {
+    const all = [...organisms];
+    if (organismCustom && organismCustomText.trim()) all.push(organismCustomText.trim());
+    return all.join(" + ");
+  }, [organisms, organismCustom, organismCustomText]);
+
+  const organism = organismJoined; // mantém compatibilidade com fenótipos críticos
+  const filteredOrganismOptions = useMemo(() => {
+    const q = organismQuery.trim().toLowerCase();
+    if (!q) return microorganismsList.slice(0, 100);
+    return microorganismsList.filter(o => o.toLowerCase().includes(q)).slice(0, 200);
+  }, [organismQuery]);
+
+  const toggleOrganism = (name: string) => {
+    setOrganisms(prev => prev.includes(name) ? prev.filter(o => o !== name) : [...prev, name]);
+  };
 
   // Fenótipos
   const [esbl, setEsbl] = useState<"sim" | "nao" | "ignorado">("ignorado");
