@@ -168,9 +168,14 @@ const Reports = () => {
         const year = String(new Date(r.collection_date).getFullYear());
         if (year !== filterAno) return false;
       }
+      if (filterMdr !== "all") {
+        const isMdr = parseNotes(r.notes).mdr;
+        if (filterMdr === "mdr" && !isMdr) return false;
+        if (filterMdr === "non-mdr" && isMdr) return false;
+      }
       return true;
     });
-  }, [records, filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
+  }, [records, filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno, filterMdr]);
 
   // Reset page when filters change
   useEffect(() => { setTablePage(1); }, [filterMicros, filterDateFrom, filterDateTo, filterSetor, filterMes, filterAno]);
