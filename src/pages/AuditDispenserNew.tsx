@@ -15,7 +15,7 @@ import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 
-const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
+const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto", "Ambulatório", "Setores administrativos"];
 const preparationTypes = ["Álcool gel 70%", "Sabonete líquido", "Clorexidina degermante 2%", "Clorexidina alcoólica 0,5%", "Outro"];
 
 type ItemStatus = "conforme" | "nao_conforme" | "na" | "nao_avaliado" | "";
