@@ -1249,13 +1249,37 @@ function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) 
   return (
     <Card>
       <CardHeader className="p-3 md:p-6 pb-0">
-        <CardTitle className="text-sm md:text-base flex items-center gap-2">
-          <Microscope className="h-4 w-4 text-primary" />
-          Sensibilidade por Microrganismo
-        </CardTitle>
-        <CardDescription className="text-xs">
-          Casos absolutos de S / I / R por microrganismo e perfil de sensibilidade dos antimicrobianos
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
+              <Microscope className="h-4 w-4 text-primary" />
+              Sensibilidade por Microrganismo
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">
+              Casos absolutos de S / I / R por microrganismo e perfil de sensibilidade dos antimicrobianos
+            </CardDescription>
+          </div>
+          {(selectedAnos.length > 0 || selectedMeses.length > 0 || selectedSetores.length > 0 || selectedSites.length > 0 || selectedOrgs.length > 0 || selectedAntibiotics.length > 0 || selectedSIR.length > 0 || dateFrom || dateTo) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 shrink-0"
+              onClick={() => {
+                setSelectedAnos([]);
+                setSelectedMeses([]);
+                setSelectedSetores([]);
+                setSelectedSites([]);
+                setSelectedOrgs([]);
+                setSelectedAntibiotics([]);
+                setSelectedSIR([]);
+                setDateFrom(undefined);
+                setDateTo(undefined);
+              }}
+            >
+              <X className="h-3.5 w-3.5" /> Limpar todos os filtros
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-3 md:p-6 pt-4 space-y-6">
 
