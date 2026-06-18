@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "@/hooks/use-toast";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, LabelList,
 } from "recharts";
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
@@ -906,6 +906,9 @@ export default function DashboardAntibiogram() {
 
 
 
+      {/* Sensibilidade por Microrganismo */}
+      <SensibilidadePorOrganismo data={filtered} />
+
       {/* Monthly trend + Phenotypes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
@@ -1119,6 +1122,318 @@ export default function DashboardAntibiogram() {
         },
       } as AnalysisConfig} />
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// Sensibilidade por Microrganismo
+// ═══════════════════════════════════════════════════
+function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) {
+  const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
+  const [selectedAntibiotics, setSelectedAntibiotics] = useState<string[]>([]);
+  const [selectedSIR, setSelectedSIR] = useState<string[]>([]);
+
+  const allOrganisms = useMemo(() => [...new Set(data.map(d => d.organism))].sort(), [data]);
+  const allAntibiotics = useMemo(() => [...new Set(data.flatMap(d => d.results.map(r => r.antibiotic)))].filter(Boolean).sort(), [data]);
+
+  const sirOptions = [
+    { value: "S", label: "Sensível (S)" },
+    { value: "I", label: "Intermediário (I)" },
+    { value: "R", label: "Resistente (R)" },
+  ];
+
+  // Gráfico A: Isolados por microrganismo (com breakdown S/I/R)
+  const orgChartData = useMemo(() => {
+    const orgsToShow = selectedOrgs.length > 0 ? selectedOrgs : allOrganisms;
+    return orgsToShow.map(org => {
+      const orgRec = data.filter(d => d.organism === org);
+      const results = orgRec.flatMap(d =>
+        selectedAntibiotics.length > 0
+          ? d.results.filter(r => selectedAntibiotics.includes(r.antibiotic))
+          : d.results
+      );
+      const S = results.filter(r => r.sir === "S" && (selectedSIR.length === 0 || selectedSIR.includes("S"))).length;
+      const I = results.filter(r => r.sir === "I" && (selectedSIR.length === 0 || selectedSIR.includes("I"))).length;
+      const R = results.filter(r => r.sir === "R" && (selectedSIR.length === 0 || selectedSIR.includes("R"))).length;
+      return { name: org, isolados: orgRec.length, S, I, R, total: S + I + R };
+    }).filter(d => d.isolados > 0).sort((a, b) => b.isolados - a.isolados).slice(0, 15);
+  }, [data, selectedOrgs, allOrganisms, selectedAntibiotics, selectedSIR]);
+
+  // Gráfico B: Sensibilidade por antimicrobiano (filtrado pelos organismos selecionados)
+  const antibioticChartData = useMemo(() => {
+    const filteredByOrg = selectedOrgs.length > 0
+      ? data.filter(d => selectedOrgs.includes(d.organism))
+      : data;
+
+    const map: Record<string, { S: number; I: number; R: number }> = {};
+    filteredByOrg.forEach(d => {
+      const results = selectedAntibiotics.length > 0
+        ? d.results.filter(r => selectedAntibiotics.includes(r.antibiotic))
+        : d.results;
+      results.forEach(r => {
+        if (r.sir !== "S" && r.sir !== "I" && r.sir !== "R") return;
+        if (selectedSIR.length > 0 && !selectedSIR.includes(r.sir)) return;
+        if (!map[r.antibiotic]) map[r.antibiotic] = { S: 0, I: 0, R: 0 };
+        map[r.antibiotic][r.sir]++;
+      });
+    });
+
+    return Object.entries(map)
+      .map(([name, v]) => ({ name, ...v, total: v.S + v.I + v.R }))
+      .filter(d => d.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 20);
+  }, [data, selectedOrgs, selectedAntibiotics, selectedSIR]);
+
+  // KPIs
+  const totalIsolados = useMemo(() => {
+    const orgs = selectedOrgs.length > 0 ? selectedOrgs : allOrganisms;
+    return data.filter(d => orgs.includes(d.organism)).length;
+  }, [data, selectedOrgs, allOrganisms]);
+
+  const totalTestes = antibioticChartData.reduce((sum, d) => sum + d.total, 0);
+  const totalS = antibioticChartData.reduce((sum, d) => sum + d.S, 0);
+  const totalR = antibioticChartData.reduce((sum, d) => sum + d.R, 0);
+
+  const showS = selectedSIR.length === 0 || selectedSIR.includes("S");
+  const showI = selectedSIR.length === 0 || selectedSIR.includes("I");
+  const showR = selectedSIR.length === 0 || selectedSIR.includes("R");
+
+  const yWidthOrg = Math.min(220, Math.max(100, orgChartData.reduce((m, d) => Math.max(m, d.name.length), 0) * 7));
+  const orgChartH = Math.max(260, orgChartData.length * 55 + 60);
+  const yWidthAntibiotic = Math.min(180, Math.max(120, antibioticChartData.reduce((m, d) => Math.max(m, d.name.length), 0) * 7));
+  const antibioticChartH = Math.max(260, antibioticChartData.length * 40 + 60);
+
+  return (
+    <Card>
+      <CardHeader className="p-3 md:p-6 pb-0">
+        <CardTitle className="text-sm md:text-base flex items-center gap-2">
+          <Microscope className="h-4 w-4 text-primary" />
+          Sensibilidade por Microrganismo
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Casos absolutos de S / I / R por microrganismo e perfil de sensibilidade dos antimicrobianos
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-3 md:p-6 pt-4 space-y-6">
+
+        {/* Filtros multi-select */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Microrganismo</label>
+            <MultiSelectFilter
+              label="Microrganismo"
+              selected={selectedOrgs}
+              onChange={setSelectedOrgs}
+              options={allOrganisms.map(o => ({ value: o, label: o }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Antimicrobiano</label>
+            <MultiSelectFilter
+              label="Antimicrobiano"
+              selected={selectedAntibiotics}
+              onChange={setSelectedAntibiotics}
+              options={allAntibiotics.map(a => ({ value: a, label: a }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Perfil SIR</label>
+            <MultiSelectFilter
+              label="Perfil SIR"
+              selected={selectedSIR}
+              onChange={setSelectedSIR}
+              options={sirOptions}
+            />
+          </div>
+        </div>
+
+        {/* Mini KPIs */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border bg-muted/30 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-0.5">Total Isolados</p>
+            <p className="text-xl md:text-2xl font-bold">{totalIsolados}</p>
+          </div>
+          <div className="rounded-lg border bg-success/10 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-0.5">Testes Sensíveis (S)</p>
+            <p className="text-xl md:text-2xl font-bold text-success">{totalS}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {totalTestes > 0 ? Math.round((totalS / totalTestes) * 100) : 0}% dos testes
+            </p>
+          </div>
+          <div className="rounded-lg border bg-destructive/10 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-0.5">Testes Resistentes (R)</p>
+            <p className="text-xl md:text-2xl font-bold text-destructive">{totalR}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {totalTestes > 0 ? Math.round((totalR / totalTestes) * 100) : 0}% dos testes
+            </p>
+          </div>
+        </div>
+
+        {data.length === 0 && (
+          <p className="text-center text-muted-foreground py-8 text-sm">Sem dados disponíveis</p>
+        )}
+
+        {/* ── Gráfico A: Isolados por Microrganismo ── */}
+        {orgChartData.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs md:text-sm font-semibold">Isolados por Microrganismo</h3>
+              {selectedOrgs.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {selectedOrgs.length} selecionado{selectedOrgs.length > 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {selectedAntibiotics.length > 0
+                ? `Resultados S/I/R para ${selectedAntibiotics.length} antimicrobiano${selectedAntibiotics.length > 1 ? "s" : ""} selecionado${selectedAntibiotics.length > 1 ? "s" : ""}`
+                : "Todos os antimicrobianos — cada barra mostra o número absoluto de testes"}
+            </p>
+            <ResponsiveContainer width="100%" height={orgChartH}>
+              <BarChart data={orgChartData} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" width={yWidthOrg} tick={{ fontSize: 10 }} interval={0} />
+                <Tooltip
+                  formatter={(v: number, n: string) => {
+                    const labels: Record<string, string> = { S: "Sensível", I: "Intermediário", R: "Resistente", isolados: "Isolados" };
+                    return [`${v} casos`, labels[n] || n];
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 11 }}
+                  formatter={(v) => ({ S: "Sensível (S)", I: "Intermediário (I)", R: "Resistente (R)" }[v] || v)}
+                />
+                {showS && (
+                  <Bar dataKey="S" name="S" fill={SIR_COLORS.S} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="S" position="right" style={{ fontSize: 9, fill: SIR_COLORS.S, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+                {showI && (
+                  <Bar dataKey="I" name="I" fill={SIR_COLORS.I} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="I" position="right" style={{ fontSize: 9, fill: SIR_COLORS.I, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+                {showR && (
+                  <Bar dataKey="R" name="R" fill={SIR_COLORS.R} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="R" position="right" style={{ fontSize: 9, fill: SIR_COLORS.R, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        <Separator />
+
+        {/* ── Gráfico B: Sensibilidade por Antimicrobiano ── */}
+        {antibioticChartData.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs md:text-sm font-semibold">
+              Perfil de Sensibilidade por Antimicrobiano
+            </h3>
+            <p className="text-[10px] text-muted-foreground">
+              {selectedOrgs.length > 0
+                ? `Dados para: ${selectedOrgs.length === 1 ? selectedOrgs[0] : `${selectedOrgs.length} microrganismos selecionados`} — número absoluto de testes S / I / R`
+                : "Todos os microrganismos — selecione um ou mais acima para filtrar por organismo"}
+            </p>
+            <ResponsiveContainer width="100%" height={antibioticChartH}>
+              <BarChart data={antibioticChartData} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" width={yWidthAntibiotic} tick={{ fontSize: 10 }} interval={0} />
+                <Tooltip
+                  formatter={(v: number, n: string) => {
+                    const labels: Record<string, string> = { S: "Sensível", I: "Intermediário", R: "Resistente" };
+                    return [`${v} casos`, labels[n] || n];
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 11 }}
+                  formatter={(v) => ({ S: "Sensível (S)", I: "Intermediário (I)", R: "Resistente (R)" }[v] || v)}
+                />
+                {showS && (
+                  <Bar dataKey="S" name="S" fill={SIR_COLORS.S} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="S" position="right" style={{ fontSize: 9, fill: SIR_COLORS.S, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+                {showI && (
+                  <Bar dataKey="I" name="I" fill={SIR_COLORS.I} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="I" position="right" style={{ fontSize: 9, fill: SIR_COLORS.I, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+                {showR && (
+                  <Bar dataKey="R" name="R" fill={SIR_COLORS.R} barSize={13} radius={[0, 3, 3, 0]}>
+                    <LabelList dataKey="R" position="right" style={{ fontSize: 9, fill: SIR_COLORS.R, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? v : "")} />
+                  </Bar>
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* ── Tabela Resumo ── */}
+        {antibioticChartData.length > 0 && (
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Antimicrobiano</TableHead>
+                  {showS && <TableHead className="text-center" style={{ color: SIR_COLORS.S }}>Sensível (S)</TableHead>}
+                  {showI && <TableHead className="text-center" style={{ color: SIR_COLORS.I }}>Intermediário (I)</TableHead>}
+                  {showR && <TableHead className="text-center" style={{ color: SIR_COLORS.R }}>Resistente (R)</TableHead>}
+                  <TableHead className="text-center">Total</TableHead>
+                  <TableHead className="text-center">% Sensível</TableHead>
+                  <TableHead className="text-center">% Resistente</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {antibioticChartData.map(d => {
+                  const pctS = d.total > 0 ? Math.round((d.S / d.total) * 100) : 0;
+                  const pctR = d.total > 0 ? Math.round((d.R / d.total) * 100) : 0;
+                  return (
+                    <TableRow key={d.name}>
+                      <TableCell className="font-medium">{d.name}</TableCell>
+                      {showS && (
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px] border-success text-success font-bold">{d.S}</Badge>
+                        </TableCell>
+                      )}
+                      {showI && (
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px] border-warning text-warning font-bold">{d.I}</Badge>
+                        </TableCell>
+                      )}
+                      {showR && (
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px] border-destructive text-destructive font-bold">{d.R}</Badge>
+                        </TableCell>
+                      )}
+                      <TableCell className="text-center font-bold">{d.total}</TableCell>
+                      <TableCell className="text-center">
+                        <span className={pctS >= 70 ? "text-success font-semibold" : pctS >= 50 ? "text-warning font-semibold" : "text-destructive font-semibold"}>
+                          {pctS}%
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={pctR <= 25 ? "text-success font-semibold" : pctR <= 40 ? "text-warning font-semibold" : "text-destructive font-semibold"}>
+                          {pctR}%
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {orgChartData.length === 0 && data.length > 0 && (
+          <p className="text-center text-muted-foreground py-8 text-sm">Nenhum dado para os filtros selecionados</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
