@@ -419,6 +419,17 @@ export default function DashboardAntibiogram() {
           <Button
             variant="outline"
             size="sm"
+            onClick={refresh}
+            disabled={dataLoading}
+            className="gap-1.5 text-xs"
+            title="Recarregar dados do banco"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${dataLoading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleAIInsights}
             disabled={aiInsightsLoading}
             className="gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
