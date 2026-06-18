@@ -12,6 +12,7 @@ export interface AntibiogramDashRecord {
   site: string;
   results: { antibiotic: string; method: string; value: string; sir: "S" | "I" | "R" }[];
   detectedPhenotypes: string[];
+  mdr: boolean;
   createdAt: string;
 }
 
