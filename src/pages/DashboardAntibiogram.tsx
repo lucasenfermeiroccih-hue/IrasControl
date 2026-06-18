@@ -17,7 +17,7 @@ import {
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
   TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
-  Sparkles, Bot, Loader2, Download,
+  Sparkles, Bot, Loader2, Download, RefreshCw,
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { supabase } from "@/integrations/supabase/client";
