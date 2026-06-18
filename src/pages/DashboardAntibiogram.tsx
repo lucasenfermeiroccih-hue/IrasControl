@@ -36,7 +36,7 @@ const SIR_COLORS: Record<string, string> = { S: "hsl(142,71%,35%)", I: "hsl(38,9
 
 export default function DashboardAntibiogram() {
   const navigate = useNavigate();
-  const { data: allData, loading: dataLoading } = useAntibiogramDashboard();
+  const { data: allData, loading: dataLoading, refresh } = useAntibiogramDashboard();
 
   const [filtroSetor, setFiltroSetor] = useState<string[]>([]);
   const [filtroSite, setFiltroSite] = useState<string[]>([]);
