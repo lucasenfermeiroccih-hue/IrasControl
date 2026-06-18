@@ -814,6 +814,98 @@ export default function DashboardAntibiogram() {
         </CardContent>
       </Card>
 
+      {/* ═══ MDR (Multirresistente) — Perfil de Resistência & Sensibilidade ═══ */}
+      <Card className="border-destructive/30">
+        <CardHeader className="p-3 md:p-6 pb-2">
+          <CardTitle className="text-sm md:text-base flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive" />
+            Perfil MDR (Multirresistentes) — {totalMdr} isolado{totalMdr === 1 ? "" : "s"}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Sensibilidade aos carbapenêmicos, cefalosporinas, polimixina B e amicacina nos microrganismos MDR
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-2 md:p-6 pt-2 space-y-4">
+          {totalMdr === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Nenhum isolado MDR no período/filtro selecionado.</p>
+          ) : (
+            <>
+              {/* Resumo por classe de antibiótico */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs md:text-sm font-medium">Resumo: % S / I / R por classe (isolados MDR)</p>
+                  <ChartActions
+                    chartRef={chartRefs.mdrResumo}
+                    chartTitle="MDR — Resumo por classe"
+                    metaValue={metas.mdrResumo}
+                    onMetaChange={(v) => setMeta("mdrResumo", v)}
+                    metaUnit="%"
+                  />
+                </div>
+                <div ref={chartRefs.mdrResumo}>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={mdrGroupProfile} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis unit="%" tick={{ fontSize: 10 }} width={40} domain={[0, 100]} />
+                      <Tooltip formatter={(v: number) => `${v}%`} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {metas.mdrResumo !== undefined && <ReferenceLine y={metas.mdrResumo} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.mdrResumo}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                      <Bar dataKey="Sensivel" stackId="a" name="Sensível" fill={SIR_COLORS.S} />
+                      <Bar dataKey="Intermediario" stackId="a" name="Intermediário" fill={SIR_COLORS.I} />
+                      <Bar dataKey="Resistente" stackId="a" name="Resistente" fill={SIR_COLORS.R} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Grid 4 classes — sensibilidade por microrganismo */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {([
+                  { key: "mdrCarbapenemicos", title: "Carbapenêmicos — Sensibilidade por microrganismo MDR", data: mdrCarbapenemicos, color: "hsl(199,89%,48%)" },
+                  { key: "mdrCefalosporinas", title: "Cefalosporinas — Sensibilidade por microrganismo MDR", data: mdrCefalosporinas, color: "hsl(270,60%,50%)" },
+                  { key: "mdrPolimixina", title: "Polimixina B — Sensibilidade por microrganismo MDR", data: mdrPolimixina, color: "hsl(168,66%,34%)" },
+                  { key: "mdrAmicacina", title: "Amicacina — Sensibilidade por microrganismo MDR", data: mdrAmicacina, color: "hsl(38,92%,50%)" },
+                ] as const).map(({ key, title, data, color }) => (
+                  <Card key={key} className="border-muted">
+                    <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between space-y-0">
+                      <CardTitle className="text-xs md:text-sm">{title}</CardTitle>
+                      <ChartActions
+                        chartRef={chartRefs[key]}
+                        chartTitle={title}
+                        metaValue={metas[key]}
+                        onMetaChange={(v) => setMeta(key, v)}
+                        metaUnit="%"
+                      />
+                    </CardHeader>
+                    <CardContent className="p-2 pt-2" ref={chartRefs[key]}>
+                      {data.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8 text-xs">Sem testes para esta classe nos isolados MDR.</p>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={Math.max(220, data.length * 32 + 40)}>
+                          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                            <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 10 }} />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={150} interval={0} />
+                            <Tooltip formatter={(v: number, n: string) => [`${v}%`, n]} />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                            {metas[key] !== undefined && <ReferenceLine x={metas[key]} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas[key]}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                            <Bar dataKey="Sensibilidade" name="Sensível" fill={SIR_COLORS.S} radius={[0, 4, 4, 0]} barSize={14} />
+                            <Bar dataKey="Resistencia" name="Resistente" fill={SIR_COLORS.R} radius={[0, 4, 4, 0]} barSize={14} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+
+
       {/* Monthly trend + Phenotypes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
