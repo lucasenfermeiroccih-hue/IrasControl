@@ -579,7 +579,7 @@ export default function DashboardAntibiogram() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Mês</label>
               <MultiSelectFilter
