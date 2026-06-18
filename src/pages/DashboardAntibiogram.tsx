@@ -17,7 +17,7 @@ import {
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
   TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
-  Sparkles, Bot, Loader2, Download,
+  Sparkles, Bot, Loader2, Download, RefreshCw,
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,7 +36,7 @@ const SIR_COLORS: Record<string, string> = { S: "hsl(142,71%,35%)", I: "hsl(38,9
 
 export default function DashboardAntibiogram() {
   const navigate = useNavigate();
-  const { data: allData, loading: dataLoading } = useAntibiogramDashboard();
+  const { data: allData, loading: dataLoading, refresh } = useAntibiogramDashboard();
 
   const [filtroSetor, setFiltroSetor] = useState<string[]>([]);
   const [filtroSite, setFiltroSite] = useState<string[]>([]);
@@ -416,6 +416,17 @@ export default function DashboardAntibiogram() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={dataLoading}
+            className="gap-1.5 text-xs"
+            title="Recarregar dados do banco"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${dataLoading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
           <Button
             variant="outline"
             size="sm"
