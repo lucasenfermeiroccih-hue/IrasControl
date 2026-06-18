@@ -1134,11 +1134,22 @@ function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) 
   const [selectedSIR, setSelectedSIR] = useState<string[]>([]);
   const [selectedSetores, setSelectedSetores] = useState<string[]>([]);
   const [selectedSites, setSelectedSites] = useState<string[]>([]);
+  const [selectedAnos, setSelectedAnos] = useState<string[]>([]);
+  const [selectedMeses, setSelectedMeses] = useState<string[]>([]);
 
   const allOrganisms = useMemo(() => [...new Set(data.map(d => d.organism))].sort(), [data]);
   const allAntibiotics = useMemo(() => [...new Set(data.flatMap(d => d.results.map(r => r.antibiotic)))].filter(Boolean).sort(), [data]);
   const allSetores = useMemo(() => [...new Set(data.map(d => d.sector))].filter(Boolean).sort(), [data]);
   const allSites = useMemo(() => [...new Set(data.map(d => d.site))].filter(Boolean).sort(), [data]);
+  const allAnos = useMemo(() => [...new Set(data.map(d => d.collectionDate?.substring(0, 4)).filter(Boolean))].sort().reverse() as string[], [data]);
+  const mesOptions = [
+    { value: "01", label: "Janeiro" }, { value: "02", label: "Fevereiro" },
+    { value: "03", label: "Março" },   { value: "04", label: "Abril" },
+    { value: "05", label: "Maio" },    { value: "06", label: "Junho" },
+    { value: "07", label: "Julho" },   { value: "08", label: "Agosto" },
+    { value: "09", label: "Setembro" },{ value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" },{ value: "12", label: "Dezembro" },
+  ];
 
   const sirOptions = [
     { value: "S", label: "Sensível (S)" },
@@ -1146,13 +1157,15 @@ function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) 
     { value: "R", label: "Resistente (R)" },
   ];
 
-  // Base filtrada por setor e material biológico (usada por ambos os gráficos)
+  // Base filtrada por todos os filtros de contexto
   const dataFiltered = useMemo(() =>
     data.filter(d =>
       (selectedSetores.length === 0 || selectedSetores.includes(d.sector)) &&
-      (selectedSites.length === 0 || selectedSites.includes(d.site))
+      (selectedSites.length === 0 || selectedSites.includes(d.site)) &&
+      (selectedAnos.length === 0 || selectedAnos.includes(d.collectionDate?.substring(0, 4) ?? "")) &&
+      (selectedMeses.length === 0 || selectedMeses.includes(d.collectionDate?.substring(5, 7) ?? ""))
     ),
-  [data, selectedSetores, selectedSites]);
+  [data, selectedSetores, selectedSites, selectedAnos, selectedMeses]);
 
   // Gráfico A: Isolados por microrganismo (com breakdown S/I/R)
   const orgChartData = useMemo(() => {
@@ -1230,7 +1243,25 @@ function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) 
       <CardContent className="p-3 md:p-6 pt-4 space-y-6">
 
         {/* Filtros multi-select */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Ano</label>
+            <MultiSelectFilter
+              label="Ano"
+              selected={selectedAnos}
+              onChange={setSelectedAnos}
+              options={allAnos.map(a => ({ value: a, label: a }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Mês</label>
+            <MultiSelectFilter
+              label="Mês"
+              selected={selectedMeses}
+              onChange={setSelectedMeses}
+              options={mesOptions}
+            />
+          </div>
           <div className="space-y-1">
             <label className="text-[10px] md:text-xs font-medium text-muted-foreground">Setor</label>
             <MultiSelectFilter
