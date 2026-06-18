@@ -75,8 +75,17 @@ export default function DashboardAntibiogram() {
 
   const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter((v): v is string => !!v))].sort(), [allData]);
 
+  const antibioticosDisp = useMemo(() => {
+    const s = new Set<string>();
+    allData.forEach(d => d.results.forEach(r => r.antibiotic && s.add(r.antibiotic)));
+    return [...s].sort();
+  }, [allData]);
+
+  const matchAntibiotico = (ab: string) =>
+    filtroAntibiotico.length === 0 || filtroAntibiotico.includes(ab);
+
   const totalExams = filtered.length;
-  const allResults = filtered.flatMap(d => d.results);
+  const allResults = filtered.flatMap(d => d.results).filter(r => matchAntibiotico(r.antibiotic));
   const totalTests = allResults.length;
   const resistantCount = allResults.filter(r => r.sir === "R").length;
   const sensitiveCount = allResults.filter(r => r.sir === "S").length;
@@ -84,6 +93,69 @@ export default function DashboardAntibiogram() {
   const sensitivityRate = totalTests > 0 ? Math.round((sensitiveCount / totalTests) * 1000) / 10 : 0;
   const phenotypeCount = filtered.filter(d => d.detectedPhenotypes.length > 0).length;
   const phenotypeRate = totalExams > 0 ? Math.round((phenotypeCount / totalExams) * 1000) / 10 : 0;
+
+  // ═══ MDR (Multirresistente) analysis ═══
+  const mdrRecords = useMemo(() => filtered.filter(d => d.mdr), [filtered]);
+  const totalMdr = mdrRecords.length;
+
+  // Grupos de antibióticos clinicamente relevantes para MDR
+  const ABX_GROUPS: Record<string, RegExp> = {
+    Carbapenêmicos: /meropen|imipen|ertapen|doripen/i,
+    Cefalosporinas: /cefep|ceftri|ceftaz|cefot|cefur|cefaz|cefox|ceftarol/i,
+    "Polimixina B": /polimixina|polymyx|colist/i,
+    Amicacina: /amicac|amikac/i,
+  };
+
+  // % S por grupo, dentro dos isolados MDR
+  const mdrGroupProfile = useMemo(() => {
+    return Object.entries(ABX_GROUPS).map(([group, regex]) => {
+      let S = 0, I = 0, R = 0;
+      mdrRecords.forEach(d => d.results.forEach(r => {
+        if (regex.test(r.antibiotic)) {
+          if (r.sir === "S") S++;
+          else if (r.sir === "I") I++;
+          else if (r.sir === "R") R++;
+        }
+      }));
+      const total = S + I + R;
+      return {
+        name: group,
+        Sensivel: total ? Math.round((S / total) * 1000) / 10 : 0,
+        Intermediario: total ? Math.round((I / total) * 1000) / 10 : 0,
+        Resistente: total ? Math.round((R / total) * 1000) / 10 : 0,
+        total,
+      };
+    });
+  }, [mdrRecords]);
+
+  // Para cada grupo, % sensível por microrganismo MDR (top 8)
+  const mdrByOrgForGroup = (regex: RegExp) => {
+    const map: Record<string, { S: number; total: number }> = {};
+    mdrRecords.forEach(d => {
+      d.results.forEach(r => {
+        if (!regex.test(r.antibiotic)) return;
+        if (!map[d.organism]) map[d.organism] = { S: 0, total: 0 };
+        map[d.organism].total++;
+        if (r.sir === "S") map[d.organism].S++;
+      });
+    });
+    return Object.entries(map)
+      .map(([name, v]) => ({
+        name,
+        Sensibilidade: v.total ? Math.round((v.S / v.total) * 1000) / 10 : 0,
+        Resistencia: v.total ? Math.round(((v.total - v.S) / v.total) * 1000) / 10 : 0,
+        total: v.total,
+      }))
+      .filter(o => o.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  };
+
+  const mdrCarbapenemicos = useMemo(() => mdrByOrgForGroup(ABX_GROUPS.Carbapenêmicos), [mdrRecords]);
+  const mdrCefalosporinas = useMemo(() => mdrByOrgForGroup(ABX_GROUPS.Cefalosporinas), [mdrRecords]);
+  const mdrPolimixina = useMemo(() => mdrByOrgForGroup(ABX_GROUPS["Polimixina B"]), [mdrRecords]);
+  const mdrAmicacina = useMemo(() => mdrByOrgForGroup(ABX_GROUPS.Amicacina), [mdrRecords]);
+
 
   const orgCounts = useMemo(() => {
     const map: Record<string, number> = {};
