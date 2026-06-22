@@ -88,7 +88,7 @@ export const materialsByCategory: Record<string, string[]> = {
     "Fluido/Secreção mediastino", "Hematoma", "Lavado peritoneal", "Lavado, não especificado",
     "Lóquios genitais", "Secreção conjuntival", "Secreção endocervical",
     "Secreção ouvido", "Secreção pulmonar", "Secreção, não especificada",
-    "Secreção, nasal", "Swab, ferida/ferimento", "Swab, não-especificada",
+    "Secreção, nasal", "Secreção Traqueal", "Swab, ferida/ferimento", "Swab, não-especificada",
   ],
   "Medula Óssea": ["Medula óssea"],
   "Não especificada": ["Não especificada"],
