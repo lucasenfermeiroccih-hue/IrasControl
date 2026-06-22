@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, BarChart3, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, BarChart3, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
@@ -20,29 +20,84 @@ const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal",
 const shifts = ["Manhã", "Tarde", "Noite"];
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "";
-interface AuditItem { id: string; description: string; }
+interface AuditItem {
+  id: string;
+  description: string;
+  /** When provided, item uses a single-select instead of conforme/nao_conforme chips.
+   *  First option is treated as "compliant"; "Não se aplica" as N/A; rest as non-compliant. */
+  customOptions?: string[];
+}
 interface CategoryDef { key: string; title: string; description: string; items: AuditItem[]; }
 
 const categories: CategoryDef[] = [
   { key: "ventilacao", title: "Ventilação Mecânica", description: "Prevenção de PAV", items: [
-    { id: "vm1", description: "Cabeceira elevada 30°–45°" }, { id: "vm2", description: "Higiene oral com clorexidina 0,12%" },
-    { id: "vm3", description: "Pressão do cuff 20–30 cmH₂O" }, { id: "vm4", description: "Aspiração subglótica realizada" },
+    { id: "vm1", description: "Cabeceira elevada 30°–45°" },
+    { id: "vm2", description: "Higiene oral com clorexidina 0,12%" },
+    { id: "vm3", description: "Pressão do cuff 20–30 cmH₂O" },
+    { id: "vm4", description: "Aspiração subglótica realizada" },
     { id: "vm5", description: "Avaliação diária de sedação e extubação" },
+    { id: "vm6", description: "O paciente possui sonda nasoenteral? Está com a cabeceira elevada de 30° a 45°?" },
+    { id: "vm7", description: "Presença de condensado no circuito do respirador?" },
+    { id: "vm8", description: "Dispositivos ventilatórios dentro da validade?" },
+    { id: "vm9", description: "Macro/micro acondicionados adequadamente?" },
+    { id: "vm10", description: "Filtro bacteriológico (HME) datado conforme protocolo?" },
+    { id: "vm11", description: "Higiene oral satisfatória?" },
   ]},
   { key: "cvd", title: "Cateter Vesical de Demora", description: "Prevenção de ITU", items: [
-    { id: "cvd1", description: "Indicação de permanência avaliada" }, { id: "cvd2", description: "Sistema de drenagem fechado e íntegro" },
-    { id: "cvd3", description: "Bolsa coletora abaixo do nível da bexiga" }, { id: "cvd4", description: "Fixação adequada" },
+    { id: "cvd1", description: "Indicação de permanência avaliada" },
+    { id: "cvd2", description: "Sistema de drenagem fechado e íntegro" },
+    { id: "cvd3", description: "Bolsa coletora abaixo do nível da bexiga" },
+    { id: "cvd4", description: "Fixação adequada" },
     { id: "cvd5", description: "Higiene do meato uretral realizada" },
+    { id: "cvd6", description: "Necessidade de CVD está sendo avaliada diariamente?" },
+    {
+      id: "cvd7",
+      description: "Cateter vesical de demora fixado corretamente?",
+      customOptions: ["Adequado", "Inadequado", "Sem identificação", "Fixação na posição errada", "Fixação mal aderida", "Não se aplica"],
+    },
+    { id: "cvd8", description: "Circuito limpo, possibilitando o fluxo livre de urina?" },
+    { id: "cvd9", description: "Bolsa com data de instalação visível?" },
+    { id: "cvd10", description: "Bolsa abaixo do nível do paciente e sem tocar ao chão? Com volume máximo de 2/3 respeitado?" },
   ]},
   { key: "cvc", title: "Cateter Venoso Central/Periférico", description: "Prevenção de IPCS", items: [
-    { id: "cvc1", description: "Curativo oclusivo limpo, seco e com data" }, { id: "cvc2", description: "Necessidade avaliada diariamente" },
-    { id: "cvc3", description: "Conexões desinfectadas antes do manuseio" }, { id: "cvc4", description: "Troca de curativos conforme protocolo" },
+    { id: "cvc1", description: "Curativo oclusivo limpo, seco e com data" },
+    { id: "cvc2", description: "Necessidade avaliada diariamente" },
+    { id: "cvc3", description: "Conexões desinfectadas antes do manuseio" },
+    { id: "cvc4", description: "Troca de curativos conforme protocolo" },
     { id: "cvc5", description: "Registro de data de inserção" },
+    { id: "cvc6", description: "Presença de sangue nos equipos e nas conexões?" },
+    {
+      id: "cvc7",
+      description: "Curativo íntegro? (limpo, seco e bem aderido)",
+      customOptions: ["Adequado", "Sem data", "Data vencida", "Com sujidade", "Cobertura mal aderida", "Não se aplica"],
+    },
+    { id: "cvc8", description: "Os equipos e extensores datados, na validade e sem resíduo?" },
+    { id: "cvc9", description: "Conexões tampadas e sem resíduo de sangue?" },
   ]},
   { key: "precaucao", title: "Precaução e Isolamento", description: "Precaução padrão e por contato", items: [
-    { id: "pc1", description: "Placa de precaução visível e atualizada" }, { id: "pc2", description: "EPI disponível e utilizado corretamente" },
-    { id: "pc3", description: "Artigos de uso exclusivo ou higienizados" }, { id: "pc4", description: "Limpeza concorrente diária realizada" },
+    { id: "pc1", description: "Placa de precaução visível e atualizada" },
+    { id: "pc2", description: "EPI disponível e utilizado corretamente" },
+    { id: "pc3", description: "Artigos de uso exclusivo ou higienizados" },
+    { id: "pc4", description: "Limpeza concorrente diária realizada" },
     { id: "pc5", description: "Visitantes orientados sobre precauções" },
+    { id: "pc6", description: "Leito do paciente em precaução / rastreamento sinalizado?" },
+    { id: "pc7", description: "Capotes pendurados e datados corretamente?" },
+    { id: "pc8", description: "Funcionários utilizando EPI corretamente?" },
+    { id: "pc9", description: "Almotolias fechadas, datadas e com prazo de validade?" },
+    {
+      id: "pc10",
+      description: "Capotes datados, dentro da validade e pendurados adequadamente?",
+      customOptions: ["Adequado", "Inadequado", "Sem data", "Data vencida", "Pendurado incorretamente", "Não se aplica"],
+    },
+    {
+      id: "pc11",
+      description: "Limpeza concorrente dos equipamentos? (Bombas infusoras, respirador, monitor, cabos de monitor e mesa de cabeceira)",
+      customOptions: ["Adequado", "Inadequado", "Apresenta sujidade visível", "Limpeza ineficaz", "Não se aplica"],
+    },
+    { id: "pc12", description: "Presença de pulseira de identificação visível com nome completo e data de nascimento?" },
+    { id: "pc13", description: "Presença de pulseira de queda (amarela) se o paciente possuir risco de queda?" },
+    { id: "pc14", description: "Paciente possui alergia? Está com a pulseira vermelha?" },
+    { id: "pc15", description: "Se o paciente possui alergia, está descrito na placa de identificação?" },
   ]},
 ];
 
@@ -55,6 +110,15 @@ const chipLabels: Record<string, string> = { conforme: "Conforme", nao_conforme:
 
 const mapStatus = (v: ResponseValue) => v === "conforme" ? "compliant" as const : v === "nao_conforme" ? "non_compliant" as const : "not_applicable" as const;
 
+/** For items with customOptions, derive ResponseValue from the chosen label. */
+const customToResponse = (label: string): ResponseValue => {
+  if (!label) return "";
+  const l = label.toLowerCase();
+  if (l === "adequado" || l === "conforme") return "conforme";
+  if (l.includes("não se aplica") || l === "n/a" || l === "na") return "na";
+  return "nao_conforme";
+};
+
 export default function AuditInfectionControlNew() {
   const navigate = useNavigate();
   const { saveAudit, hospitalId } = useAuditSave();
@@ -65,9 +129,14 @@ export default function AuditInfectionControlNew() {
   const [bed, setBed] = useState("");
   const [auditor, setAuditor] = useState("");
   const [responses, setResponses] = useState<Record<string, ResponseValue>>({});
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
 
   const setResponse = (id: string, value: ResponseValue) => setResponses(p => ({ ...p, [id]: value }));
+  const setCustomAnswer = (id: string, label: string) => {
+    setCustomAnswers(p => ({ ...p, [id]: label }));
+    setResponses(p => ({ ...p, [id]: customToResponse(label) }));
+  };
   const setObs = (k: string, v: string) => setObservations(p => ({ ...p, [k]: v }));
 
   const allItems = categories.flatMap(c => c.items);
@@ -99,12 +168,16 @@ export default function AuditInfectionControlNew() {
       return;
     }
     setSaving(true);
-    const items = allItems.map((item, i) => ({
-      question: item.description,
-      status: mapStatus(responses[item.id] || ""),
-      category: categories.find(c => c.items.some(ci => ci.id === item.id))?.title || "",
-      item_order: i + 1,
-    }));
+    const items = allItems.map((item, i) => {
+      const detailLabel = item.customOptions ? customAnswers[item.id] : undefined;
+      return {
+        question: item.description,
+        status: mapStatus(responses[item.id] || ""),
+        category: categories.find(c => c.items.some(ci => ci.id === item.id))?.title || "",
+        observation: detailLabel ? `Resposta: ${detailLabel}` : undefined,
+        item_order: i + 1,
+      };
+    });
     const obsText = Object.entries(observations).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("\n");
     const ok = await saveAudit({
       auditType: "infection_control",
@@ -116,7 +189,7 @@ export default function AuditInfectionControlNew() {
     setSaving(false);
     if (ok) {
       setAuditDate(""); setSector(""); setShift(""); setBed(""); setAuditor("");
-      setResponses({}); setObservations({});
+      setResponses({}); setCustomAnswers({}); setObservations({});
       window.scrollTo(0, 0);
     }
   };
@@ -174,14 +247,27 @@ export default function AuditInfectionControlNew() {
                   {cat.items.map(item => (
                     <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border p-3">
                       <p className="text-sm flex-1">{item.description}</p>
-                      <div className="flex gap-1.5 shrink-0">
-                        {(["conforme", "nao_conforme", "na"] as ResponseValue[]).map(val => (
-                          <button key={val} onClick={() => setResponse(item.id, responses[item.id] === val ? "" : val)}
-                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${responses[item.id] === val ? chipStyles[val] : "bg-secondary text-secondary-foreground hover:bg-accent"}`}>
-                            {chipLabels[val]}
-                          </button>
-                        ))}
-                      </div>
+                      {item.customOptions ? (
+                        <div className="shrink-0 w-full sm:w-72">
+                          <Select value={customAnswers[item.id] || ""} onValueChange={(v) => setCustomAnswer(item.id, v)}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {item.customOptions.map(opt => (
+                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1.5 shrink-0">
+                          {(["conforme", "nao_conforme", "na"] as ResponseValue[]).map(val => (
+                            <button key={val} onClick={() => setResponse(item.id, responses[item.id] === val ? "" : val)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${responses[item.id] === val ? chipStyles[val] : "bg-secondary text-secondary-foreground hover:bg-accent"}`}>
+                              {chipLabels[val]}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="pt-2">
