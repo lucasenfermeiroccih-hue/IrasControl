@@ -265,14 +265,31 @@ export default function AuditInfectionControlNew() {
                       <p className="text-sm flex-1">{item.description}</p>
                       {item.customOptions ? (
                         <div className="shrink-0 w-full sm:w-72">
-                          <Select value={customAnswers[item.id] || ""} onValueChange={(v) => setCustomAnswer(item.id, v)}>
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {item.customOptions.map(opt => (
-                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-between font-normal">
+                                <span className="truncate text-left">
+                                  {(customAnswers[item.id]?.length ?? 0) === 0
+                                    ? "Selecione"
+                                    : customAnswers[item.id].join(", ")}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-2 bg-popover z-50" align="start">
+                              <div className="space-y-1.5 max-h-72 overflow-auto">
+                                {item.customOptions.map(opt => {
+                                  const checked = (customAnswers[item.id] || []).includes(opt);
+                                  return (
+                                    <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 hover:bg-accent">
+                                      <Checkbox checked={checked} onCheckedChange={() => toggleCustomAnswer(item.id, opt)} />
+                                      <span className="flex-1">{opt}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       ) : (
                         <div className="flex gap-1.5 shrink-0">
