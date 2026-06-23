@@ -290,7 +290,18 @@ export default function DashboardAnalysisTabs({ config }: { config: AnalysisConf
         throw new Error("Resposta da IA sem dados utilizáveis.");
       }
     } catch (e: any) {
-      toast({ title: "Não foi possível gerar com IA", description: e?.message ?? "Tente novamente.", variant: "destructive" });
+      const msg = String(e?.message ?? "");
+      const isCredits = msg.includes("402") || /cr[eé]dito/i.test(msg);
+      const isRate = msg.includes("429") || /limite/i.test(msg);
+      toast({
+        title: isCredits ? "Créditos de IA esgotados" : isRate ? "Limite de IA atingido" : "Não foi possível gerar com IA",
+        description: isCredits
+          ? "Adicione créditos em Settings → Plans & credits do seu workspace Lovable para continuar usando os recursos de IA."
+          : isRate
+          ? "Muitas requisições em pouco tempo. Aguarde alguns minutos e tente novamente."
+          : msg || "Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setAiLoading(null);
     }
