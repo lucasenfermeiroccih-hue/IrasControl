@@ -185,12 +185,12 @@ export default function AuditInfectionControlNew() {
     }
     setSaving(true);
     const items = allItems.map((item, i) => {
-      const detailLabel = item.customOptions ? customAnswers[item.id] : undefined;
+      const detailLabels = item.customOptions ? (customAnswers[item.id] || []) : undefined;
       return {
         question: item.description,
         status: mapStatus(responses[item.id] || ""),
         category: categories.find(c => c.items.some(ci => ci.id === item.id))?.title || "",
-        observation: detailLabel ? `Resposta: ${detailLabel}` : undefined,
+        observation: detailLabels && detailLabels.length > 0 ? `Resposta: ${detailLabels.join(", ")}` : undefined,
         item_order: i + 1,
       };
     });
