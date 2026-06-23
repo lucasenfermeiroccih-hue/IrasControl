@@ -112,13 +112,15 @@ const chipLabels: Record<string, string> = { conforme: "Conforme", nao_conforme:
 
 const mapStatus = (v: ResponseValue) => v === "conforme" ? "compliant" as const : v === "nao_conforme" ? "non_compliant" as const : "not_applicable" as const;
 
-/** For items with customOptions, derive ResponseValue from the chosen label. */
-const customToResponse = (label: string): ResponseValue => {
-  if (!label) return "";
-  const l = label.toLowerCase();
-  if (l === "adequado" || l === "conforme") return "conforme";
-  if (l.includes("não se aplica") || l === "n/a" || l === "na") return "na";
-  return "nao_conforme";
+/** For items with customOptions, derive ResponseValue from the selected labels (multi-select). */
+const customToResponse = (labels: string[]): ResponseValue => {
+  if (!labels || labels.length === 0) return "";
+  const lowers = labels.map(l => l.toLowerCase());
+  const hasNonConforme = lowers.some(l => l !== "adequado" && l !== "conforme" && !l.includes("não se aplica") && l !== "n/a" && l !== "na");
+  if (hasNonConforme) return "nao_conforme";
+  if (lowers.some(l => l === "adequado" || l === "conforme")) return "conforme";
+  if (lowers.some(l => l.includes("não se aplica") || l === "n/a" || l === "na")) return "na";
+  return "";
 };
 
 export default function AuditInfectionControlNew() {
