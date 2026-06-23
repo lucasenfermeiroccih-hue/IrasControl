@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { ArrowLeft, Save, BarChart3, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, BarChart3, Loader2, ChevronsUpDown } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
@@ -110,13 +112,15 @@ const chipLabels: Record<string, string> = { conforme: "Conforme", nao_conforme:
 
 const mapStatus = (v: ResponseValue) => v === "conforme" ? "compliant" as const : v === "nao_conforme" ? "non_compliant" as const : "not_applicable" as const;
 
-/** For items with customOptions, derive ResponseValue from the chosen label. */
-const customToResponse = (label: string): ResponseValue => {
-  if (!label) return "";
-  const l = label.toLowerCase();
-  if (l === "adequado" || l === "conforme") return "conforme";
-  if (l.includes("não se aplica") || l === "n/a" || l === "na") return "na";
-  return "nao_conforme";
+/** For items with customOptions, derive ResponseValue from the selected labels (multi-select). */
+const customToResponse = (labels: string[]): ResponseValue => {
+  if (!labels || labels.length === 0) return "";
+  const lowers = labels.map(l => l.toLowerCase());
+  const hasNonConforme = lowers.some(l => l !== "adequado" && l !== "conforme" && !l.includes("não se aplica") && l !== "n/a" && l !== "na");
+  if (hasNonConforme) return "nao_conforme";
+  if (lowers.some(l => l === "adequado" || l === "conforme")) return "conforme";
+  if (lowers.some(l => l.includes("não se aplica") || l === "n/a" || l === "na")) return "na";
+  return "";
 };
 
 export default function AuditInfectionControlNew() {
@@ -129,13 +133,25 @@ export default function AuditInfectionControlNew() {
   const [bed, setBed] = useState("");
   const [auditor, setAuditor] = useState("");
   const [responses, setResponses] = useState<Record<string, ResponseValue>>({});
-  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string[]>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
 
   const setResponse = (id: string, value: ResponseValue) => setResponses(p => ({ ...p, [id]: value }));
-  const setCustomAnswer = (id: string, label: string) => {
-    setCustomAnswers(p => ({ ...p, [id]: label }));
-    setResponses(p => ({ ...p, [id]: customToResponse(label) }));
+  const toggleCustomAnswer = (id: string, label: string) => {
+    setCustomAnswers(p => {
+      const current = p[id] || [];
+      const isNA = label.toLowerCase().includes("não se aplica");
+      let next: string[];
+      if (current.includes(label)) {
+        next = current.filter(x => x !== label);
+      } else if (isNA) {
+        next = [label]; // N/A is exclusive
+      } else {
+        next = [...current.filter(x => !x.toLowerCase().includes("não se aplica")), label];
+      }
+      setResponses(rp => ({ ...rp, [id]: customToResponse(next) }));
+      return { ...p, [id]: next };
+    });
   };
   const setObs = (k: string, v: string) => setObservations(p => ({ ...p, [k]: v }));
 
@@ -169,12 +185,12 @@ export default function AuditInfectionControlNew() {
     }
     setSaving(true);
     const items = allItems.map((item, i) => {
-      const detailLabel = item.customOptions ? customAnswers[item.id] : undefined;
+      const detailLabels = item.customOptions ? (customAnswers[item.id] || []) : undefined;
       return {
         question: item.description,
         status: mapStatus(responses[item.id] || ""),
         category: categories.find(c => c.items.some(ci => ci.id === item.id))?.title || "",
-        observation: detailLabel ? `Resposta: ${detailLabel}` : undefined,
+        observation: detailLabels && detailLabels.length > 0 ? `Resposta: ${detailLabels.join(", ")}` : undefined,
         item_order: i + 1,
       };
     });
@@ -249,14 +265,31 @@ export default function AuditInfectionControlNew() {
                       <p className="text-sm flex-1">{item.description}</p>
                       {item.customOptions ? (
                         <div className="shrink-0 w-full sm:w-72">
-                          <Select value={customAnswers[item.id] || ""} onValueChange={(v) => setCustomAnswer(item.id, v)}>
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {item.customOptions.map(opt => (
-                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-between font-normal">
+                                <span className="truncate text-left">
+                                  {(customAnswers[item.id]?.length ?? 0) === 0
+                                    ? "Selecione"
+                                    : customAnswers[item.id].join(", ")}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-2 bg-popover z-50" align="start">
+                              <div className="space-y-1.5 max-h-72 overflow-auto">
+                                {item.customOptions.map(opt => {
+                                  const checked = (customAnswers[item.id] || []).includes(opt);
+                                  return (
+                                    <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer rounded px-2 py-1.5 hover:bg-accent">
+                                      <Checkbox checked={checked} onCheckedChange={() => toggleCustomAnswer(item.id, opt)} />
+                                      <span className="flex-1">{opt}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       ) : (
                         <div className="flex gap-1.5 shrink-0">
