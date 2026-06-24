@@ -225,13 +225,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function DashboardHygiene() {
   const { hospitalId } = useHospitalContext();
-  const { stats, items, audits, loading } = useAuditDashboard("hand_hygiene");
-  const navigate = useNavigate();
-
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
+  const { stats, items, audits, loading, allAudits } = useAuditDashboard("hand_hygiene", { dia, mes, ano, setor });
+  const navigate = useNavigate();
   const [selectedIshikawa, setSelectedIshikawa] = useState<string | null>(null);
 
   const [metaProf, setMetaProf] = useState<number | undefined>(META_OMS);
@@ -496,7 +495,7 @@ export default function DashboardHygiene() {
         </div>
       </div>
 
-      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(audits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(audits.map(a => a.audit_date?.substring(0,4)).filter(Boolean) as string[])).sort().reverse()} />
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(allAudits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(allAudits.map(a => a.audit_date?.substring(0,4)).filter(Boolean) as string[])).sort().reverse()} />
 
       {/* ── KPI Cards ── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

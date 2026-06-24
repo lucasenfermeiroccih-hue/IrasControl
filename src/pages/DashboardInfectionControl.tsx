@@ -276,13 +276,12 @@ function sectorColor(compliance: number) {
 
 export default function DashboardInfectionControl() {
   const { hospitalId } = useHospitalContext();
-  const { stats, loading, audits, items } = useAuditDashboard("infection_control");
-  const navigate = useNavigate();
-
   const [dia, setDia] = useState<string[]>([]);
   const [mes, setMes] = useState<string[]>([]);
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
+  const { stats, loading, audits, items, allAudits } = useAuditDashboard("infection_control", { dia, mes, ano, setor });
+  const navigate = useNavigate();
   const [selectedIshikawa, setSelectedIshikawa] = useState<string | null>(null);
   const [ishikawaKey, setIshikawaKey] = useState(0);
 
@@ -454,7 +453,7 @@ export default function DashboardInfectionControl() {
         </div>
       </div>
 
-      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(audits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(audits.map(a => a.audit_date?.substring(0,4)).filter(Boolean) as string[])).sort().reverse()} />
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(allAudits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(allAudits.map(a => a.audit_date?.substring(0,4)).filter(Boolean) as string[])).sort().reverse()} />
 
       {/* ── KPI Cards ── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
