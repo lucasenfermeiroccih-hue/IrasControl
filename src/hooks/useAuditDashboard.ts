@@ -202,5 +202,5 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
     };
   }, [filteredAudits, filteredItems]);
 
-  return { audits, items, stats, loading, hospitalId };
+  return { audits: filteredAudits, items: filteredItems, allAudits: audits, allItems: items, stats, loading, hospitalId };
 }
