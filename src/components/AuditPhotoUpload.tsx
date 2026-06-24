@@ -1,7 +1,8 @@
-import { useRef } from "react";
-import { Camera, ImagePlus, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Camera, ImagePlus, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { compressImage } from "@/lib/compressImage";
 
 interface AuditPhotoUploadProps {
   photos: File[];
@@ -13,16 +14,26 @@ interface AuditPhotoUploadProps {
 export function AuditPhotoUpload({ photos, onChange, disabled, max = 10 }: AuditPhotoUploadProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
 
-  const addFiles = (list: FileList | null) => {
-    if (!list) return;
-    const incoming = Array.from(list).filter((f) => f.type.startsWith("image/"));
-    onChange([...photos, ...incoming].slice(0, max));
+  const addFiles = async (files: File[]) => {
+    const incoming = files.filter((f) => f.type.startsWith("image/"));
+    const slots = max - photos.length;
+    const toAdd = incoming.slice(0, Math.max(0, slots));
+    if (toAdd.length === 0) return;
+    setProcessing(true);
+    try {
+      const compressed = await Promise.all(toAdd.map((f) => compressImage(f)));
+      onChange([...photos, ...compressed].slice(0, max));
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const removeAt = (i: number) => onChange(photos.filter((_, idx) => idx !== i));
 
   const full = photos.length >= max;
+  const busy = disabled || processing;
 
   return (
     <Card>
@@ -35,21 +46,26 @@ export function AuditPhotoUpload({ photos, onChange, disabled, max = 10 }: Audit
         <p className="text-sm text-muted-foreground">
           Anexe fotos como evidência — tire na hora pela câmera ou escolha da galeria/arquivos do celular. (Opcional)
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" className="gap-2"
-            disabled={disabled || full} onClick={() => cameraRef.current?.click()}>
+            disabled={busy || full} onClick={() => cameraRef.current?.click()}>
             <Camera className="h-4 w-4" /> Tirar foto
           </Button>
           <Button type="button" variant="outline" size="sm" className="gap-2"
-            disabled={disabled || full} onClick={() => galleryRef.current?.click()}>
+            disabled={busy || full} onClick={() => galleryRef.current?.click()}>
             <ImagePlus className="h-4 w-4" /> Galeria / Arquivo
           </Button>
+          {processing && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Otimizando imagens…
+            </span>
+          )}
         </div>
 
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-          onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+          onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; addFiles(fs); }} />
         <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden"
-          onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+          onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; addFiles(fs); }} />
 
         {photos.length > 0 && (
           <>
