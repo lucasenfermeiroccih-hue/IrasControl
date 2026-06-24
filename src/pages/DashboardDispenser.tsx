@@ -224,13 +224,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function DashboardDispenser() {
   const { hospitalId } = useHospitalContext();
-  const { stats, items, audits, loading } = useAuditDashboard("dispenser");
-  const navigate = useNavigate();
-
   const [dia, setDia]   = useState<string[]>([]);
   const [mes, setMes]   = useState<string[]>([]);
   const [ano, setAno]   = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
+  const { stats, items, audits, loading, allAudits } = useAuditDashboard("dispenser", { dia, mes, ano, setor });
+  const navigate = useNavigate();
   const [selectedIshikawa, setSelectedIshikawa] = useState<string | null>(null);
   const [ishikawaKey, setIshikawaKey] = useState(0);
 
