@@ -454,7 +454,7 @@ export default function DashboardInfectionControl() {
         </div>
       </div>
 
-      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} />
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(audits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(audits.map(a => a.audit_date?.substring(0,4)).filter(Boolean) as string[])).sort().reverse()} />
 
       {/* ── KPI Cards ── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
