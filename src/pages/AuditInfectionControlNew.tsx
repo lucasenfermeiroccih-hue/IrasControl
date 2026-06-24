@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, BarChart3, Loader2, ChevronsUpDown } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
-import { AuditPhotoUpload } from "@/components/AuditPhotoUpload";
+import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 
@@ -136,7 +136,7 @@ export default function AuditInfectionControlNew() {
   const [responses, setResponses] = useState<Record<string, ResponseValue>>({});
   const [customAnswers, setCustomAnswers] = useState<Record<string, string[]>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
   const setResponse = (id: string, value: ResponseValue) => setResponses(p => ({ ...p, [id]: value }));
   const toggleCustomAnswer = (id: string, label: string) => {

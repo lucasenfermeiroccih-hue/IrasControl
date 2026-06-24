@@ -145,8 +145,9 @@ serve(async (req) => {
       });
     }
 
-    const { to, cc, managerName, audit, photoPaths } = await req.json() as {
-      to?: string; cc?: string[]; managerName?: string; audit?: AuditPayload; photoPaths?: string[];
+    const { to, cc, managerName, audit, photoPaths, photoCaptions } = await req.json() as {
+      to?: string; cc?: string[]; managerName?: string; audit?: AuditPayload;
+      photoPaths?: string[]; photoCaptions?: string[];
     };
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -193,10 +194,12 @@ serve(async (req) => {
         totalBytes += bytes.length;
         const ext = (path.split(".").pop() || "jpg").toLowerCase();
         const cid = `audit-photo-${i}`;
+        const caption = (Array.isArray(photoCaptions) ? photoCaptions[i] : "")?.trim();
+        const label = caption ? `Foto ${i + 1} — ${escapeHtml(caption)}` : `Foto ${i + 1}`;
         attachments.push({ filename: `foto-${i + 1}.${ext}`, content: encodeBase64(bytes), content_id: cid });
         cells.push(`<td width="50%" style="padding:6px;text-align:center;vertical-align:top;">
-          <img src="cid:${cid}" alt="Foto ${i + 1}" style="width:100%;max-width:300px;height:auto;border:1px solid #e5e7eb;border-radius:8px;" />
-          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Foto ${i + 1}</div>
+          <img src="cid:${cid}" alt="${label}" style="width:100%;max-width:300px;height:auto;border:1px solid #e5e7eb;border-radius:8px;" />
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">${label}</div>
         </td>`);
       }
       if (cells.length > 0) {

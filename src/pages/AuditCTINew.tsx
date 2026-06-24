@@ -12,7 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
-import { AuditPhotoUpload } from "@/components/AuditPhotoUpload";
+import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 
 const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
@@ -71,7 +71,7 @@ export default function AuditCTINew() {
   const [responsible, setResponsible] = useState("");
   const [responses, setResponses] = useState<Record<string, ResponseValue>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
   const stats = useMemo(() => {
     const answered = allItems.filter(i => responses[i.id] && responses[i.id] !== "");

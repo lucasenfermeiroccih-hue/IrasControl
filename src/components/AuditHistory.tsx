@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   History, Pencil, Trash2, FileDown, Filter, X, Loader2, ChevronDown, ChevronUp, Mail,
-  Image as ImageIcon,
+  Image as ImageIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,7 @@ interface AuditRecord {
   observations: string | null;
   created_at: string;
   photo_urls?: string[] | null;
+  photo_captions?: string[] | null;
   items?: AuditItem[];
 }
 
@@ -143,6 +144,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
             })),
           },
           photoPaths: emailRecord.photo_urls ?? [],
+          photoCaptions: emailRecord.photo_captions ?? [],
         },
       });
       if (error) throw error;
@@ -175,14 +177,65 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     if (open) fetchRecords();
   }, [open, fetchRecords]);
 
-  const ensurePhotos = async (rec: AuditRecord) => {
-    if (!rec.photo_urls || rec.photo_urls.length === 0) return;
-    if (signedPhotos[rec.id]) return;
+  const ensurePhotos = async (rec: AuditRecord): Promise<string[]> => {
+    if (!rec.photo_urls || rec.photo_urls.length === 0) return [];
+    if (signedPhotos[rec.id]) return signedPhotos[rec.id];
     const { data } = await supabase.storage
       .from("audit-photos")
       .createSignedUrls(rec.photo_urls, 3600);
     const urls = (data || []).map(d => d.signedUrl).filter(Boolean) as string[];
     setSignedPhotos(prev => ({ ...prev, [rec.id]: urls }));
+    return urls;
+  };
+
+  // Photo editor (reordenar / legendar / remover em auditorias salvas)
+  const [editRec, setEditRec] = useState<AuditRecord | null>(null);
+  const [editItems, setEditItems] = useState<{ path: string; caption: string; url: string }[]>([]);
+  const [savingPhotos, setSavingPhotos] = useState(false);
+
+  const openPhotoEditor = async (record: AuditRecord) => {
+    const urls = await ensurePhotos(record);
+    const paths = record.photo_urls || [];
+    const caps = record.photo_captions || [];
+    setEditItems(paths.map((path, i) => ({ path, caption: caps[i] || "", url: urls[i] || "" })));
+    setEditRec(record);
+  };
+
+  const editMove = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= editItems.length) return;
+    const n = [...editItems];
+    [n[i], n[j]] = [n[j], n[i]];
+    setEditItems(n);
+  };
+  const editCaption = (i: number, caption: string) =>
+    setEditItems(items => items.map((it, idx) => (idx === i ? { ...it, caption } : it)));
+  const editRemove = (i: number) =>
+    setEditItems(items => items.filter((_, idx) => idx !== i));
+
+  const savePhotoEdits = async () => {
+    if (!editRec) return;
+    setSavingPhotos(true);
+    const newPaths = editItems.map(it => it.path);
+    const newCaps = editItems.map(it => it.caption || "");
+    const removed = (editRec.photo_urls || []).filter(p => !newPaths.includes(p));
+    const { error } = await supabase
+      .from("audits")
+      .update({ photo_urls: newPaths, photo_captions: newCaps })
+      .eq("id", editRec.id);
+    if (error) {
+      toast.error("Erro ao salvar fotos: " + error.message);
+      setSavingPhotos(false);
+      return;
+    }
+    if (removed.length > 0) await supabase.storage.from("audit-photos").remove(removed);
+    setRecords(prev => prev.map(r => r.id === editRec.id
+      ? { ...r, photo_urls: newPaths, photo_captions: newCaps }
+      : r));
+    setSignedPhotos(prev => ({ ...prev, [editRec.id]: editItems.map(it => it.url) }));
+    toast.success("Fotos atualizadas.");
+    setSavingPhotos(false);
+    setEditRec(null);
   };
 
   const toggleExpand = async (id: string) => {
@@ -273,7 +326,8 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
             if (y + h > pageH - margin) { pdf.addPage(); y = margin; }
             pdf.addImage(dataUrl, fmt, margin, y, w, h);
             pdf.setFontSize(8);
-            pdf.text(`Foto ${i + 1}`, margin, y + h + 3);
+            const caption = record.photo_captions?.[i]?.trim();
+            pdf.text(caption ? `Foto ${i + 1} — ${caption}` : `Foto ${i + 1}`, margin, y + h + 3);
             y += h + 8;
           } catch {
             // pula foto que não pôde ser carregada/convertida
@@ -475,20 +529,29 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
 
                       {record.photo_urls && record.photo_urls.length > 0 && (
                         <div className="pt-2" data-html2canvas-ignore="true">
-                          <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                            <ImageIcon className="h-3.5 w-3.5" /> Fotos ({record.photo_urls.length})
-                          </p>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                              <ImageIcon className="h-3.5 w-3.5" /> Fotos ({record.photo_urls.length})
+                            </p>
+                            <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={() => openPhotoEditor(record)}>
+                              <Pencil className="h-3 w-3" /> Gerenciar
+                            </Button>
+                          </div>
                           {signedPhotos[record.id] ? (
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                               {signedPhotos[record.id].map((url, i) => (
-                                <button
-                                  key={url}
-                                  type="button"
-                                  onClick={() => setLightbox(url)}
-                                  className="aspect-square rounded-md overflow-hidden border bg-muted hover:opacity-80 transition-opacity"
-                                >
-                                  <img src={url} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
-                                </button>
+                                <div key={url} className="space-y-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightbox(url)}
+                                    className="block aspect-square w-full rounded-md overflow-hidden border bg-muted hover:opacity-80 transition-opacity"
+                                  >
+                                    <img src={url} alt={record.photo_captions?.[i] || `Foto ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
+                                  </button>
+                                  {record.photo_captions?.[i] && (
+                                    <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{record.photo_captions[i]}</p>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           ) : (
@@ -576,6 +639,60 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
           {lightbox && (
             <img src={lightbox} alt="Foto da auditoria" className="w-full max-h-[80vh] object-contain rounded" />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo editor (reordenar / legendar / remover) */}
+      <Dialog open={!!editRec} onOpenChange={(o) => { if (!o && !savingPhotos) setEditRec(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-primary" /> Gerenciar fotos
+            </DialogTitle>
+            <DialogDescription>Reordene (◀ ▶), edite as legendas ou remova fotos desta auditoria.</DialogDescription>
+          </DialogHeader>
+          {editItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Nenhuma foto. Ao salvar, todas as fotos desta auditoria serão removidas.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {editItems.map((it, i) => (
+                <div key={it.path} className="rounded-md border bg-muted/30 overflow-hidden">
+                  <div className="relative aspect-square bg-muted">
+                    <img src={it.url} alt={it.caption || `Foto ${i + 1}`} className="h-full w-full object-cover" />
+                    <span className="absolute top-1 left-1 rounded bg-black/60 text-white text-[10px] px-1.5 py-0.5">{i + 1}</span>
+                    <button type="button" onClick={() => editRemove(i)} disabled={savingPhotos}
+                      aria-label={`Remover foto ${i + 1}`}
+                      className="absolute top-1 right-1 rounded-full bg-black/60 text-white p-1 hover:bg-black/80 disabled:opacity-50">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="p-1.5 space-y-1.5">
+                    <Input value={it.caption} onChange={(e) => editCaption(i, e.target.value)}
+                      placeholder="Legenda (opcional)" disabled={savingPhotos} className="h-7 text-xs" />
+                    <div className="flex items-center justify-between">
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                        disabled={savingPhotos || i === 0} onClick={() => editMove(i, -1)} aria-label="Mover para trás">
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                        disabled={savingPhotos || i === editItems.length - 1} onClick={() => editMove(i, 1)} aria-label="Mover para frente">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRec(null)} disabled={savingPhotos}>Cancelar</Button>
+            <Button onClick={savePhotoEdits} disabled={savingPhotos} className="gap-2">
+              {savingPhotos ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Salvar alterações
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

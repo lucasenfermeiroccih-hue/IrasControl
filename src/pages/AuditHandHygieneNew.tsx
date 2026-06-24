@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, ClipboardCheck, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
-import { AuditPhotoUpload } from "@/components/AuditPhotoUpload";
+import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 
@@ -32,7 +32,7 @@ export default function AuditHandHygieneNew() {
     employeeName: "", auditDate: "", unit: "", professionalCategory: "",
     hasAdornments: false, fiveMomentsSituation: "", performedHygiene: true, techniqueUsed: "",
   });
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [field]: e.target.value }));

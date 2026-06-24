@@ -21,7 +21,7 @@ export function useAuditSave() {
     sector: string;
     observations?: string;
     items: AuditItem[];
-    photos?: File[];
+    photos?: { file: File; caption: string }[];
   }) => {
     if (!hospitalId || !userId) {
       toast.error("Contexto de hospital não encontrado. Faça login novamente.");
@@ -75,17 +75,21 @@ export function useAuditSave() {
 
     if (opts.photos && opts.photos.length > 0) {
       const paths: string[] = [];
+      const captions: string[] = [];
       for (let i = 0; i < opts.photos.length; i++) {
-        const file = opts.photos[i];
+        const { file, caption } = opts.photos[i];
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
         const path = `${hospitalId}/${audit.id}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("audit-photos")
           .upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
-        if (!upErr) paths.push(path);
+        if (!upErr) {
+          paths.push(path);
+          captions.push(caption || "");
+        }
       }
       if (paths.length > 0) {
-        await supabase.from("audits").update({ photo_urls: paths }).eq("id", audit.id);
+        await supabase.from("audits").update({ photo_urls: paths, photo_captions: captions }).eq("id", audit.id);
       }
       if (paths.length < opts.photos.length) {
         toast.warning(`Auditoria salva, mas ${opts.photos.length - paths.length} foto(s) não foram enviadas.`);

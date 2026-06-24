@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, Activity, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
-import { AuditPhotoUpload } from "@/components/AuditPhotoUpload";
+import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 
@@ -59,7 +59,7 @@ export default function AuditDispenserNew() {
   const [responses, setResponses] = useState<Record<string, ItemStatus>>({});
   const [justifications, setJustifications] = useState<Record<string, string>>({});
   const [generalObservations, setGeneralObservations] = useState("");
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
   const stats = useMemo(() => {
     const answered = checklistItems.filter(i => responses[i.id] && responses[i.id] !== "");
