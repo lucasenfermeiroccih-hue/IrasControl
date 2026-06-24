@@ -132,6 +132,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
               observation: it.observation,
             })),
           },
+          photoPaths: emailRecord.photo_urls ?? [],
         },
       });
       if (error) throw error;

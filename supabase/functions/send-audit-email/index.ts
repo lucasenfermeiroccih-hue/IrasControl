@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,7 +98,7 @@ function buildAuditHtml(audit: AuditPayload): string {
     </div>`;
 }
 
-function buildEmailHtml(managerName: string, audit: AuditPayload): string {
+function buildEmailHtml(managerName: string, audit: AuditPayload, photosHtml = ""): string {
   const p = "margin:0 0 12px;font-size:14px;line-height:1.6;color:#1f2937;";
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"></head>
@@ -110,6 +111,7 @@ function buildEmailHtml(managerName: string, audit: AuditPayload): string {
     <p style="${p}">Ressalto que a finalidade da auditoria é identificar oportunidades de melhoria, fortalecer a segurança do paciente e apoiar a equipe na padronização dos processos assistenciais.</p>
     <p style="${p}">Segue abaixo a auditoria.</p>
     ${buildAuditHtml(audit)}
+    ${photosHtml}
     <p style="${p}">Após a avaliação, as não conformidades e pontos de melhoria são compartilhadas acima com a chefia do setor para ciência, tratativa e elaboração de plano de ação, quando necessário.</p>
     <p style="${p}">Coloco-me à disposição para esclarecimentos.</p>
     <p style="${p}">Atenciosamente,<br>
@@ -143,8 +145,8 @@ serve(async (req) => {
       });
     }
 
-    const { to, managerName, audit } = await req.json() as {
-      to?: string; managerName?: string; audit?: AuditPayload;
+    const { to, managerName, audit, photoPaths } = await req.json() as {
+      to?: string; managerName?: string; audit?: AuditPayload; photoPaths?: string[];
     };
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -167,8 +169,35 @@ serve(async (req) => {
     }
     const from = Deno.env.get("AUDIT_EMAIL_FROM") || "IRASControl <onboarding@resend.dev>";
 
+    // Baixar fotos do Storage e preparar como anexos inline (cid)
+    const attachments: { filename: string; content: string; content_id: string }[] = [];
+    let photosHtml = "";
+    if (Array.isArray(photoPaths) && photoPaths.length > 0) {
+      const MAX_PHOTOS = 12;
+      const MAX_TOTAL_BYTES = 30 * 1024 * 1024; // limite de segurança (~30MB)
+      let totalBytes = 0;
+      const thumbs: string[] = [];
+      for (let i = 0; i < photoPaths.length && attachments.length < MAX_PHOTOS; i++) {
+        const path = photoPaths[i];
+        if (typeof path !== "string") continue;
+        const { data: blob, error: dlErr } = await callerClient.storage
+          .from("audit-photos").download(path);
+        if (dlErr || !blob) continue;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        if (totalBytes + bytes.length > MAX_TOTAL_BYTES) break;
+        totalBytes += bytes.length;
+        const ext = (path.split(".").pop() || "jpg").toLowerCase();
+        const cid = `audit-photo-${i}`;
+        attachments.push({ filename: `foto-${i + 1}.${ext}`, content: encodeBase64(bytes), content_id: cid });
+        thumbs.push(`<img src="cid:${cid}" alt="Foto ${i + 1}" style="width:150px;height:150px;object-fit:cover;border:1px solid #e5e7eb;border-radius:8px;margin:0 6px 6px 0;display:inline-block;vertical-align:top;" />`);
+      }
+      if (thumbs.length > 0) {
+        photosHtml = `<div style="margin:16px 0;"><h4 style="margin:0 0 8px;font-size:14px;color:#111827;">Fotos da auditoria (${thumbs.length})</h4><div>${thumbs.join("")}</div></div>`;
+      }
+    }
+
     const subject = `Auditoria SCIH — ${audit.typeLabel}${audit.sector ? ` — ${audit.sector}` : ""} (${formatDate(audit.date)})`;
-    const html = buildEmailHtml(managerName || "", audit);
+    const html = buildEmailHtml(managerName || "", audit, photosHtml);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -176,7 +205,10 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [to], subject, html }),
+      body: JSON.stringify({
+        from, to: [to], subject, html,
+        ...(attachments.length > 0 ? { attachments } : {}),
+      }),
     });
 
     const result = await res.json();
