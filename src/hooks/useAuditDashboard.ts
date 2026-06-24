@@ -84,6 +84,30 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
   }, [hospitalId, ctxLoading, auditType]);
 
   const stats = useMemo(() => {
+  const { filteredAudits, filteredItems } = useMemo(() => {
+    const f = filters || {};
+    const mesSet = new Set((f.mes || []).map(m => String(MES_NOMES.indexOf(m) + 1).padStart(2, "0")).filter(m => m !== "00"));
+    const anoSet = new Set(f.ano || []);
+    const setorSet = new Set(f.setor || []);
+    const diaSet = new Set((f.dia || []).map(d => d.padStart(2, "0")));
+
+    const fa = audits.filter(a => {
+      if (!a.audit_date) return false;
+      const [y, m, d] = a.audit_date.split("-");
+      if (anoSet.size && !anoSet.has(y)) return false;
+      if (mesSet.size && !mesSet.has(m)) return false;
+      if (diaSet.size && !diaSet.has((d || "").substring(0, 2))) return false;
+      if (setorSet.size && !setorSet.has(a.sector || "Sem setor")) return false;
+      return true;
+    });
+    const idSet = new Set(fa.map(a => a.id));
+    const fi = items.filter(i => idSet.has(i.audit_id));
+    return { filteredAudits: fa, filteredItems: fi };
+  }, [audits, items, filters?.dia?.join(","), filters?.mes?.join(","), filters?.ano?.join(","), filters?.setor?.join(",")]);
+
+  const stats = useMemo(() => {
+    const audits = filteredAudits;
+    const items = filteredItems;
     const totalAudits = audits.length;
     const avgCompliance = totalAudits > 0
       ? Math.round((audits.reduce((s, a) => s + (a.compliance_rate || 0), 0) / totalAudits) * 10) / 10
