@@ -1,17 +1,19 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
-  History, Pencil, Trash2, FileDown, Filter, X, Loader2, ChevronDown, ChevronUp,
+  History, Pencil, Trash2, FileDown, Filter, X, Loader2, ChevronDown, ChevronUp, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -22,6 +24,14 @@ const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+
+const AUDIT_TYPE_LABEL: Record<string, string> = {
+  infection_control: "Controle de Infecção",
+  hand_hygiene: "Higiene das Mãos",
+  dispenser: "Dispensadores",
+  cti_infrastructure: "Infraestrutura CTI",
+  bundles: "Bundles CVC/SVD",
+};
 
 interface AuditRecord {
   id: string;
@@ -63,6 +73,73 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Email-to-manager state
+  const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
+  const [managerName, setManagerName] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const ensureItems = async (id: string): Promise<AuditItem[]> => {
+    const rec = records.find(r => r.id === id);
+    if (rec?.items) return rec.items;
+    const { data } = await supabase
+      .from("audit_items")
+      .select("*")
+      .eq("audit_id", id)
+      .order("item_order");
+    const items = (data as AuditItem[]) || [];
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, items } : r));
+    return items;
+  };
+
+  const openEmail = async (record: AuditRecord) => {
+    setManagerName("");
+    setManagerEmail("");
+    const items = await ensureItems(record.id);
+    setEmailRecord({ ...record, items });
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailRecord) return;
+    const email = managerEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Informe um e-mail válido para o gestor do setor.");
+      return;
+    }
+    setSending(true);
+    try {
+      const items = emailRecord.items ?? (await ensureItems(emailRecord.id));
+      const { data, error } = await supabase.functions.invoke("send-audit-email", {
+        body: {
+          to: email,
+          managerName: managerName.trim(),
+          audit: {
+            typeLabel: AUDIT_TYPE_LABEL[auditType] || auditType,
+            date: emailRecord.audit_date,
+            sector: emailRecord.sector,
+            complianceRate: emailRecord.compliance_rate,
+            compliantItems: emailRecord.compliant_items,
+            totalItems: emailRecord.total_items,
+            observations: emailRecord.observations,
+            items: items.map(it => ({
+              question: it.question,
+              status: it.status,
+              observation: it.observation,
+            })),
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Auditoria enviada para ${email}.`);
+      setEmailRecord(null);
+    } catch (e: any) {
+      toast.error("Não foi possível enviar o e-mail: " + (e?.message || "erro desconhecido."));
+    } finally {
+      setSending(false);
+    }
+  };
 
   const fetchRecords = useCallback(async () => {
     if (!hospitalId) return;
@@ -279,6 +356,12 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                         {exportingId === record.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
                       </Button>
                       <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-primary" title="Enviar por e-mail ao gestor do setor"
+                        onClick={() => openEmail(record)}
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
                         variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Excluir"
                         onClick={() => setDeleteId(record.id)}
                       >
@@ -325,6 +408,57 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
             </div>
           )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send audit by email */}
+      <Dialog open={!!emailRecord} onOpenChange={(o) => { if (!o && !sending) setEmailRecord(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />
+              Enviar auditoria ao gestor do setor
+            </DialogTitle>
+            <DialogDescription>
+              {emailRecord && (
+                <>Auditoria de <strong>{AUDIT_TYPE_LABEL[auditType] || auditType}</strong>
+                {emailRecord.sector ? <> — setor <strong>{emailRecord.sector}</strong></> : null}
+                {" "}({new Date(emailRecord.audit_date + "T00:00:00").toLocaleDateString("pt-BR")}).</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="manager-name" className="text-xs">Nome do gestor do setor</Label>
+              <Input
+                id="manager-name"
+                placeholder="Ex.: Maria Silva"
+                value={managerName}
+                onChange={(e) => setManagerName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="manager-email" className="text-xs">E-mail do gestor *</Label>
+              <Input
+                id="manager-email"
+                type="email"
+                placeholder="gestor@hospital.com.br"
+                value={managerEmail}
+                onChange={(e) => setManagerEmail(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !sending) handleSendEmail(); }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              O e-mail incluirá o corpo padrão do SCIH e a auditoria completa (itens, conformidade e não conformidades).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailRecord(null)} disabled={sending}>Cancelar</Button>
+            <Button onClick={handleSendEmail} disabled={sending} className="gap-2">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Enviar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
