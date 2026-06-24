@@ -83,7 +83,6 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
     load();
   }, [hospitalId, ctxLoading, auditType]);
 
-  const stats = useMemo(() => {
   const { filteredAudits, filteredItems } = useMemo(() => {
     const f = filters || {};
     const mesSet = new Set((f.mes || []).map(m => String(MES_NOMES.indexOf(m) + 1).padStart(2, "0")).filter(m => m !== "00"));
