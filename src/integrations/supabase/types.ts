@@ -1013,6 +1013,51 @@ export type Database = {
           },
         ]
       }
+      hospital_logos: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          display_order: number
+          hospital_id: string
+          id: string
+          logo_type: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          display_order?: number
+          hospital_id: string
+          id?: string
+          logo_type: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          display_order?: number
+          hospital_id?: string
+          id?: string
+          logo_type?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_logos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_logos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_tool_installations: {
         Row: {
           hospital_id: string
@@ -1053,6 +1098,7 @@ export type Database = {
           created_at: string
           hospital_id: string
           id: string
+          is_active: boolean
           is_primary_admin: boolean
           user_id: string
         }
@@ -1060,6 +1106,7 @@ export type Database = {
           created_at?: string
           hospital_id: string
           id?: string
+          is_active?: boolean
           is_primary_admin?: boolean
           user_id: string
         }
@@ -1067,6 +1114,7 @@ export type Database = {
           created_at?: string
           hospital_id?: string
           id?: string
+          is_active?: boolean
           is_primary_admin?: boolean
           user_id?: string
         }
@@ -1104,6 +1152,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          notification_settings: Json
           state: string | null
           status: Database["public"]["Enums"]["hospital_status"]
           type: string
@@ -1118,6 +1167,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          notification_settings?: Json
           state?: string | null
           status?: Database["public"]["Enums"]["hospital_status"]
           type?: string
@@ -1132,6 +1182,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          notification_settings?: Json
           state?: string | null
           status?: Database["public"]["Enums"]["hospital_status"]
           type?: string
