@@ -195,7 +195,7 @@ export default function DashboardPrecautions() {
 
   // Form state
   const [formData, setFormData] = useState({
-    funcionario: "", unidade: "", turno: "", observacoes: "",
+    funcionario: "", unidade: "", leito: "", turno: "", observacoes: "",
     date: new Date().toISOString().slice(0, 10),
   });
   const [formItems, setFormItems] = useState<Record<string, ItemStatus>>(() => {
@@ -432,7 +432,7 @@ export default function DashboardPrecautions() {
 
   // ─── Form helpers ──────────────────────────────────────────
   const resetForm = () => {
-    setFormData({ funcionario: "", unidade: "", turno: "", observacoes: "", date: new Date().toISOString().slice(0, 10) });
+    setFormData({ funcionario: "", unidade: "", leito: "", turno: "", observacoes: "", date: new Date().toISOString().slice(0, 10) });
     const init: Record<string, ItemStatus> = {};
     ALL_ITEMS.forEach(q => { init[q] = ""; });
     setFormItems(init);
@@ -457,6 +457,7 @@ export default function DashboardPrecautions() {
 
     const observationText = [
       `Funcionário: ${formData.funcionario}`,
+      formData.leito ? `Leito: ${formData.leito}` : "",
       `Turno: ${formData.turno}`,
       formData.observacoes,
     ].filter(Boolean).join(" | ");
@@ -1035,6 +1036,11 @@ export default function DashboardPrecautions() {
                   {UNIDADES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Leito</Label>
+              <Input placeholder="Ex: 12A" value={formData.leito}
+                onChange={e => setFormData(p => ({ ...p, leito: e.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>Data</Label>

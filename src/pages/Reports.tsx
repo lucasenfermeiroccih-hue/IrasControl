@@ -827,15 +827,16 @@ const Reports = () => {
               <ChartActions chartRef={chartRefs.distribution} chartTitle="Distribuição por Microorganismo" metaValue={metas.distribution} onMetaChange={v => setMeta("distribution", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={distribution} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={distribution} margin={{ top: 10, right: 30, left: 0, bottom: 90 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} height={70} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-40} textAnchor="end" interval={0} height={90} />
+                  <YAxis tick={{ fontSize: 11 }} label={{ value: "Isolados", angle: -90, position: "insideLeft", offset: 10, fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  {metas.distribution !== undefined && <ReferenceLine y={metas.distribution} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.distribution}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
+                  <Bar dataKey="total" name="Total" radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 11, fill: "hsl(var(--foreground))" }}>
+                    {distribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Bar>
+                  {metas.distribution !== undefined && <ReferenceLine y={metas.distribution} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.distribution}`, position: "insideTopRight", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -853,17 +854,17 @@ const Reports = () => {
               <ChartActions chartRef={chartRefs.trend} chartTitle="Tendência de Resistência" metaValue={metas.trend} onMetaChange={v => setMeta("trend", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trendData.data} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={trendData.data} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} label={{ value: "Casos", angle: -90, position: "insideLeft", offset: 10, fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip contentStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   {trendData.topOrgs.map((org, i) => (
-                    <Line key={org} type="monotone" dataKey={org} stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
+                    <Line key={org} type="monotone" dataKey={org} stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={2.5} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                   ))}
-                  {metas.trend !== undefined && <ReferenceLine y={metas.trend} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.trend}`, position: "right", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
+                  {metas.trend !== undefined && <ReferenceLine y={metas.trend} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.trend}`, position: "insideTopRight", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -920,14 +921,13 @@ const Reports = () => {
               <ChartActions chartRef={chartRefs.examType} chartTitle="Distribuição por Tipo de Exame" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={Math.max(280, examTypeData.length * 32 + 60)}>
-                <BarChart data={examTypeData} layout="vertical" margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
+              <ResponsiveContainer width="100%" height={Math.max(300, examTypeData.length * 38 + 60)}>
+                <BarChart data={examTypeData} layout="vertical" margin={{ top: 10, right: 80, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={150} interval={0} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={155} interval={0} />
                   <Tooltip formatter={(value: number) => [value, "Exames"]} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="value" name="Total de Exames" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 11, fill: "hsl(var(--foreground))" }}>
+                  <Bar dataKey="value" name="Total de Exames" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))" }}>
                     {examTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Bar>
                 </BarChart>
@@ -950,15 +950,14 @@ const Reports = () => {
               <ChartActions chartRef={chartRefs.resistant} chartTitle="Microorganismos Resistentes" metaValue={metas.resistant} onMetaChange={v => setMeta("resistant", v)} />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={resistantOrganisms} layout="vertical" margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+              <ResponsiveContainer width="100%" height={Math.max(340, resistantOrganisms.length * 38 + 60)}>
+                <BarChart data={resistantOrganisms} layout="vertical" margin={{ top: 10, right: 70, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={140} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={180} interval={0} />
                   <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="Isolados MDR" />
-                  {metas.resistant !== undefined && <ReferenceLine x={metas.resistant} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.resistant}`, position: "top", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
+                  <Bar dataKey="value" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="Isolados MDR" label={{ position: "right", fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))" }} />
+                  {metas.resistant !== undefined && <ReferenceLine x={metas.resistant} stroke="hsl(168 66% 34%)" strokeDasharray="6 3" strokeWidth={2} label={{ value: `Meta: ${metas.resistant}`, position: "insideTopRight", fontSize: 10, fill: "hsl(168 66% 34%)" }} />}
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -1056,9 +1055,6 @@ const Reports = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
-                )}
                 {filtered.length === 0 && (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro encontrado. Clique em "Novo Registro" para começar.</TableCell></TableRow>
                 )}
