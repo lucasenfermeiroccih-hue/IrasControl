@@ -162,7 +162,7 @@ export default function AdminSettings() {
     if (hospital) {
       setHospitalData(hospital);
       const ns = hospital.notification_settings;
-      if (ns) setNotif({ ...DEFAULT_NOTIF, ...ns });
+      if (ns && typeof ns === "object" && !Array.isArray(ns)) setNotif({ ...DEFAULT_NOTIF, ...(ns as any) });
     }
     if (sectorData) setSectors(sectorData);
     setLoading(false);
