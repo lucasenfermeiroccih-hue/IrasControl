@@ -98,12 +98,30 @@ function buildAuditHtml(audit: AuditPayload): string {
     </div>`;
 }
 
-function buildEmailHtml(managerName: string, audit: AuditPayload, photosHtml = ""): string {
+function buildLogoHeaderHtml(hospitalLogoBase64?: string, scihLogosBase64?: string[]): string {
+  if (!hospitalLogoBase64 && (!scihLogosBase64 || scihLogosBase64.length === 0)) return "";
+
+  const hospImg = hospitalLogoBase64
+    ? `<img src="cid:hospital-logo" alt="Logo Hospital" style="max-height:56px;max-width:160px;object-fit:contain;" />`
+    : "";
+
+  const scihImgs = (scihLogosBase64 || []).map((_, i) =>
+    `<img src="cid:scih-logo-${i}" alt="Logo SCIH" style="max-height:56px;max-width:100px;object-fit:contain;margin-left:8px;" />`
+  ).join("");
+
+  return `<div style="background:#16a085;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:8px 8px 0 0;">
+    <div>${hospImg}</div>
+    <div style="display:flex;align-items:center;">${scihImgs}</div>
+  </div>`;
+}
+
+function buildEmailHtml(managerName: string, audit: AuditPayload, photosHtml = "", logoHeaderHtml = ""): string {
   const p = "margin:0 0 12px;font-size:14px;line-height:1.6;color:#1f2937;";
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:680px;margin:0 auto;">
+    ${logoHeaderHtml}
     <p style="${p}">Prezado(a) ${escapeHtml(managerName || "Gestor(a) do Setor")},</p>
     <p style="${p}">Espero que esteja bem.</p>
     <p style="${p}">Informo que foi realizada uma auditoria pelo Serviço de Controle de Infecção Hospitalar no setor sob sua responsabilidade, com o objetivo de avaliar a adesão às boas práticas assistenciais e institucionais relacionadas à prevenção e controle das infecções relacionadas à assistência à saúde.</p>
@@ -175,15 +193,78 @@ serve(async (req) => {
     }
     const from = Deno.env.get("AUDIT_EMAIL_FROM") || "IRASControl <onboarding@resend.dev>";
 
-    // Baixar fotos do Storage e preparar como anexos inline (cid)
+    // Buscar logos do hospital para incluir no e-mail
     const attachments: { filename: string; content: string; content_id: string }[] = [];
+    let logoHeaderHtml = "";
+    try {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: hu } = await adminClient
+        .from("hospital_users").select("hospital_id").eq("user_id", user.id).limit(1).maybeSingle();
+      const hid = hu?.hospital_id;
+
+      if (hid) {
+        const { data: logoRecords } = await adminClient
+          .from("hospital_logos")
+          .select("logo_type, storage_path, display_order")
+          .eq("hospital_id", hid)
+          .order("display_order");
+
+        if (logoRecords?.length) {
+          const bucketBase = `${supabaseUrl}/storage/v1/object/public/hospital-logos/`;
+          const MAX_LOGO_BYTES = 512 * 1024;
+
+          const hospitalLogoRec = logoRecords.find((r: any) => r.logo_type === "hospital");
+          const scihLogoRecs = logoRecords.filter((r: any) => r.logo_type === "scih").slice(0, 3);
+
+          let hospitalLogoBase64: string | undefined;
+          const scihLogosBase64: string[] = [];
+
+          if (hospitalLogoRec) {
+            try {
+              const res = await fetch(bucketBase + hospitalLogoRec.storage_path, { signal: AbortSignal.timeout(5000) });
+              if (res.ok) {
+                const bytes = new Uint8Array(await res.arrayBuffer());
+                if (bytes.length <= MAX_LOGO_BYTES) {
+                  const ext = hospitalLogoRec.storage_path.split(".").pop() || "png";
+                  const mime = ext === "svg" ? "image/svg+xml" : ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+                  hospitalLogoBase64 = encodeBase64(bytes);
+                  attachments.push({ filename: `hospital-logo.${ext}`, content: hospitalLogoBase64, content_id: "hospital-logo" });
+                }
+              }
+            } catch { /* skip logo on error */ }
+          }
+
+          for (let i = 0; i < scihLogoRecs.length; i++) {
+            try {
+              const rec = scihLogoRecs[i];
+              const res = await fetch(bucketBase + rec.storage_path, { signal: AbortSignal.timeout(5000) });
+              if (res.ok) {
+                const bytes = new Uint8Array(await res.arrayBuffer());
+                if (bytes.length <= MAX_LOGO_BYTES) {
+                  const ext = rec.storage_path.split(".").pop() || "png";
+                  const b64 = encodeBase64(bytes);
+                  scihLogosBase64.push(b64);
+                  attachments.push({ filename: `scih-logo-${i}.${ext}`, content: b64, content_id: `scih-logo-${i}` });
+                }
+              }
+            } catch { /* skip */ }
+          }
+
+          logoHeaderHtml = buildLogoHeaderHtml(hospitalLogoBase64, scihLogosBase64);
+        }
+      }
+    } catch { /* logos are optional, continue without them */ }
+
+    // Baixar fotos do Storage e preparar como anexos inline (cid)
     let photosHtml = "";
     if (Array.isArray(photoPaths) && photoPaths.length > 0) {
       const MAX_PHOTOS = 12;
-      const MAX_TOTAL_BYTES = 30 * 1024 * 1024; // limite de segurança (~30MB)
+      const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
       let totalBytes = 0;
       const cells: string[] = [];
-      for (let i = 0; i < photoPaths.length && attachments.length < MAX_PHOTOS; i++) {
+      for (let i = 0; i < photoPaths.length && attachments.filter(a => a.content_id.startsWith("audit-photo")).length < MAX_PHOTOS; i++) {
         const path = photoPaths[i];
         if (typeof path !== "string") continue;
         const { data: blob, error: dlErr } = await callerClient.storage
@@ -215,7 +296,7 @@ serve(async (req) => {
     }
 
     const subject = `Auditoria SCIH — ${audit.typeLabel}${audit.sector ? ` — ${audit.sector}` : ""} (${formatDate(audit.date)})`;
-    const html = buildEmailHtml(managerName || "", audit, photosHtml);
+    const html = buildEmailHtml(managerName || "", audit, photosHtml, logoHeaderHtml);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

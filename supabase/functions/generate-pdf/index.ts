@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─── Minimal raw-PDF builder with multi-page, tables & colours ───
+// ─── Minimal raw-PDF builder with multi-page, tables, colours & images ───
 
 const PAGE_W = 595;
 const PAGE_H = 842;
@@ -20,7 +20,7 @@ const TITLE_FONT = 16;
 type RGB = [number, number, number];
 const BLACK: RGB = [0, 0, 0];
 const WHITE: RGB = [1, 1, 1];
-const TEAL: RGB = [0.086, 0.627, 0.522]; // #16a085
+const TEAL: RGB = [0.086, 0.627, 0.522];
 const LIGHT_GRAY: RGB = [0.95, 0.95, 0.95];
 const GRAY: RGB = [0.4, 0.4, 0.4];
 const RED: RGB = [0.84, 0.18, 0.18];
@@ -32,41 +32,79 @@ function sanitize(s: string): string {
     .replace(/\(/g, "\\(")
     .replace(/\)/g, "\\)")
     .replace(/[^\x20-\x7E]/g, (c) => {
-      // Map common Portuguese chars
       const map: Record<string, string> = {};
-      // Portuguese accented chars
       const pairs = "á:a,à:a,â:a,ã:a,é:e,ê:e,í:i,ó:o,ô:o,õ:o,ú:u,ü:u,ç:c,Á:A,À:A,Â:A,Ã:A,É:E,Ê:E,Í:I,Ó:O,Ô:O,Õ:O,Ú:U,Ü:U,Ç:C";
       pairs.split(",").forEach(p => { const [k, v] = p.split(":"); map[k] = v; });
-      // Special punctuation
-      ["\u2013", "\u2014"].forEach(c => map[c] = "-");
-      ["\u2018", "\u2019"].forEach(c => map[c] = "'");
-      ["\u201C", "\u201D"].forEach(c => map[c] = '"');
+      ["–", "—"].forEach(c => map[c] = "-");
+      ["‘", "’"].forEach(c => map[c] = "'");
+      ["“", "”"].forEach(c => map[c] = '"');
       return map[c] || "?";
     });
 }
 
+// Parse JPEG dimensions from SOF marker
+function getJpegDimensions(data: Uint8Array): { w: number; h: number } | null {
+  let i = 2; // skip SOI 0xFF 0xD8
+  while (i < data.length - 8) {
+    if (data[i] !== 0xFF) break;
+    const marker = data[i + 1];
+    i += 2;
+    if (marker === 0xD9 || marker === 0xDA) break;
+    const segLen = (data[i] << 8) | data[i + 1];
+    if (
+      (marker >= 0xC0 && marker <= 0xC3) ||
+      (marker >= 0xC5 && marker <= 0xC7) ||
+      (marker >= 0xC9 && marker <= 0xCB) ||
+      (marker >= 0xCD && marker <= 0xCF)
+    ) {
+      const h = (data[i + 3] << 8) | data[i + 4];
+      const w = (data[i + 5] << 8) | data[i + 6];
+      return { w, h };
+    }
+    i += segLen;
+  }
+  return null;
+}
+
+interface LogoImage {
+  data: Uint8Array;
+  w: number;
+  h: number;
+  isJpeg: boolean;
+}
+
 class PdfBuilder {
   private objects: string[] = [];
-  private pages: { contentObjIdx: number }[] = [];
+  private objectBytes: Map<number, Uint8Array> = new Map();
+  private pages: { contentObjIdx: number; imageRefs: string }[] = [];
   private currentStream = "";
   private curY = PAGE_H - MARGIN;
   private fontObjNum = 0;
   private fontBoldObjNum = 0;
-  private pageIds: number[] = [];
+  private imageObjects: { objNum: number; name: string; w: number; h: number }[] = [];
   private date: string;
   private hospitalName: string;
   private reportTitle: string;
+  private headerH = 28;
+  private hospitalLogo?: LogoImage;
+  private scihLogos: LogoImage[] = [];
 
-  constructor(hospitalName: string, reportTitle: string) {
+  constructor(hospitalName: string, reportTitle: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []) {
     this.hospitalName = sanitize(hospitalName);
     this.reportTitle = sanitize(reportTitle);
     this.date = new Date().toLocaleDateString("pt-BR");
+    this.hospitalLogo = hospitalLogo;
+    this.scihLogos = scihLogos;
+    // Taller header when we have logos
+    if (hospitalLogo || scihLogos.length > 0) this.headerH = 52;
     this.startPage();
   }
 
-  private addObj(content: string): number {
+  private addObj(content: string, rawBytes?: Uint8Array): number {
     this.objects.push(content);
-    return this.objects.length; // 1-based obj number
+    const idx = this.objects.length;
+    if (rawBytes) this.objectBytes.set(idx, rawBytes);
+    return idx;
   }
 
   private setColor(rgb: RGB) {
@@ -98,11 +136,26 @@ class PdfBuilder {
     this.currentStream += `BT\n${fontRef} ${size} Tf\n${x} ${y} Td\n(${sanitize(text)}) Tj\nET\n`;
   }
 
+  private drawImage(imgName: string, x: number, y: number, w: number, h: number) {
+    this.currentStream += `q\n${w} 0 0 ${h} ${x} ${y} cm\n/${imgName} Do\nQ\n`;
+  }
+
   private checkPageBreak(needed: number) {
     if (this.curY - needed < MARGIN + 30) {
       this.finishPage();
       this.startPage();
     }
+  }
+
+  private addImageObject(imgData: Uint8Array, isJpeg: boolean, w: number, h: number): { objNum: number; name: string } {
+    const name = `Img${this.imageObjects.length + 1}`;
+    const colorSpace = "/DeviceRGB";
+    const filter = isJpeg ? "/DCTDecode" : "/FlateDecode";
+    // For simplicity, only support JPEG inline; PNG we skip
+    const header = `<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace ${colorSpace} /BitsPerComponent 8 /Filter ${filter} /Length ${imgData.length} >>`;
+    const objNum = this.addObj(header, imgData);
+    this.imageObjects.push({ objNum, name, w, h });
+    return { objNum, name };
   }
 
   private startPage() {
@@ -112,13 +165,50 @@ class PdfBuilder {
   }
 
   private drawHeader() {
-    // Teal bar at top
-    this.drawRect(0, PAGE_H - 28, PAGE_W, 28, TEAL, null);
-    this.drawText("IRASControl", MARGIN, PAGE_H - 20, 12, WHITE, true);
-    this.drawText(this.hospitalName, PAGE_W - MARGIN - this.hospitalName.length * 5, PAGE_H - 20, 9, WHITE);
-    
+    const barH = this.headerH;
+    // Teal bar
+    this.drawRect(0, PAGE_H - barH, PAGE_W, barH, TEAL, null);
+
+    if (this.hospitalLogo || this.scihLogos.length > 0) {
+      // Logo area: hospital logo left, SCIH logos right, in a white sub-band
+      const logoBandH = barH - 8;
+      const logoBandY = PAGE_H - barH + 4;
+
+      // Draw hospital logo
+      if (this.hospitalLogo) {
+        const maxLogoH = logoBandH - 4;
+        const maxLogoW = 120;
+        const ratio = this.hospitalLogo.w / this.hospitalLogo.h;
+        const logoH = Math.min(maxLogoH, maxLogoW / ratio);
+        const logoW = logoH * ratio;
+        const logoX = MARGIN;
+        const logoY = logoBandY + (logoBandH - logoH) / 2;
+        const { name } = this.addImageObject(this.hospitalLogo.data, this.hospitalLogo.isJpeg, this.hospitalLogo.w, this.hospitalLogo.h);
+        this.drawImage(name, logoX, logoY, logoW, logoH);
+      } else {
+        this.drawText("IRASControl", MARGIN, PAGE_H - 20, 12, WHITE, true);
+      }
+
+      // Draw SCIH logos (right side)
+      let scihX = PAGE_W - MARGIN;
+      for (const logo of this.scihLogos.slice(0, 3).reverse()) {
+        const maxLogoH = logoBandH - 4;
+        const maxLogoW = 70;
+        const ratio = logo.w / logo.h;
+        const logoH = Math.min(maxLogoH, maxLogoW / ratio);
+        const logoW = logoH * ratio;
+        scihX -= logoW + 4;
+        const logoY = PAGE_H - barH + 4 + (logoBandH - logoH) / 2;
+        const { name } = this.addImageObject(logo.data, logo.isJpeg, logo.w, logo.h);
+        this.drawImage(name, scihX, logoY, logoW, logoH);
+      }
+    } else {
+      this.drawText("IRASControl", MARGIN, PAGE_H - 20, 12, WHITE, true);
+      this.drawText(this.hospitalName, PAGE_W - MARGIN - this.hospitalName.length * 5, PAGE_H - 20, 9, WHITE);
+    }
+
     // Report title
-    this.curY = PAGE_H - 55;
+    this.curY = PAGE_H - this.headerH - 27;
     this.drawText(this.reportTitle, MARGIN, this.curY, TITLE_FONT, TEAL, true);
     this.curY -= 16;
     this.drawText("Gerado em " + this.date, MARGIN, this.curY, 8, GRAY);
@@ -134,11 +224,18 @@ class PdfBuilder {
 
   private finishPage() {
     this.drawFooter();
-    const streamBytes = new TextEncoder().encode(this.currentStream);
+    const pageStream = this.currentStream;
+    const streamBytes = new TextEncoder().encode(pageStream);
     const streamObjNum = this.addObj(
-      `<< /Length ${streamBytes.length} >>\nstream\n${this.currentStream}\nendstream`
+      `<< /Length ${streamBytes.length} >>\nstream\n${pageStream}\nendstream`
     );
-    this.pages.push({ contentObjIdx: streamObjNum });
+
+    // Collect image refs for this page (all images registered so far)
+    const imgRefs = this.imageObjects
+      .map(img => `/${img.name} ${img.objNum} 0 R`)
+      .join(" ");
+
+    this.pages.push({ contentObjIdx: streamObjNum, imageRefs: imgRefs });
   }
 
   // ─── Public API ───
@@ -188,7 +285,6 @@ class PdfBuilder {
     const widths = colWidths || headers.map(() => USABLE_W / cols);
     const rowH = 16;
 
-    // Header row
     this.checkPageBreak(rowH * 2);
     let x = MARGIN;
     this.drawRect(MARGIN, this.curY - rowH, USABLE_W, rowH, TEAL, null);
@@ -198,13 +294,11 @@ class PdfBuilder {
     });
     this.curY -= rowH;
 
-    // Data rows
     rows.forEach((row, ri) => {
       this.checkPageBreak(rowH);
       const bg = ri % 2 === 0 ? null : LIGHT_GRAY;
       if (bg) this.drawRect(MARGIN, this.curY - rowH, USABLE_W, rowH, bg, null);
 
-      // Row border
       this.setStrokeColor([0.85, 0.85, 0.85]);
       this.currentStream += `0.3 w\n${MARGIN} ${this.curY - rowH} m ${MARGIN + USABLE_W} ${this.curY - rowH} l S\n`;
 
@@ -224,59 +318,83 @@ class PdfBuilder {
   build(): Uint8Array {
     this.finishPage();
 
-    // Build font objects
     this.fontObjNum = this.addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
     this.fontBoldObjNum = this.addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
 
-    // Build page objects
     const pageObjNums: number[] = [];
-    for (const page of this.pages) {
+    for (const _ of this.pages) {
       const pageObjNum = this.addObj("PAGE_PLACEHOLDER");
       pageObjNums.push(pageObjNum);
     }
 
-    // Pages object
     const pagesObjNum = this.addObj(
       `<< /Type /Pages /Kids [${pageObjNums.map((n) => `${n} 0 R`).join(" ")}] /Count ${this.pages.length} >>`
     );
 
-    // Fill in page objects
     this.pages.forEach((page, i) => {
+      const imgDict = page.imageRefs ? ` /XObject << ${page.imageRefs} >>` : "";
       this.objects[pageObjNums[i] - 1] =
         `<< /Type /Page /Parent ${pagesObjNum} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] ` +
         `/Contents ${page.contentObjIdx} 0 R ` +
-        `/Resources << /Font << /F1 ${this.fontObjNum} 0 R /F2 ${this.fontBoldObjNum} 0 R >> >> >>`;
+        `/Resources << /Font << /F1 ${this.fontObjNum} 0 R /F2 ${this.fontBoldObjNum} 0 R >>${imgDict} >> >>`;
     });
 
-    // Catalog
     const catalogObjNum = this.addObj(`<< /Type /Catalog /Pages ${pagesObjNum} 0 R >>`);
 
-    // Assemble PDF
+    // Assemble PDF with binary image objects
     const encoder = new TextEncoder();
-    let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-    const offsets: number[] = [0]; // 0-indexed placeholder for obj 0
+    const chunks: Uint8Array[] = [];
+    const offsets: number[] = [0];
+
+    const push = (s: string) => {
+      const b = encoder.encode(s);
+      chunks.push(b);
+    };
+
+    let byteOffset = 0;
+    const addChunk = (b: Uint8Array) => { chunks.push(b); byteOffset += b.length; };
+    const addStr = (s: string) => { const b = encoder.encode(s); addChunk(b); };
+
+    addStr("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
 
     for (let i = 0; i < this.objects.length; i++) {
-      offsets.push(pdf.length);
-      pdf += `${i + 1} 0 obj\n${this.objects[i]}\nendobj\n`;
+      const objNum = i + 1;
+      offsets.push(byteOffset);
+
+      const rawBytes = this.objectBytes.get(objNum);
+      if (rawBytes) {
+        // Binary stream object (image)
+        const header = encoder.encode(`${objNum} 0 obj\n${this.objects[i]}\nstream\n`);
+        const footer = encoder.encode(`\nendstream\nendobj\n`);
+        addChunk(header);
+        addChunk(rawBytes);
+        addChunk(footer);
+      } else {
+        addStr(`${objNum} 0 obj\n${this.objects[i]}\nendobj\n`);
+      }
     }
 
-    const xrefOffset = pdf.length;
+    const xrefOffset = byteOffset;
     const totalObjs = this.objects.length + 1;
-    pdf += "xref\n";
-    pdf += `0 ${totalObjs}\n`;
-    pdf += "0000000000 65535 f \n";
+    let xref = "xref\n";
+    xref += `0 ${totalObjs}\n`;
+    xref += "0000000000 65535 f \n";
     for (let i = 1; i < totalObjs; i++) {
-      pdf += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+      xref += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
     }
+    xref += "trailer\n";
+    xref += `<< /Size ${totalObjs} /Root ${catalogObjNum} 0 R >>\n`;
+    xref += "startxref\n";
+    xref += `${xrefOffset}\n`;
+    xref += "%%EOF";
+    addStr(xref);
 
-    pdf += "trailer\n";
-    pdf += `<< /Size ${totalObjs} /Root ${catalogObjNum} 0 R >>\n`;
-    pdf += "startxref\n";
-    pdf += `${xrefOffset}\n`;
-    pdf += "%%EOF";
-
-    return encoder.encode(pdf);
+    // Combine all chunks
+    const total = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(total);
+    let pos = 0;
+    for (const chunk of chunks) { result.set(chunk, pos); pos += chunk.length; }
+    return result;
   }
 
   toBase64(): string {
@@ -289,10 +407,58 @@ class PdfBuilder {
   }
 }
 
+// ─── Logo fetching ───
+
+async function fetchLogos(adminClient: ReturnType<typeof createClient>, hospitalId: string): Promise<{
+  hospitalLogo?: LogoImage;
+  scihLogos: LogoImage[];
+}> {
+  const { data: logoRecords } = await adminClient
+    .from("hospital_logos")
+    .select("logo_type, storage_path, display_order")
+    .eq("hospital_id", hospitalId)
+    .order("display_order");
+
+  if (!logoRecords || logoRecords.length === 0) return { scihLogos: [] };
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const bucketBase = `${supabaseUrl}/storage/v1/object/public/hospital-logos/`;
+
+  const loadImage = async (path: string): Promise<LogoImage | null> => {
+    try {
+      const res = await fetch(bucketBase + path, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      const data = new Uint8Array(buf);
+      // Detect JPEG by magic bytes
+      const isJpeg = data[0] === 0xFF && data[1] === 0xD8;
+      if (!isJpeg) return null; // only embed JPEG in raw PDF
+      const dims = getJpegDimensions(data);
+      if (!dims) return null;
+      return { data, w: dims.w, h: dims.h, isJpeg: true };
+    } catch {
+      return null;
+    }
+  };
+
+  const hospitalRecord = logoRecords.find((r: any) => r.logo_type === "hospital");
+  const scihRecords = logoRecords.filter((r: any) => r.logo_type === "scih");
+
+  const [hospitalLogo, ...scihLogoResults] = await Promise.all([
+    hospitalRecord ? loadImage(hospitalRecord.storage_path) : Promise.resolve(null),
+    ...scihRecords.map((r: any) => loadImage(r.storage_path)),
+  ]);
+
+  return {
+    hospitalLogo: hospitalLogo ?? undefined,
+    scihLogos: scihLogoResults.filter((l): l is LogoImage => l !== null),
+  };
+}
+
 // ─── Report generators ───
 
-function buildDashboardPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio do Dashboard");
+function buildDashboardPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio do Dashboard", hospitalLogo, scihLogos);
 
   pdf.addKPIRow([
     { label: "Pacientes Monitorados", value: String(data.totalPatients || 0) },
@@ -327,8 +493,8 @@ function buildDashboardPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildCasesPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Casos de Investigacao");
+function buildCasesPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Casos de Investigacao", hospitalLogo, scihLogos);
 
   pdf.addKPIRow([
     { label: "Abertos", value: String(data.kpis?.abertos || 0) },
@@ -349,8 +515,8 @@ function buildCasesPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildAlertsPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Alertas");
+function buildAlertsPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Alertas", hospitalLogo, scihLogos);
 
   if (data.alerts?.length > 0) {
     pdf.addTable(
@@ -365,8 +531,8 @@ function buildAlertsPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildPatientsPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Pacientes");
+function buildPatientsPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Pacientes", hospitalLogo, scihLogos);
   pdf.addText(`Total de pacientes: ${data.total || 0}`);
   pdf.addSpacer();
 
@@ -381,8 +547,8 @@ function buildPatientsPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildAuditsPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Auditorias");
+function buildAuditsPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Auditorias", hospitalLogo, scihLogos);
 
   if (data.kpis) {
     pdf.addKPIRow([
@@ -407,8 +573,8 @@ function buildAuditsPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildMicroorganismsPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Microorganismos");
+function buildMicroorganismsPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Microorganismos", hospitalLogo, scihLogos);
   pdf.addText(`Total de registros: ${data.total || 0}`);
   pdf.addSpacer();
 
@@ -433,8 +599,8 @@ function buildMicroorganismsPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildAnalyticsPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio Analitico Avancado");
+function buildAnalyticsPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio Analitico Avancado", hospitalLogo, scihLogos);
 
   if (data.kpis) {
     pdf.addKPIRow([
@@ -475,8 +641,8 @@ function buildAnalyticsPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildDDDPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Consumo de Antimicrobianos (DDD)");
+function buildDDDPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Consumo de Antimicrobianos (DDD)", hospitalLogo, scihLogos);
 
   if (data.header) {
     pdf.addText(`Profissional: ${data.header.profissional || "-"}`);
@@ -520,8 +686,8 @@ function buildDDDPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildISCPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Infeccao de Sitio Cirurgico (ISC)");
+function buildISCPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Infeccao de Sitio Cirurgico (ISC)", hospitalLogo, scihLogos);
 
   if (data.kpis) {
     pdf.addKPIRow([
@@ -547,8 +713,8 @@ function buildISCPdf(data: any, hospital: string): string {
   return pdf.toBase64();
 }
 
-function buildIndicadoresPdf(data: any, hospital: string): string {
-  const pdf = new PdfBuilder(hospital, "Relatorio de Indicadores");
+function buildIndicadoresPdf(data: any, hospital: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []): string {
+  const pdf = new PdfBuilder(hospital, "Relatorio de Indicadores", hospitalLogo, scihLogos);
 
   pdf.addText(`Profissional: ${data.profissional || "-"}`);
   pdf.addText(`Periodo: ${data.mes || "-"} / ${data.ano || "-"}`);
@@ -625,21 +791,25 @@ Deno.serve(async (req) => {
       return json({ error: "type e data sao obrigatorios" }, 400);
     }
 
-    // Get hospital name
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
     let hospitalName = "Hospital";
+    let hospitalLogo: LogoImage | undefined;
+    let scihLogos: LogoImage[] = [];
+
     if (hospitalId) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: hospital } = await adminClient
-        .from("hospitals")
-        .select("name")
-        .eq("id", hospitalId)
-        .single();
+      const [{ data: hospital }, logoData] = await Promise.all([
+        adminClient.from("hospitals").select("name").eq("id", hospitalId).single(),
+        fetchLogos(adminClient, hospitalId),
+      ]);
       if (hospital) hospitalName = hospital.name;
+      hospitalLogo = logoData.hospitalLogo;
+      scihLogos = logoData.scihLogos;
     }
 
-    const generators: Record<string, (d: any, h: string) => string> = {
+    const generators: Record<string, (d: any, h: string, hl?: LogoImage, sl?: LogoImage[]) => string> = {
       dashboard: buildDashboardPdf,
       cases: buildCasesPdf,
       alerts: buildAlertsPdf,
@@ -657,7 +827,7 @@ Deno.serve(async (req) => {
       return json({ error: `Tipo de relatorio nao suportado: ${type}` }, 400);
     }
 
-    const pdfBase64 = generator(data, hospitalName);
+    const pdfBase64 = generator(data, hospitalName, hospitalLogo, scihLogos);
     return json({ pdf: pdfBase64 });
   } catch (err: any) {
     return json({ error: err.message }, 500);

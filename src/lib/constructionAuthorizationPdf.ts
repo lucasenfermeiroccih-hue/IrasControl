@@ -1,31 +1,21 @@
 import jsPDF from "jspdf";
-
-/**
- * Gera o PDF "Autorização do Controle de Infecções para Obras/Reformas" (HGNI).
- * É um formulário-modelo para preenchimento (campos em branco), com a logo do
- * hospital no cabeçalho.
- *
- * As logos (HGNI e CCIH) são carregadas em runtime de /logo-hgni.png e
- * /logo-ccih.png (arquivos em public/). Caso não existam, o cabeçalho cai para
- * um banner em texto.
- */
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AuthorizationPrefill {
-  /** Localização da obra/reforma — geralmente o setor selecionado na auditoria. */
   localizacao?: string;
-  /** Coordenador / responsável pelo projeto. */
   coordenador?: string;
+  hospitalId?: string;
 }
 
 const PAGE_W = 210;
 const PAGE_H = 297;
 const MARGIN = 15;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const LINE_GAP = 5.2; // altura padrão de uma linha de texto
+const LINE_GAP = 5.2;
 
-async function loadLogo(path: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
+async function loadLogo(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
-    const res = await fetch(path, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
     const blob = await res.blob();
     const dataUrl: string = await new Promise((resolve, reject) => {
@@ -46,6 +36,39 @@ async function loadLogo(path: string): Promise<{ dataUrl: string; w: number; h: 
   }
 }
 
+async function loadHospitalLogos(hospitalId: string): Promise<{
+  hospitalLogo: { dataUrl: string; w: number; h: number } | null;
+  scihLogos: Array<{ dataUrl: string; w: number; h: number }>;
+}> {
+  try {
+    const { data: logos } = await supabase
+      .from("hospital_logos")
+      .select("logo_type, storage_path, display_order")
+      .eq("hospital_id", hospitalId)
+      .order("display_order");
+
+    if (!logos?.length) return { hospitalLogo: null, scihLogos: [] };
+
+    const getUrl = (path: string) =>
+      supabase.storage.from("hospital-logos").getPublicUrl(path).data.publicUrl;
+
+    const hospitalRec = logos.find((l: any) => l.logo_type === "hospital");
+    const scihRecs = logos.filter((l: any) => l.logo_type === "scih");
+
+    const [hospitalLogo, ...scihResults] = await Promise.all([
+      hospitalRec ? loadLogo(getUrl(hospitalRec.storage_path)) : Promise.resolve(null),
+      ...scihRecs.map((r: any) => loadLogo(getUrl(r.storage_path))),
+    ]);
+
+    return {
+      hospitalLogo,
+      scihLogos: scihResults.filter((l): l is { dataUrl: string; w: number; h: number } => l !== null),
+    };
+  } catch {
+    return { hospitalLogo: null, scihLogos: [] };
+  }
+}
+
 export async function buildConstructionAuthorizationPdf(prefill: AuthorizationPrefill = {}) {
   const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
   let y = MARGIN;
@@ -57,26 +80,42 @@ export async function buildConstructionAuthorizationPdf(prefill: AuthorizationPr
     }
   };
 
-  // --- Cabeçalho com logos (HGNI à esquerda, CCIH à direita) ---
-  const [hgni, ccih] = await Promise.all([
-    loadLogo("/logo-hgni.png"),
-    loadLogo("/logo-ccih.png"),
-  ]);
+  // --- Cabeçalho com logos (hospital à esquerda, SCIH logos à direita) ---
+  const { hospitalLogo, scihLogos } = prefill.hospitalId
+    ? await loadHospitalLogos(prefill.hospitalId)
+    : { hospitalLogo: null, scihLogos: [] };
+
+  // Fallback para arquivos estáticos se não houver logos cadastradas
+  const hgni = hospitalLogo ?? await loadLogo("/logo-hgni.png");
+  const firstScih = scihLogos[0] ?? await loadLogo("/logo-ccih.png");
+
   const headerH = 20;
   if (hgni) {
     const h = headerH;
     const w = Math.min(48, (hgni.w / hgni.h) * h);
     pdf.addImage(hgni.dataUrl, "PNG", MARGIN, y, w, h);
   }
-  if (ccih) {
+
+  // Renderizar logos SCIH à direita (uma ou mais)
+  if (scihLogos.length > 0) {
+    let logoX = PAGE_W - MARGIN;
+    for (const logo of [...scihLogos].reverse().slice(0, 3)) {
+      const h = headerH;
+      const w = Math.min(34, (logo.w / logo.h) * h);
+      logoX -= w;
+      pdf.addImage(logo.dataUrl, "PNG", logoX, y, w, h);
+      logoX -= 2;
+    }
+  } else if (firstScih) {
     const h = headerH;
-    const w = Math.min(34, (ccih.w / ccih.h) * h);
-    pdf.addImage(ccih.dataUrl, "PNG", PAGE_W - MARGIN - w, y, w, h);
+    const w = Math.min(34, (firstScih.w / firstScih.h) * h);
+    pdf.addImage(firstScih.dataUrl, "PNG", PAGE_W - MARGIN - w, y, w, h);
   }
-  // Texto central (ou banner completo em texto quando faltam as logos)
+
+  // Texto central
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(hgni ? 11 : 14);
-  pdf.text("HGNI — Hospital Geral de Nova Iguaçu", PAGE_W / 2, y + 8, { align: "center" });
+  pdf.text("Hospital — Controle de Infecções", PAGE_W / 2, y + 8, { align: "center" });
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.text("Comissão de Controle de Infecção Hospitalar (CCIH/SCIH)", PAGE_W / 2, y + 14, { align: "center" });

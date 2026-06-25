@@ -84,6 +84,7 @@ export default function AuditConstructionNew() {
       const pdf = await buildConstructionAuthorizationPdf({
         localizacao: sector || project || "",
         coordenador: reviewer || "",
+        hospitalId: hospitalId || undefined,
       });
       pdf.save("autorizacao-obras-reformas-hgni.pdf");
       toast.success("Autorização de obras baixada!");

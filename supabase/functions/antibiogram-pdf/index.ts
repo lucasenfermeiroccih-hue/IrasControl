@@ -26,6 +26,56 @@ const RED: RGB = [0.84, 0.18, 0.18];
 const ORANGE: RGB = [0.9, 0.6, 0.1];
 const GREEN: RGB = [0.2, 0.66, 0.32];
 
+interface LogoImage { data: Uint8Array; w: number; h: number; }
+
+function getJpegDimensions(data: Uint8Array): { w: number; h: number } | null {
+  let i = 2;
+  while (i < data.length - 8) {
+    if (data[i] !== 0xFF) break;
+    const marker = data[i + 1]; i += 2;
+    if (marker === 0xD9 || marker === 0xDA) break;
+    const segLen = (data[i] << 8) | data[i + 1];
+    if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7)) {
+      return { h: (data[i + 3] << 8) | data[i + 4], w: (data[i + 5] << 8) | data[i + 6] };
+    }
+    i += segLen;
+  }
+  return null;
+}
+
+async function fetchHospitalLogos(hospitalId: string): Promise<{ hospitalLogo?: LogoImage; scihLogos: LogoImage[] }> {
+  try {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.0");
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: logoRecords } = await adminClient
+      .from("hospital_logos")
+      .select("logo_type, storage_path, display_order")
+      .eq("hospital_id", hospitalId)
+      .order("display_order");
+    if (!logoRecords?.length) return { scihLogos: [] };
+
+    const bucketBase = `${SUPABASE_URL}/storage/v1/object/public/hospital-logos/`;
+    const loadImg = async (path: string): Promise<LogoImage | null> => {
+      try {
+        const res = await fetch(bucketBase + path, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) return null;
+        const data = new Uint8Array(await res.arrayBuffer());
+        if (data[0] !== 0xFF || data[1] !== 0xD8) return null; // JPEG only
+        const dims = getJpegDimensions(data);
+        return dims ? { data, ...dims } : null;
+      } catch { return null; }
+    };
+
+    const hospitalRec = logoRecords.find((r: any) => r.logo_type === "hospital");
+    const scihRecs = logoRecords.filter((r: any) => r.logo_type === "scih");
+    const [hosp, ...scih] = await Promise.all([
+      hospitalRec ? loadImg(hospitalRec.storage_path) : Promise.resolve(null),
+      ...scihRecs.map((r: any) => loadImg(r.storage_path)),
+    ]);
+    return { hospitalLogo: hosp ?? undefined, scihLogos: scih.filter((l): l is LogoImage => l !== null) };
+  } catch { return { scihLogos: [] }; }
+}
+
 function sanitize(s: string): string {
   return (s || "")
     .replace(/\\/g, "\\\\")
@@ -44,17 +94,25 @@ function sanitize(s: string): string {
 
 class Pdf {
   objs: string[] = [];
-  pageStreams: string[] = [];
+  objBytes: Map<number, Uint8Array> = new Map();
+  pageStreams: { stream: string; imgRefs: string }[] = [];
   cur = "";
   y = PAGE_H - MARGIN;
   hospital: string;
   title: string;
   date: string;
+  headerH: number;
+  hospitalLogo?: LogoImage;
+  scihLogos: LogoImage[];
+  imgObjs: { objNum: number; name: string; w: number; h: number }[] = [];
 
-  constructor(hospital: string, title: string) {
+  constructor(hospital: string, title: string, hospitalLogo?: LogoImage, scihLogos: LogoImage[] = []) {
     this.hospital = sanitize(hospital);
     this.title = sanitize(title);
     this.date = new Date().toLocaleDateString("pt-BR");
+    this.hospitalLogo = hospitalLogo;
+    this.scihLogos = scihLogos;
+    this.headerH = (hospitalLogo || scihLogos.length > 0) ? 52 : 45;
     this.startPage();
   }
   setFill(c: RGB) { this.cur += `${c[0]} ${c[1]} ${c[2]} rg\n`; }
@@ -68,19 +126,55 @@ class Pdf {
     this.setFill(color);
     this.cur += `BT\n${f} ${size} Tf\n${x} ${y} Td\n(${sanitize(t)}) Tj\nET\n`;
   }
+  addImgObj(img: LogoImage): string {
+    const name = `Img${this.imgObjs.length + 1}`;
+    const header = `<< /Type /XObject /Subtype /Image /Width ${img.w} /Height ${img.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.data.length} >>`;
+    this.objs.push(header);
+    const objNum = this.objs.length;
+    this.objBytes.set(objNum, img.data);
+    this.imgObjs.push({ objNum, name, w: img.w, h: img.h });
+    return name;
+  }
+  drawImg(name: string, x: number, y: number, w: number, h: number) {
+    this.cur += `q\n${w} 0 0 ${h} ${x} ${y} cm\n/${name} Do\nQ\n`;
+  }
   startPage() {
     this.cur = "";
     this.y = PAGE_H - MARGIN;
-    // Header bar
-    this.rect(0, PAGE_H - 45, PAGE_W, 45, TEAL, null);
-    this.text(this.hospital, MARGIN, PAGE_H - 22, 11, [1, 1, 1], true);
-    this.text(this.title, MARGIN, PAGE_H - 36, 9, [1, 1, 1]);
-    this.text(this.date, PAGE_W - MARGIN - 70, PAGE_H - 28, 9, [1, 1, 1]);
-    this.y = PAGE_H - 70;
+    const barH = this.headerH;
+    this.rect(0, PAGE_H - barH, PAGE_W, barH, TEAL, null);
+
+    if (this.hospitalLogo || this.scihLogos.length > 0) {
+      const bandH = barH - 8;
+      if (this.hospitalLogo) {
+        const ratio = this.hospitalLogo.w / this.hospitalLogo.h;
+        const logoH = Math.min(bandH - 4, 120 / ratio);
+        const logoW = logoH * ratio;
+        const name = this.addImgObj(this.hospitalLogo);
+        this.drawImg(name, MARGIN, PAGE_H - barH + 4 + (bandH - logoH) / 2, logoW, logoH);
+      } else {
+        this.text(this.hospital, MARGIN, PAGE_H - 22, 11, [1, 1, 1], true);
+      }
+      let sx = PAGE_W - MARGIN;
+      for (const logo of this.scihLogos.slice(0, 3).reverse()) {
+        const ratio = logo.w / logo.h;
+        const logoH = Math.min(bandH - 4, 70 / ratio);
+        const logoW = logoH * ratio;
+        sx -= logoW + 4;
+        const name = this.addImgObj(logo);
+        this.drawImg(name, sx, PAGE_H - barH + 4 + (bandH - logoH) / 2, logoW, logoH);
+      }
+    } else {
+      this.text(this.hospital, MARGIN, PAGE_H - 22, 11, [1, 1, 1], true);
+      this.text(this.title, MARGIN, PAGE_H - 36, 9, [1, 1, 1]);
+      this.text(this.date, PAGE_W - MARGIN - 70, PAGE_H - 28, 9, [1, 1, 1]);
+    }
+    this.y = PAGE_H - barH - 25;
   }
   endPage() {
     this.text(`Pagina ${this.pageStreams.length + 1}`, PAGE_W / 2 - 20, 20, 8, GRAY);
-    this.pageStreams.push(this.cur);
+    const imgRefs = this.imgObjs.map(img => `/${img.name} ${img.objNum} 0 R`).join(" ");
+    this.pageStreams.push({ stream: this.cur, imgRefs });
   }
   ensure(needed: number) {
     if (this.y - needed < MARGIN + 20) {
@@ -159,36 +253,84 @@ class Pdf {
 
   build(): Uint8Array {
     this.endPage();
-    // Build PDF
-    const xref: number[] = [];
-    let body = "%PDF-1.4\n";
-    const push = (s: string) => { xref.push(body.length); body += s; };
+    const enc = new TextEncoder();
+    const chunks: Uint8Array[] = [];
+    const offsets: number[] = [];
+    let bytePos = 0;
 
-    // Catalog (1), Pages (2), Font F1 (3), Font F2 (4)
-    push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
-    const pageObjStart = 5; // pages start at obj 5
+    const addStr = (s: string) => { const b = enc.encode(s); chunks.push(b); bytePos += b.length; };
+    const addBytes = (b: Uint8Array) => { chunks.push(b); bytePos += b.length; };
+
+    addStr("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+
+    // Pre-allocated image objects come first (already in this.objs from addImgObj calls)
+    // We need to assign final obj numbers sequentially:
+    // Fixed: 1=Catalog, 2=Pages, 3=F1, 4=F2
+    // Then image objects (this.imgObjs), then page objs + content streams
+    const IMG_OBJ_START = 5;
+    const imgCount = this.imgObjs.length;
+    const pageObjStart = IMG_OBJ_START + imgCount;
     const totalPages = this.pageStreams.length;
+
+    // obj 1: Catalog
+    offsets.push(bytePos);
+    addStr(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+
+    // obj 2: Pages
     const pageRefs = Array.from({ length: totalPages }, (_, i) => `${pageObjStart + i * 2} 0 R`).join(" ");
-    push(`2 0 obj\n<< /Type /Pages /Count ${totalPages} /Kids [${pageRefs}] >>\nendobj\n`);
-    push(`3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
-    push(`4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`);
+    offsets.push(bytePos);
+    addStr(`2 0 obj\n<< /Type /Pages /Count ${totalPages} /Kids [${pageRefs}] >>\nendobj\n`);
+
+    // obj 3: F1
+    offsets.push(bytePos);
+    addStr(`3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
+
+    // obj 4: F2
+    offsets.push(bytePos);
+    addStr(`4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n`);
+
+    // Image objects (5..5+imgCount-1)
+    for (let i = 0; i < this.imgObjs.length; i++) {
+      const img = this.imgObjs[i];
+      // Use the raw bytes stored in objBytes map (keyed by old objNum from addImgObj)
+      const rawBytes = this.objBytes.get(img.objNum)!;
+      const header = `<< /Type /XObject /Subtype /Image /Width ${img.w} /Height ${img.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${rawBytes.length} >>`;
+      offsets.push(bytePos);
+      addStr(`${IMG_OBJ_START + i} 0 obj\n${header}\nstream\n`);
+      addBytes(rawBytes);
+      addStr(`\nendstream\nendobj\n`);
+    }
+
+    // Build image XObject dict for pages
+    const imgXDict = this.imgObjs.length > 0
+      ? ` /XObject << ${this.imgObjs.map((img, i) => `/${img.name} ${IMG_OBJ_START + i} 0 R`).join(" ")} >>`
+      : "";
 
     // Pages + content streams
     for (let i = 0; i < totalPages; i++) {
       const pageObjNum = pageObjStart + i * 2;
       const contentObjNum = pageObjNum + 1;
-      push(`${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`);
-      const stream = this.pageStreams[i];
-      push(`${contentObjNum} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`);
+      const pageData = this.pageStreams[i];
+      offsets.push(bytePos);
+      addStr(`${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>${imgXDict} >> /Contents ${contentObjNum} 0 R >>\nendobj\n`);
+      const streamBytes = enc.encode(pageData.stream);
+      offsets.push(bytePos);
+      addStr(`${contentObjNum} 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n`);
+      addBytes(streamBytes);
+      addStr(`\nendstream\nendobj\n`);
     }
 
-    // xref
-    const xrefOffset = body.length;
-    body += `xref\n0 ${xref.length + 1}\n0000000000 65535 f \n`;
-    xref.forEach(off => { body += `${String(off).padStart(10, "0")} 00000 n \n`; });
-    body += `trailer\n<< /Size ${xref.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    const totalObjs = offsets.length + 1; // +1 for obj 0
+    const xrefOffset = bytePos;
+    addStr(`xref\n0 ${totalObjs}\n0000000000 65535 f \n`);
+    offsets.forEach(off => addStr(`${String(off).padStart(10, "0")} 00000 n \n`));
+    addStr(`trailer\n<< /Size ${totalObjs} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
 
-    return new TextEncoder().encode(body);
+    const total = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(total);
+    let pos = 0;
+    for (const chunk of chunks) { result.set(chunk, pos); pos += chunk.length; }
+    return result;
   }
 }
 
@@ -243,6 +385,8 @@ Deno.serve(async (req) => {
     }
     const { data: hosp } = await supabase.from("hospitals").select("name").eq("id", hospitalId).maybeSingle();
     const hospitalName = hosp?.name || "Hospital";
+
+    const { hospitalLogo, scihLogos } = await fetchHospitalLogos(hospitalId);
 
     const periodEnd = new Date();
     const periodStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -299,7 +443,7 @@ Deno.serve(async (req) => {
     }).sort((a, b) => Number(b[3]) - Number(a[3])).slice(0, 15);
 
     // Build PDF
-    const pdf = new Pdf(hospitalName, `Relatorio Sensibilidade Antimicrobiana - ${periodLabel}`);
+    const pdf = new Pdf(hospitalName, `Relatorio Sensibilidade Antimicrobiana - ${periodLabel}`, hospitalLogo, scihLogos);
     pdf.h1("Resumo Executivo");
     pdf.para(`Periodo analisado: ${isoStart} a ${isoEnd} (${periodLabel}). Foram processados ${totalExams} exames com isolado microbiologico, totalizando ${totalTests} testes de sensibilidade.`);
 

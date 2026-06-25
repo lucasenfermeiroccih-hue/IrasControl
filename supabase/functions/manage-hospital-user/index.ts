@@ -192,10 +192,10 @@ Deno.serve(async (req) => {
       const { error: banError } = await adminClient.auth.admin.updateUserById(user_id, {
         ban_duration: "876000h",
       });
+      if (banError) return json({ error: `Failed to deactivate user: ${banError.message}` }, 500);
 
-      if (banError) {
-        return json({ error: `Failed to deactivate user: ${banError.message}` }, 500);
-      }
+      await adminClient.from("hospital_users").update({ is_active: false })
+        .eq("user_id", user_id).eq("hospital_id", hospital_id);
 
       return json({ success: true, action: "deactivated" });
     }
@@ -204,10 +204,10 @@ Deno.serve(async (req) => {
       const { error: unbanError } = await adminClient.auth.admin.updateUserById(user_id, {
         ban_duration: "none",
       });
+      if (unbanError) return json({ error: `Failed to activate user: ${unbanError.message}` }, 500);
 
-      if (unbanError) {
-        return json({ error: `Failed to activate user: ${unbanError.message}` }, 500);
-      }
+      await adminClient.from("hospital_users").update({ is_active: true })
+        .eq("user_id", user_id).eq("hospital_id", hospital_id);
 
       return json({ success: true, action: "activated" });
     }
