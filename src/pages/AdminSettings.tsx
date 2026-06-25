@@ -335,7 +335,7 @@ export default function AdminSettings() {
   const handleSaveNotif = async () => {
     if (!hospitalId) return;
     setNotifSaving(true);
-    const { error } = await supabase.from("hospitals").update({ notification_settings: notif }).eq("id", hospitalId);
+    const { error } = await supabase.from("hospitals").update({ notification_settings: notif as any }).eq("id", hospitalId);
     setNotifSaving(false);
     if (error) { toast.error("Erro: " + error.message); return; }
     toast.success("Preferências de notificação salvas!");
