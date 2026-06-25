@@ -3011,6 +3011,7 @@ export type Database = {
         | "antibiogram"
         | "precaution"
         | "hand_hygiene_consumption"
+        | "construction_renovation"
       case_status:
         | "open"
         | "investigating"
@@ -3177,6 +3178,7 @@ export const Constants = {
         "antibiogram",
         "precaution",
         "hand_hygiene_consumption",
+        "construction_renovation",
       ],
       case_status: [
         "open",

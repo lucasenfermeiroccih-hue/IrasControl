@@ -32,6 +32,7 @@ const AUDIT_TYPE_LABEL: Record<string, string> = {
   dispenser: "Dispensadores",
   cti_infrastructure: "Infraestrutura CTI",
   bundles: "Bundles CVC/SVD",
+  construction_renovation: "Verificação de Obras/Reformas",
 };
 
 interface AuditRecord {

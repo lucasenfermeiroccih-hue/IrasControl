@@ -3,7 +3,7 @@ import {
   FileText, Settings, Users, Microscope, Pill, HandMetal,
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
-  KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert
+  KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert, HardHat
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -45,6 +45,7 @@ const publicSections = [
       { title: "Dispensers", url: "/audits/dispenser/new", icon: FlaskConical },
       { title: "Infraestrutura CTI", url: "/audits/infrastructure/cti/new", icon: Building2 },
       { title: "Exames/Culturas", url: "/audits/antimicrobial-sensitivity/new", icon: Microscope },
+      { title: "Obras/Reformas", url: "/audits/construction/new", icon: HardHat },
     ],
   },
   {
@@ -78,6 +79,7 @@ const publicSections = [
       { title: "Exames/Culturas", url: "/dashboard/antimicrobial-sensitivity", icon: Microscope },
       { title: "Consumo Higiene", url: "/hygiene/consumption-dashboard", icon: Droplets },
       { title: "Indicadores Pacientes", url: "/patients/dashboard-indicators", icon: Stethoscope },
+      { title: "Obras/Reformas", url: "/dashboard/construction", icon: HardHat },
     ],
   },
   {

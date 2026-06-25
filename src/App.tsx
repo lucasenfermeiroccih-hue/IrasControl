@@ -55,6 +55,8 @@ import HygieneConsumptionDashboard from "./pages/HygieneConsumptionDashboard.tsx
 import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
 import KanbanCCIH from "./pages/KanbanCCIH.tsx";
 import AuditSectorNew from "./pages/AuditSectorNew.tsx";
+import AuditConstructionNew from "./pages/AuditConstructionNew.tsx";
+import DashboardConstruction from "./pages/DashboardConstruction.tsx";
 import Planos5W2H from "./pages/Planos5W2H.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
@@ -133,6 +135,8 @@ const App = () => (
               <Route path="/kanban-ccih" element={<KanbanCCIH />} />
               <Route path="/quality/5w2h" element={<Planos5W2H />} />
               <Route path="/audits/sector/new" element={<AuditSectorNew />} />
+              <Route path="/audits/construction/new" element={<AuditConstructionNew />} />
+              <Route path="/dashboard/construction" element={<DashboardConstruction />} />
             </Route>
           </Route>
 

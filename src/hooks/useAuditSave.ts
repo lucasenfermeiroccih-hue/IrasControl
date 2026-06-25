@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "./useHospitalContext";
 import { toast } from "sonner";
 
-type AuditType = "bundles" | "hand_hygiene" | "infection_control" | "dispenser" | "cti_infrastructure" | "antibiogram";
+type AuditType = "bundles" | "hand_hygiene" | "infection_control" | "dispenser" | "cti_infrastructure" | "antibiogram" | "construction_renovation";
 
 interface AuditItem {
   question: string;
