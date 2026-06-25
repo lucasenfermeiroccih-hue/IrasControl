@@ -12,8 +12,7 @@ import { useAuditSave } from "@/hooks/useAuditSave";
 import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
-
-const units = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
+import { useSectors } from "@/hooks/useSectors";
 const professionals = ["Médico(a)", "Enfermeiro(a)", "Técnico(a) de Enfermagem", "Fisioterapeuta", "Farmacêutico(a)", "Nutricionista", "Outro"];
 const fiveMoments = [
   "1 — Antes do contato com o paciente",
@@ -27,6 +26,7 @@ const techniques = ["Álcool em gel", "Sabonete líquido", "Água e sabão", "An
 export default function AuditHandHygieneNew() {
   const navigate = useNavigate();
   const { saveAudit, hospitalId } = useAuditSave();
+  const { sectors: units } = useSectors();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     employeeName: "", auditDate: "", unit: "", professionalCategory: "",

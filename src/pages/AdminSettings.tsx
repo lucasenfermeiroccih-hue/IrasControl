@@ -46,6 +46,12 @@ interface Sector {
   is_active: boolean;
 }
 
+interface SectorType {
+  id: string;
+  value: string;
+  label: string;
+}
+
 interface HospitalLogo {
   id: string;
   logo_type: "hospital" | "scih";
@@ -88,18 +94,6 @@ const ASSIGNABLE_ROLES = [
   { value: "viewer", label: "Visualizador" },
 ];
 
-const SECTOR_TYPES = [
-  { value: "uti", label: "UTI" },
-  { value: "enfermaria", label: "Enfermaria" },
-  { value: "cc", label: "Centro Cirúrgico" },
-  { value: "pronto_socorro", label: "Pronto Socorro" },
-  { value: "ambulatorio", label: "Ambulatório" },
-  { value: "laboratorio", label: "Laboratório" },
-  { value: "pediatria", label: "Pediatria" },
-  { value: "neonatal", label: "UTI Neonatal" },
-  { value: "cme", label: "CME" },
-  { value: "outros", label: "Outros" },
-];
 
 const DEFAULT_NOTIF: NotifSettings = {
   email_enabled: true,
@@ -122,6 +116,13 @@ export default function AdminSettings() {
   const [sectorForm, setSectorForm] = useState({ name: "", type: "", bed_count: 0 });
   const [sectorSaving, setSectorSaving] = useState(false);
   const [deleteSectorTarget, setDeleteSectorTarget] = useState<Sector | null>(null);
+
+  // ── Sector Types
+  const [sectorTypes, setSectorTypes] = useState<SectorType[]>([]);
+  const [typeDialog, setTypeDialog] = useState<{ open: boolean; mode: "add" | "edit"; item?: SectorType }>({ open: false, mode: "add" });
+  const [typeForm, setTypeForm] = useState({ label: "" });
+  const [typeSaving, setTypeSaving] = useState(false);
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState<SectorType | null>(null);
 
   // ── Users
   const [users, setUsers] = useState<HospitalUser[]>([]);
@@ -155,9 +156,10 @@ export default function AdminSettings() {
   const loadAll = async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const [{ data: hospital }, { data: sectorData }] = await Promise.all([
+    const [{ data: hospital }, { data: sectorData }, { data: typeData }] = await Promise.all([
       supabase.from("hospitals").select("*").eq("id", hospitalId).single(),
       supabase.from("sectors").select("id,name,type,bed_count,is_active").eq("hospital_id", hospitalId).order("name"),
+      supabase.from("sector_types" as any).select("id,value,label").eq("hospital_id", hospitalId).order("label"),
     ]);
     if (hospital) {
       setHospitalData(hospital);
@@ -165,6 +167,7 @@ export default function AdminSettings() {
       if (ns && typeof ns === "object" && !Array.isArray(ns)) setNotif({ ...DEFAULT_NOTIF, ...(ns as any) });
     }
     if (sectorData) setSectors(sectorData);
+    if (typeData) setSectorTypes(typeData as SectorType[]);
     setLoading(false);
     loadUsers();
     fetchLogos();
@@ -272,6 +275,42 @@ export default function AdminSettings() {
     toast.success("Setor removido");
     setDeleteSectorTarget(null);
     setSectors(s => s.filter(x => x.id !== deleteSectorTarget.id));
+  };
+
+  // ─── Sector Types CRUD ───
+
+  const openTypeDialog = (mode: "add" | "edit", item?: SectorType) => {
+    setTypeForm({ label: item?.label || "" });
+    setTypeDialog({ open: true, mode, item });
+  };
+
+  const handleSaveType = async () => {
+    const label = typeForm.label.trim();
+    if (!label || !hospitalId) return;
+    const value = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    setTypeSaving(true);
+    if (typeDialog.mode === "add") {
+      const { error } = await (supabase.from("sector_types" as any) as any).insert({ hospital_id: hospitalId, value, label });
+      if (error) { toast.error(error.message.includes("unique") ? "Tipo já existe" : "Erro: " + error.message); setTypeSaving(false); return; }
+      toast.success("Tipo cadastrado!");
+    } else {
+      const { error } = await (supabase.from("sector_types" as any) as any).update({ label }).eq("id", typeDialog.item!.id);
+      if (error) { toast.error("Erro: " + error.message); setTypeSaving(false); return; }
+      toast.success("Tipo atualizado!");
+    }
+    setTypeSaving(false);
+    setTypeDialog({ open: false, mode: "add" });
+    const { data } = await (supabase.from("sector_types" as any) as any).select("id,value,label").eq("hospital_id", hospitalId).order("label");
+    if (data) setSectorTypes(data as SectorType[]);
+  };
+
+  const handleDeleteType = async () => {
+    if (!deleteTypeTarget) return;
+    const { error } = await (supabase.from("sector_types" as any) as any).delete().eq("id", deleteTypeTarget.id);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success("Tipo removido");
+    setDeleteTypeTarget(null);
+    setSectorTypes(t => t.filter(x => x.id !== deleteTypeTarget.id));
   };
 
   // ─── Hospital Info ───
@@ -456,7 +495,7 @@ export default function AdminSettings() {
                         <TableRow key={s.id}>
                           <TableCell className="font-medium text-sm">{s.name}</TableCell>
                           <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                            {SECTOR_TYPES.find(t => t.value === s.type)?.label || s.type || "—"}
+                            {sectorTypes.find(t => t.value === s.type)?.label || s.type || "—"}
                           </TableCell>
                           <TableCell className="hidden sm:table-cell text-sm">{s.bed_count || "—"}</TableCell>
                           <TableCell>
@@ -468,6 +507,55 @@ export default function AdminSettings() {
                                 <DropdownMenuItem onClick={() => openSectorDialog("edit", s)}><Pencil className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive" onClick={() => setDeleteSectorTarget(s)}><Trash2 className="h-4 w-4 mr-2" />Excluir</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          {/* Tipos de Setor */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />Tipos de Setor</CardTitle>
+                  <CardDescription>Tipos disponíveis ao cadastrar setores</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => openTypeDialog("add")}>
+                  <Plus className="h-4 w-4 mr-1" />Novo Tipo
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {sectorTypes.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum tipo cadastrado</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome do Tipo</TableHead>
+                        <TableHead className="w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sectorTypes.map(t => (
+                        <TableRow key={t.id}>
+                          <TableCell className="font-medium text-sm">{t.label}</TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openTypeDialog("edit", t)}><Pencil className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTypeTarget(t)}><Trash2 className="h-4 w-4 mr-2" />Excluir</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -727,7 +815,7 @@ export default function AdminSettings() {
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Não especificado</SelectItem>
-                  {SECTOR_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {sectorTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select></div>
             <div className="space-y-2"><Label>Número de Leitos</Label>
@@ -753,6 +841,41 @@ export default function AdminSettings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteSector}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Type add/edit */}
+      <Dialog open={typeDialog.open} onOpenChange={open => setTypeDialog(d => ({ ...d, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{typeDialog.mode === "add" ? "Novo Tipo de Setor" : "Editar Tipo de Setor"}</DialogTitle>
+            <DialogDescription>Ex: UTI, Enfermaria, Ambulatório, Bloco Cirúrgico…</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label>Nome do Tipo *</Label>
+              <Input placeholder="Ex: UTI Cardiovascular" value={typeForm.label} onChange={e => setTypeForm({ label: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTypeDialog(d => ({ ...d, open: false }))}>Cancelar</Button>
+            <Button onClick={handleSaveType} disabled={typeSaving || !typeForm.label.trim()}>
+              {typeSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {typeDialog.mode === "add" ? "Cadastrar" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete type */}
+      <AlertDialog open={!!deleteTypeTarget} onOpenChange={open => { if (!open) setDeleteTypeTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover tipo</AlertDialogTitle>
+            <AlertDialogDescription>Tem certeza que deseja remover o tipo <strong>{deleteTypeTarget?.label}</strong>? Setores com este tipo não serão afetados.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteType}>Remover</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

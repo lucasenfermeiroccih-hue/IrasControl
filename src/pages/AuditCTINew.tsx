@@ -14,8 +14,7 @@ import { ArrowLeft, Save, FileText, Loader2 } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
 import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
-
-const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
+import { useSectors } from "@/hooks/useSectors";
 const shifts = ["Manhã", "Tarde", "Noite"];
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "nao_avaliado" | "";
@@ -64,6 +63,7 @@ const mapStatus = (v: ResponseValue) => {
 export default function AuditCTINew() {
   const navigate = useNavigate();
   const { saveAudit } = useAuditSave();
+  const { sectors } = useSectors();
   const [saving, setSaving] = useState(false);
   const [auditDate, setAuditDate] = useState("");
   const [shift, setShift] = useState("");

@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useSectors } from "@/hooks/useSectors";
 import { ComboboxSearch } from "@/components/ComboboxSearch";
 import { MICROORGANISMS } from "@/data/microorganisms";
 
@@ -128,6 +129,7 @@ export default function PatientsMonitoring() {
   const navigate = useNavigate();
   const { patients, loading: patientsLoading, hospitalId, userId, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
   const { isAdmin } = useIsAdmin();
+  const { sectors: registeredSectors } = useSectors();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [statusChangeId, setStatusChangeId] = useState<string | null>(null);
   const [newStatus, setNewStatus] = useState<PatientRecord["status"]>("active");
@@ -1518,7 +1520,7 @@ export default function PatientsMonitoring() {
                 <Select value={editIdForm.unidade} onValueChange={v => setEditIdForm(p => ({ ...p, unidade: v }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                   <SelectContent>
-                    {["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Trauma Clínico Fora", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"].map(u => (
+                    {registeredSectors.map(u => (
                       <SelectItem key={u} value={u}>{u}</SelectItem>
                     ))}
                   </SelectContent>
@@ -2018,7 +2020,7 @@ export default function PatientsMonitoring() {
                 <Select value={newForm.unidade} onValueChange={v => setNewForm(p => ({ ...p, unidade: v }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                   <SelectContent>
-                    {["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Trauma Clínico Fora", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"].map(u => (
+                    {registeredSectors.map(u => (
                       <SelectItem key={u} value={u}>{u}</SelectItem>
                     ))}
                   </SelectContent>
@@ -2115,7 +2117,7 @@ export default function PatientsMonitoring() {
               <Select value={editIdForm.unidade} onValueChange={v => setEditIdForm(p => ({ ...p, unidade: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                 <SelectContent>
-                  {["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Trauma Clínico Fora", "Clínica Médica", "Clínica Cirúrgica", "Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"].map(u => (
+                  {registeredSectors.map(u => (
                     <SelectItem key={u} value={u}>{u}</SelectItem>
                   ))}
                 </SelectContent>

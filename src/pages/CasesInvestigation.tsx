@@ -22,6 +22,7 @@ import {
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { useSectors } from "@/hooks/useSectors";
 
 // ─── Types & Config ────────────────────────────────────────────
 type CaseStatus = "open" | "investigating" | "confirmed" | "discarded" | "closed";
@@ -51,11 +52,6 @@ const statusConfig: Record<CaseStatus, { label: string; variant: "default" | "se
   closed: { label: "Encerrado", variant: "outline" },
 };
 
-const setores = [
-  "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
-  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner",
-  "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto",
-];
 const eventos = ["IPCS-CVC", "ITU-SVD", "PAV", "ISC", "Surto", "Óbito relacionado a IRAS", "Colonização MR"];
 const classificacoes = ["IRAS confirmada", "IRAS provável", "Colonização", "Contaminação", "Em investigação"];
 
@@ -129,6 +125,7 @@ const CasesInvestigation = () => {
   const location = useLocation();
   const navState = location.state as { fromMonitoring?: boolean; data?: any } | null;
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const { sectors: setores } = useSectors();
 
   // Patient ID from monitoring page (prevents duplicate creation)
   const [monitoringPatientId, setMonitoringPatientId] = useState<string | null>(null);

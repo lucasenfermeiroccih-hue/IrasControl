@@ -17,8 +17,7 @@ import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload"
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
 import { buildConstructionAuthorizationPdf } from "@/lib/constructionAuthorizationPdf";
-
-const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto", "Centro Cirúrgico", "Ambulatório", "Setores administrativos", "Área externa"];
+import { useSectors } from "@/hooks/useSectors";
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "";
 interface CheckItem { id: string; description: string; }
@@ -67,6 +66,7 @@ const mapStatus = (v: ResponseValue) => {
 export default function AuditConstructionNew() {
   const navigate = useNavigate();
   const { saveAudit, hospitalId } = useAuditSave();
+  const { sectors } = useSectors();
   const [saving, setSaving] = useState(false);
   const [project, setProject] = useState("");
   const [reviewer, setReviewer] = useState("");

@@ -11,10 +11,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { inputFields, calculatedFields, mesesOptions, setorOptions } from "@/data/indicadores-config";
+import { inputFields, calculatedFields, mesesOptions } from "@/data/indicadores-config";
 import { useIndicadorCalculos, type IndicadorInputs } from "@/hooks/useIndicadorCalculos";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { useSectors } from "@/hooks/useSectors";
 import IndicadoresHistory from "@/components/IndicadoresHistory";
 
 const defaultInputs: Record<string, number> = {};
@@ -35,6 +36,8 @@ neonatalWeightCategories.forEach((c) => { defaultNeonatalWeights[c.id] = 0; });
 
 export default function IndicadoresNew() {
   const { hospitalId, userId } = useHospitalContext();
+  const { sectors: dbSectors } = useSectors();
+  const setorOptions = [...dbSectors, "Compilado as UTIs"];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [dataVigilancia, setDataVigilancia] = useState<Date>();

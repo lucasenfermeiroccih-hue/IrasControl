@@ -14,12 +14,7 @@ import { toast } from "sonner";
 import { ShieldAlert, Save, FileText, Syringe, ClipboardList, AlertTriangle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-
-const setores = [
-  "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
-  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner",
-  "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto",
-];
+import { useSectors } from "@/hooks/useSectors";
 
 const eventos = ["IPCS-CVC", "ITU-SVD", "PAV", "ISC", "Surto", "Óbito relacionado a IRAS", "Colonização MR"];
 const classificacoes = ["IRAS confirmada", "IRAS provável", "Colonização", "Contaminação", "Em investigação"];
@@ -49,6 +44,7 @@ export default function NotificacaoInvestigacaoCCIH() {
   const location = useLocation();
   const navigate = useNavigate();
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const { sectors: setores } = useSectors();
   const navState = location.state as { fromMonitoring?: boolean; data?: InvestigationData; patientId?: string } | null;
   const prefilled = navState?.fromMonitoring && navState?.data;
   const patientId = navState?.patientId || null;

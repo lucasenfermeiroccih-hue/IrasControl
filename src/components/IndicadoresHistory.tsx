@@ -15,7 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
-import { inputFields, calculatedFields, mesesOptions, setorOptions } from "@/data/indicadores-config";
+import { inputFields, calculatedFields, mesesOptions } from "@/data/indicadores-config";
+import { useSectors } from "@/hooks/useSectors";
 
 interface IndicadorRecord {
   id: string;
@@ -35,6 +36,8 @@ interface Props {
 
 export default function IndicadoresHistory({ onEdit }: Props) {
   const { hospitalId } = useHospitalContext();
+  const { sectors: dbSectors } = useSectors();
+  const setorOptions = [...dbSectors, "Compilado as UTIs"];
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<IndicadorRecord[]>([]);
   const [loading, setLoading] = useState(false);

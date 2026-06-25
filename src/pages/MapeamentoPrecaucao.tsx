@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { useSectors } from "@/hooks/useSectors";
 import { sendToAgent } from "@/lib/agent-service";
 import ChartActions from "@/components/ChartActions";
 import { useToast } from "@/hooks/use-toast";
@@ -43,13 +44,6 @@ function getMostRestrictivePrecaucao(values: string[]): string {
   return "Contato";
 }
 
-const SETORES = [
-  "UTI 1 Adulto","UTI 2 Adulto","UTI 3 Adulto",
-  "UTI Neonatal","UTI Pediátrica","UPO",
-  "Trauma Clínico","Trauma Clínico Fora",
-  "Clínica Médica","Clínica Cirúrgica","Contêiner",
-  "Pediatria","Pediatria (Enfermaria)","Alojamento Conjunto",
-];
 
 const MATERIAIS = [
   "Sangue","Hemocultura","Urina","Secreção Traqueal","Escarro","LCR",
@@ -182,6 +176,7 @@ export default function MapeamentoPrecaucao() {
   const [activeSetorAlerta, setActiveSetorAlerta] = useState<string | null>(null)
 
   const { hospitalId } = useHospitalContext();
+  const { sectors: SETORES } = useSectors();
   const { toast } = useToast();
 
   // Chart refs and metas for ChartActions

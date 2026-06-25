@@ -18,8 +18,7 @@ import { useAuditSave } from "@/hooks/useAuditSave";
 import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
-
-const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto"];
+import { useSectors } from "@/hooks/useSectors";
 const shifts = ["Manhã", "Tarde", "Noite"];
 
 type ResponseValue = "conforme" | "nao_conforme" | "na" | "";
@@ -127,6 +126,7 @@ const customToResponse = (labels: string[]): ResponseValue => {
 export default function AuditInfectionControlNew() {
   const navigate = useNavigate();
   const { saveAudit, hospitalId } = useAuditSave();
+  const { sectors } = useSectors();
   const [saving, setSaving] = useState(false);
   const [auditDate, setAuditDate] = useState("");
   const [sector, setSector] = useState("");

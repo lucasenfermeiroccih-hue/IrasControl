@@ -15,8 +15,7 @@ import { useAuditSave } from "@/hooks/useAuditSave";
 import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
 import { EmployeeCombobox } from "@/components/EmployeeCombobox";
-
-const sectors = ["UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica", "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica Contêiner", "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto", "Ambulatório", "Setores administrativos"];
+import { useSectors } from "@/hooks/useSectors";
 const preparationTypes = ["Álcool gel 70%", "Sabonete líquido", "Clorexidina degermante 2%", "Clorexidina alcoólica 0,5%", "Outro"];
 
 type ItemStatus = "conforme" | "nao_conforme" | "na" | "nao_avaliado" | "";
@@ -51,6 +50,7 @@ const mapStatus = (v: ItemStatus) => {
 export default function AuditDispenserNew() {
   const navigate = useNavigate();
   const { saveAudit, hospitalId } = useAuditSave();
+  const { sectors } = useSectors();
   const [saving, setSaving] = useState(false);
   const [auditorName, setAuditorName] = useState("");
   const [sector, setSector] = useState("");
