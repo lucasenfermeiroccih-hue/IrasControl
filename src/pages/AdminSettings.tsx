@@ -789,33 +789,35 @@ export default function AdminSettings() {
       </Dialog>
 
       {/* Confirm user action */}
-      <AlertDialog open={!!confirmUserAction} onOpenChange={open => { if (!open) setConfirmUserAction(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmUserAction?.action === "delete" ? "Excluir usuário" : confirmUserAction?.action === "deactivate" ? "Desativar usuário" : "Ativar usuário"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmUserAction?.action === "delete"
-                ? `Excluir permanentemente ${confirmUserAction?.user?.profile?.full_name || "este usuário"}? Esta ação não pode ser desfeita.`
-                : confirmUserAction?.action === "deactivate"
-                ? `Desativar ${confirmUserAction?.user?.profile?.full_name || "este usuário"}? O acesso ao sistema será bloqueado.`
-                : `Reativar ${confirmUserAction?.user?.profile?.full_name || "este usuário"}? O acesso ao sistema será restaurado.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className={confirmUserAction?.action === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
-              onClick={handleUserAction}
-              disabled={userActionLoading}
-            >
-              {userActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2 inline" /> : null}
-              {confirmUserAction?.action === "delete" ? "Excluir" : confirmUserAction?.action === "deactivate" ? "Desativar" : "Ativar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirmUserAction ? (
+        <AlertDialog open onOpenChange={open => { if (!open) setConfirmUserAction(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {confirmUserAction.action === "delete" ? "Excluir usuário" : confirmUserAction.action === "deactivate" ? "Desativar usuário" : "Ativar usuário"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirmUserAction.action === "delete"
+                  ? `Excluir permanentemente ${confirmUserAction.user?.profile?.full_name || "este usuário"}? Esta ação não pode ser desfeita.`
+                  : confirmUserAction.action === "deactivate"
+                  ? `Desativar ${confirmUserAction.user?.profile?.full_name || "este usuário"}? O acesso ao sistema será bloqueado.`
+                  : `Reativar ${confirmUserAction.user?.profile?.full_name || "este usuário"}? O acesso ao sistema será restaurado.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className={confirmUserAction.action === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                onClick={handleUserAction}
+                disabled={userActionLoading}
+              >
+                {userActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2 inline" /> : null}
+                {confirmUserAction.action === "delete" ? "Excluir" : confirmUserAction.action === "deactivate" ? "Desativar" : "Ativar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </div>
   );
 }
