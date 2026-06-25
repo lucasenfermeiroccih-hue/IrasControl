@@ -257,7 +257,7 @@ export async function sendToAgent(agentId: string, _sessionId: string, input: st
     const mockFn = MOCK_RESPONSES[agentId];
     if (mockFn) {
       console.warn("Usando resposta simulada como fallback.");
-      return mockFn(input) + "\n\n---\n⚠️ *Resposta simulada — configure ANTHROPIC_API_KEY nas secrets do Supabase para ativar a IA real.*";
+      return mockFn(input) + "\n\n---\n⚠️ *Resposta simulada — configure OPENAI_API_KEY nas secrets do Supabase para ativar a IA real.*";
     }
     throw error;
   }
