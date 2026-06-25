@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -21,7 +21,7 @@ import {
   Shield, CheckCircle2, XCircle, MinusCircle, ArrowLeft,
   Plus, Eye, Loader2, ClipboardCheck, Users, Building2, Calendar,
   FileText, AlertTriangle, Trash2, RefreshCw, TrendingUp, TrendingDown,
-  Activity, Filter, Target,
+  Activity, Filter, Target, Mail,
 } from "lucide-react";
 import ChartActions from "@/components/ChartActions";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
@@ -192,6 +192,13 @@ export default function DashboardPrecautions() {
   // Ishikawa
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [ishikawaKey, setIshikawaKey] = useState(0);
+
+  // Email state
+  const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
+  const [managerName, setManagerName] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [managerCc, setManagerCc] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -508,6 +515,63 @@ export default function DashboardPrecautions() {
     const { error } = await supabase.from("audits").delete().eq("id", id);
     if (error) toast.error("Erro ao excluir: " + error.message);
     else { toast.success("Registro removido"); fetchRecords(); }
+  };
+
+  const openEmail = (record: AuditRecord) => {
+    setManagerName("");
+    setManagerEmail("");
+    setManagerCc("");
+    setEmailRecord(record);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailRecord) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const email = managerEmail.trim();
+    if (!emailRegex.test(email)) {
+      toast.error("Informe um e-mail válido para o gestor do setor.");
+      return;
+    }
+    const ccEmails = managerCc.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    const invalidCc = ccEmails.filter(e => !emailRegex.test(e));
+    if (invalidCc.length > 0) {
+      toast.error("E-mail(s) de cópia inválido(s): " + invalidCc.join(", "));
+      return;
+    }
+    setEmailSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-audit-email", {
+        body: {
+          to: email,
+          cc: ccEmails,
+          managerName: managerName.trim(),
+          audit: {
+            typeLabel: "Precauções e Isolamento",
+            date: emailRecord.audit_date,
+            sector: emailRecord.sector,
+            complianceRate: emailRecord.compliance_rate,
+            compliantItems: emailRecord.compliant_items,
+            totalItems: emailRecord.total_items,
+            observations: emailRecord.observations,
+            items: emailRecord.items.map(it => ({
+              question: it.question,
+              status: it.status,
+              observation: it.observation,
+            })),
+          },
+          photoPaths: [],
+          photoCaptions: [],
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Auditoria enviada para ${email}.`);
+      setEmailRecord(null);
+    } catch (e: any) {
+      toast.error("Não foi possível enviar o e-mail: " + (e?.message || "erro desconhecido."));
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const getRecordStats = (r: AuditRecord) => {
@@ -998,6 +1062,9 @@ export default function DashboardPrecautions() {
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewRecord(r)}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="Enviar por e-mail" onClick={() => openEmail(r)}>
+                              <Mail className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(r.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1200,6 +1267,54 @@ export default function DashboardPrecautions() {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── EMAIL DIALOG ────────────────────────────────────── */}
+      <Dialog open={!!emailRecord} onOpenChange={o => { if (!o && !emailSending) setEmailRecord(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />
+              Enviar auditoria ao gestor do setor
+            </DialogTitle>
+            <DialogDescription>
+              {emailRecord && (
+                <>Auditoria de <strong>Precauções e Isolamento</strong>
+                {emailRecord.sector ? <> — unidade <strong>{emailRecord.sector}</strong></> : null}
+                {" "}({emailRecord.audit_date}).</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nome do gestor do setor</Label>
+              <Input placeholder="Ex.: Maria Silva" value={managerName}
+                onChange={e => setManagerName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">E-mail do gestor *</Label>
+              <Input type="email" placeholder="gestor@hospital.com.br" value={managerEmail}
+                onChange={e => setManagerEmail(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !emailSending) handleSendEmail(); }} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Com cópia (CC) — opcional</Label>
+              <Input placeholder="email1@hospital.com, email2@hospital.com" value={managerCc}
+                onChange={e => setManagerCc(e.target.value)} />
+              <p className="text-[10px] text-muted-foreground">Separe vários e-mails por vírgula, ponto e vírgula ou espaço.</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              O e-mail incluirá o corpo padrão do SCIH e a auditoria completa (itens e não conformidades).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailRecord(null)} disabled={emailSending}>Cancelar</Button>
+            <Button onClick={handleSendEmail} disabled={emailSending} className="gap-2">
+              {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Enviar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

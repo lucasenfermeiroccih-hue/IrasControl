@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, Legend, PieChart, Pie, Cell, AreaChart, Area, ReferenceLine } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { useSectors } from "@/hooks/useSectors";
 
 const TIPOS_EXAME = [
   "Hemocultura", "Urinocultura", "Swab", "Secreção Traqueal",
@@ -41,11 +42,6 @@ const MICROORGANISMOS = [
   "Escherichia coli", "Serratia marcescens", "Proteus mirabilis",
 ];
 
-const SETORES = [
-  "UTI 1 Adulto", "UTI 2 Adulto", "UTI 3 Adulto", "UTI Neonatal", "UTI Pediátrica",
-  "UPO", "Trauma Clínico", "Clínica Médica", "Clínica Cirúrgica", "Contêiner",
-  "Pediatria", "Pediatria (Enfermaria)", "Alojamento Conjunto",
-];
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -84,6 +80,7 @@ const parseNotes = (notes: string | null): { mdr: boolean; criticidade: string; 
 
 const Reports = () => {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
+  const { sectors: SETORES } = useSectors();
   const [records, setRecords] = useState<LabRecord[]>([]);
   const [loading, setLoading] = useState(true);
 

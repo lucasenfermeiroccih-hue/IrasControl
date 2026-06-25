@@ -109,7 +109,7 @@ function buildLogoHeaderHtml(hospitalLogoBase64?: string, scihLogosBase64?: stri
     `<img src="cid:scih-logo-${i}" alt="Logo SCIH" style="max-height:56px;max-width:100px;object-fit:contain;margin-left:8px;" />`
   ).join("");
 
-  return `<div style="background:#16a085;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:8px 8px 0 0;">
+  return `<div style="padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:8px 8px 0 0;border-bottom:1px solid #e5e7eb;">
     <div>${hospImg}</div>
     <div style="display:flex;align-items:center;">${scihImgs}</div>
   </div>`;
