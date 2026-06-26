@@ -13,7 +13,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 const PERIOD_DAYS: Record<string, number> = {
   "ultimo-mes": 30,
@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+    if (!OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: "OPENAI_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -259,14 +259,14 @@ DADOS ESTRUTURADOS DO PERÍODO (use estes dados como base factual para toda a an
 ${JSON.stringify(summary, null, 2)}
 \`\`\``;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -279,14 +279,9 @@ ${JSON.stringify(summary, null, 2)}
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (aiResp.status === 402) {
-      return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Settings > Workspace > Usage." }), {
-        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     if (!aiResp.ok) {
       const t = await aiResp.text();
-      console.error("AI gateway error", aiResp.status, t);
+      console.error("OpenAI error", aiResp.status, t);
       return new Response(JSON.stringify({ error: "Falha ao gerar relatório com IA" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

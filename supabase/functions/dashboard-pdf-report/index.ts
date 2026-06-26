@@ -225,8 +225,8 @@ serve(async (req) => {
       });
     }
 
-    // Call Lovable AI
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    // Call OpenAI
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
@@ -234,14 +234,14 @@ serve(async (req) => {
       });
     }
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "Você é um analista clínico CCIH. Gere relatórios técnicos objetivos e baseados em dados." },
           { role: "user", content: buildPrompt(payload) },
@@ -251,16 +251,10 @@ serve(async (req) => {
 
     if (!aiRes.ok) {
       const txt = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, txt);
+      console.error("AI error:", aiRes.status, txt);
       if (aiRes.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições. Tente novamente em alguns minutos." }), {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
-          status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

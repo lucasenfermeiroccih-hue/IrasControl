@@ -80,32 +80,33 @@ serve(async (req) => {
       userMessage = `[Contexto do sistema:\n${JSON.stringify(context, null, 2)}]\n\n${userMessage}`;
     }
 
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada nas secrets do Supabase." }),
+        JSON.stringify({ error: "OPENAI_API_KEY não configurada nas secrets do Supabase." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        "Authorization": `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "gpt-4o",
         max_tokens: 1500,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
       }),
     });
 
     if (!response.ok) {
       const err = await response.text();
-      console.error("Anthropic error:", response.status, err);
+      console.error("OpenAI error:", response.status, err);
       return new Response(
         JSON.stringify({ error: `Erro na API de IA (${response.status})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -113,7 +114,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const output = data.content?.[0]?.text ?? "Sem resposta.";
+    const output = data.choices?.[0]?.message?.content ?? "Sem resposta.";
 
     return new Response(JSON.stringify({ output, agent_id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
