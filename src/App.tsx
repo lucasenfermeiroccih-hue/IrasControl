@@ -58,6 +58,10 @@ import AuditSectorNew from "./pages/AuditSectorNew.tsx";
 import AuditConstructionNew from "./pages/AuditConstructionNew.tsx";
 import DashboardConstruction from "./pages/DashboardConstruction.tsx";
 import Planos5W2H from "./pages/Planos5W2H.tsx";
+import NotificacoesPage from "./pages/NotificacoesPage.tsx";
+import NotificacaoNew from "./pages/NotificacaoNew.tsx";
+import NotificacoesHistory from "./pages/NotificacoesHistory.tsx";
+import NotificacoesDashboard from "./pages/NotificacoesDashboard.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
@@ -137,6 +141,11 @@ const App = () => (
               <Route path="/audits/sector/new" element={<AuditSectorNew />} />
               <Route path="/audits/construction/new" element={<AuditConstructionNew />} />
               <Route path="/dashboard/construction" element={<DashboardConstruction />} />
+              <Route path="/notificacoes" element={<NotificacoesPage />} />
+              <Route path="/notificacoes/nova/:typeId" element={<NotificacaoNew />} />
+              <Route path="/notificacoes/:id/editar" element={<NotificacaoNew />} />
+              <Route path="/notificacoes/historico" element={<NotificacoesHistory />} />
+              <Route path="/notificacoes/dashboard" element={<NotificacoesDashboard />} />
             </Route>
           </Route>
 
