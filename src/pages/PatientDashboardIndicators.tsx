@@ -278,7 +278,9 @@ const PatientDashboardIndicators = () => {
 
     // Dispositivo-dias: consolida por paciente×dia entre patient_devices e clinical_data.dispInvasivos
     // para evitar dupla contagem (mesma inserção em duas fontes ou sobreposição inserção/nova inserção).
+    // Suporta tanto o formato legado (novaInsercao/novaRetirada) quanto o formato atual (Trocas[]).
     const calcDeviceDays = (type: string, insKey: string, remKey: string, novaInsKey: string, novaRemKey: string) => {
+      const trocasKey = insKey.replace("Insercao", "Trocas");
       let total = 0;
       filteredPatients.forEach(p => {
         const patientDays = new Set<string>();
@@ -292,8 +294,15 @@ const PatientDashboardIndicators = () => {
           });
         const di = p.clinical_data?.dispInvasivos;
         if (di) {
+          // Período inicial de inserção
           collectDaysInPeriods(di[insKey], di[remKey], periods, occupiedDays);
+          // Formato legado: novaInsercao / novaRetirada (campo único)
           collectDaysInPeriods(di[novaInsKey], di[novaRemKey], periods, occupiedDays);
+          // Formato atual: array de trocas [{insercao, retirada}, ...]
+          const trocas: Array<{ insercao: string; retirada: string }> = Array.isArray(di[trocasKey]) ? di[trocasKey] : [];
+          trocas.forEach(t => {
+            if (t?.insercao) collectDaysInPeriods(t.insercao, t.retirada || null, periods, occupiedDays);
+          });
         }
 
         total += intersectDaySets(patientDays, occupiedDays).size;
