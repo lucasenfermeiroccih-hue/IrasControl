@@ -17,6 +17,7 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import NotificationAttachmentsDialog from "@/components/NotificationAttachmentsDialog";
+import NotificacaoDocumentosCard from "@/components/NotificacaoDocumentosCard";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Bell, Activity, AlertTriangle, Droplets, Scissors, Baby, ShieldAlert, FileText,
@@ -58,6 +59,7 @@ export default function NotificacoesPage() {
 
   const [types, setTypes] = useState<NotifType[]>([]);
   const [recent, setRecent] = useState<RecentNotif[]>([]);
+  const [allNotifs, setAllNotifs] = useState<RecentNotif[]>([]);
   const [hospitalType, setHospitalType] = useState("geral");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function NotificacoesPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [{ data: hosp }, { data: typesData }, { data: recentData }] = await Promise.all([
+      const [{ data: hosp }, { data: typesData }, { data: recentData }, { data: allNotifsData }] = await Promise.all([
         (supabase.from("hospitals" as any).select("type").eq("id", hospitalId).single() as any),
         (supabase.from("notification_types" as any).select("*").eq("ativo", true).order("ordem") as any),
         (supabase.from("notifications" as any)
@@ -79,11 +81,16 @@ export default function NotificacoesPage() {
           .eq("hospital_id", hospitalId)
           .order("created_at", { ascending: false })
           .limit(10) as any),
+        (supabase.from("notifications" as any)
+          .select("id, numero, mes_vigilancia, ano_vigilancia, status, created_at, type_id, notification_types(nome, fonte)")
+          .eq("hospital_id", hospitalId)
+          .order("created_at", { ascending: false }) as any),
       ]);
 
       if (hosp?.type) setHospitalType(hosp.type);
       if (typesData) setTypes(typesData as NotifType[]);
       if (recentData) setRecent(recentData as RecentNotif[]);
+      if (allNotifsData) setAllNotifs(allNotifsData as RecentNotif[]);
     } catch (e: any) {
       toast.error("Erro ao carregar notificações: " + e.message);
     } finally {
@@ -150,6 +157,14 @@ export default function NotificacoesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Documentos ANVISA — sempre visível */}
+      {hospitalId && (
+        <NotificacaoDocumentosCard
+          hospitalId={hospitalId}
+          notifications={allNotifs as any}
+        />
+      )}
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -223,17 +238,6 @@ export default function NotificacoesPage() {
         </div>
       )}
 
-      {/* Attachments dialog */}
-      {attachItem && hospitalId && (
-        <NotificationAttachmentsDialog
-          open={!!attachItem}
-          onClose={() => setAttachItem(null)}
-          notificationId={attachItem.id}
-          notificationLabel={(attachItem.notification_types as any)?.nome || "Notificação"}
-          hospitalId={hospitalId}
-        />
-      )}
-
       {/* Recent notifications */}
       {recent.length > 0 && (
         <div>
@@ -293,6 +297,17 @@ export default function NotificacoesPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Attachments dialog (from recent table) */}
+      {attachItem && hospitalId && (
+        <NotificationAttachmentsDialog
+          open={!!attachItem}
+          onClose={() => setAttachItem(null)}
+          notificationId={attachItem.id}
+          notificationLabel={(attachItem.notification_types as any)?.nome || "Notificação"}
+          hospitalId={hospitalId}
+        />
       )}
     </div>
   );
