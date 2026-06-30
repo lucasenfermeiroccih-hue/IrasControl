@@ -4,7 +4,7 @@ import {
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
   KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert, HardHat,
-  History,
+  History, Baby,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -212,6 +212,23 @@ export function AppSidebar() {
       <SidebarContent>
         {/* Geral → Relatórios */}
         {beforeIA.map(renderSection)}
+
+        {/* Maternidade */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Maternidade</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/maternidade"}>
+                  <NavLink to="/maternidade" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <Baby className="mr-2 h-4 w-4 shrink-0 text-pink-500" />
+                    {!collapsed && <span>Módulo Maternidade</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Qualidade — acima de IA */}
         <SidebarGroup>
