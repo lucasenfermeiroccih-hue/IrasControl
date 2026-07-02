@@ -324,7 +324,7 @@ function FieldRenderer({ campo, value, onChange, disabled, prefillValue }: Field
                       : [...selected, opt];
                     onChange(next);
                   }}>
-                  <Checkbox checked={selected.includes(opt)} readOnly />
+                  <Checkbox checked={selected.includes(opt)} />
                   <span className="text-sm">{opt}</span>
                 </div>
               ))}
