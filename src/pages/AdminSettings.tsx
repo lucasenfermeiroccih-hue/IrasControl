@@ -167,7 +167,7 @@ export default function AdminSettings() {
       if (ns && typeof ns === "object" && !Array.isArray(ns)) setNotif({ ...DEFAULT_NOTIF, ...(ns as any) });
     }
     if (sectorData) setSectors(sectorData);
-    if (typeData) setSectorTypes(typeData as SectorType[]);
+    if (typeData) setSectorTypes(typeData as unknown as SectorType[]);
     setLoading(false);
     loadUsers();
     fetchLogos();
