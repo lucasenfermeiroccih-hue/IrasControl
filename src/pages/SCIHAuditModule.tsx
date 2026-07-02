@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import type { Json } from "@/integrations/supabase/types";
 import { CHECKLISTS_DATA } from "@/data/scih-checklists";
+import { compressImage } from "@/lib/compressImage";
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const SCIH_CSS = `
@@ -165,7 +166,7 @@ const SWOT_DATA: Record<string, { f: string[]; o: string[]; w: string[]; a: stri
 // ─── INTERFACES ─────────────────────────────────────────────────────────────
 
 interface CkState { v: "" | "conf" | "parc" | "nc" | "na"; obs: string; }
-interface AuditRecord { id?: string; setorKey: string; setorNome: string; pct: number; ncCount: number; data: string; tipo: string; auditor: string; respSetor: string; total: number; relatorioIA?: string; aiGerado?: boolean; }
+interface AuditRecord { id?: string; setorKey: string; setorNome: string; pct: number; ncCount: number; data: string; tipo: string; auditor: string; respSetor: string; total: number; relatorioIA?: string; aiGerado?: boolean; photoUrls?: string[]; photoCaptions?: string[]; }
 interface NC { id?: string; setorKey: string; setor: string; pergunta: string; obs: string; sev: "Crítica" | "Maior" | "Menor"; status: string; data: string; historico?: {status:string;obs:string;data:string}[]; }
 interface Plan5W2H { id?: string; what: string; why: string; where: string; when: string; who: string; how: string; howmuch: string; status: string; auditId?: string; fonte?: "ia" | "manual"; }
 interface KanbanCard { id?: string; title: string; setor: string; prio: string; prazo: string; col: string; auditId?: string; fonte?: "ia" | "manual"; }
@@ -247,6 +248,15 @@ export default function SCIHAuditModule() {
       });
   }, [hospitalId]);
 
+  useEffect(() => {
+    if (!viewAuditRecord?.photoUrls?.length) { setViewAuditPhotoUrls([]); return; }
+    Promise.all(
+      viewAuditRecord.photoUrls.map(path =>
+        supabase.storage.from("audit-photos").createSignedUrl(path, 300).then(r => r.data?.signedUrl || "")
+      )
+    ).then(urls => setViewAuditPhotoUrls(urls.filter(Boolean)));
+  }, [viewAuditRecord]);
+
   const saveData = useCallback(async (newData: AppData) => {
     if (!hospitalId) return;
     await supabase
@@ -278,6 +288,11 @@ export default function SCIHAuditModule() {
   const [ckAuditor, setCkAuditor] = useState("");
   const [ckResp, setCkResp] = useState("");
   const [ckTipo, setCkTipo] = useState("Programada");
+  const [ckPhotos, setCkPhotos] = useState<{ file: File; caption: string }[]>([]);
+  const [ckPhotosProcessing, setCkPhotosProcessing] = useState(false);
+  const [ckPhotosUploading, setCkPhotosUploading] = useState(false);
+  const ckCameraRef = useRef<HTMLInputElement>(null);
+  const ckGalleryRef = useRef<HTMLInputElement>(null);
 
   // ── audit tabs ──
   const [auditTab, setAuditTab] = useState<"ncs"|"historico">("ncs");
@@ -304,6 +319,7 @@ export default function SCIHAuditModule() {
   // ── email / pdf / crud state ──
   const [postAuditRecord, setPostAuditRecord] = useState<AuditRecord | null>(null);
   const [viewAuditRecord, setViewAuditRecord] = useState<AuditRecord | null>(null);
+  const [viewAuditPhotoUrls, setViewAuditPhotoUrls] = useState<string[]>([]);
   const [deleteAuditId, setDeleteAuditId] = useState<string | null>(null);
   const [pdfExportingId, setPdfExportingId] = useState<string | null>(null);
   const [selectedHistIds, setSelectedHistIds] = useState<Set<string>>(new Set());
@@ -494,13 +510,48 @@ Regras:
 
   // ─── ACTIONS ──────────────────────────────────────────────────────────────
 
-  function finalizeAudit() {
+  async function addCkPhotos(files: File[]) {
+    const images = files.filter(f => f.type.startsWith("image/"));
+    const slots = 10 - ckPhotos.length;
+    const toAdd = images.slice(0, Math.max(0, slots));
+    if (!toAdd.length) return;
+    setCkPhotosProcessing(true);
+    try {
+      const compressed = await Promise.all(toAdd.map(f => compressImage(f)));
+      setCkPhotos(prev => [...prev, ...compressed.map(file => ({ file, caption: "" }))].slice(0, 10));
+    } finally {
+      setCkPhotosProcessing(false);
+    }
+  }
+  function removeCkPhoto(i: number) { setCkPhotos(prev => prev.filter((_, idx) => idx !== i)); }
+  function setCkPhotoCaption(i: number, caption: string) {
+    setCkPhotos(prev => prev.map((p, idx) => idx === i ? { ...p, caption } : p));
+  }
+
+  async function finalizeAudit() {
     const { total, conf, nc, pct } = computeChecklist();
     if (total === 0) { alert("Responda ao menos um item antes de finalizar."); return; }
     const setor = CHECKLISTS_DATA[ckSetor];
+    const auditId = uid();
+
+    // Upload photos
+    const photoUrls: string[] = [];
+    const photoCaptions: string[] = [];
+    if (ckPhotos.length > 0 && hospitalId) {
+      setCkPhotosUploading(true);
+      for (const photo of ckPhotos) {
+        const safeName = photo.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${hospitalId}/${auditId}/${Date.now()}_${safeName}`;
+        const { error } = await supabase.storage.from("audit-photos").upload(path, photo.file, { contentType: photo.file.type, upsert: false });
+        if (!error) { photoUrls.push(path); photoCaptions.push(photo.caption); }
+      }
+      setCkPhotosUploading(false);
+    }
+
     const record: AuditRecord = {
-      id: uid(), setorKey: ckSetor, setorNome: setor.nome, pct, ncCount: nc,
+      id: auditId, setorKey: ckSetor, setorNome: setor.nome, pct, ncCount: nc,
       data: today(), tipo: ckTipo, auditor: ckAuditor || "—", respSetor: ckResp || "—", total: conf,
+      photoUrls, photoCaptions,
     };
     // collect NCs
     const newNCs: NC[] = [];
@@ -520,6 +571,7 @@ Regras:
       ncs: [...newNCs, ...prev.ncs],
     }));
     setCkStates({});
+    setCkPhotos([]);
     setActivePage("auditorias");
     setPostAuditRecord(record);
     // Gerar plano IA automaticamente
@@ -728,7 +780,7 @@ Regras:
             observations: scihEmailRecord.relatorioIA || "",
             items: ncsAudit.map(nc => ({ question: nc.pergunta, status: "non_compliant", observation: nc.obs || "" })),
           },
-          photoPaths: [], photoCaptions: [],
+          photoPaths: scihEmailRecord.photoUrls || [], photoCaptions: scihEmailRecord.photoCaptions || [],
         },
       });
       if (error) throw error;
@@ -775,7 +827,7 @@ Regras:
               observations: h.relatorioIA || "",
               items: ncsAudit.map(nc => ({ question: nc.pergunta, status: "non_compliant", observation: nc.obs || "" })),
             },
-            photoPaths: [], photoCaptions: [],
+            photoPaths: h.photoUrls || [], photoCaptions: h.photoCaptions || [],
           },
         });
         if (!error) ok++;
@@ -907,7 +959,9 @@ Regras:
             <div className="scih-page-title">Auditoria: {setor?.nome}</div>
             <div className="scih-page-sub">Preencha cada item e finalize para gerar NCs automaticamente</div>
           </div>
-          <button className="scih-btn scih-btn-teal" onClick={finalizeAudit}>Finalizar Auditoria</button>
+          <button className="scih-btn scih-btn-teal" onClick={finalizeAudit} disabled={ckPhotosUploading}>
+            {ckPhotosUploading ? "Salvando fotos…" : "Finalizar Auditoria"}
+          </button>
         </div>
 
         <div className="scih-card scih-mb">
@@ -967,6 +1021,75 @@ Regras:
             })}
           </div>
         ))}
+
+        {/* ── Fotos da Auditoria ── */}
+        <div className="scih-card scih-mb">
+          <div className="scih-section-title">
+            📸 Fotos da Auditoria
+            <span style={{ fontSize:11, color:"var(--text3)", fontWeight:400, marginLeft:8 }}>opcional — máx. 10 fotos</span>
+          </div>
+          <p style={{ fontSize:12, color:"var(--text2)", marginBottom:14 }}>
+            Anexe fotos como evidência diretamente da câmera do celular ou da galeria.
+          </p>
+
+          <input ref={ckCameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }}
+            onChange={e => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; addCkPhotos(fs); }} />
+          <input ref={ckGalleryRef} type="file" accept="image/*" multiple style={{ display:"none" }}
+            onChange={e => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; addCkPhotos(fs); }} />
+
+          <div className="scih-flex" style={{ gap:10, marginBottom:14, flexWrap:"wrap" }}>
+            <button className="scih-btn scih-btn-outline"
+              disabled={ckPhotos.length >= 10 || ckPhotosProcessing}
+              onClick={() => ckCameraRef.current?.click()}>
+              📷 Câmera
+            </button>
+            <button className="scih-btn scih-btn-outline"
+              disabled={ckPhotos.length >= 10 || ckPhotosProcessing}
+              onClick={() => ckGalleryRef.current?.click()}>
+              🖼️ Galeria / Arquivo
+            </button>
+            {ckPhotosProcessing && (
+              <span style={{ fontSize:12, color:"var(--text2)" }}>⏳ Otimizando imagens…</span>
+            )}
+          </div>
+
+          {ckPhotos.length > 0 && (
+            <>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10 }}>
+                {ckPhotos.map((p, i) => (
+                  <div key={i} style={{ background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:6, overflow:"hidden" }}>
+                    <div style={{ position:"relative", aspectRatio:"1", background:"var(--bg4)" }}>
+                      <img src={URL.createObjectURL(p.file)} alt={p.caption || `Foto ${i+1}`}
+                        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      <span style={{ position:"absolute", top:4, left:4, background:"rgba(0,0,0,.65)", color:"#fff", fontSize:10, borderRadius:3, padding:"2px 6px" }}>
+                        {i+1}
+                      </span>
+                      <button onClick={() => removeCkPhoto(i)}
+                        style={{ position:"absolute", top:4, right:4, background:"rgba(218,54,51,.85)", border:"none", borderRadius:"50%", color:"#fff", cursor:"pointer", width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, lineHeight:1 }}>
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ padding:"6px 8px" }}>
+                      <input className="scih-input" style={{ fontSize:11, padding:"4px 8px" }}
+                        placeholder="Legenda (opcional)"
+                        value={p.caption}
+                        onChange={e => setCkPhotoCaption(i, e.target.value)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize:11, color:"var(--text3)", marginTop:10 }}>
+                {ckPhotos.length} foto(s) adicionada(s) — serão salvas ao finalizar a auditoria.
+              </p>
+            </>
+          )}
+
+          {ckPhotos.length === 0 && (
+            <div style={{ border:"2px dashed var(--border)", borderRadius:8, padding:"24px 16px", textAlign:"center", color:"var(--text3)", fontSize:13 }}>
+              📷 Nenhuma foto adicionada ainda
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1777,6 +1900,27 @@ Regras:
               <div style={{ background:"var(--bg3)", borderRadius:8, padding:14 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:"var(--text)", marginBottom:8 }}>🤖 Análise IA</div>
                 <pre style={{ fontFamily:"inherit", fontSize:11.5, color:"var(--text2)", whiteSpace:"pre-wrap", lineHeight:1.6, margin:0 }}>{viewAuditRecord.relatorioIA}</pre>
+              </div>
+            )}
+            {viewAuditPhotoUrls.length > 0 && (
+              <div style={{ marginTop:14 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"var(--text)", marginBottom:10 }}>📸 Fotos ({viewAuditPhotoUrls.length})</div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
+                  {viewAuditPhotoUrls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                      style={{ display:"block", borderRadius:6, overflow:"hidden", border:"1px solid var(--border)", background:"var(--bg3)" }}>
+                      <div style={{ aspectRatio:"1", overflow:"hidden" }}>
+                        <img src={url} alt={viewAuditRecord.photoCaptions?.[i] || `Foto ${i+1}`}
+                          style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      </div>
+                      {viewAuditRecord.photoCaptions?.[i] && (
+                        <div style={{ fontSize:10, color:"var(--text2)", padding:"4px 6px", lineHeight:1.3 }}>
+                          {viewAuditRecord.photoCaptions[i]}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
             <div style={{ marginTop:14, display:"flex", gap:8 }}>
