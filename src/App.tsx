@@ -68,6 +68,7 @@ import { RequireAdmin } from "./components/RequireAdmin.tsx";
 import { RequireHospitalAccess } from "./components/RequireHospitalAccess.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Maternidade from "./pages/Maternidade.tsx";
+import ProtocolosIA from "./pages/ProtocolosIA.tsx";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,7 @@ const App = () => (
               <Route path="/notificacoes/historico" element={<NotificacoesHistory />} />
               <Route path="/notificacoes/dashboard" element={<NotificacoesDashboard />} />
               <Route path="/maternidade" element={<Maternidade />} />
+              <Route path="/protocolos-ia" element={<ProtocolosIA />} />
             </Route>
           </Route>
 
