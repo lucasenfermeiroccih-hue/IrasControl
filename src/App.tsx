@@ -70,6 +70,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Maternidade from "./pages/Maternidade.tsx";
 import ProtocolosIA from "./pages/ProtocolosIA.tsx";
 import ReunioesMeetingsModule from "./pages/ReunioesMeetingsModule.tsx";
+import PermissoesUsuarios from "./pages/PermissoesUsuarios.tsx";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +120,7 @@ const App = () => (
               <Route element={<RequireAdmin />}>
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/users" element={<HospitalUsers />} />
+                <Route path="/admin/permissoes" element={<PermissoesUsuarios />} />
                 <Route path="/crm" element={<CRM />} />
                 <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/planos" element={<Pricing />} />

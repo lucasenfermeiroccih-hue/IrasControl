@@ -113,6 +113,7 @@ const adminSection = {
   items: [
     { title: "Super Admin", url: "/super-admin", icon: Shield },
     { title: "Usuários", url: "/admin/users", icon: Users },
+    { title: "Permissões", url: "/admin/permissoes", icon: ShieldCheck },
     { title: "Configurações", url: "/admin/settings", icon: Settings },
     { title: "CRM", url: "/crm", icon: Users },
     { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
