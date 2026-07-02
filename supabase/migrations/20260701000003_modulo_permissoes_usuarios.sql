@@ -80,6 +80,13 @@ as $$
       and uhr.hospital_id = p_hospital_id
       and uhr.is_admin = true
       and uhr.is_active = true
+  )
+  or exists (
+    select 1 from public.hospital_users hu
+    where hu.user_id = auth.uid()
+      and hu.hospital_id = p_hospital_id
+      and hu.is_primary_admin = true
+      and hu.is_active = true
   );
 $$;
 
@@ -234,17 +241,38 @@ create trigger trg_prevent_last_admin
 create or replace view public.managed_users_view
 with (security_invoker = true) as
 select
-  uhr.user_id,
-  uhr.hospital_id,
+  hu.user_id,
+  hu.hospital_id,
   uhr.role_id,
-  r.name  as role_name,
-  uhr.is_admin,
-  uhr.is_active,
+  hr.name  as role_name,
+  coalesce(uhr.is_admin, hu.is_primary_admin, false) as is_admin,
+  hu.is_active,
   p.full_name,
   p.email
-from public.user_hospital_roles uhr
-left join public.user_roles r on r.id = uhr.role_id
-left join public.profiles   p on p.user_id = uhr.user_id;
+from public.hospital_users hu
+left join public.user_hospital_roles uhr
+  on uhr.user_id = hu.user_id and uhr.hospital_id = hu.hospital_id
+left join public.hospital_roles hr on hr.id = uhr.role_id
+left join public.profiles p on p.user_id = hu.user_id;
+
+-- RLS hospital_roles: aceita membros de user_hospital_roles OU hospital_users
+drop policy if exists "hosp_roles_select" on public.hospital_roles;
+create policy "hosp_roles_select" on public.hospital_roles
+  for select using (
+    hospital_id is null
+    or exists (
+      select 1 from public.user_hospital_roles uhr
+      where uhr.user_id = auth.uid()
+        and uhr.hospital_id = hospital_roles.hospital_id
+        and uhr.is_active = true
+    )
+    or exists (
+      select 1 from public.hospital_users hu
+      where hu.user_id = auth.uid()
+        and hu.hospital_id = hospital_roles.hospital_id
+        and hu.is_active = true
+    )
+  );
 
 -- ------------------------------------------------------------
 -- Seed do catálogo de permissões
