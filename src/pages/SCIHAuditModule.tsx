@@ -248,14 +248,6 @@ export default function SCIHAuditModule() {
       });
   }, [hospitalId]);
 
-  useEffect(() => {
-    if (!viewAuditRecord?.photoUrls?.length) { setViewAuditPhotoUrls([]); return; }
-    Promise.all(
-      viewAuditRecord.photoUrls.map(path =>
-        supabase.storage.from("audit-photos").createSignedUrl(path, 300).then(r => r.data?.signedUrl || "")
-      )
-    ).then(urls => setViewAuditPhotoUrls(urls.filter(Boolean)));
-  }, [viewAuditRecord]);
 
   const saveData = useCallback(async (newData: AppData) => {
     if (!hospitalId) return;
@@ -320,6 +312,15 @@ export default function SCIHAuditModule() {
   const [postAuditRecord, setPostAuditRecord] = useState<AuditRecord | null>(null);
   const [viewAuditRecord, setViewAuditRecord] = useState<AuditRecord | null>(null);
   const [viewAuditPhotoUrls, setViewAuditPhotoUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!viewAuditRecord?.photoUrls?.length) { setViewAuditPhotoUrls([]); return; }
+    Promise.all(
+      viewAuditRecord.photoUrls.map(path =>
+        supabase.storage.from("audit-photos").createSignedUrl(path, 300).then(r => r.data?.signedUrl || "")
+      )
+    ).then(urls => setViewAuditPhotoUrls(urls.filter(Boolean)));
+  }, [viewAuditRecord]);
   const [deleteAuditId, setDeleteAuditId] = useState<string | null>(null);
   const [pdfExportingId, setPdfExportingId] = useState<string | null>(null);
   const [selectedHistIds, setSelectedHistIds] = useState<Set<string>>(new Set());

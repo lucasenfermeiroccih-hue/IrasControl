@@ -1058,6 +1058,54 @@ export type Database = {
           },
         ]
       }
+      hospital_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          hospital_id: string | null
+          id: string
+          is_system: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_tool_installations: {
         Row: {
           hospital_id: string
@@ -1147,6 +1195,7 @@ export type Database = {
           bed_count: number | null
           city: string | null
           cnes: string | null
+          cnpj: string | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -1162,6 +1211,7 @@ export type Database = {
           bed_count?: number | null
           city?: string | null
           cnes?: string | null
+          cnpj?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -1177,6 +1227,7 @@ export type Database = {
           bed_count?: number | null
           city?: string | null
           cnes?: string | null
+          cnpj?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -2079,6 +2130,7 @@ export type Database = {
           name: string
           price: string | null
           rating: number | null
+          recommended_for: string[] | null
           route: string
           version: string | null
         }
@@ -2095,6 +2147,7 @@ export type Database = {
           name: string
           price?: string | null
           rating?: number | null
+          recommended_for?: string[] | null
           route: string
           version?: string | null
         }
@@ -2111,8 +2164,848 @@ export type Database = {
           name?: string
           price?: string | null
           rating?: number | null
+          recommended_for?: string[] | null
           route?: string
           version?: string | null
+        }
+        Relationships: []
+      }
+      maternidade_action_plans: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          how: string
+          id: string
+          indicador: string
+          status: string
+          updated_at: string
+          user_id: string
+          what: string
+          when_date: string | null
+          who: string
+          why: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          how?: string
+          id?: string
+          indicador?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          what: string
+          when_date?: string | null
+          who: string
+          why?: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          how?: string
+          id?: string
+          indicador?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          what?: string
+          when_date?: string | null
+          who?: string
+          why?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_action_plans_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_action_plans_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternidade_busca_ativa: {
+        Row: {
+          ano: string
+          casos_confirmados: number
+          contatos_ligacoes: number
+          contatos_revisao_prontuario: number
+          contatos_whatsapp: number
+          created_at: string
+          hospital_id: string
+          id: string
+          mes: string
+          observacoes: string
+          retornos_confirmados: number
+          total_cesarianas_periodo: number
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          casos_confirmados?: number
+          contatos_ligacoes?: number
+          contatos_revisao_prontuario?: number
+          contatos_whatsapp?: number
+          created_at?: string
+          hospital_id: string
+          id?: string
+          mes: string
+          observacoes?: string
+          retornos_confirmados?: number
+          total_cesarianas_periodo?: number
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          casos_confirmados?: number
+          contatos_ligacoes?: number
+          contatos_revisao_prontuario?: number
+          contatos_whatsapp?: number
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          mes?: string
+          observacoes?: string
+          retornos_confirmados?: number
+          total_cesarianas_periodo?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_busca_ativa_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_busca_ativa_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternidade_casos: {
+        Row: {
+          ano: string
+          classificacao_isc: string
+          comorbidades: string
+          created_at: string
+          data_parto: string | null
+          data_reintranacao: string | null
+          hospital_id: string
+          id: string
+          medico_prestador: string
+          mes: string
+          nome_paciente: string
+          observacoes: string
+          pre_eclampsia: boolean
+          prontuario: string
+          status_caso: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          classificacao_isc?: string
+          comorbidades?: string
+          created_at?: string
+          data_parto?: string | null
+          data_reintranacao?: string | null
+          hospital_id: string
+          id?: string
+          medico_prestador?: string
+          mes: string
+          nome_paciente: string
+          observacoes?: string
+          pre_eclampsia?: boolean
+          prontuario?: string
+          status_caso?: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          classificacao_isc?: string
+          comorbidades?: string
+          created_at?: string
+          data_parto?: string | null
+          data_reintranacao?: string | null
+          hospital_id?: string
+          id?: string
+          medico_prestador?: string
+          mes?: string
+          nome_paciente?: string
+          observacoes?: string
+          pre_eclampsia?: boolean
+          prontuario?: string
+          status_caso?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_casos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_casos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternidade_educacao: {
+        Row: {
+          created_at: string
+          data_atividade: string
+          descricao: string
+          facilitador: string
+          hospital_id: string
+          id: string
+          observacoes: string
+          participantes: number
+          tema: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_atividade: string
+          descricao?: string
+          facilitador?: string
+          hospital_id: string
+          id?: string
+          observacoes?: string
+          participantes?: number
+          tema: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_atividade?: string
+          descricao?: string
+          facilitador?: string
+          hospital_id?: string
+          id?: string
+          observacoes?: string
+          participantes?: number
+          tema?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_educacao_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_educacao_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternidade_partos: {
+        Row: {
+          ano: string
+          cesarianas: number
+          created_at: string
+          data_registro: string
+          hospital_id: string
+          id: string
+          mes: string
+          nome_profissional: string
+          observacoes: string
+          partos_normais: number
+          total_partos: number
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          cesarianas?: number
+          created_at?: string
+          data_registro?: string
+          hospital_id: string
+          id?: string
+          mes: string
+          nome_profissional?: string
+          observacoes?: string
+          partos_normais?: number
+          total_partos?: number
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          cesarianas?: number
+          created_at?: string
+          data_registro?: string
+          hospital_id?: string
+          id?: string
+          mes?: string
+          nome_profissional?: string
+          observacoes?: string
+          partos_normais?: number
+          total_partos?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_partos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_partos_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternidade_records: {
+        Row: {
+          ano: string
+          busca_ativa_contatos: number
+          busca_ativa_retornos: number
+          cesarianas: number
+          created_at: string
+          data_registro: string
+          dias_permanencia_total: number
+          educacoes_realizadas: number
+          hospital_id: string
+          id: string
+          infeccao_puerperal_confirmada: number
+          infeccao_puerperal_suspeita: number
+          investigacoes_epidemio: number
+          isc_pos_cesariana: number
+          leitos_obstetricos: number
+          leitos_ocupados: number
+          mes: string
+          nome_profissional: string
+          observacoes: string
+          paciente_dias: number
+          partos_normais: number
+          profissionais_capacitados: number
+          total_partos: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano: string
+          busca_ativa_contatos?: number
+          busca_ativa_retornos?: number
+          cesarianas?: number
+          created_at?: string
+          data_registro?: string
+          dias_permanencia_total?: number
+          educacoes_realizadas?: number
+          hospital_id: string
+          id?: string
+          infeccao_puerperal_confirmada?: number
+          infeccao_puerperal_suspeita?: number
+          investigacoes_epidemio?: number
+          isc_pos_cesariana?: number
+          leitos_obstetricos?: number
+          leitos_ocupados?: number
+          mes: string
+          nome_profissional: string
+          observacoes?: string
+          paciente_dias?: number
+          partos_normais?: number
+          profissionais_capacitados?: number
+          total_partos?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano?: string
+          busca_ativa_contatos?: number
+          busca_ativa_retornos?: number
+          cesarianas?: number
+          created_at?: string
+          data_registro?: string
+          dias_permanencia_total?: number
+          educacoes_realizadas?: number
+          hospital_id?: string
+          id?: string
+          infeccao_puerperal_confirmada?: number
+          infeccao_puerperal_suspeita?: number
+          investigacoes_epidemio?: number
+          isc_pos_cesariana?: number
+          leitos_obstetricos?: number
+          leitos_ocupados?: number
+          mes?: string
+          nome_profissional?: string
+          observacoes?: string
+          paciente_dias?: number
+          partos_normais?: number
+          profissionais_capacitados?: number
+          total_partos?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternidade_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maternidade_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternity_action_plans: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          evidence: string | null
+          hospital_id: string
+          id: string
+          indicator_key: string
+          monthly_record_id: string | null
+          priority: string
+          problem: string
+          responsible: string
+          root_cause: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          evidence?: string | null
+          hospital_id: string
+          id?: string
+          indicator_key: string
+          monthly_record_id?: string | null
+          priority?: string
+          problem: string
+          responsible: string
+          root_cause?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          evidence?: string | null
+          hospital_id?: string
+          id?: string
+          indicator_key?: string
+          monthly_record_id?: string | null
+          priority?: string
+          problem?: string
+          responsible?: string
+          root_cause?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maternity_action_plans_monthly_record_id_fkey"
+            columns: ["monthly_record_id"]
+            isOneToOne: false
+            referencedRelation: "maternity_monthly_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maternity_monthly_records: {
+        Row: {
+          analysis: string | null
+          beds_available: number
+          created_at: string
+          created_by: string | null
+          discharged_patients: number
+          hospital_id: string
+          id: string
+          identified_infection_cases: number
+          investigated_infection_cases: number
+          month: number
+          observations: string | null
+          patient_days: number
+          post_cesarean_ssi_cases: number
+          post_discharge_contacted_patients: number
+          post_discharge_eligible_patients: number
+          professionals_eligible: number
+          professionals_trained: number
+          puerperal_infection_cases: number
+          puerperal_infection_readmissions: number
+          sector_id: string | null
+          status: string
+          sum_length_of_stay_days: number
+          total_admissions: number
+          total_births: number
+          total_cesareans: number
+          total_vaginal_births: number
+          training_hours: number
+          trainings_count: number
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          year: number
+        }
+        Insert: {
+          analysis?: string | null
+          beds_available?: number
+          created_at?: string
+          created_by?: string | null
+          discharged_patients?: number
+          hospital_id: string
+          id?: string
+          identified_infection_cases?: number
+          investigated_infection_cases?: number
+          month: number
+          observations?: string | null
+          patient_days?: number
+          post_cesarean_ssi_cases?: number
+          post_discharge_contacted_patients?: number
+          post_discharge_eligible_patients?: number
+          professionals_eligible?: number
+          professionals_trained?: number
+          puerperal_infection_cases?: number
+          puerperal_infection_readmissions?: number
+          sector_id?: string | null
+          status?: string
+          sum_length_of_stay_days?: number
+          total_admissions?: number
+          total_births?: number
+          total_cesareans?: number
+          total_vaginal_births?: number
+          training_hours?: number
+          trainings_count?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          year: number
+        }
+        Update: {
+          analysis?: string | null
+          beds_available?: number
+          created_at?: string
+          created_by?: string | null
+          discharged_patients?: number
+          hospital_id?: string
+          id?: string
+          identified_infection_cases?: number
+          investigated_infection_cases?: number
+          month?: number
+          observations?: string | null
+          patient_days?: number
+          post_cesarean_ssi_cases?: number
+          post_discharge_contacted_patients?: number
+          post_discharge_eligible_patients?: number
+          professionals_eligible?: number
+          professionals_trained?: number
+          puerperal_infection_cases?: number
+          puerperal_infection_readmissions?: number
+          sector_id?: string | null
+          status?: string
+          sum_length_of_stay_days?: number
+          total_admissions?: number
+          total_births?: number
+          total_cesareans?: number
+          total_vaginal_births?: number
+          training_hours?: number
+          trainings_count?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      meeting_action_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          description: string | null
+          due_date: string | null
+          evidence_required: string | null
+          evidence_url: string | null
+          hospital_id: string
+          id: string
+          meeting_id: string
+          priority: string
+          responsible_name: string
+          status: string
+          title: string
+          updated_at: string
+          why: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          due_date?: string | null
+          evidence_required?: string | null
+          evidence_url?: string | null
+          hospital_id: string
+          id?: string
+          meeting_id: string
+          priority?: string
+          responsible_name: string
+          status?: string
+          title: string
+          updated_at?: string
+          why?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          due_date?: string | null
+          evidence_required?: string | null
+          evidence_url?: string | null
+          hospital_id?: string
+          id?: string
+          meeting_id?: string
+          priority?: string
+          responsible_name?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_decisions: {
+        Row: {
+          created_at: string
+          decision: string
+          due_date: string | null
+          id: string
+          meeting_id: string
+          responsible_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          responsible_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          responsible_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_decisions_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          created_at: string
+          email: string | null
+          expected: boolean
+          id: string
+          institution: string | null
+          meeting_id: string
+          name: string
+          phone: string | null
+          present: boolean
+          role: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expected?: boolean
+          id?: string
+          institution?: string | null
+          meeting_id: string
+          name: string
+          phone?: string | null
+          present?: boolean
+          role?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expected?: boolean
+          id?: string
+          institution?: string | null
+          meeting_id?: string
+          name?: string
+          phone?: string | null
+          present?: boolean
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          actual_end_at: string | null
+          actual_start_at: string | null
+          agenda: string | null
+          ai_summary: string | null
+          approved_at: string | null
+          approved_by: string | null
+          committee: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          end_time: string | null
+          generated_minutes_md: string | null
+          hospital_id: string
+          id: string
+          location: string | null
+          meeting_character: string | null
+          meeting_type: string
+          next_meeting_agenda: string | null
+          next_meeting_date: string | null
+          next_meeting_location: string | null
+          next_meeting_time: string | null
+          online_link: string | null
+          president_name: string | null
+          previous_pending_items: string | null
+          raw_text_input: string | null
+          reporter_name: string | null
+          scheduled_date: string | null
+          sector_id: string | null
+          start_time: string | null
+          status: string
+          theme: string | null
+          title: string
+          transcript_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_end_at?: string | null
+          actual_start_at?: string | null
+          agenda?: string | null
+          ai_summary?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          committee?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          end_time?: string | null
+          generated_minutes_md?: string | null
+          hospital_id: string
+          id?: string
+          location?: string | null
+          meeting_character?: string | null
+          meeting_type?: string
+          next_meeting_agenda?: string | null
+          next_meeting_date?: string | null
+          next_meeting_location?: string | null
+          next_meeting_time?: string | null
+          online_link?: string | null
+          president_name?: string | null
+          previous_pending_items?: string | null
+          raw_text_input?: string | null
+          reporter_name?: string | null
+          scheduled_date?: string | null
+          sector_id?: string | null
+          start_time?: string | null
+          status?: string
+          theme?: string | null
+          title: string
+          transcript_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_end_at?: string | null
+          actual_start_at?: string | null
+          agenda?: string | null
+          ai_summary?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          committee?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          end_time?: string | null
+          generated_minutes_md?: string | null
+          hospital_id?: string
+          id?: string
+          location?: string | null
+          meeting_character?: string | null
+          meeting_type?: string
+          next_meeting_agenda?: string | null
+          next_meeting_date?: string | null
+          next_meeting_location?: string | null
+          next_meeting_time?: string | null
+          online_link?: string | null
+          president_name?: string | null
+          previous_pending_items?: string | null
+          raw_text_input?: string | null
+          reporter_name?: string | null
+          scheduled_date?: string | null
+          sector_id?: string | null
+          start_time?: string | null
+          status?: string
+          theme?: string | null
+          title?: string
+          transcript_text?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2133,6 +3026,249 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      notification_attachments: {
+        Row: {
+          description: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          hospital_id: string
+          id: string
+          notification_id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          hospital_id: string
+          id?: string
+          notification_id: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          hospital_id?: string
+          id?: string
+          notification_id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_attachments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_attachments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_history: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          notification_id: string
+          observacao: string | null
+          snapshot: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notification_id: string
+          observacao?: string | null
+          snapshot?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notification_id?: string
+          observacao?: string | null
+          snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_history_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_types: {
+        Row: {
+          anvisa_id: string | null
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          fonte: string
+          hospital_id: string | null
+          icon_name: string
+          id: string
+          nome: string
+          ordem: number
+          paradigma: string
+          prefixo: string
+          schema: Json
+          visivel_para: Json
+        }
+        Insert: {
+          anvisa_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          fonte?: string
+          hospital_id?: string | null
+          icon_name?: string
+          id: string
+          nome: string
+          ordem?: number
+          paradigma: string
+          prefixo: string
+          schema?: Json
+          visivel_para?: Json
+        }
+        Update: {
+          anvisa_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          fonte?: string
+          hospital_id?: string | null
+          icon_name?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          paradigma?: string
+          prefixo?: string
+          schema?: Json
+          visivel_para?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_types_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_types_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          ano_vigilancia: number
+          calculated: Json
+          created_at: string
+          data_evento: string
+          finalized_at: string | null
+          hospital_id: string
+          id: string
+          inputs: Json
+          mes_vigilancia: string | null
+          microrganismo: string | null
+          numero: string | null
+          paciente_nome: string | null
+          pdf_path: string | null
+          setor: string | null
+          status: string
+          type_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ano_vigilancia?: number
+          calculated?: Json
+          created_at?: string
+          data_evento?: string
+          finalized_at?: string | null
+          hospital_id: string
+          id?: string
+          inputs?: Json
+          mes_vigilancia?: string | null
+          microrganismo?: string | null
+          numero?: string | null
+          paciente_nome?: string | null
+          pdf_path?: string | null
+          setor?: string | null
+          status?: string
+          type_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ano_vigilancia?: number
+          calculated?: Json
+          created_at?: string
+          data_evento?: string
+          finalized_at?: string | null
+          hospital_id?: string
+          id?: string
+          inputs?: Json
+          mes_vigilancia?: string | null
+          microrganismo?: string | null
+          numero?: string | null
+          paciente_nome?: string | null
+          pdf_path?: string | null
+          setor?: string | null
+          status?: string
+          type_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_type_id_fkey"
+            columns: ["type_id"]
+            isOneToOne: false
+            referencedRelation: "notification_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patient_devices: {
         Row: {
@@ -2280,6 +3416,36 @@ export type Database = {
           },
         ]
       }
+      permission_catalog: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          permission_group: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          key: string
+          label: string
+          permission_group: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          permission_group?: string
+        }
+        Relationships: []
+      }
       precautions: {
         Row: {
           created_at: string
@@ -2356,6 +3522,305 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      protocol_ai_questions: {
+        Row: {
+          answer: string | null
+          created_at: string
+          hospital_id: string
+          id: string
+          question: string
+          source_protocol_ids: string[] | null
+          user_id: string | null
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          question: string
+          source_protocol_ids?: string[] | null
+          user_id?: string | null
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          question?: string
+          source_protocol_ids?: string[] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_ai_questions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_ai_questions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          hospital_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          hospital_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          hospital_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_categories_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_categories_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_document_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding: string | null
+          hospital_id: string
+          id: string
+          page_number: number | null
+          protocol_id: string
+          token_count: number | null
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          embedding?: string | null
+          hospital_id: string
+          id?: string
+          page_number?: number | null
+          protocol_id: string
+          token_count?: number | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          hospital_id?: string
+          id?: string
+          page_number?: number | null
+          protocol_id?: string
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_document_chunks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_document_chunks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_document_chunks_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_documents: {
+        Row: {
+          ai_enabled: boolean
+          category_id: string | null
+          created_at: string
+          description: string | null
+          document_code: string | null
+          expiration_date: string | null
+          extracted_text: string | null
+          extraction_error: string | null
+          extraction_status: string
+          file_mime_type: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          hospital_id: string
+          id: string
+          issue_date: string | null
+          page_count: number | null
+          protocol_type: string | null
+          responsible_name: string | null
+          responsible_role: string | null
+          review_date: string | null
+          sector: string | null
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          version: string | null
+        }
+        Insert: {
+          ai_enabled?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_code?: string | null
+          expiration_date?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_status?: string
+          file_mime_type?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          hospital_id: string
+          id?: string
+          issue_date?: string | null
+          page_count?: number | null
+          protocol_type?: string | null
+          responsible_name?: string | null
+          responsible_role?: string | null
+          review_date?: string | null
+          sector?: string | null
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: string | null
+        }
+        Update: {
+          ai_enabled?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_code?: string | null
+          expiration_date?: string | null
+          extracted_text?: string | null
+          extraction_error?: string | null
+          extraction_status?: string
+          file_mime_type?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          hospital_id?: string
+          id?: string
+          issue_date?: string | null
+          page_count?: number | null
+          protocol_type?: string | null
+          responsible_name?: string | null
+          responsible_role?: string | null
+          review_date?: string | null
+          sector?: string | null
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_documents_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_documents_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_documents_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_key: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_key: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_key?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scih_action_plans: {
         Row: {
@@ -2915,6 +4380,45 @@ export type Database = {
           },
         ]
       }
+      sector_types: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          label: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          label: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          label?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sector_types_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sector_types_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sectors: {
         Row: {
           bed_count: number | null
@@ -2963,23 +4467,163 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
+      user_direct_permissions: {
         Row: {
+          created_at: string
+          granted: boolean
+          granted_by: string | null
+          hospital_id: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          permission_key: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          created_at?: string
+          granted?: boolean
+          granted_by?: string | null
+          hospital_id: string
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
+          permission_key: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          created_at?: string
+          granted?: boolean
+          granted_by?: string | null
+          hospital_id?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          permission_key?: string
+          updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_direct_permissions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_direct_permissions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_direct_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      user_hospital_roles: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          is_active: boolean
+          is_admin: boolean
+          role_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_active?: boolean
+          is_admin?: boolean
+          role_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_active?: boolean
+          is_admin?: boolean
+          role_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_hospital_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_hospital_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_hospital_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          description: string | null
+          hospital_id: string | null
+          id: string
+          is_system: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          slug: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_system?: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          slug: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_system?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          slug?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -3016,6 +4660,48 @@ export type Database = {
         }
         Relationships: []
       }
+      managed_users_view: {
+        Row: {
+          email: string | null
+          full_name: string | null
+          hospital_id: string | null
+          is_active: boolean | null
+          is_admin: boolean | null
+          role_id: string | null
+          role_name: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_users_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_users_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_users_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_hospital_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_primary_admin_hospital_ids: { Args: never; Returns: string[] }
@@ -3028,10 +4714,36 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_hospital_admin: { Args: { p_hospital_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      match_protocol_chunks: {
+        Args: {
+          match_count?: number
+          match_hospital_id: string
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          page_number: number
+          protocol_id: string
+          similarity: number
+          title: string
+        }[]
+      }
       trigger_monthly_antibiogram_reports: {
         Args: { _api_key: string; _function_url: string }
         Returns: undefined
+      }
+      user_has_hospital: { Args: { p_hospital_id: string }; Returns: boolean }
+      user_has_permission: {
+        Args: {
+          target_hospital_id: string
+          target_permission: string
+          target_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
