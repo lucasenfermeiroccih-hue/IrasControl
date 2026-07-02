@@ -716,7 +716,7 @@ Regras:
           if (y > 270) { doc.addPage(); y = 20; }
           doc.setFillColor(i%2===0?250:244, i%2===0?250:244, i%2===0?250:244);
           doc.rect(MG, y-4, PW-MG*2, 8, "F");
-          const sevCol: [number,number,number] = nc.sev === "Crítica" ? [218,54,51] : nc.sev === "Alta" ? [212,160,23] : [26,158,117];
+          const sevCol: [number,number,number] = nc.sev === "Crítica" ? [218,54,51] : nc.sev === "Maior" ? [212,160,23] : [26,158,117];
           doc.setFillColor(...sevCol); doc.rect(MG, y-4, 3, 8, "F");
           doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
           const perg = nc.pergunta.length > 72 ? nc.pergunta.slice(0, 72) + "…" : nc.pergunta;
