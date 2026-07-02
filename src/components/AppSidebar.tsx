@@ -103,6 +103,7 @@ const publicSections = [
     items: [
       { title: "Biblioteca de Agentes", url: "/agentes", icon: Sparkles },
       { title: "Protocolos com IA", url: "/protocolos-ia", icon: BookOpen },
+      { title: "Reuniões e Atas", url: "/reunioes-atas", icon: ClipboardList },
     ],
   },
 ];
