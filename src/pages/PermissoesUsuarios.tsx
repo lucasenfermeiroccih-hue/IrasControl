@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   ShieldCheck, Loader2, Users, RefreshCw, Settings2,
-  UserCog, ChevronDown, ChevronRight, Lock, Unlock, Minus,
+  UserCog, ChevronDown, ChevronRight,
   Plus, Save, AlertTriangle,
 } from "lucide-react";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -27,14 +28,6 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-type DirectState = "granted" | "denied" | "inherited";
-
-function directState(user: ManagedUser, key: string): DirectState {
-  const it = user.direct_permissions?.find((p) => p.permission_key === key);
-  if (!it) return "inherited";
-  return it.granted ? "granted" : "denied";
-}
-
 function groupPermissions(catalog: PermissionCatalogItem[]) {
   const groups = new Map<string, PermissionCatalogItem[]>();
   catalog.forEach((p) => {
@@ -43,14 +36,6 @@ function groupPermissions(catalog: PermissionCatalogItem[]) {
     groups.set(p.permission_group, arr);
   });
   return groups;
-}
-
-// ─── StateIcon ────────────────────────────────────────────────────────────────
-
-function StateIcon({ state }: { state: DirectState }) {
-  if (state === "granted") return <Unlock className="h-4 w-4 text-emerald-600" />;
-  if (state === "denied") return <Lock className="h-4 w-4 text-red-600" />;
-  return <Minus className="h-4 w-4 text-muted-foreground" />;
 }
 
 // ─── UserPermissionRow ────────────────────────────────────────────────────────
@@ -65,13 +50,65 @@ interface UserRowProps {
 
 function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: UserRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [savingRole, setSavingRole] = useState(false);
+  const [savingPerms, setSavingPerms] = useState(false);
   const groups = groupPermissions(catalog);
 
   const displayName = user.full_name || user.email || user.user_id.slice(0, 8);
 
+  const [localGranted, setLocalGranted] = useState<Set<string>>(
+    () => new Set(user.direct_permissions?.filter((p) => p.granted).map((p) => p.permission_key) ?? [])
+  );
+  const [isDirty, setIsDirty] = useState(false);
+
+  function toggle(key: string) {
+    setLocalGranted((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+    setIsDirty(true);
+  }
+
+  function toggleGroup(keys: string[]) {
+    const allChecked = keys.every((k) => localGranted.has(k));
+    setLocalGranted((prev) => {
+      const next = new Set(prev);
+      if (allChecked) keys.forEach((k) => next.delete(k));
+      else keys.forEach((k) => next.add(k));
+      return next;
+    });
+    setIsDirty(true);
+  }
+
+  async function savePermissions() {
+    setSavingPerms(true);
+    try {
+      const original = new Set(
+        user.direct_permissions?.filter((p) => p.granted).map((p) => p.permission_key) ?? []
+      );
+      for (const key of catalog.map((p) => p.key)) {
+        const wasGranted = original.has(key);
+        const isGranted = localGranted.has(key);
+        if (!wasGranted && isGranted) {
+          await grantUserPermission({ userId: user.user_id, hospitalId, permissionKey: key });
+        } else if (wasGranted && !isGranted) {
+          await clearUserPermissionOverride({ userId: user.user_id, hospitalId, permissionKey: key });
+        }
+      }
+      toast.success("Permissões salvas com sucesso.");
+      setIsDirty(false);
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar permissões.");
+    } finally {
+      setSavingPerms(false);
+    }
+  }
+
   async function toggleAdmin() {
-    setSaving("admin");
+    setSavingAdmin(true);
     try {
       await setUserAdminStatus({ userId: user.user_id, hospitalId, isAdmin: !user.is_admin });
       toast.success(user.is_admin ? "Admin removido." : "Admin concedido.");
@@ -79,12 +116,12 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
     } catch (e: any) {
       toast.error(e.message || "Erro ao alterar admin.");
     } finally {
-      setSaving(null);
+      setSavingAdmin(false);
     }
   }
 
   async function handleRoleChange(roleId: string) {
-    setSaving("role");
+    setSavingRole(true);
     try {
       await setUserRole({ userId: user.user_id, hospitalId, roleId: roleId || null });
       toast.success("Perfil atualizado.");
@@ -92,26 +129,7 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
     } catch (e: any) {
       toast.error(e.message || "Erro ao alterar perfil.");
     } finally {
-      setSaving(null);
-    }
-  }
-
-  async function cyclePermission(key: string) {
-    const current = directState(user, key);
-    setSaving(key);
-    try {
-      if (current === "inherited") {
-        await grantUserPermission({ userId: user.user_id, hospitalId, permissionKey: key });
-      } else if (current === "granted") {
-        await revokeUserPermission({ userId: user.user_id, hospitalId, permissionKey: key });
-      } else {
-        await clearUserPermissionOverride({ userId: user.user_id, hospitalId, permissionKey: key });
-      }
-      onRefresh();
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao alterar permissão.");
-    } finally {
-      setSaving(null);
+      setSavingRole(false);
     }
   }
 
@@ -129,6 +147,7 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {isDirty && <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">Não salvo</Badge>}
           {user.is_admin && <Badge className="bg-primary/10 text-primary text-xs">Admin</Badge>}
           {user.role_name && <Badge variant="secondary" className="text-xs">{user.role_name}</Badge>}
           {!user.is_active && <Badge variant="destructive" className="text-xs">Inativo</Badge>}
@@ -145,9 +164,9 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
                 size="sm"
                 variant={user.is_admin ? "destructive" : "outline"}
                 onClick={toggleAdmin}
-                disabled={saving === "admin"}
+                disabled={savingAdmin}
               >
-                {saving === "admin" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                {savingAdmin ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 {user.is_admin ? "Remover Admin" : "Tornar Admin"}
               </Button>
             </div>
@@ -157,7 +176,7 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
                 <Select
                   value={user.role_id || ""}
                   onValueChange={handleRoleChange}
-                  disabled={saving === "role"}
+                  disabled={savingRole}
                 >
                   <SelectTrigger className="w-44 h-8 text-xs">
                     <SelectValue placeholder="Sem perfil" />
@@ -173,51 +192,62 @@ function UserPermissionRow({ user, catalog, roles, hospitalId, onRefresh }: User
             )}
           </div>
 
-          {/* Legenda */}
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Minus className="h-3 w-3" />Herdado do perfil</span>
-            <span className="flex items-center gap-1"><Unlock className="h-3 w-3 text-emerald-600" />Permitido diretamente</span>
-            <span className="flex items-center gap-1"><Lock className="h-3 w-3 text-red-600" />Bloqueado diretamente</span>
-          </div>
-
-          {/* Permissões por grupo */}
+          {/* Permissões por grupo com checkboxes */}
           {user.is_admin ? (
             <p className="text-sm text-emerald-700 bg-emerald-50 rounded p-2">
               Administrador possui todas as permissões automaticamente.
             </p>
           ) : (
-            <div className="space-y-3">
-              {Array.from(groups.entries()).map(([group, perms]) => (
-                <div key={group}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{group}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                    {perms.map((perm) => {
-                      const state = directState(user, perm.key);
-                      return (
-                        <button
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Marque as permissões desejadas e clique em <strong>Salvar</strong> ao terminar.
+              </p>
+              {Array.from(groups.entries()).map(([group, perms]) => {
+                const keys = perms.map((p) => p.key);
+                const allChecked = keys.every((k) => localGranted.has(k));
+                const someChecked = keys.some((k) => localGranted.has(k));
+                return (
+                  <div key={group}>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
+                      <Checkbox
+                        checked={allChecked ? true : someChecked ? "indeterminate" : false}
+                        onCheckedChange={() => toggleGroup(keys)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="text-xs font-semibold text-foreground uppercase tracking-wide">{group}</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pl-5">
+                      {perms.map((perm) => (
+                        <label
                           key={perm.key}
-                          onClick={() => cyclePermission(perm.key)}
-                          disabled={saving === perm.key}
-                          className={`flex items-center gap-2 text-left text-xs px-2 py-1.5 rounded border transition-colors ${
-                            state === "granted"
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                              : state === "denied"
-                              ? "bg-red-50 border-red-200 text-red-800"
-                              : "bg-background border-border text-muted-foreground hover:bg-muted"
-                          }`}
+                          className="flex items-center gap-2 text-xs cursor-pointer select-none p-1.5 rounded hover:bg-muted transition-colors"
                         >
-                          {saving === perm.key ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <StateIcon state={state} />
-                          )}
+                          <Checkbox
+                            checked={localGranted.has(perm.key)}
+                            onCheckedChange={() => toggle(perm.key)}
+                            className="h-3.5 w-3.5"
+                          />
                           <span className="truncate">{perm.label}</span>
-                        </button>
-                      );
-                    })}
+                        </label>
+                      ))}
+                    </div>
                   </div>
+                );
+              })}
+
+              {isDirty && (
+                <div className="pt-3 border-t flex items-center gap-3">
+                  <Button onClick={savePermissions} disabled={savingPerms} size="sm">
+                    {savingPerms ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Salvar Permissões
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Alterações pendentes</span>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

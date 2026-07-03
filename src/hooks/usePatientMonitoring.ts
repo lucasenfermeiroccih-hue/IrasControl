@@ -164,9 +164,12 @@ export function usePatientMonitoring() {
     const dbData = patientToDb(merged, hospitalId);
     delete (dbData as any).hospital_id;
 
-    // Merge tab data into clinical_data if provided
+    // Merge tab data into clinical_data if provided.
+    // Start from the full existing _clinicalData so fields not covered by patientToDb
+    // or _tabData are never silently dropped (prevents stale-session overwrites).
     if (_tabData) {
       dbData.clinical_data = {
+        ...((current as any)._clinicalData || {}),
         ...(dbData.clinical_data as any || {}),
         ..._tabData,
       };
