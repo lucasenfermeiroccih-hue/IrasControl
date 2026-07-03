@@ -1563,7 +1563,7 @@ export default function PatientsMonitoring() {
                   <SelectContent>{exameOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label className="font-medium">Data</Label><Input value={newLab.data} onChange={e => setNewLab(p => ({ ...p, data: e.target.value }))} placeholder="dd/mm/aaaa" /></div>
+              <div className="space-y-2"><Label className="font-medium">Data</Label><Input type="date" value={newLab.data && newLab.data.includes("/") ? newLab.data.split("/").reverse().join("-") : newLab.data} onChange={e => { const v = e.target.value; setNewLab(p => ({ ...p, data: v ? v.split("-").reverse().join("/") : "" })); }} /></div>
               <div className="space-y-2">
                 <Label className="font-medium">Microrganismo</Label>
                 <ComboboxSearch
