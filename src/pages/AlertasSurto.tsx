@@ -182,9 +182,14 @@ export default function AlertasSurto() {
     }
     setLoading(true);
 
-    const { data: pData } = await supabase
+    const { data: pData, error: pErr } = await supabase
       .from("patients").select("*").eq("hospital_id", hospitalId);
 
+    if (pErr) {
+      toast.error("Erro ao carregar pacientes: " + pErr.message);
+      setLoading(false);
+      return;
+    }
     if (!pData || pData.length === 0) { setPatients([]); setLoading(false); return; }
 
     const pIds = pData.map((p: any) => p.id);
@@ -192,6 +197,9 @@ export default function AlertasSurto() {
       supabase.from("precautions").select("*").in("patient_id", pIds),
       supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }),
     ]);
+
+    if (precsRes.error) toast.error("Erro ao carregar precauções: " + precsRes.error.message);
+    if (labsRes.error)  toast.error("Erro ao carregar exames: " + labsRes.error.message);
 
     const precs = precsRes.data || [];
     const labs  = labsRes.data  || [];
@@ -203,12 +211,15 @@ export default function AlertasSurto() {
       const active = patPrecs.find((pr: any) => pr.is_active)
         ?? [...patPrecs].sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())[0];
       const lab = labs.find((lr: any) => lr.patient_id === p.id);
-      let status = "Internado";
-      if (!active.is_active) {
-        if (p.status === "deceased") status = "Óbito";
-        else if (p.status === "transferred") status = "Transferência";
-        else status = "Alta";
-      }
+
+      // Determine status from patient record first, then fall back to precaution state
+      let status: string;
+      if (p.status === "deceased")    status = "Óbito";
+      else if (p.status === "transferred") status = "Transferência";
+      else if (p.status === "discharged")  status = "Alta";
+      else if (!active.is_active)          status = "Alta";
+      else                                 status = "Internado";
+
       mapped.push({
         id: p.id,
         nome: p.full_name,
@@ -742,12 +753,62 @@ Responda SOMENTE em JSON válido:
               ))}
             </div>
 
+            {/* ══ TABELA DE TODOS OS PACIENTES EM PRECAUÇÃO ══ */}
+            {patientsF.length > 0 && (
+              <div className="gl" style={{ padding:20, marginBottom:20 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                  <ShieldPlus size={15} style={{ color:"#38bdf8" }} />
+                  <span style={{ fontSize:13, fontWeight:700, color: textColor }}>Pacientes em Precaução</span>
+                  <span style={{ marginLeft:"auto", fontSize:11, color: subText }}>{patientsF.length} registro{patientsF.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${glassBorder}` }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, minWidth:700 }}>
+                    <thead>
+                      <tr style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}>
+                        {["Paciente","Prontuário","Setor","Leito","Microrganismo","Precaução","Data Coleta","Status"].map(h => (
+                          <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:10, fontWeight:700, color: subText, textTransform:"uppercase", letterSpacing:"0.5px", borderBottom:`1px solid ${glassBorder}` }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patientsF.map((p, i) => {
+                        const statusColor = p.status === "Internado" ? "#34d399" : p.status === "Óbito" ? "#f87171" : subText;
+                        const isInCluster = alertas.some(a => a.pacientes.some(ap => ap.id === p.id));
+                        return (
+                          <tr key={p.id} style={{ borderBottom:`1px solid ${glassBorder}`, background: i%2===0 ? "transparent" : dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)" }}>
+                            <td style={{ padding:"8px 12px", fontWeight:600, color: textColor, whiteSpace:"nowrap" }}>
+                              {isInCluster && <span style={{ display:"inline-block", width:6, height:6, borderRadius:"50%", background:"#ef4444", marginRight:6, verticalAlign:"middle" }} />}
+                              {p.nome}
+                            </td>
+                            <td style={{ padding:"8px 12px", color: subText, fontFamily:"monospace", fontSize:11 }}>{p.prontuario || "—"}</td>
+                            <td style={{ padding:"8px 12px", color: subText }}>{p.setor}</td>
+                            <td style={{ padding:"8px 12px", color: subText }}>{p.leito}</td>
+                            <td style={{ padding:"8px 12px", color: textColor, fontSize:11 }}>{p.organismo ? orgLabel(p.organismo).split("–")[0].trim() : "—"}</td>
+                            <td style={{ padding:"8px 12px" }}>
+                              <span style={{ fontSize:10, fontWeight:700, color: PREC_COLOR[p.precaucao] || subText, background:`${PREC_COLOR[p.precaucao] || "#6b7280"}18`, padding:"2px 8px", borderRadius:20, border:`1px solid ${PREC_COLOR[p.precaucao] || "#6b7280"}40` }}>
+                                {p.precaucao}
+                              </span>
+                            </td>
+                            <td style={{ padding:"8px 12px", color: subText, fontFamily:"monospace", fontSize:11 }}>{fmt(p.dataColeta)}</td>
+                            <td style={{ padding:"8px 12px" }}>
+                              <span style={{ fontSize:10, fontWeight:700, color: statusColor }}>{p.status}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {alertas.length === 0 ? (
-              <div className="gl" style={{ textAlign:"center", padding:"64px 24px", marginBottom:20 }}>
-                <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
-                <div style={{ fontSize:18, fontWeight:700, color: textColor, marginBottom:8 }}>Nenhum cluster ativo detectado</div>
-                <div style={{ fontSize:13, color: subText, maxWidth:400, margin:"0 auto", lineHeight:1.6 }}>
-                  O sistema monitora automaticamente 2+ casos do mesmo microrganismo no mesmo setor.
+              <div className="gl" style={{ textAlign:"center", padding:"48px 24px", marginBottom:20 }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
+                <div style={{ fontSize:16, fontWeight:700, color: textColor, marginBottom:6 }}>Nenhum cluster ativo detectado</div>
+                <div style={{ fontSize:12, color: subText, maxWidth:400, margin:"0 auto", lineHeight:1.6 }}>
+                  O sistema monitora 2+ casos do mesmo microrganismo no mesmo setor para gerar alertas.
+                  {patientsF.length > 0 && <><br /><br /><span style={{ color: "#38bdf8" }}>Há {patientsF.length} paciente{patientsF.length !== 1 ? "s" : ""} em precaução sem cluster.</span></>}
                 </div>
               </div>
             ) : (
