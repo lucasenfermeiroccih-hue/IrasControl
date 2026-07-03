@@ -6,10 +6,13 @@
  */
 export function normalizeSector(s: string | null | undefined): string {
   if (!s) return "Sem setor";
-  // "UTI 1" → "UTI 1 Adulto", "UTI 2" → "UTI 2 Adulto", etc.
-  const m = s.trim().match(/^UTI\s+(\d+)\s*$/i);
-  if (m) return `UTI ${m[1]} Adulto`;
-  return s.trim();
+  const t = s.trim();
+  // "UTI 1 Adulto" → "UTI 1",  "UTI 2 Adulto" → "UTI 2", etc.
+  const numbered = t.match(/^UTI\s+(\d+)\s+Adulto\s*$/i);
+  if (numbered) return `UTI ${numbered[1]}`;
+  // "UTI Adulto" (sem número) → "UTI"
+  if (/^UTI\s+Adulto\s*$/i.test(t)) return "UTI";
+  return t;
 }
 
 /** Builds a deduplicated, sorted sector list from an array of raw audit rows. */
