@@ -14,9 +14,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   History, Search, Edit2, FileText, Loader2, Bell, ArrowLeft,
-  Eye, Trash2, Clock, CheckCircle2, Paperclip, Printer,
+  Eye, Trash2, Clock, CheckCircle2, Paperclip, Printer, BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -335,6 +337,9 @@ export default function NotificacoesHistory() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // View dialog
+  const [viewNotif, setViewNotif] = useState<Notification | null>(null);
+
   // History dialog
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
@@ -633,11 +638,14 @@ export default function NotificacoesHistory() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" title="Ver/Editar" onClick={() => navigate(`/notificacoes/${n.id}/editar`)}>
+                          <Button size="sm" variant="ghost" title="Visualizar dados notificados" className="text-primary hover:text-primary" onClick={() => setViewNotif(n)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title="Editar notificação" onClick={() => navigate(`/notificacoes/${n.id}/editar`)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" title="Histórico de ações" onClick={() => handleOpenHistory(n)}>
-                            <Eye className="h-3.5 w-3.5" />
+                            <History className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
@@ -683,6 +691,179 @@ export default function NotificacoesHistory() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── View dialog ── */}
+      <Dialog open={!!viewNotif} onOpenChange={o => !o && setViewNotif(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Dados da Notificação
+              {viewNotif && (
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  — {viewNotif.notification_types?.nome} {viewNotif.numero ? `#${viewNotif.numero}` : "(rascunho)"}
+                </span>
+              )}
+            </DialogTitle>
+            {viewNotif && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[viewNotif.status] || ""}`}>
+                  {viewNotif.status}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {viewNotif.mes_vigilancia} / {viewNotif.ano_vigilancia}
+                </span>
+                {viewNotif.setor && <span className="text-xs text-muted-foreground">Setor: {viewNotif.setor}</span>}
+                {viewNotif.paciente_nome && <span className="text-xs text-muted-foreground">Paciente: {viewNotif.paciente_nome}</span>}
+                {viewNotif.finalized_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Finalizada: {format(new Date(viewNotif.finalized_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  </span>
+                )}
+              </div>
+            )}
+          </DialogHeader>
+
+          {viewNotif && (() => {
+            const schema = viewNotif.notification_types?.schema;
+            const inputs = viewNotif.inputs || {};
+            const topInputs: Record<string, any> = inputs._top || (Object.keys(inputs).length > 0 && !inputs._blocks ? inputs : {});
+            const blockInputs: Record<string, Record<string, Record<string, any>>> = inputs._blocks || {};
+            const labelMap = buildLabelMap(schema);
+
+            // Build sections from schema blocos
+            const blocos: Array<{ id: string; titulo: string; campos: Array<{ key: string; label: string }> }> = schema?.blocos || [];
+
+            // Top fields not belonging to any bloco
+            const allBlocoKeys = new Set(blocos.flatMap(b => (b.campos || []).map((c: any) => c.key)));
+            const freeTopEntries = Object.entries(topInputs).filter(([k, v]) => !k.startsWith("_") && v !== null && v !== undefined && v !== "");
+
+            return (
+              <ScrollArea className="flex-1 overflow-auto">
+                <div className="px-6 py-4 space-y-5">
+
+                  {/* Free top-level fields (not in any bloco) */}
+                  {freeTopEntries.length > 0 && (
+                    <section>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-primary mb-3">Dados Gerais</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                        {freeTopEntries.map(([key, val]) => (
+                          <div key={key} className="flex flex-col gap-0.5">
+                            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                              {labelMap[key] || labelFromKey(key)}
+                            </span>
+                            <span className="text-sm break-words">{fmtVal(val)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Schema bloco sections */}
+                  {blocos.map((bloco, bi) => {
+                    const blocoInstances = blockInputs[bloco.id] || {};
+                    const instanceEntries = Object.entries(blocoInstances);
+
+                    // Also look for top-level fields belonging to this bloco
+                    const blocoTopFields = (bloco.campos || [])
+                      .filter((c: any) => topInputs[c.key] !== undefined && topInputs[c.key] !== null && topInputs[c.key] !== "")
+                      .map((c: any) => ({ key: c.key, label: c.label || labelFromKey(c.key), value: topInputs[c.key] }));
+
+                    if (blocoTopFields.length === 0 && instanceEntries.length === 0) return null;
+
+                    return (
+                      <section key={bloco.id}>
+                        {bi > 0 && <Separator className="mb-4" />}
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-primary mb-3">
+                          {bloco.titulo || labelFromKey(bloco.id)}
+                        </h3>
+
+                        {/* Top-level fields for this bloco */}
+                        {blocoTopFields.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mb-3">
+                            {blocoTopFields.map(f => (
+                              <div key={f.key} className="flex flex-col gap-0.5">
+                                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{f.label}</span>
+                                <span className="text-sm break-words">{fmtVal(f.value)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Block instances (repeatable rows) */}
+                        {instanceEntries.map(([instanceKey, fields], ii) => {
+                          const fieldEntries = Object.entries(fields).filter(([k, v]) => v !== null && v !== undefined && v !== "");
+                          if (fieldEntries.length === 0) return null;
+                          return (
+                            <div key={instanceKey} className={`rounded-lg border bg-muted/30 p-3 mb-2`}>
+                              {instanceEntries.length > 1 && (
+                                <p className="text-[11px] font-semibold text-muted-foreground mb-2">Registro {ii + 1}</p>
+                              )}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                                {fieldEntries.map(([key, val]) => (
+                                  <div key={key} className="flex flex-col gap-0.5">
+                                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                      {labelMap[key] || labelFromKey(key)}
+                                    </span>
+                                    <span className="text-sm break-words">{fmtVal(val)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </section>
+                    );
+                  })}
+
+                  {/* Fallback: raw inputs when schema is missing */}
+                  {blocos.length === 0 && freeTopEntries.length === 0 && Object.keys(inputs).length > 0 && (
+                    <section>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-primary mb-3">Campos Preenchidos</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                        {Object.entries(inputs)
+                          .filter(([k, v]) => !k.startsWith("_") && v !== null && v !== undefined && v !== "")
+                          .map(([key, val]) => (
+                            <div key={key} className="flex flex-col gap-0.5">
+                              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                {labelMap[key] || labelFromKey(key)}
+                              </span>
+                              <span className="text-sm break-words">{fmtVal(val as any)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Empty state */}
+                  {blocos.length === 0 && freeTopEntries.length === 0 && Object.keys(inputs).length === 0 && (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum dado preenchido nesta notificação.</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            );
+          })()}
+
+          <div className="px-6 py-4 border-t flex justify-between gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setViewNotif(null)}>Fechar</Button>
+            <div className="flex gap-2">
+              {viewNotif && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => { setViewNotif(null); handleGeneratePdf(viewNotif); }} disabled={generatingPdf}>
+                    <FileText className="h-3.5 w-3.5 mr-1" /> PDF
+                  </Button>
+                  <Button size="sm" onClick={() => { setViewNotif(null); navigate(`/notificacoes/${viewNotif.id}/editar`); }}>
+                    <Edit2 className="h-3.5 w-3.5 mr-1" /> Editar
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* History dialog */}
       <Dialog open={!!selectedNotif} onOpenChange={o => !o && setSelectedNotif(null)}>
