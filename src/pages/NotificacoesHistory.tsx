@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   History, Search, Edit2, FileText, Loader2, Bell, ArrowLeft,
-  Eye, Trash2, Clock, CheckCircle2, Paperclip,
+  Eye, Trash2, Clock, CheckCircle2, Paperclip, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import NotificationAttachmentsDialog from "@/components/NotificationAttachmentsDialog";
+import jsPDF from "jspdf";
 
 const MES_OPTIONS = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -47,6 +49,7 @@ interface Notification {
   id: string;
   numero: string | null;
   type_id: string;
+  hospital_id: string;
   mes_vigilancia: string | null;
   ano_vigilancia: number;
   setor: string | null;
@@ -56,8 +59,9 @@ interface Notification {
   created_at: string;
   updated_at: string;
   finalized_at: string | null;
+  inputs: Record<string, any> | null;
   calculated: Record<string, any>;
-  notification_types: { nome: string; fonte: string; prefixo: string; paradigma: string } | null;
+  notification_types: { nome: string; fonte: string; prefixo: string; paradigma: string; schema?: any } | null;
 }
 
 interface HistoryEntry {
@@ -67,6 +71,252 @@ interface HistoryEntry {
   observacao: string | null;
   created_at: string;
 }
+
+// ─── PDF helpers ─────────────────────────────────────────────────────────────
+
+function fmtVal(v: any): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  if (Array.isArray(v)) return v.join(", ") || "—";
+  return String(v);
+}
+
+function labelFromKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function buildLabelMap(schema: any): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!schema?.blocos) return map;
+  for (const bloco of schema.blocos) {
+    for (const campo of bloco.campos || []) {
+      if (campo.key && campo.label) map[campo.key] = campo.label;
+    }
+    if (bloco.seletor?.key) map[bloco.seletor.key] = bloco.seletor.label || bloco.seletor.key;
+    if (bloco.bloco_repetivel?.campos) {
+      for (const campo of bloco.bloco_repetivel.campos) {
+        if (campo.key && campo.label) map[campo.key] = campo.label;
+      }
+    }
+  }
+  return map;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function generateCombinedPdf(notifIds: string[]) {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const margin = 14;
+  const pageW = 210;
+  const contentW = pageW - 2 * margin;
+  let y = margin;
+  let firstPage = true;
+
+  function newSection() {
+    if (!firstPage) pdf.addPage();
+    firstPage = false;
+    y = margin;
+  }
+
+  function checkY(needed = 8) {
+    if (y + needed > 283) { pdf.addPage(); y = margin; }
+  }
+
+  function addLine(text: string, size = 10, bold = false, color: [number,number,number] = [30,30,30]) {
+    checkY(size * 0.5 + 3);
+    pdf.setFontSize(size);
+    pdf.setFont("helvetica", bold ? "bold" : "normal");
+    pdf.setTextColor(...color);
+    const lines = pdf.splitTextToSize(text, contentW) as string[];
+    pdf.text(lines, margin, y);
+    y += lines.length * (size * 0.4) + 2;
+  }
+
+  function addKV(label: string, value: string) {
+    checkY(7);
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(`${label}:`, margin, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(30, 30, 30);
+    const val = pdf.splitTextToSize(value, contentW - 40) as string[];
+    pdf.text(val, margin + 40, y);
+    y += Math.max(val.length * 4, 5) + 1;
+  }
+
+  function addHRule(color: [number,number,number] = [200,200,200]) {
+    checkY(4);
+    pdf.setDrawColor(...color);
+    pdf.line(margin, y, margin + contentW, y);
+    y += 3;
+  }
+
+  for (let ni = 0; ni < notifIds.length; ni++) {
+    newSection();
+
+    // Fetch full notification
+    const { data: notif, error: nErr } = await (supabase
+      .from("notifications" as any)
+      .select("*, notification_types(*)")
+      .eq("id", notifIds[ni])
+      .single() as any);
+    if (nErr || !notif) { addLine(`Erro ao carregar notificação ${notifIds[ni]}`, 10); continue; }
+
+    // Fetch hospital
+    const { data: hosp } = await (supabase
+      .from("hospitals" as any)
+      .select("name, state, city, cnpj, cnes")
+      .eq("id", notif.hospital_id)
+      .single() as any);
+
+    // Fetch attachments
+    const { data: atts } = await (supabase
+      .from("notification_attachments" as any)
+      .select("*")
+      .eq("notification_id", notifIds[ni])
+      .order("uploaded_at") as any);
+
+    const nt = notif.notification_types;
+    const labelMap = buildLabelMap(nt?.schema);
+    const inputs = notif.inputs || {};
+    const topInputs = inputs._top || (typeof inputs === "object" && !inputs._top ? inputs : {});
+    const blockInputs: Record<string, Record<string, Record<string, any>>> = inputs._blocks || {};
+
+    // ── Header
+    addLine(`NOTIFICAÇÃO ${nt?.fonte || "ANVISA"} / ${nt?.nome || ""}`, 13, true, [15, 60, 120]);
+    y += 2;
+    addHRule([15, 60, 120]);
+
+    // Hospital info
+    if (hosp) {
+      addKV("Instituição", hosp.name || "—");
+      addKV("CNPJ", hosp.cnpj || "—");
+      addKV("CNES", hosp.cnes || "—");
+      addKV("Estado", hosp.state || "—");
+      if (hosp.city) addKV("Município", hosp.city);
+    }
+    addHRule();
+
+    // Notification meta
+    addKV("Número", notif.numero || "Pendente");
+    addKV("Período", `${notif.mes_vigilancia || ""} / ${notif.ano_vigilancia}`);
+    addKV("Status", notif.status);
+    if (notif.finalized_at) addKV("Finalizada em", format(new Date(notif.finalized_at), "dd/MM/yyyy HH:mm", { locale: ptBR }));
+    addKV("Criada em", format(new Date(notif.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }));
+    addHRule();
+
+    // Form fields
+    if (Object.keys(topInputs).length > 0) {
+      addLine("Dados do Formulário", 10, true, [50, 50, 50]);
+      y += 1;
+      for (const [key, val] of Object.entries(topInputs)) {
+        if (key.startsWith("_") || val === null || val === undefined || val === "") continue;
+        const label = labelMap[key] || labelFromKey(key);
+        addKV(label, fmtVal(val));
+      }
+      addHRule();
+    }
+
+    // Block data
+    for (const [blocoId, instances] of Object.entries(blockInputs)) {
+      const blocoSchema = nt?.schema?.blocos?.find((b: any) => b.id === blocoId);
+      const blocoTitle = blocoSchema?.titulo || labelFromKey(blocoId);
+      addLine(blocoTitle, 10, true, [50, 50, 50]);
+      y += 1;
+      for (const [instanceKey, fields] of Object.entries(instances)) {
+        addLine(`▸ ${instanceKey}`, 9, true, [80, 80, 80]);
+        for (const [key, val] of Object.entries(fields as Record<string, any>)) {
+          if (val === null || val === undefined || val === "") continue;
+          const label = labelMap[key] || labelFromKey(key);
+          addKV(`  ${label}`, fmtVal(val));
+        }
+      }
+      addHRule();
+    }
+
+    // Attachments section
+    if (atts && atts.length > 0) {
+      addLine("Documentos Anexados à ANVISA", 10, true, [15, 60, 120]);
+      y += 1;
+      for (const att of atts) {
+        checkY(6);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(50, 50, 50);
+        const size = att.file_size ? ` (${(att.file_size / 1024).toFixed(0)} KB)` : "";
+        pdf.text(`• ${att.file_name}${size}`, margin + 2, y);
+        y += 5;
+        if (att.description) {
+          pdf.setFontSize(8);
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(`  ${att.description}`, margin + 4, y);
+          y += 4;
+        }
+      }
+      addHRule();
+
+      // Embed images
+      for (const att of atts) {
+        if (!att.file_type?.startsWith("image/")) continue;
+        try {
+          const { data: signed } = await supabase.storage
+            .from("notification-attachments")
+            .createSignedUrl(att.file_path, 120);
+          if (!signed?.signedUrl) continue;
+
+          const resp = await fetch(signed.signedUrl);
+          if (!resp.ok) continue;
+          const blob = await resp.blob();
+          const b64 = await blobToBase64(blob);
+
+          pdf.addPage();
+          y = margin;
+          addLine(`Anexo: ${att.file_name}`, 10, true, [15, 60, 120]);
+          y += 2;
+
+          const imgProps = (pdf as any).getImageProperties(b64);
+          const ratio = imgProps.height / imgProps.width;
+          const imgW = contentW;
+          const imgH = Math.min(imgW * ratio, 240);
+          pdf.addImage(b64, att.file_type.includes("png") ? "PNG" : "JPEG", margin, y, imgW, imgH);
+          y += imgH + 5;
+
+          if (att.description) {
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(att.description, margin, y);
+            y += 5;
+          }
+        } catch {
+          // skip image if download fails
+        }
+      }
+    }
+
+    // Page numbers
+    const totalPages = (pdf as any).getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setFontSize(7);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(`Página ${p} de ${totalPages} — IRASControl`, margin, 292);
+    }
+  }
+
+  const filename = notifIds.length === 1
+    ? `notificacao-${Date.now()}.pdf`
+    : `notificacoes-${notifIds.length}-${Date.now()}.pdf`;
+  pdf.save(filename);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function NotificacoesHistory() {
   const navigate = useNavigate();
@@ -80,6 +330,10 @@ export default function NotificacoesHistory() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMes, setFilterMes] = useState("all");
   const [filterAno, setFilterAno] = useState<string>(String(new Date().getFullYear()));
+
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // History dialog
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
@@ -99,7 +353,7 @@ export default function NotificacoesHistory() {
     try {
       const [{ data: nots }, { data: typesData }] = await Promise.all([
         (supabase.from("notifications" as any)
-          .select("*, notification_types(nome, fonte, prefixo, paradigma)")
+          .select("*, notification_types(nome, fonte, prefixo, paradigma, schema)")
           .eq("hospital_id", hospitalId)
           .order("created_at", { ascending: false }) as any),
         (supabase.from("notification_types" as any)
@@ -131,30 +385,55 @@ export default function NotificacoesHistory() {
     await loadHistory(n.id);
   }
 
-  async function handleGeneratePdf(n: Notification) {
+  async function handleDelete(n: Notification) {
+    if (!confirm(`Excluir permanentemente a notificação "${n.numero || "rascunho"}"?\n\nEsta ação remove todos os dados e anexos e não pode ser desfeita.`)) return;
     try {
-      toast.loading("Gerando relatório PDF...", { id: "pdf-toast" });
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notification-pdf`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ notification_id: n.id }),
-        }
-      );
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Erro na geração do PDF");
-      toast.success("PDF gerado!", { id: "pdf-toast" });
-      window.open(result.signedUrl, "_blank");
-      loadAll();
+      // Remove attachments from storage
+      const { data: atts } = await (supabase.from("notification_attachments" as any)
+        .select("file_path").eq("notification_id", n.id) as any);
+      if (atts?.length) {
+        await supabase.storage.from("notification-attachments").remove(atts.map((a: any) => a.file_path));
+        await (supabase.from("notification_attachments" as any).delete().eq("notification_id", n.id) as any);
+      }
+      // Remove history
+      await (supabase.from("notification_history" as any).delete().eq("notification_id", n.id) as any);
+      // Remove notification
+      const { error } = await (supabase.from("notifications" as any).delete().eq("id", n.id) as any);
+      if (error) throw error;
+      toast.success("Notificação excluída.");
+      setNotifications(prev => prev.filter(x => x.id !== n.id));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(n.id); return next; });
     } catch (e: any) {
-      toast.error("Erro ao gerar PDF: " + e.message, { id: "pdf-toast" });
+      toast.error("Erro ao excluir: " + e.message);
+    }
+  }
+
+  async function handlePrintSelected() {
+    if (selectedIds.size === 0) return;
+    setGeneratingPdf(true);
+    const toastId = "pdf-gen";
+    toast.loading(`Gerando PDF com ${selectedIds.size} notificação(ões)…`, { id: toastId });
+    try {
+      await generateCombinedPdf([...selectedIds]);
+      toast.success("PDF gerado com sucesso!", { id: toastId });
+    } catch (e: any) {
+      toast.error("Erro ao gerar PDF: " + e.message, { id: toastId });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
+  async function handleGeneratePdf(n: Notification) {
+    setGeneratingPdf(true);
+    const toastId = "pdf-single";
+    toast.loading("Gerando relatório PDF…", { id: toastId });
+    try {
+      await generateCombinedPdf([n.id]);
+      toast.success("PDF gerado!", { id: toastId });
+    } catch (e: any) {
+      toast.error("Erro ao gerar PDF: " + e.message, { id: toastId });
+    } finally {
+      setGeneratingPdf(false);
     }
   }
 
@@ -171,6 +450,14 @@ export default function NotificacoesHistory() {
   function attachLabel(n: Notification) {
     const nome = n.notification_types?.nome || "Notificação";
     return n.numero ? `${nome} #${n.numero}` : nome;
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   const currentYear = new Date().getFullYear();
@@ -193,20 +480,50 @@ export default function NotificacoesHistory() {
     return true;
   });
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every(n => selectedIds.has(n.id));
+
+  function toggleAll() {
+    if (allFilteredSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        filtered.forEach(n => next.delete(n.id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        filtered.forEach(n => next.add(n.id));
+        return next;
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="sm" onClick={() => navigate("/notificacoes")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
           <History className="h-4 w-4 text-primary" />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold">Histórico de Notificações</h1>
           <p className="text-sm text-muted-foreground">{filtered.length} registro(s)</p>
         </div>
+        {selectedIds.size > 0 && (
+          <Button
+            onClick={handlePrintSelected}
+            disabled={generatingPdf}
+            className="gap-2"
+          >
+            {generatingPdf
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Printer className="h-4 w-4" />}
+            Gerar PDF ({selectedIds.size} selecionada{selectedIds.size !== 1 ? "s" : ""})
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -263,6 +580,13 @@ export default function NotificacoesHistory() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todas"
+                    />
+                  </TableHead>
                   <TableHead>Número</TableHead>
                   <TableHead>Modelo</TableHead>
                   <TableHead>Período</TableHead>
@@ -276,8 +600,16 @@ export default function NotificacoesHistory() {
                 {filtered.map(n => {
                   const StatusIcon = STATUS_ICONS[n.status] ?? Bell;
                   const nt = n.notification_types;
+                  const isSelected = selectedIds.has(n.id);
                   return (
-                    <TableRow key={n.id}>
+                    <TableRow key={n.id} className={isSelected ? "bg-primary/5" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(n.id)}
+                          aria-label={`Selecionar notificação ${n.numero || "rascunho"}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs font-medium">
                         {n.numero || <span className="text-muted-foreground italic">pendente</span>}
                       </TableCell>
@@ -316,16 +648,31 @@ export default function NotificacoesHistory() {
                           >
                             <Paperclip className="h-3.5 w-3.5" />
                           </Button>
-                          {n.status === "finalizada" && (
-                            <Button size="sm" variant="ghost" title="Gerar PDF" onClick={() => handleGeneratePdf(n)}>
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Gerar PDF"
+                            disabled={generatingPdf}
+                            onClick={() => handleGeneratePdf(n)}
+                          >
+                            {generatingPdf
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <FileText className="h-3.5 w-3.5" />}
+                          </Button>
                           {n.status !== "cancelada" && n.status !== "finalizada" && (
-                            <Button size="sm" variant="ghost" title="Cancelar" className="text-destructive hover:text-destructive" onClick={() => handleCancel(n)}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                            <Button size="sm" variant="ghost" title="Cancelar" className="text-amber-600 hover:text-amber-700" onClick={() => handleCancel(n)}>
+                              <Clock className="h-3.5 w-3.5" />
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Excluir permanentemente"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(n)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -377,7 +724,7 @@ export default function NotificacoesHistory() {
         </DialogContent>
       </Dialog>
 
-      {/* Attachments dialog (shared component) */}
+      {/* Attachments dialog */}
       {attachNotif && hospitalId && (
         <NotificationAttachmentsDialog
           open={!!attachNotif}
