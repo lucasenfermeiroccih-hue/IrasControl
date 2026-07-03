@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "./useHospitalContext";
+import { normalizeSector } from "@/lib/sectorUtils";
 
 export function useSectors() {
   const { hospitalId } = useHospitalContext();
@@ -17,7 +18,11 @@ export function useSectors() {
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => {
-        setSectors(data?.map((s: { name: string }) => s.name) ?? []);
+        // Normalize and deduplicate so "UTI 1" and "UTI 1 Adulto" appear as one entry
+        const normalized = Array.from(
+          new Set((data ?? []).map((s: { name: string }) => normalizeSector(s.name)))
+        ).sort();
+        setSectors(normalized);
         setLoading(false);
       });
   }, [hospitalId]);

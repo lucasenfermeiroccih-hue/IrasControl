@@ -1,3 +1,4 @@
+import { buildSectorOptions } from "@/lib/sectorUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export default function DashboardBundles() {
         </div>
       </div>
 
-      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={Array.from(new Set(allAudits.map(a => a.sector || "Sem setor"))).sort()} years={Array.from(new Set(allAudits.map(a => a.audit_date?.substring(0, 4)).filter(Boolean) as string[])).sort().reverse()} />
+      <DashboardFilters dia={dia} setDia={setDia} mes={mes} setMes={setMes} ano={ano} setAno={setAno} setor={setor} setSetor={setSetor} sectors={buildSectorOptions(allAudits)} years={Array.from(new Set(allAudits.map(a => a.audit_date?.substring(0, 4)).filter(Boolean) as string[])).sort().reverse()} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

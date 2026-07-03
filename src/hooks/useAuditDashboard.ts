@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "./useHospitalContext";
+import { normalizeSector } from "@/lib/sectorUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type AuditType = Database["public"]["Enums"]["audit_type"];
@@ -96,7 +97,7 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
       if (anoSet.size && !anoSet.has(y)) return false;
       if (mesSet.size && !mesSet.has(m)) return false;
       if (diaSet.size && !diaSet.has((d || "").substring(0, 2))) return false;
-      if (setorSet.size && !setorSet.has(a.sector || "Sem setor")) return false;
+      if (setorSet.size && !setorSet.has(normalizeSector(a.sector))) return false;
       return true;
     });
     const idSet = new Set(fa.map(a => a.id));
@@ -129,17 +130,17 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
         audits: v.count,
       }));
 
-    // By sector
+    // By sector (normalized — "UTI 1" and "UTI 1 Adulto" merge into "UTI 1 Adulto")
     const bySector: Record<string, { sum: number; count: number; nonCompliant: number }> = {};
     audits.forEach(a => {
-      const sector = a.sector || "Sem setor";
+      const sector = normalizeSector(a.sector);
       if (!bySector[sector]) bySector[sector] = { sum: 0, count: 0, nonCompliant: 0 };
       bySector[sector].sum += a.compliance_rate || 0;
       bySector[sector].count++;
     });
     items.forEach(i => {
       const audit = audits.find(a => a.id === i.audit_id);
-      const sector = audit?.sector || "Sem setor";
+      const sector = normalizeSector(audit?.sector);
       if (i.status === "non_compliant" && bySector[sector]) {
         bySector[sector].nonCompliant++;
       }
