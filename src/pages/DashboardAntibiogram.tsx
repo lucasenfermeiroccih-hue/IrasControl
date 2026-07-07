@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 import ChartActions from "@/components/ChartActions";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -539,6 +540,8 @@ export default function DashboardAntibiogram() {
             {pdfVisualLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
             PDF Visual
           </Button>
+          <AuditManagerReportButton defaultAuditType="antibiogram" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <Button
             variant="outline" size="sm"
             onClick={handlePDFRelatorio}

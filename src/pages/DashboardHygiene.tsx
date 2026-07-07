@@ -23,6 +23,7 @@ import YearComparisonChart from "@/components/YearComparisonChart";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -479,6 +480,8 @@ export default function DashboardHygiene() {
           <Button variant="outline" size="sm" onClick={handleExportPdf}>
             <Download className="h-4 w-4 mr-1" />PDF
           </Button>
+          <AuditManagerReportButton defaultAuditType="hand_hygiene" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
             ins.push(`📊 Taxa de adesão de ${fStats.adhesionRate}% com ${fStats.totalAudits} formulários analisados.`);

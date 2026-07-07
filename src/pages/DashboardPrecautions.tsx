@@ -29,6 +29,7 @@ import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 
 // ─── Constants ────────────────────────────────────────────────
 const CHECKLIST_GROUPS = [
@@ -677,6 +678,8 @@ export default function DashboardPrecautions() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <AuditManagerReportButton defaultAuditType="precaution" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
             ins.push(`📊 ${stats.totalRecords} auditorias com ${stats.pctConformidade}% de conformidade.`);

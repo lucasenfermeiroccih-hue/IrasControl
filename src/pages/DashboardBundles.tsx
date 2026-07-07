@@ -14,6 +14,7 @@ import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { useState } from "react";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 
 function getStatusBadge(status: string) {
   if (status === "Crítico") return <Badge variant="destructive">{status}</Badge>;
@@ -65,6 +66,8 @@ export default function DashboardBundles() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <AuditManagerReportButton defaultAuditType="bundles" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <DashboardAIInsights generateInsights={() => {
           const ins: string[] = [];
           ins.push(`📊 Conformidade geral de ${stats.avgCompliance}% com ${stats.totalAudits} auditorias.`);

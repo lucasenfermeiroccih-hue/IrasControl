@@ -23,6 +23,7 @@ import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "@/hooks/use-toast";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -468,6 +469,8 @@ export default function DashboardDispenser() {
           <Button variant="outline" size="sm" onClick={handleExportPdf}>
             <Download className="h-4 w-4 mr-1" />PDF
           </Button>
+          <AuditManagerReportButton defaultAuditType="dispenser" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
             ins.push(`📊 Conformidade geral de ${fStats.avgCompliance}% com ${fStats.totalAudits} dispensers auditados.`);

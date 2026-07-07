@@ -23,6 +23,7 @@ import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
+import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
 
 // ─── Ishikawa Diagram ─────────────────────────────────────────────────────────
 
@@ -431,6 +432,8 @@ export default function DashboardConstruction() {
           <Button variant="outline" size="sm" onClick={handleExportPdf}>
             <Download className="h-4 w-4 mr-1" />PDF
           </Button>
+          <AuditManagerReportButton defaultAuditType="construction_renovation" />
+          <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <DashboardAIInsights
             generateInsights={() => {
               const ins: string[] = [];
