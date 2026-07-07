@@ -366,6 +366,12 @@ export default function SCIHAuditModule() {
   const [managerReportCopied, setManagerReportCopied] = useState(false);
   const [managerReportMarkdown, setManagerReportMarkdown] = useState("");
   const [managerReportLogos, setManagerReportLogos] = useState<{ url: string; logo_type: string; display_name: string | null }[]>([]);
+  const [managerReportPdfExporting, setManagerReportPdfExporting] = useState(false);
+  const [showManagerReportEmail, setShowManagerReportEmail] = useState(false);
+  const [managerReportEmailTo, setManagerReportEmailTo] = useState("");
+  const [managerReportEmailCc, setManagerReportEmailCc] = useState("");
+  const [managerReportEmailSending, setManagerReportEmailSending] = useState(false);
+  const [managerReportMetrics, setManagerReportMetrics] = useState<ReturnType<typeof calcManagerReportMetrics> | null>(null);
   const [managerReportForm, setManagerReportForm] = useState({
     hospitalName: "",
     sectorKey: "scih",
@@ -913,6 +919,242 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
 `;
   }
 
+  async function openManagerReportModal(sectorKey?: string) {
+    setManagerReportForm(f => ({
+      ...f,
+      hospitalName: hospitalName || "",
+      ...(sectorKey ? { sectorKey } : {}),
+    }));
+    if (hospitalId) {
+      const { data } = await supabase
+        .from("hospital_logos" as never)
+        .select("logo_type, storage_path, display_name")
+        .eq("hospital_id", hospitalId)
+        .order("display_order");
+      const withUrls = (data as { logo_type: string; storage_path: string; display_name: string | null }[] | null ?? [])
+        .map(l => ({ ...l, url: supabase.storage.from("hospital-logos").getPublicUrl(l.storage_path).data.publicUrl }));
+      setManagerReportLogos(withUrls);
+    }
+    setShowManagerReportEmail(false);
+    setShowManagerReportModal(true);
+  }
+
+  async function exportManagerReportPdf() {
+    setManagerReportPdfExporting(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const { hospitalLogo, scihLogos } = await fetchLogosForPdf();
+      const form = managerReportForm;
+      const sectorName = CHECKLISTS_DATA[form.sectorKey]?.nome ?? form.sectorKey;
+      const hospName = form.hospitalName || hospitalName || "Hospital/Unidade";
+      const m = managerReportMetrics ?? calcManagerReportMetrics(form.sectorKey, form.auditType, form.periodStart, form.periodEnd);
+      const formatDate = (d: string) => { if (!d) return "—"; const [y,mo,day] = d.split("-"); return `${day}/${mo}/${y}`; };
+
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const PW = doc.internal.pageSize.getWidth();
+      const PH = doc.internal.pageSize.getHeight();
+      const MG = 14;
+
+      // ── Cabeçalho ──
+      doc.setFillColor(15, 76, 117); doc.rect(0, 0, PW, 44, "F");
+      doc.setFillColor(26, 158, 117); doc.rect(0, 0, PW, 2.5, "F"); doc.rect(0, 44, PW, 2.5, "F");
+      let logoX = MG;
+      if (hospitalLogo) { const lh = 14, lw = (hospitalLogo.w / hospitalLogo.h) * lh; doc.addImage(hospitalLogo.dataUrl, "PNG", logoX, 8, lw, lh); logoX += lw + 6; }
+      scihLogos.slice(0, 2).forEach(lg => { const lh = 12, lw = (lg.w / lg.h) * lh; doc.addImage(lg.dataUrl, "PNG", logoX, 9, lw, lh); logoX += lw + 4; });
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+      doc.text("Relatório de Auditoria de Processos", PW - MG, 14, { align: "right" });
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 205, 235);
+      doc.text(`${hospName} · ${sectorName}`, PW - MG, 22, { align: "right" });
+      doc.text(`${formatDate(form.periodStart)} a ${formatDate(form.periodEnd)} · ${form.auditType}`, PW - MG, 29, { align: "right" });
+      doc.text(`Emitido em: ${new Date().toLocaleDateString("pt-BR")}`, PW - MG, 36, { align: "right" });
+
+      let y = 56;
+      const addSection = (title: string) => {
+        if (y > 262) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(15, 76, 117);
+        doc.text(title, MG, y);
+        doc.setDrawColor(15, 76, 117); doc.setLineWidth(0.4); doc.line(MG, y + 1.5, PW - MG, y + 1.5);
+        y += 8;
+      };
+      const addText = (text: string, size = 9, color: [number,number,number] = [50,50,50]) => {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(text, PW - MG * 2);
+        lines.forEach((line: string) => { if (y > 278) { doc.addPage(); y = 20; } doc.text(line, MG, y); y += 5; });
+      };
+      const addKv = (label: string, value: string) => {
+        if (y > 274) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(80, 80, 80); doc.text(label + ":", MG, y);
+        doc.setFont("helvetica", "normal"); doc.setTextColor(30, 30, 30); doc.text(value, MG + 60, y); y += 6;
+      };
+
+      // ── 1. Identificação ──
+      addSection("1. Identificação");
+      addKv("Hospital/Unidade", hospName);
+      addKv("Setor avaliado", sectorName);
+      addKv("Tipo de auditoria", form.auditType);
+      addKv("Período analisado", `${formatDate(form.periodStart)} a ${formatDate(form.periodEnd)}`);
+      if (form.managerName) addKv("Gestor destinatário", form.managerName);
+      if (form.managerEmail) addKv("E-mail do gestor", form.managerEmail);
+      if (form.technicalResponsible) addKv("Responsável técnico", form.technicalResponsible);
+      y += 2;
+
+      // ── 2. Sumário executivo ──
+      addSection("2. Sumário Executivo");
+      const classCol: [number,number,number] = m.conformidadeGeral >= 95 ? [26,158,117] : m.conformidadeGeral >= 85 ? [26,117,158] : m.conformidadeGeral >= 70 ? [212,160,23] : [218,54,51];
+      doc.setFillColor(245, 245, 245); doc.rect(MG, y - 4, PW - MG * 2, 20, "F");
+      doc.setFillColor(...classCol); doc.rect(MG, y - 4, 3, 20, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.setTextColor(...classCol);
+      doc.text(`${m.conformidadeGeral}%`, MG + 10, y + 10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+      doc.text("Conformidade Geral", MG + 10, y + 16);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...classCol);
+      doc.text(m.classificacao, MG + 55, y + 6);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
+      doc.text(`${m.totalAuditorias} auditoria(s) · ${m.totalItens} itens · ${m.itensNaoConformes} não conform.`, MG + 55, y + 13);
+      doc.text(`Tendência: ${m.tendencia}`, MG + 55, y + 19);
+      y += 26;
+      if (m.baixaAmostragem) { addText("⚠ Atenção: baixa amostragem no período. Interprete os resultados com cautela.", 8.5, [180, 100, 0]); }
+
+      // ── 3. Indicadores ──
+      addSection("3. Indicadores Principais");
+      const indRows = [
+        ["Total de auditorias", String(m.totalAuditorias)], ["Total de itens", String(m.totalItens)],
+        ["Itens conformes", String(m.itensConformes)], ["Itens não conformes", String(m.itensNaoConformes)],
+        ["Conformidade geral", `${m.conformidadeGeral}%`], ["Taxa de NC", `${m.taxaNaoConformidade}%`],
+        ["Profissionais observados", String(m.totalProfissionaisObservados)], ["Auditores", String(m.totalAuditores)],
+      ];
+      indRows.forEach(([lbl, val], i) => {
+        if (y > 274) { doc.addPage(); y = 20; }
+        doc.setFillColor(i % 2 === 0 ? 250 : 244, i % 2 === 0 ? 250 : 244, i % 2 === 0 ? 250 : 244);
+        doc.rect(MG, y - 3.5, PW - MG * 2, 7, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50);
+        doc.text(lbl, MG + 3, y); doc.setFont("helvetica", "bold"); doc.text(val, PW - MG - 3, y, { align: "right" }); y += 7;
+      });
+      y += 3;
+
+      // ── 4. Conformidade por categoria ──
+      if (Object.keys(m.conformidadePorCategoria).length > 0) {
+        addSection("4. Conformidade por Categoria");
+        Object.entries(m.conformidadePorCategoria).forEach(([cat, pct], i) => {
+          if (y > 274) { doc.addPage(); y = 20; }
+          const barW = 60; const filW = barW * pct / 100;
+          const barCol: [number,number,number] = pct >= 85 ? [26,158,117] : pct >= 70 ? [212,160,23] : [218,54,51];
+          doc.setFillColor(i % 2 === 0 ? 250 : 244, i % 2 === 0 ? 250 : 244, i % 2 === 0 ? 250 : 244);
+          doc.rect(MG, y - 3, PW - MG * 2, 8, "F");
+          doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+          doc.text(cat.slice(0, 55), MG + 2, y + 1.5);
+          doc.setFillColor(220, 220, 220); doc.rect(PW - MG - barW - 20, y - 1, barW, 4, "F");
+          doc.setFillColor(...barCol); doc.rect(PW - MG - barW - 20, y - 1, filW, 4, "F");
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...barCol);
+          doc.text(`${pct}%`, PW - MG - 2, y + 1.5, { align: "right" });
+          y += 8;
+        });
+        y += 3;
+      }
+
+      // ── 5. Não conformidades ──
+      if (m.topNaoConformidades.length > 0) {
+        addSection("5. Principais Não Conformidades");
+        m.topNaoConformidades.forEach((nc, i) => {
+          if (y > 274) { doc.addPage(); y = 20; }
+          doc.setFillColor(i % 2 === 0 ? 255 : 250, i % 2 === 0 ? 248 : 244, i % 2 === 0 ? 248 : 244);
+          doc.rect(MG, y - 3.5, PW - MG * 2, 8, "F");
+          doc.setFillColor(218, 54, 51); doc.rect(MG, y - 3.5, 3, 8, "F");
+          doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50);
+          const txt = `${i + 1}. ${nc.slice(0, 90)}${nc.length > 90 ? "…" : ""}`;
+          doc.text(txt, MG + 5, y); y += 9;
+        });
+        y += 2;
+      }
+
+      // ── 6. Recomendações ──
+      addSection("6. Recomendações Técnicas");
+      const rec = m.conformidadeGeral >= 95
+        ? "Manter boas práticas e implantar vigilância contínua. Compartilhar resultados com a equipe."
+        : m.conformidadeGeral >= 85
+        ? "Realizar ajustes pontuais nas NCs identificadas. Capacitar a equipe nas categorias com menor conformidade. Reauditar em 30 dias."
+        : m.conformidadeGeral >= 70
+        ? "Implantar plano de melhoria abrangente. Aumentar frequência de auditorias. Envolver o gestor na definição de metas e prazos."
+        : "INTERVENÇÃO IMEDIATA necessária. Acionar gestão e SCIH/CCIH. Reauditar em 15 dias. Supervisão diária até atingir 70% de conformidade.";
+      addText(rec, 8.5);
+      y += 4;
+
+      // ── 7. Assinaturas ──
+      if (y > 240) { doc.addPage(); y = 20; }
+      addSection("7. Ciência e Assinatura");
+      const sigRows = [
+        ["Gestor do setor", form.managerName || "___________________________"],
+        ["SCIH/CCIH", form.technicalResponsible || "___________________________"],
+        ["Direção assistencial", "___________________________"],
+      ];
+      sigRows.forEach(([role, name]) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
+        doc.text(role + ":", MG, y);
+        doc.setFont("helvetica", "normal"); doc.text(name, MG + 50, y);
+        doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+        doc.line(MG + 50, y + 1, PW - MG, y + 1);
+        y += 11;
+      });
+
+      // ── Rodapé ──
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFillColor(245, 245, 245); doc.rect(0, PH - 8, PW, 8, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(130, 130, 130);
+        doc.text(`IRAS Control · SCIH/CCIH · ${new Date().toLocaleString("pt-BR")}`, MG, PH - 2);
+        doc.text(`Página ${p} de ${totalPages}`, PW - MG, PH - 2, { align: "right" });
+      }
+
+      doc.save(`relatorio-gestor-${sectorName.toLowerCase().replace(/\s+/g,"-")}-${form.periodEnd}.pdf`);
+    } catch (e: any) {
+      alert("Erro ao gerar PDF: " + (e?.message || "erro desconhecido"));
+    } finally {
+      setManagerReportPdfExporting(false);
+    }
+  }
+
+  async function handleSendManagerReportEmail() {
+    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const to = managerReportEmailTo.trim();
+    if (!emailRx.test(to)) { alert("Informe um e-mail válido."); return; }
+    const form = managerReportForm;
+    const sectorName = CHECKLISTS_DATA[form.sectorKey]?.nome ?? form.sectorKey;
+    const m = managerReportMetrics ?? calcManagerReportMetrics(form.sectorKey, form.auditType, form.periodStart, form.periodEnd);
+    const cc = managerReportEmailCc.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    setManagerReportEmailSending(true);
+    try {
+      const ncsSetor = appData.ncs.filter(n => n.setorKey === form.sectorKey || n.setor === sectorName);
+      const { error } = await supabase.functions.invoke("send-audit-email", {
+        body: {
+          to, cc,
+          managerName: form.managerName || "",
+          audit: {
+            typeLabel: `Relatório do Gestor — ${sectorName}`,
+            date: new Date().toLocaleDateString("pt-BR"),
+            sector: sectorName,
+            complianceRate: m.conformidadeGeral,
+            compliantItems: m.itensConformes,
+            totalItems: m.totalItens,
+            observations: managerReportMarkdown.slice(0, 3000),
+            items: ncsSetor.slice(0, 10).map(nc => ({ question: nc.pergunta, status: "non_compliant", observation: nc.obs || "" })),
+          },
+          photoPaths: [], photoCaptions: [],
+        },
+      });
+      if (error) throw error;
+      alert(`Relatório enviado para ${to}.`);
+      setShowManagerReportEmail(false);
+      setManagerReportEmailTo("");
+      setManagerReportEmailCc("");
+    } catch (e: any) {
+      alert("Erro ao enviar: " + (e?.message || "erro desconhecido"));
+    } finally {
+      setManagerReportEmailSending(false);
+    }
+  }
+
   // ─── ACTIONS ──────────────────────────────────────────────────────────────
 
   async function addCkPhotos(files: File[]) {
@@ -1288,6 +1530,24 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
               <div className="scih-kpi-lbl">{k.label}</div>
             </div>
           ))}
+        </div>
+
+        <div
+          onClick={() => openManagerReportModal()}
+          style={{ background:"linear-gradient(135deg,#0f4c75 0%,#1a9e75 100%)", border:"1px solid #1a9e75", borderRadius:"var(--r)", padding:"18px 24px", marginBottom:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", transition:"opacity .15s" }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
+          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+        >
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <span style={{ fontSize:36 }}>📋</span>
+            <div>
+              <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>Gerar Relatório do Gestor</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,.75)", marginTop:3 }}>Selecione setor e período · gere PDF ou envie por e-mail</div>
+            </div>
+          </div>
+          <div style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", borderRadius:8, padding:"8px 18px", fontSize:13, color:"#fff", fontWeight:600 }}>
+            Criar relatório →
+          </div>
         </div>
 
         <div className="scih-grid2">
@@ -2060,23 +2320,7 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
           <button
             className="scih-btn scih-btn-teal"
             style={{ flexShrink:0 }}
-            onClick={async () => {
-              setManagerReportForm(f => ({ ...f, hospitalName: hospitalName || "" }));
-              if (hospitalId) {
-                const { data } = await supabase
-                  .from("hospital_logos" as never)
-                  .select("logo_type, storage_path, display_name")
-                  .eq("hospital_id", hospitalId)
-                  .order("display_order");
-                const withUrls = (data as { logo_type: string; storage_path: string; display_name: string | null }[] | null ?? [])
-                  .map(l => ({
-                    ...l,
-                    url: supabase.storage.from("hospital-logos").getPublicUrl(l.storage_path).data.publicUrl,
-                  }));
-                setManagerReportLogos(withUrls);
-              }
-              setShowManagerReportModal(true);
-            }}
+            onClick={() => openManagerReportModal()}
           >
             📋 Gerar relatório do gestor
           </button>
@@ -2310,10 +2554,13 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
 
           <div className="scih-flex scih-mt" style={{ marginTop:20 }}>
             <button className="scih-btn scih-btn-teal" onClick={() => {
+              const metrics = calcManagerReportMetrics(managerReportForm.sectorKey, managerReportForm.auditType, managerReportForm.periodStart, managerReportForm.periodEnd);
+              setManagerReportMetrics(metrics);
               const md = buildManagerReportMarkdown(managerReportForm, managerReportLogos);
               setManagerReportMarkdown(md);
               setShowManagerReportModal(false);
               setShowManagerReportPreview(true);
+              setShowManagerReportEmail(false);
               setManagerReportCopied(false);
             }}>
               ✨ Gerar relatório
@@ -2374,25 +2621,73 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
           <div className="scih-md-preview">{managerReportMarkdown}</div>
 
           <div className="scih-flex scih-mt" style={{ flexWrap:"wrap", gap:10, marginTop:16 }}>
-            <button className="scih-btn scih-btn-teal" onClick={handleCopy}>
+            <button
+              className="scih-btn scih-btn-teal"
+              disabled={managerReportPdfExporting}
+              onClick={exportManagerReportPdf}
+              style={{ fontWeight:700 }}
+            >
+              {managerReportPdfExporting ? "⏳ Gerando PDF…" : "📄 Baixar PDF"}
+            </button>
+            <button
+              className="scih-btn scih-btn-teal"
+              onClick={() => setShowManagerReportEmail(v => !v)}
+              style={{ background:"#388bfd" }}
+            >
+              ✉️ Enviar por e-mail
+            </button>
+            <button className="scih-btn scih-btn-outline" onClick={handleCopy}>
               {managerReportCopied ? "✓ Copiado!" : "📋 Copiar Markdown"}
             </button>
             <button className="scih-btn scih-btn-outline" onClick={handleDownload}>
               ⬇️ Baixar .md
             </button>
-            <button className="scih-btn scih-btn-outline" style={{ opacity:0.5, cursor:"not-allowed" }} disabled title="Em breve">
-              📑 Preparar PDF
-            </button>
-            <button className="scih-btn scih-btn-outline" style={{ opacity:0.5, cursor:"not-allowed" }} disabled title="Em breve">
-              ✉️ Enviar por e-mail
-            </button>
             <button className="scih-btn scih-btn-outline" style={{ marginLeft:"auto" }} onClick={() => {
               setShowManagerReportPreview(false);
-              setShowManagerReportModal(true);
+              openManagerReportModal();
             }}>
               ← Editar filtros
             </button>
           </div>
+
+          {showManagerReportEmail && (
+            <div style={{ marginTop:16, background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:"var(--r)", padding:18 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:"var(--text)", marginBottom:12 }}>✉️ Enviar relatório por e-mail</div>
+              <div className="scih-report-grid" style={{ marginBottom:12 }}>
+                <div>
+                  <label className="scih-label">Para (e-mail do gestor) *</label>
+                  <input
+                    className="scih-input"
+                    type="email"
+                    value={managerReportEmailTo}
+                    onChange={e => setManagerReportEmailTo(e.target.value)}
+                    placeholder={managerReportForm.managerEmail || "gestor@hospital.com"}
+                  />
+                </div>
+                <div>
+                  <label className="scih-label">Cópia (CC) — separar por vírgula</label>
+                  <input
+                    className="scih-input"
+                    value={managerReportEmailCc}
+                    onChange={e => setManagerReportEmailCc(e.target.value)}
+                    placeholder="scih@hospital.com, direcao@hospital.com"
+                  />
+                </div>
+              </div>
+              <div className="scih-flex">
+                <button
+                  className="scih-btn scih-btn-teal"
+                  disabled={managerReportEmailSending}
+                  onClick={handleSendManagerReportEmail}
+                >
+                  {managerReportEmailSending ? "⏳ Enviando…" : "✉️ Enviar agora"}
+                </button>
+                <button className="scih-btn scih-btn-outline" onClick={() => setShowManagerReportEmail(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
