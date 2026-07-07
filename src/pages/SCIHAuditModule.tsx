@@ -365,6 +365,7 @@ export default function SCIHAuditModule() {
   const [showManagerReportPreview, setShowManagerReportPreview] = useState(false);
   const [managerReportCopied, setManagerReportCopied] = useState(false);
   const [managerReportMarkdown, setManagerReportMarkdown] = useState("");
+  const [managerReportLogos, setManagerReportLogos] = useState<{ url: string; logo_type: string; display_name: string | null }[]>([]);
   const [managerReportForm, setManagerReportForm] = useState({
     hospitalName: "",
     sectorKey: "scih",
@@ -658,7 +659,7 @@ Regras:
     };
   }
 
-  function buildManagerReportMarkdown(form: typeof managerReportForm): string {
+  function buildManagerReportMarkdown(form: typeof managerReportForm, logos: typeof managerReportLogos = []): string {
     const sectorName = CHECKLISTS_DATA[form.sectorKey]?.nome ?? form.sectorKey;
     const m = calcManagerReportMetrics(form.sectorKey, form.auditType, form.periodStart, form.periodEnd);
     const hospName = form.hospitalName || hospitalName || "Hospital/Unidade";
@@ -761,7 +762,16 @@ Regras:
       .map(([cat, val]) => `| ${cat.slice(0,50)} | ${val}% |`)
       .join("\n") || "| — | — |";
 
-    return `# Relatório de Auditoria de Processos
+    const hospitalLogo = logos.find(l => l.logo_type === "hospital");
+    const scihLogo = logos.find(l => l.logo_type === "scih");
+    const logoSection = (hospitalLogo || scihLogo)
+      ? [
+          hospitalLogo ? `![${hospitalLogo.display_name || "Logo Hospital"}](${hospitalLogo.url})` : "",
+          scihLogo ? `![${scihLogo.display_name || "Logo SCIH/CCIH"}](${scihLogo.url})` : "",
+        ].filter(Boolean).join("  \n") + "\n\n---\n\n"
+      : "";
+
+    return `${logoSection}# Relatório de Auditoria de Processos
 
 ## 1. Identificação
 
@@ -2050,8 +2060,21 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
           <button
             className="scih-btn scih-btn-teal"
             style={{ flexShrink:0 }}
-            onClick={() => {
+            onClick={async () => {
               setManagerReportForm(f => ({ ...f, hospitalName: hospitalName || "" }));
+              if (hospitalId) {
+                const { data } = await supabase
+                  .from("hospital_logos" as never)
+                  .select("logo_type, storage_path, display_name")
+                  .eq("hospital_id", hospitalId)
+                  .order("display_order");
+                const withUrls = (data as { logo_type: string; storage_path: string; display_name: string | null }[] | null ?? [])
+                  .map(l => ({
+                    ...l,
+                    url: supabase.storage.from("hospital-logos").getPublicUrl(l.storage_path).data.publicUrl,
+                  }));
+                setManagerReportLogos(withUrls);
+              }
               setShowManagerReportModal(true);
             }}
           >
@@ -2287,7 +2310,7 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
 
           <div className="scih-flex scih-mt" style={{ marginTop:20 }}>
             <button className="scih-btn scih-btn-teal" onClick={() => {
-              const md = buildManagerReportMarkdown(managerReportForm);
+              const md = buildManagerReportMarkdown(managerReportForm, managerReportLogos);
               setManagerReportMarkdown(md);
               setShowManagerReportModal(false);
               setShowManagerReportPreview(true);
@@ -2327,11 +2350,19 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
       <div className="scih-modal-overlay" onClick={() => setShowManagerReportPreview(false)}>
         <div className="scih-modal-xl" style={{ width:900 }} onClick={e => e.stopPropagation()}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-            <div>
-              <div className="scih-modal-title" style={{ margin:0 }}>📄 Relatório do Gestor — {sectorName}</div>
-              <div style={{ fontSize:12, color:"var(--text2)", marginTop:4 }}>
-                {managerReportForm.periodStart} a {managerReportForm.periodEnd}
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              {managerReportLogos.filter(l => l.logo_type === "hospital").map((l, i) => (
+                <img key={i} src={l.url} alt={l.display_name || "Logo"} style={{ height:48, objectFit:"contain", borderRadius:4 }} />
+              ))}
+              <div>
+                <div className="scih-modal-title" style={{ margin:0 }}>📄 Relatório do Gestor — {sectorName}</div>
+                <div style={{ fontSize:12, color:"var(--text2)", marginTop:4 }}>
+                  {managerReportForm.periodStart} a {managerReportForm.periodEnd}
+                </div>
               </div>
+              {managerReportLogos.filter(l => l.logo_type === "scih").map((l, i) => (
+                <img key={i} src={l.url} alt={l.display_name || "SCIH"} style={{ height:40, objectFit:"contain", borderRadius:4 }} />
+              ))}
             </div>
             <button className="scih-btn scih-btn-outline" style={{ fontSize:11 }} onClick={() => setShowManagerReportPreview(false)}>✕ Fechar</button>
           </div>
