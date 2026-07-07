@@ -23,7 +23,7 @@ import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
-import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
+import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 
 // ─── Ishikawa Diagram ─────────────────────────────────────────────────────────
 

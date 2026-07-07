@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
+import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 import ChartActions from "@/components/ChartActions";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

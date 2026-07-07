@@ -30,8 +30,6 @@ import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerR
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
-import AuditManagerReportButton from "@/modules/audits/reports/AuditManagerReportButton";
-
 // ─── Constants ────────────────────────────────────────────────
 const CHECKLIST_GROUPS = [
   {
