@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Copy, Download, FileText, ArrowLeft, Mail, Eye, Edit2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+import irasControlLogo from "@/assets/iras-control-logo.png";
 
 import type { AuditReportMode, AuditManagerReportMetrics, MonthlySectorCompiledAuditMetrics } from "./auditReportTypes";
 import { fetchAuditsForReport, fetchHospitalLogos, generateAIReportSections } from "./auditReportService";
@@ -250,6 +251,7 @@ export function AuditManagerReportModal({
   const [generatedMetrics, setGeneratedMetrics] = useState<AuditManagerReportMetrics | MonthlySectorCompiledAuditMetrics | null>(null);
   const [generatedMode, setGeneratedMode] = useState<AuditReportMode>("single_audit_type");
   const [generatedHospitalLogoUrl, setGeneratedHospitalLogoUrl] = useState<string | undefined>();
+  const [generatedScihLogoUrl, setGeneratedScihLogoUrl] = useState<string | undefined>();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [renderedHtml, setRenderedHtml] = useState("");
 
@@ -361,6 +363,7 @@ export function AuditManagerReportModal({
       setGeneratedMetrics(metrics as any);
       setGeneratedMode(mode);
       setGeneratedHospitalLogoUrl(hospLogo?.url);
+      setGeneratedScihLogoUrl(scihLogo?.url);
       setPreviewTab("rendered");
       setStep("preview");
     } catch (err: any) {
