@@ -144,26 +144,31 @@ async function generateCombinedPdf(notifIds: string[], hospitalId?: string) {
   }
 
   function addLine(text: string, size = 10, bold = false, color: [number,number,number] = [30,30,30]) {
-    checkY(size * 0.5 + 3);
     pdf.setFontSize(size);
+    const lines = pdf.splitTextToSize(text, contentW) as string[];
+    const lineH = size * 0.45 + 0.5;
+    checkY(lines.length * lineH + 2);
     pdf.setFont("helvetica", bold ? "bold" : "normal");
     pdf.setTextColor(...color);
-    const lines = pdf.splitTextToSize(text, contentW) as string[];
     pdf.text(lines, margin, y);
-    y += lines.length * (size * 0.4) + 2;
+    y += lines.length * lineH + 2;
   }
 
   function addKV(label: string, value: string) {
-    checkY(7);
+    const LINE_H = 4.5;
+    const LABEL_COL = 52;
     pdf.setFontSize(8);
+    const labelLines = pdf.splitTextToSize(`${label}:`, LABEL_COL - 2) as string[];
+    const valLines = pdf.splitTextToSize(value, contentW - LABEL_COL) as string[];
+    const needed = Math.max(labelLines.length, valLines.length) * LINE_H + 2;
+    checkY(needed);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(80, 80, 80);
-    pdf.text(`${label}:`, margin, y);
+    pdf.text(labelLines, margin, y);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(30, 30, 30);
-    const val = pdf.splitTextToSize(value, contentW - 40) as string[];
-    pdf.text(val, margin + 40, y);
-    y += Math.max(val.length * 4, 5) + 1;
+    pdf.text(valLines, margin + LABEL_COL, y);
+    y += needed;
   }
 
   function addHRule(color: [number,number,number] = [200,200,200]) {
@@ -344,7 +349,7 @@ export default function NotificacoesHistory() {
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMes, setFilterMes] = useState("all");
-  const [filterAno, setFilterAno] = useState<string>(String(new Date().getFullYear()));
+  const [filterAno, setFilterAno] = useState<string>("all");
 
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -478,14 +483,15 @@ export default function NotificacoesHistory() {
     });
   }
 
-  const currentYear = new Date().getFullYear();
-  const anoOptions = Array.from({ length: 5 }, (_, i) => String(currentYear - 2 + i));
+  const anoOptions = ["all", ...Array.from(
+    new Set(notifications.map(n => String(n.ano_vigilancia))),
+  ).sort((a, b) => Number(b) - Number(a))];
 
   const filtered = notifications.filter(n => {
     if (filterType !== "all" && n.type_id !== filterType) return false;
     if (filterStatus !== "all" && n.status !== filterStatus) return false;
     if (filterMes !== "all" && n.mes_vigilancia !== filterMes) return false;
-    if (filterAno && n.ano_vigilancia !== Number(filterAno)) return false;
+    if (filterAno !== "all" && n.ano_vigilancia !== Number(filterAno)) return false;
     if (search) {
       const s = search.toLowerCase();
       return (
@@ -575,9 +581,11 @@ export default function NotificacoesHistory() {
           </SelectContent>
         </Select>
         <Select value={filterAno} onValueChange={setFilterAno}>
-          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {anoOptions.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            {anoOptions.map(a => (
+              <SelectItem key={a} value={a}>{a === "all" ? "Todos os anos" : a}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
