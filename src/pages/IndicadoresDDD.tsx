@@ -29,7 +29,6 @@ const unidadesPacienteDia = [
   "UTI 1 Adulto",
   "UTI 2 Adulto",
   "UTI 3 Adulto",
-  "UTI Neonatal",
   "UTI Pediátrica",
   "UPO",
   "Trauma Clínico",
@@ -115,18 +114,20 @@ export default function IndicadoresDDD() {
 
   const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.ano_vigilancia)))].sort(), [registrosSalvos]);
 
+  const [setoresSelecionados, setSetoresSelecionados] = useState<string[]>([]);
+
   const [pacienteDia, setPacienteDia] = useState<Record<string, number>>(
     Object.fromEntries(unidadesPacienteDia.map(u => [u, 0]))
   );
 
+  const setoresFiltrados = setoresSelecionados.length > 0
+    ? unidadesPacienteDia.filter(u => setoresSelecionados.includes(u))
+    : [];
+
   const compiladoUTIs = useMemo(() => {
-    return (pacienteDia["UTI 1 Adulto"] || 0) +
-      (pacienteDia["UTI 2 Adulto"] || 0) +
-      (pacienteDia["UTI 3 Adulto"] || 0) +
-      (pacienteDia["UTI Neonatal"] || 0) +
-      (pacienteDia["UTI Pediátrica"] || 0) +
-      (pacienteDia["UPO"] || 0);
-  }, [pacienteDia]);
+    const setores = setoresSelecionados.length > 0 ? setoresSelecionados : unidadesPacienteDia;
+    return setores.reduce((sum, s) => sum + (pacienteDia[s] || 0), 0);
+  }, [pacienteDia, setoresSelecionados]);
 
   const [quantidades, setQuantidades] = useState<Record<number, number>>(
     Object.fromEntries(antimicrobianosBase.map(a => [a.id, 0]))
@@ -165,6 +166,10 @@ export default function IndicadoresDDD() {
   const handleSave = async () => {
     if (!profissional || !dataVigilancia || !mesVigilancia) {
       toast.error("Preencha todos os campos obrigatórios da identificação.");
+      return;
+    }
+    if (setoresSelecionados.length === 0) {
+      toast.error("Selecione ao menos um setor para lançamento.");
       return;
     }
     if (!hospitalId) {
@@ -277,7 +282,10 @@ export default function IndicadoresDDD() {
     setDataVigilancia(reg.data_vigilancia);
     setMesVigilancia(reg.mes_vigilancia);
     setAnoVigilancia(reg.ano_vigilancia);
-    setPacienteDia((reg.paciente_dia || {}) as Record<string, number>);
+    const pd = (reg.paciente_dia || {}) as Record<string, number>;
+    setPacienteDia(pd);
+    const setoresSalvos = unidadesPacienteDia.filter(u => (pd[u] ?? 0) > 0);
+    setSetoresSelecionados(setoresSalvos);
     const newQtd: Record<number, number> = {};
     for (const linha of (reg.ddd_record_lines || [])) {
       newQtd[linha.antimicrobiano_id] = linha.quantidade;
@@ -330,6 +338,7 @@ export default function IndicadoresDDD() {
     setDataVigilancia("");
     setMesVigilancia("");
     setAnoVigilancia(new Date().getFullYear());
+    setSetoresSelecionados([]);
     setPacienteDia(Object.fromEntries(unidadesPacienteDia.map(u => [u, 0])));
     setQuantidades(Object.fromEntries(antimicrobianosBase.map(a => [a.id, 0])));
   };
@@ -529,42 +538,69 @@ export default function IndicadoresDDD() {
       {/* Identificação */}
       <Card>
         <CardHeader className="pb-4"><CardTitle className="text-base md:text-lg">Identificação</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1.5">
-            <Label>Nome do Profissional *</Label>
-            <Input value={profissional} onChange={e => setProfissional(e.target.value)} placeholder="Nome completo" />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label>Nome do Profissional *</Label>
+              <Input value={profissional} onChange={e => setProfissional(e.target.value)} placeholder="Nome completo" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data da Vigilância *</Label>
+              <Input type="date" value={dataVigilancia} onChange={e => setDataVigilancia(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mês da Vigilância *</Label>
+              <Select value={mesVigilancia} onValueChange={setMesVigilancia}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{meses.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ano da Vigilância *</Label>
+              <Input type="number" min={2020} max={2030} value={anoVigilancia} onChange={e => setAnoVigilancia(parseInt(e.target.value) || 2025)} />
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Data da Vigilância *</Label>
-            <Input type="date" value={dataVigilancia} onChange={e => setDataVigilancia(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Mês da Vigilância *</Label>
-            <Select value={mesVigilancia} onValueChange={setMesVigilancia}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{meses.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Ano da Vigilância *</Label>
-            <Input type="number" min={2020} max={2030} value={anoVigilancia} onChange={e => setAnoVigilancia(parseInt(e.target.value) || 2025)} />
+            <Label>Setores para lançamento *</Label>
+            <MultiSelectFilter
+              label="Selecione os setores"
+              selected={setoresSelecionados}
+              onChange={setSetoresSelecionados}
+              options={unidadesPacienteDia.map(u => ({ value: u, label: u }))}
+            />
+            {setoresSelecionados.length === 0 && (
+              <p className="text-xs text-muted-foreground">Selecione ao menos um setor para habilitar o lançamento de paciente-dia.</p>
+            )}
+            {setoresSelecionados.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {setoresSelecionados.map(s => (
+                  <Badge key={s} variant="secondary" className="text-xs gap-1">
+                    {s}
+                    <button onClick={() => setSetoresSelecionados(prev => prev.filter(x => x !== s))} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Paciente-dia */}
+      {setoresFiltrados.length > 0 && (
       <Card>
         <CardHeader className="pb-4"><CardTitle className="text-base md:text-lg">Paciente-dia por Unidade</CardTitle></CardHeader>
         <CardContent>
           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-            {unidadesPacienteDia.map(u => (
+            {setoresFiltrados.map(u => (
               <div key={u} className="space-y-1.5">
                 <Label className="text-xs leading-tight">{u}</Label>
                 <Input type="number" min={0} value={pacienteDia[u] || ""} onChange={e => handlePacienteDiaChange(u, e.target.value)} placeholder="0" />
               </div>
             ))}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-primary leading-tight">Compilado UTIs</Label>
+              <Label className="text-xs font-semibold text-primary leading-tight">Compilado Setores</Label>
               <div className="flex h-10 items-center rounded-md border bg-muted px-3 font-mono text-sm font-bold text-primary">
                 <Calculator className="mr-2 h-4 w-4 shrink-0" />
                 {compiladoUTIs}
@@ -573,6 +609,7 @@ export default function IndicadoresDDD() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Desktop: Table */}
       <div className="hidden lg:block">
