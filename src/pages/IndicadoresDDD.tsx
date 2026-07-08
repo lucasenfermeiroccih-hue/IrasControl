@@ -99,6 +99,10 @@ export default function IndicadoresDDD() {
     if (showHistory) fetchHistory();
   }, [showHistory, fetchHistory]);
 
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
   const filteredRegistros = useMemo(() => {
     return registrosSalvos.filter(reg => {
       if (filtroMes.length > 0 && !filtroMes.includes(reg.mes_vigilancia)) return false;
