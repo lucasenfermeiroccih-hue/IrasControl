@@ -109,12 +109,23 @@ function parseDate(dateStr: string): Date | null {
   return null;
 }
 
-function daysFromDate(dateStr: string) {
+function daysFromDate(dateStr: string, endDateStr?: string) {
   const d = parseDate(dateStr);
   if (!d) return 0;
-  const now = new Date();
-  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.max(0, Math.floor((todayUTC - d.getTime()) / 86400000));
+  let endUTC: number;
+  if (endDateStr) {
+    const endDate = parseDate(endDateStr);
+    if (endDate) {
+      endUTC = endDate.getTime();
+    } else {
+      const now = new Date();
+      endUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+  } else {
+    const now = new Date();
+    endUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  return Math.max(0, Math.floor((endUTC - d.getTime()) / 86400000));
 }
 
 function calcAge(birth: string) {
@@ -332,11 +343,11 @@ export default function PatientsMonitoring() {
     arr.sort((a, b) => {
       let va: any, vb: any;
       if (sortKey === "diasInt") {
-        va = daysFromDate(a.dataInternacaoHospitalar);
-        vb = daysFromDate(b.dataInternacaoHospitalar);
+        va = daysFromDate(a.dataInternacaoHospitalar, a.status !== "active" ? a.dataAlta : undefined);
+        vb = daysFromDate(b.dataInternacaoHospitalar, b.status !== "active" ? b.dataAlta : undefined);
       } else if (sortKey === "diasCti") {
-        va = a.dataInternacaoCTI ? daysFromDate(a.dataInternacaoCTI) : -1;
-        vb = b.dataInternacaoCTI ? daysFromDate(b.dataInternacaoCTI) : -1;
+        va = a.dataInternacaoCTI ? daysFromDate(a.dataInternacaoCTI, a.status !== "active" ? a.dataAlta : undefined) : -1;
+        vb = b.dataInternacaoCTI ? daysFromDate(b.dataInternacaoCTI, b.status !== "active" ? b.dataAlta : undefined) : -1;
       } else {
         va = String((a as any)[sortKey] ?? "");
         vb = String((b as any)[sortKey] ?? "");
@@ -556,8 +567,9 @@ export default function PatientsMonitoring() {
 
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
-    const diasInternacao = daysFromDate(selected.dataInternacaoHospitalar);
-    const diasCTI = selected.dataInternacaoCTI ? daysFromDate(selected.dataInternacaoCTI) : null;
+    const selectedEndDate = selected.status !== "active" ? selected.dataAlta : undefined;
+    const diasInternacao = daysFromDate(selected.dataInternacaoHospitalar, selectedEndDate);
+    const diasCTI = selected.dataInternacaoCTI ? daysFromDate(selected.dataInternacaoCTI, selectedEndDate) : null;
     return (
       <div className="pb-24">
         {/* ─── Sticky Patient Header ─────────────────────── */}
@@ -1817,8 +1829,9 @@ export default function PatientsMonitoring() {
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
                 )}
                 {filtered.map(p => {
-                  const dias = daysFromDate(p.dataInternacaoHospitalar);
-                  const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
+                  const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
+                  const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
+                  const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
                   return (
                     <TableRow key={p.id}>
                       <TableCell>
@@ -1879,8 +1892,9 @@ export default function PatientsMonitoring() {
           <div className="md:hidden space-y-2 p-3">
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum paciente.</p>}
             {filtered.map(p => {
-              const dias = daysFromDate(p.dataInternacaoHospitalar);
-              const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI) : null;
+              const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
+              const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
+              const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
               return (
                 <div key={p.id} className="border border-border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -2227,9 +2241,9 @@ export default function PatientsMonitoring() {
                     <Field label="Origem" value={viewPatient.origem} />
                     <Field label="Admissão" value={viewPatient.dataAdmissao} />
                     <Field label="Int. Hospitalar" value={viewPatient.dataInternacaoHospitalar} />
-                    <Field label="Dias Internação" value={`${daysFromDate(viewPatient.dataInternacaoHospitalar)} dias`} />
+                    <Field label="Dias Internação" value={`${daysFromDate(viewPatient.dataInternacaoHospitalar, viewPatient.status !== "active" ? viewPatient.dataAlta : undefined)} dias`} />
                     <Field label="Int. CTI" value={viewPatient.dataInternacaoCTI || "—"} />
-                    <Field label="Dias CTI" value={viewPatient.dataInternacaoCTI ? `${daysFromDate(viewPatient.dataInternacaoCTI)} dias` : "—"} />
+                    <Field label="Dias CTI" value={viewPatient.dataInternacaoCTI ? `${daysFromDate(viewPatient.dataInternacaoCTI, viewPatient.status !== "active" ? viewPatient.dataAlta : undefined)} dias` : "—"} />
                     <Field label="Especialidade" value={viewPatient.especialidade} />
                     <Field label="Diagnóstico" value={viewPatient.diagnostico} className="sm:col-span-2" />
                     <Field label="Doenças de base" value={viewPatient.doencasBase} className="sm:col-span-2" />
