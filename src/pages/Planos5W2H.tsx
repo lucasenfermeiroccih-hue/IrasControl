@@ -24,6 +24,7 @@ import {
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -345,12 +346,22 @@ export default function Planos5W2H() {
     toast.success("CSV exportado!");
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(16);
-    doc.text("CCIH — Relatório de Ações 5W2H", 14, 16);
-    doc.setFontSize(10);
-    doc.text(`Emitido em: ${new Date().toLocaleString("pt-BR")}   |   Total: ${reportFiltered.length} ações`, 14, 23);
+    const PW = doc.internal.pageSize.getWidth();
+    const HEADER_H = 18;
+    doc.setFillColor(30, 90, 140);
+    doc.rect(0, 0, PW, HEADER_H + 4, "F");
+    renderPdfLogos(doc, logos, { x: 14, y: 2, h: HEADER_H, pageW: PW });
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text("CCIH — Relatório de Ações 5W2H", PW / 2, 12, { align: "center" });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Emitido em: ${new Date().toLocaleString("pt-BR")}   |   Total: ${reportFiltered.length} ações`, PW / 2, 19, { align: "center" });
+    doc.setTextColor(0, 0, 0);
     let y = 32;
     const cols = [10, 55, 80, 105, 125, 155, 180, 210, 240];
     const headers = ["O quê?", "Por quê?", "Setor", "Responsável", "Prazo", "Como?", "Custo", "Infecção", "Status"];

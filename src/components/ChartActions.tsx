@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { Image, FileDown, Target, Maximize2, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 interface MetaField {
   key: string;
@@ -24,9 +26,12 @@ interface ChartActionsProps {
   metaUnit?: string;
   /** Optional: define multiple metas (e.g. one per device). When provided, overrides single metaValue/onMetaChange. */
   metaFields?: MetaField[];
+  hospitalId?: string;
 }
 
-export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaChange, metaUnit = "", metaFields }: ChartActionsProps) {
+export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaChange, metaUnit = "", metaFields, hospitalId: hospitalIdProp }: ChartActionsProps) {
+  const { hospitalId: ctxHospitalId } = useHospitalContext();
+  const hospitalId = hospitalIdProp ?? ctxHospitalId;
   const multi = metaFields && metaFields.length > 0;
   const hasAnyMeta = multi
     ? metaFields!.some(f => f.value !== undefined)
@@ -60,11 +65,18 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
       const ratio = canvas.height / canvas.width;
       const imgW = usableW;
       const imgH = imgW * ratio;
+
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const LOGO_H = 12;
+      const hasLogos = logos.hospitalLogo || logos.scihLogos.length > 0;
+      if (hasLogos) renderPdfLogos(pdf, logos, { x: margin, y: margin, h: LOGO_H, pageW });
+
+      const headerTop = hasLogos ? margin + LOGO_H + 2 : margin;
       pdf.setFontSize(12);
-      pdf.text(chartTitle, margin, margin + 5);
+      pdf.text(chartTitle, margin, headerTop + 5);
       pdf.setFontSize(8);
-      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, margin + 10);
-      pdf.addImage(imgData, "PNG", margin, margin + 14, imgW, imgH);
+      pdf.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, margin, headerTop + 10);
+      pdf.addImage(imgData, "PNG", margin, headerTop + 14, imgW, imgH);
       pdf.save(`${chartTitle.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
     } catch (e) {
       console.error("Erro ao exportar PDF:", e);

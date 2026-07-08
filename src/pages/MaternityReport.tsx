@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Baby, Download, Loader2, FileText } from "lucide-react";
 import jsPDF from "jspdf";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { loadHospitalLogos, renderPdfLogos, type PdfLogo } from "@/lib/pdfLogoUtils";
 import { getMaternityRecord } from "@/lib/maternity-service";
 import { calculateMaternityIndicators, getMaternityAlerts } from "@/lib/maternity-indicators";
 import type { MaternityMonthlyRecord } from "@/lib/maternity-types";
@@ -24,7 +25,11 @@ function fmtDays(value: number | null) {
   return value === null ? "Sem dado" : `${value} dias`;
 }
 
-function generatePdf(record: MaternityMonthlyRecord, hospitalName: string) {
+async function generatePdf(
+  record: MaternityMonthlyRecord,
+  hospitalName: string,
+  logos: { hospitalLogo: PdfLogo | null; scihLogos: PdfLogo[] }
+) {
   const doc = new jsPDF();
   const indicators = calculateMaternityIndicators(record);
   const alerts = getMaternityAlerts(indicators);
@@ -34,13 +39,14 @@ function generatePdf(record: MaternityMonthlyRecord, hospitalName: string) {
   // Cabeçalho
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageW, 30, "F");
+  renderPdfLogos(doc, logos, { x: 14, y: 4, h: 20, pageW });
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("IRAS Control — Relatório de Indicadores da Maternidade", 14, 13);
+  doc.text("IRAS Control — Relatório de Indicadores da Maternidade", pageW / 2, 13, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`Hospital: ${hospitalName}    Período: ${period}    Status: ${record.status}`, 14, 23);
+  doc.text(`Hospital: ${hospitalName}    Período: ${period}    Status: ${record.status}`, pageW / 2, 23, { align: "center" });
 
   doc.setTextColor(0, 0, 0);
   let y = 40;

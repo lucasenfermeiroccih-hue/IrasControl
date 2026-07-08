@@ -25,6 +25,7 @@ import {
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -261,14 +262,18 @@ export default function Maternidade() {
 
   // ── PDF ─────────────────────────────────────────────────────────────────────
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
     const doc = new jsPDF({ orientation: "landscape" });
+    const PW = doc.internal.pageSize.getWidth();
     const today = new Date().toLocaleDateString("pt-BR");
-    doc.setFillColor(30, 80, 140); doc.rect(0, 0, 297, 18, "F");
-    doc.setTextColor(255,255,255); doc.setFontSize(14);
-    doc.text("MÓDULO MATERNIDADE — IRASControl", 14, 12);
-    doc.setFontSize(9); doc.text(`${hospitalName}   |   ${today}`, 280, 12, { align: "right" });
-    doc.setTextColor(0,0,0); let y = 28;
+    doc.setFillColor(30, 80, 140); doc.rect(0, 0, PW, 22, "F");
+    renderPdfLogos(doc, logos, { x: 14, y: 3, h: 16, pageW: PW });
+    doc.setTextColor(255,255,255); doc.setFontSize(13); doc.setFont("helvetica", "bold");
+    doc.text("MÓDULO MATERNIDADE — IRASControl", PW / 2, 11, { align: "center" });
+    doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    doc.text(`${hospitalName}   |   ${today}`, PW / 2, 18, { align: "center" });
+    doc.setTextColor(0,0,0); let y = 30;
 
     // Partos
     doc.setFontSize(11); doc.text("Partos por Período", 14, y); y += 7;

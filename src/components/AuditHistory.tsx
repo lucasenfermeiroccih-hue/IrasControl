@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -294,11 +295,17 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
       const ratio = canvas.height / canvas.width;
       const imgH = usableW * ratio;
 
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const LOGO_H = 14;
+      const hasLogos = logos.hospitalLogo || logos.scihLogos.length > 0;
+      if (hasLogos) renderPdfLogos(pdf, logos, { x: margin, y: margin, h: LOGO_H, pageW });
+
+      const headerTop = hasLogos ? margin + LOGO_H + 3 : margin;
       pdf.setFontSize(12);
-      pdf.text(`Auditoria - ${auditType}`, margin, margin + 5);
+      pdf.text(`Auditoria - ${auditType}`, margin, headerTop + 5);
       pdf.setFontSize(9);
-      pdf.text(`Data: ${record.audit_date} | Setor: ${record.sector || "—"}`, margin, margin + 11);
-      pdf.addImage(imgData, "PNG", margin, margin + 16, usableW, Math.min(imgH, 260));
+      pdf.text(`Data: ${record.audit_date} | Setor: ${record.sector || "—"}`, margin, headerTop + 11);
+      pdf.addImage(imgData, "PNG", margin, headerTop + 16, usableW, Math.min(imgH, 260 - (hasLogos ? LOGO_H + 3 : 0)));
 
       // Anexar fotos da auditoria (baixadas via storage para evitar CORS no canvas)
       if (record.photo_urls && record.photo_urls.length > 0) {

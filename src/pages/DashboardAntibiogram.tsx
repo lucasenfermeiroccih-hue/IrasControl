@@ -32,6 +32,7 @@ import DashboardAnalysisTabs, { AnalysisConfig } from "@/components/DashboardAna
 import InfectologistInsightsPanel from "@/components/InfectologistInsightsPanel";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 const CHART_COLORS = [
   "hsl(168,66%,34%)", "hsl(199,89%,48%)", "hsl(38,92%,50%)",
@@ -43,7 +44,7 @@ const SIR_COLORS: Record<string, string> = { S: "hsl(142,71%,35%)", I: "hsl(38,9
 
 export default function DashboardAntibiogram() {
   const navigate = useNavigate();
-  const { data: allData, loading: dataLoading, refresh } = useAntibiogramDashboard();
+  const { data: allData, loading: dataLoading, refresh, hospitalId } = useAntibiogramDashboard();
 
   const [filtroSetor, setFiltroSetor] = useState<string[]>([]);
   const [filtroSite, setFiltroSite] = useState<string[]>([]);
@@ -300,11 +301,22 @@ export default function DashboardAntibiogram() {
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
+
+    const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+    const LOGO_H = 16;
+    const hasLogos = logos.hospitalLogo || logos.scihLogos.length > 0;
+    const logoOffset = hasLogos ? LOGO_H + 4 : 0;
+    if (hasLogos) {
+      renderPdfLogos(pdf, logos, { x: 14, y: 4, h: LOGO_H, pageW: pdfW });
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(14, LOGO_H + 6, pdfW - 14, LOGO_H + 6);
+    }
+
     const imgH = (canvas.height * pdfW) / canvas.width;
     let heightLeft = imgH;
-    let position = 0;
+    let position = logoOffset;
     pdf.addImage(imgData, "PNG", 0, position, pdfW, imgH);
-    heightLeft -= pdfH;
+    heightLeft -= (pdfH - logoOffset);
     while (heightLeft > 0) {
       position = heightLeft - imgH;
       pdf.addPage();
@@ -458,12 +470,23 @@ export default function DashboardAntibiogram() {
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
+
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const LOGO_H = 16;
+      const hasLogos = logos.hospitalLogo || logos.scihLogos.length > 0;
+      const logoOffset = hasLogos ? LOGO_H + 4 : 0;
+      if (hasLogos) {
+        renderPdfLogos(pdf, logos, { x: 14, y: 4, h: LOGO_H, pageW: pdfW });
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(14, LOGO_H + 6, pdfW - 14, LOGO_H + 6);
+      }
+
       const imgW = pdfW;
       const imgH = (canvas.height * pdfW) / canvas.width;
       let heightLeft = imgH;
-      let position = 0;
+      let position = logoOffset;
       pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
-      heightLeft -= pdfH;
+      heightLeft -= (pdfH - logoOffset);
       while (heightLeft > 0) {
         position = heightLeft - imgH;
         pdf.addPage();

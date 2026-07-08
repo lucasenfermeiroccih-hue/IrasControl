@@ -317,13 +317,14 @@ export default function ReunioesMeetingsModule() {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!editingMeeting) return;
-    generateMeetingMinutesPdf({
+    await generateMeetingMinutesPdf({
       meeting: editingMeeting,
       participants,
       actionItems,
       hospitalName: hospitalName || 'Hospital',
+      hospitalId: hospitalId || undefined,
       pendingItems: editingMeeting.previous_pending_items || undefined,
     });
     toast.success('PDF gerado!');
@@ -852,7 +853,7 @@ export default function ReunioesMeetingsModule() {
                           onClick={async () => {
                             const parts = await listParticipants(m.id!).catch(() => []);
                             const acts = await listAllActionItems(hospitalId!).then(a => a.filter(x => x.meeting_id === m.id)).catch(() => []);
-                            generateMeetingMinutesPdf({ meeting: m, participants: parts, actionItems: acts, hospitalName: hospitalName || 'Hospital' });
+                            await generateMeetingMinutesPdf({ meeting: m, participants: parts, actionItems: acts, hospitalName: hospitalName || 'Hospital', hospitalId: hospitalId || undefined });
                             toast.success('PDF gerado!');
                           }}
                         >

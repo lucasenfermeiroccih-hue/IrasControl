@@ -1,11 +1,13 @@
 import { jsPDF } from 'jspdf';
 import type { Meeting, MeetingParticipant, MeetingActionItem } from './types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PdfParams {
   meeting: Meeting;
   participants: MeetingParticipant[];
   actionItems: MeetingActionItem[];
   hospitalName: string;
+  hospitalId?: string;
   pendingItems?: string;
 }
 
@@ -118,8 +120,57 @@ function fmt(date?: string | null): string {
   }
 }
 
-export function generateMeetingMinutesPdf(params: PdfParams): void {
-  const { meeting, participants, actionItems, hospitalName, pendingItems } = params;
+async function loadHospitalLogosForPdf(hospitalId?: string): Promise<{
+  hospitalLogo: { dataUrl: string; w: number; h: number } | null;
+  scihLogos: Array<{ dataUrl: string; w: number; h: number }>;
+}> {
+  if (!hospitalId) return { hospitalLogo: null, scihLogos: [] };
+  try {
+    const { data: logos } = await supabase
+      .from('hospital_logos' as never)
+      .select('logo_type, storage_path, display_order')
+      .eq('hospital_id', hospitalId)
+      .order('display_order');
+    if (!(logos as any[])?.length) return { hospitalLogo: null, scihLogos: [] };
+    const getUrl = (path: string) =>
+      supabase.storage.from('hospital-logos').getPublicUrl(path).data.publicUrl;
+    const loadImg = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result as string);
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        });
+        const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+        return { dataUrl, w: dims.w, h: dims.h };
+      } catch { return null; }
+    };
+    const ls = logos as any[];
+    const hospitalRec = ls.find((l: any) => l.logo_type === 'hospital');
+    const scihRecs = ls.filter((l: any) => l.logo_type === 'scih');
+    const [hospitalLogo, ...scihResults] = await Promise.all([
+      hospitalRec ? loadImg(getUrl(hospitalRec.storage_path)) : Promise.resolve(null),
+      ...scihRecs.map((r: any) => loadImg(getUrl(r.storage_path))),
+    ]);
+    return {
+      hospitalLogo,
+      scihLogos: (scihResults as any[]).filter((l): l is { dataUrl: string; w: number; h: number } => l !== null),
+    };
+  } catch { return { hospitalLogo: null, scihLogos: [] }; }
+}
+
+export async function generateMeetingMinutesPdf(params: PdfParams): Promise<void> {
+  const { meeting, participants, actionItems, hospitalName, pendingItems, hospitalId } = params;
+  const { hospitalLogo, scihLogos } = await loadHospitalLogosForPdf(hospitalId);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   // ─── Cabeçalho ──────────────────────────────────────────
@@ -128,16 +179,21 @@ export function generateMeetingMinutesPdf(params: PdfParams): void {
   doc.setDrawColor(180, 180, 180);
   doc.rect(MARGIN, 8, CONTENT_W, 22);
 
-  // Logo placeholders
-  doc.setFillColor(200, 200, 200);
-  doc.rect(MARGIN + 2, 10, 18, 18, 'F');
-  doc.setFontSize(6);
-  doc.setTextColor(80, 80, 80);
-  doc.text('LOGO\nUNIDADE', MARGIN + 4, 17, { baseline: 'middle' });
-
-  doc.setFillColor(200, 220, 240);
-  doc.rect(MARGIN + CONTENT_W - 20, 10, 18, 18, 'F');
-  doc.text('LOGO\nSCIH', MARGIN + CONTENT_W - 18, 17, { baseline: 'middle' });
+  // Logos do banco (admin/settings)
+  const LOGO_H = 18;
+  if (hospitalLogo) {
+    const lw = Math.min(40, (hospitalLogo.w / hospitalLogo.h) * LOGO_H);
+    doc.addImage(hospitalLogo.dataUrl, 'PNG', MARGIN + 2, 10, lw, LOGO_H);
+  }
+  if (scihLogos.length > 0) {
+    let logoX = MARGIN + CONTENT_W - 2;
+    for (const logo of [...scihLogos].reverse().slice(0, 3)) {
+      const lw = Math.min(30, (logo.w / logo.h) * LOGO_H);
+      logoX -= lw;
+      doc.addImage(logo.dataUrl, 'PNG', logoX, 10, lw, LOGO_H);
+      logoX -= 3;
+    }
+  }
 
   // Nome hospital
   doc.setFontSize(12);

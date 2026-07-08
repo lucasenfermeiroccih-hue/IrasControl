@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import NotificationAttachmentsDialog from "@/components/NotificationAttachmentsDialog";
 import jsPDF from "jspdf";
+import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
 
 const MES_OPTIONS = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -112,18 +113,30 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-async function generateCombinedPdf(notifIds: string[]) {
+async function generateCombinedPdf(notifIds: string[], hospitalId?: string) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const margin = 14;
   const pageW = 210;
   const contentW = pageW - 2 * margin;
-  let y = margin;
   let firstPage = true;
 
+  const logos = hospitalId
+    ? await loadHospitalLogos(hospitalId)
+    : { hospitalLogo: null, scihLogos: [] };
+
+  const LOGO_H = 14;
+  const LOGO_OFFSET = logos.hospitalLogo || logos.scihLogos.length > 0 ? LOGO_H + 4 : 0;
+  let y = margin + LOGO_OFFSET;
+
+  if (LOGO_OFFSET > 0) {
+    renderPdfLogos(pdf, logos, { x: margin, y: margin, h: LOGO_H, pageW });
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(margin, margin + LOGO_H + 2, pageW - margin, margin + LOGO_H + 2);
+  }
+
   function newSection() {
-    if (!firstPage) pdf.addPage();
+    if (!firstPage) { pdf.addPage(); y = margin; }
     firstPage = false;
-    y = margin;
   }
 
   function checkY(needed = 8) {
@@ -419,7 +432,7 @@ export default function NotificacoesHistory() {
     const toastId = "pdf-gen";
     toast.loading(`Gerando PDF com ${selectedIds.size} notificação(ões)…`, { id: toastId });
     try {
-      await generateCombinedPdf([...selectedIds]);
+      await generateCombinedPdf([...selectedIds], hospitalId);
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (e: any) {
       toast.error("Erro ao gerar PDF: " + e.message, { id: toastId });
@@ -433,7 +446,7 @@ export default function NotificacoesHistory() {
     const toastId = "pdf-single";
     toast.loading("Gerando relatório PDF…", { id: toastId });
     try {
-      await generateCombinedPdf([n.id]);
+      await generateCombinedPdf([n.id], hospitalId);
       toast.success("PDF gerado!", { id: toastId });
     } catch (e: any) {
       toast.error("Erro ao gerar PDF: " + e.message, { id: toastId });
