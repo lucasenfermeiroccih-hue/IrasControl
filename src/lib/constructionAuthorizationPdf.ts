@@ -85,15 +85,11 @@ export async function buildConstructionAuthorizationPdf(prefill: AuthorizationPr
     ? await loadHospitalLogos(prefill.hospitalId)
     : { hospitalLogo: null, scihLogos: [] };
 
-  // Fallback para arquivos estáticos se não houver logos cadastradas
-  const hgni = hospitalLogo ?? await loadLogo("/logo-hgni.png");
-  const firstScih = scihLogos[0] ?? await loadLogo("/logo-ccih.png");
-
   const headerH = 20;
-  if (hgni) {
+  if (hospitalLogo) {
     const h = headerH;
-    const w = Math.min(48, (hgni.w / hgni.h) * h);
-    pdf.addImage(hgni.dataUrl, "PNG", MARGIN, y, w, h);
+    const w = Math.min(48, (hospitalLogo.w / hospitalLogo.h) * h);
+    pdf.addImage(hospitalLogo.dataUrl, "PNG", MARGIN, y, w, h);
   }
 
   // Renderizar logos SCIH à direita (uma ou mais)
@@ -106,15 +102,11 @@ export async function buildConstructionAuthorizationPdf(prefill: AuthorizationPr
       pdf.addImage(logo.dataUrl, "PNG", logoX, y, w, h);
       logoX -= 2;
     }
-  } else if (firstScih) {
-    const h = headerH;
-    const w = Math.min(34, (firstScih.w / firstScih.h) * h);
-    pdf.addImage(firstScih.dataUrl, "PNG", PAGE_W - MARGIN - w, y, w, h);
   }
 
   // Texto central
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(hgni ? 11 : 14);
+  pdf.setFontSize(hospitalLogo ? 11 : 14);
   pdf.text("Hospital — Controle de Infecções", PAGE_W / 2, y + 8, { align: "center" });
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
