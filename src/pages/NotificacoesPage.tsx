@@ -72,6 +72,8 @@ export default function NotificacoesPage() {
   const [filterBusca, setFilterBusca] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterTipo, setFilterTipo] = useState("all");
+  const [filterMes, setFilterMes] = useState("all");
+  const [filterAno, setFilterAno] = useState("all");
 
   useEffect(() => {
     if (!hospitalId) return;
@@ -288,12 +290,34 @@ export default function NotificacoesPage() {
                 ))}
               </SelectContent>
             </Select>
-            {(filterBusca || filterStatus !== "all" || filterTipo !== "all") && (
+            <Select value={filterMes} onValueChange={setFilterMes}>
+              <SelectTrigger className="h-9 w-[140px] text-sm">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os meses</SelectItem>
+                {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map(m => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterAno} onValueChange={setFilterAno}>
+              <SelectTrigger className="h-9 w-[110px] text-sm">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os anos</SelectItem>
+                {[...new Set(allNotifs.map(n => String(n.ano_vigilancia)).filter(Boolean))].sort((a, b) => Number(b) - Number(a)).map(ano => (
+                  <SelectItem key={ano} value={ano}>{ano}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(filterBusca || filterStatus !== "all" || filterTipo !== "all" || filterMes !== "all" || filterAno !== "all") && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-9 gap-1 text-xs"
-                onClick={() => { setFilterBusca(""); setFilterStatus("all"); setFilterTipo("all"); }}
+                onClick={() => { setFilterBusca(""); setFilterStatus("all"); setFilterTipo("all"); setFilterMes("all"); setFilterAno("all"); }}
               >
                 <X className="h-3.5 w-3.5" /> Limpar
               </Button>
@@ -309,6 +333,8 @@ export default function NotificacoesPage() {
               }
               if (filterStatus !== "all" && r.status !== filterStatus) return false;
               if (filterTipo !== "all" && nomeModelo !== filterTipo) return false;
+              if (filterMes !== "all" && r.mes_vigilancia !== filterMes) return false;
+              if (filterAno !== "all" && String(r.ano_vigilancia) !== filterAno) return false;
               return true;
             });
 
