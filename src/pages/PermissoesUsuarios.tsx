@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   ShieldCheck, Loader2, Users, RefreshCw, Settings2,
   UserCog, ChevronDown, ChevronRight,
-  Plus, Save, AlertTriangle,
+  Plus, Save, AlertTriangle, Unlock, Minus,
 } from "lucide-react";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { SYSTEM_PERMISSIONS } from "@/types/permissions";

@@ -332,10 +332,12 @@ export async function generateReportPdfWithCharts(params: {
   auditTypeName: string;
   period: string;
   hospitalLogoUrl?: string;
+  scihLogoUrl?: string;
+  irasLogoUrl?: string;
   metrics: AuditManagerReportMetrics | MonthlySectorCompiledAuditMetrics;
   mode: AuditReportMode;
 }): Promise<void> {
-  const { chartsContainerRef, markdownContent, hospitalName, sectorName, auditTypeName, period, hospitalLogoUrl, metrics, mode } = params;
+  const { chartsContainerRef, markdownContent, hospitalName, sectorName, auditTypeName, period, hospitalLogoUrl, scihLogoUrl, irasLogoUrl, metrics, mode } = params;
 
   // Dynamic import to avoid SSR issues
   const jsPDFModule = await import("jspdf");
@@ -345,7 +347,7 @@ export async function generateReportPdfWithCharts(params: {
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = 210;
   const pageH = 297;
-  const marginL = 30;
+  const marginL = 20;
   const marginR = 20;
   const marginT = 30;
   const marginB = 20;
@@ -390,26 +392,60 @@ export async function generateReportPdfWithCharts(params: {
     y += 5;
   };
 
-  // ── Cover page ──────────────────────────────────────────────────────────────
-  // Try hospital logo
-  if (hospitalLogoUrl) {
+  // Helper: fetch remote URL / imported asset URL as base64 with natural dims
+  const loadImage = async (url: string): Promise<{ data: string; ext: "PNG" | "JPEG"; w: number; h: number } | null> => {
     try {
-      const resp = await fetch(hospitalLogoUrl);
+      const resp = await fetch(url);
       const blob = await resp.blob();
-      const reader = new FileReader();
-      const b64 = await new Promise<string>((res, rej) => {
-        reader.onload = () => res(reader.result as string);
-        reader.onerror = rej;
-        reader.readAsDataURL(blob);
+      const data: string = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result as string);
+        r.onerror = rej;
+        r.readAsDataURL(blob);
       });
-      const ext = blob.type.includes("png") ? "PNG" : "JPEG";
-      doc.addImage(b64, ext, marginL, marginT, 40, 15);
-    } catch (_) {
-      // skip logo if fetch fails
+      const dims = await new Promise<{ w: number; h: number }>((res, rej) => {
+        const img = new Image();
+        img.onload = () => res({ w: img.naturalWidth || 200, h: img.naturalHeight || 80 });
+        img.onerror = rej;
+        img.src = data;
+      });
+      const ext: "PNG" | "JPEG" = blob.type.includes("png") ? "PNG" : "JPEG";
+      return { data, ext, w: dims.w, h: dims.h };
+    } catch {
+      return null;
     }
+  };
+
+  const [hospLogo, scihLogo, irasLogo] = await Promise.all([
+    hospitalLogoUrl ? loadImage(hospitalLogoUrl) : Promise.resolve(null),
+    scihLogoUrl ? loadImage(scihLogoUrl) : Promise.resolve(null),
+    irasLogoUrl ? loadImage(irasLogoUrl) : Promise.resolve(null),
+  ]);
+
+  // ── Cover header with logos (hospital left · title center · SCIH+IRAS right) ─
+  const LOGO_H = 16;
+  const topY = 12;
+
+  if (hospLogo) {
+    const lw = Math.min(45, (hospLogo.w / hospLogo.h) * LOGO_H);
+    doc.addImage(hospLogo.data, hospLogo.ext, marginL, topY, lw, LOGO_H);
   }
 
-  // Header bar
+  // Right-aligned stack: IRAS + optional SCIH
+  let rightX = pageW - marginR;
+  if (irasLogo) {
+    const lw = Math.min(38, (irasLogo.w / irasLogo.h) * LOGO_H);
+    rightX -= lw;
+    doc.addImage(irasLogo.data, irasLogo.ext, rightX, topY, lw, LOGO_H);
+    rightX -= 3;
+  }
+  if (scihLogo) {
+    const lw = Math.min(30, (scihLogo.w / scihLogo.h) * LOGO_H);
+    rightX -= lw;
+    doc.addImage(scihLogo.data, scihLogo.ext, rightX, topY, lw, LOGO_H);
+  }
+
+  // Blue title bar below logos
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 45, pageW, 28, "F");
   doc.setTextColor(255, 255, 255);

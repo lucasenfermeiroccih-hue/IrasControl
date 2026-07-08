@@ -91,7 +91,7 @@ export default function MaternityActionPlan() {
   function fillSuggested(indicatorKey: string) {
     if (!indicatorKey || !editing) return;
     const suggestion = generateSuggestedActionPlan(indicatorKey);
-    setEditing(prev => prev ? { ...prev, ...suggestion, indicator_key: indicatorKey } : prev);
+    setEditing(prev => prev ? ({ ...prev, ...(suggestion as any), indicator_key: indicatorKey } as any) : prev);
   }
 
   async function handleSave() {

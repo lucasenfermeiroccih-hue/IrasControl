@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Siren, BrainCircuit, Map, ShieldAlert, ShieldPlus, FileText, ListChecks, X, Filter } from "lucide-react";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { MICROORGANISMS } from "@/data/microorganisms";
+import { toast } from "sonner";
 
 /* ─── types ─────────────────────────────────────────────── */
 interface Patient {

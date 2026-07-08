@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Copy, Download, FileText, ArrowLeft, Mail, Eye, Edit2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+import irasControlLogo from "@/assets/iras-control-logo.png";
 
 import type { AuditReportMode, AuditManagerReportMetrics, MonthlySectorCompiledAuditMetrics } from "./auditReportTypes";
 import { fetchAuditsForReport, fetchHospitalLogos, generateAIReportSections } from "./auditReportService";
@@ -250,6 +251,7 @@ export function AuditManagerReportModal({
   const [generatedMetrics, setGeneratedMetrics] = useState<AuditManagerReportMetrics | MonthlySectorCompiledAuditMetrics | null>(null);
   const [generatedMode, setGeneratedMode] = useState<AuditReportMode>("single_audit_type");
   const [generatedHospitalLogoUrl, setGeneratedHospitalLogoUrl] = useState<string | undefined>();
+  const [generatedScihLogoUrl, setGeneratedScihLogoUrl] = useState<string | undefined>();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [renderedHtml, setRenderedHtml] = useState("");
 
@@ -361,6 +363,7 @@ export function AuditManagerReportModal({
       setGeneratedMetrics(metrics as any);
       setGeneratedMode(mode);
       setGeneratedHospitalLogoUrl(hospLogo?.url);
+      setGeneratedScihLogoUrl(scihLogo?.url);
       setPreviewTab("rendered");
       setStep("preview");
     } catch (err: any) {
@@ -411,14 +414,64 @@ export function AuditManagerReportModal({
     toast.success("Abrindo cliente de e-mail...");
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) { toast.error("Permitir pop-ups para imprimir."); return; }
+
+    // Capture charts as images so they show up on the printed page
+    let chartsHtml = "";
+    try {
+      if (chartsRef.current) {
+        const html2canvas = (await import("html2canvas")).default;
+        const chartIds = generatedMode === "monthly_sector_compiled"
+          ? ["chart-overall", "chart-category", "chart-noncompliance", "chart-trend", "chart-by-type"]
+          : ["chart-overall", "chart-category", "chart-sector", "chart-noncompliance", "chart-trend"];
+        const chartTitles: Record<string, string> = {
+          "chart-overall": "Conformidade Geral",
+          "chart-category": "Conformidade por Categoria",
+          "chart-sector": "Conformidade por Setor",
+          "chart-noncompliance": "Principais Não Conformidades",
+          "chart-trend": "Evolução Mensal da Conformidade",
+          "chart-by-type": "Conformidade por Tipo de Auditoria",
+        };
+        const imgs: string[] = [];
+        for (const id of chartIds) {
+          const el = chartsRef.current.querySelector(`#${id}`) as HTMLElement | null;
+          if (!el) continue;
+          try {
+            const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false, useCORS: true });
+            imgs.push(`<div style="page-break-inside:avoid;margin:14px 0;"><h3 style="font-size:12pt;color:#1e3a5f;margin:8px 0 6px;">${chartTitles[id] || id}</h3><img src="${canvas.toDataURL("image/png")}" style="max-width:100%;height:auto;border:1px solid #e2e8f0;border-radius:4px;" /></div>`);
+          } catch {/* ignore */}
+        }
+        if (imgs.length > 0) {
+          chartsHtml = `<h2 style="page-break-before:always;font-size:14pt;color:#1e3a5f;border-bottom:2px solid #2563eb;padding-bottom:4px;margin-top:20px;">Gráficos do Relatório</h2>${imgs.join("")}`;
+        }
+      }
+    } catch (e) {
+      console.warn("Falha ao capturar gráficos para impressão:", e);
+    }
+
+    // Header with both logos (hospital left + IRAS right)
+    const headerLogos = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:10px;margin-bottom:14px;border-bottom:2px solid #2563eb;">
+        <div style="flex:0 0 auto;min-height:50px;display:flex;align-items:center;">
+          ${generatedHospitalLogoUrl ? `<img src="${generatedHospitalLogoUrl}" style="max-height:56px;max-width:180px;object-fit:contain;" crossorigin="anonymous" />` : `<div style="font-weight:700;color:#1e3a5f;font-size:12pt;">${hospitalName}</div>`}
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:13pt;font-weight:700;color:#1e3a5f;">Relatório Gerencial de Auditoria</div>
+          <div style="font-size:9pt;color:#64748b;margin-top:2px;">${hospitalName}${selectedSectors.length ? ' · ' + selectedSectors.join(', ') : ''}</div>
+        </div>
+        <div style="flex:0 0 auto;min-height:50px;display:flex;align-items:center;">
+          ${generatedScihLogoUrl ? `<img src="${generatedScihLogoUrl}" style="max-height:56px;max-width:120px;object-fit:contain;margin-right:8px;" crossorigin="anonymous" />` : ''}
+          <img src="${irasControlLogo}" style="max-height:56px;max-width:140px;object-fit:contain;" />
+        </div>
+      </div>`;
+
     printWindow.document.write(`
       <!DOCTYPE html><html lang="pt-BR">
       <head><meta charset="UTF-8"><title>Relatório IRAS Control</title>
       <style>
-        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; color: #222; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 1.5cm; color: #222; }
         h1 { font-size: 16pt; color: #1e3a5f; border-bottom: 2px solid #2563eb; padding-bottom: 4px; }
         h2 { font-size: 13pt; color: #1e3a5f; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-top: 18px; }
         h3 { font-size: 11pt; color: #2563eb; margin-top: 14px; }
@@ -426,14 +479,15 @@ export function AuditManagerReportModal({
         th { background: #1e3a5f; color: #fff; padding: 6px 8px; text-align: left; border: 1px solid #1e3a5f; }
         td { padding: 5px 8px; border: 1px solid #d1d5db; vertical-align: top; }
         tr:nth-child(even) td { background: #f8fafc; }
-        img { max-height: 50px; object-fit: contain; }
-        @media print { body { margin: 1.5cm; } }
+        img { max-height: 60px; object-fit: contain; }
+        @media print { body { margin: 1.5cm; } .no-print { display: none; } }
       </style>
-      </head><body>${renderedHtml}</body></html>
+      </head><body>${headerLogos}${renderedHtml}${chartsHtml}</body></html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 500);
+    // Give images (charts + logos) time to load before triggering print
+    setTimeout(() => { printWindow.print(); }, 1200);
   };
 
   const handleDownloadPdfWithCharts = async () => {
@@ -448,6 +502,8 @@ export function AuditManagerReportModal({
         auditTypeName: mode === "single_audit_type" ? getAuditTypeName(auditType) : "Compilado Mensal",
         period: `${periodStart} a ${periodEnd}`,
         hospitalLogoUrl: generatedHospitalLogoUrl,
+        scihLogoUrl: generatedScihLogoUrl,
+        irasLogoUrl: irasControlLogo,
         metrics: generatedMetrics,
         mode: generatedMode,
       });
