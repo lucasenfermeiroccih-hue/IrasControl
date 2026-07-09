@@ -231,8 +231,6 @@ const PatientDashboardIndicators = () => {
       });
     });
 
-    // Paciente conta em CADA mês em que esteve internado (intersecção de período)
-    // Se internou em janeiro e teve alta em março, conta em jan, fev e mar — separados.
     const patientPresentInPeriods = (p: PatientRow) => {
       const start = parseLocalDate(getPatientPeriodStart(p));
       if (!start) return false;
@@ -240,7 +238,20 @@ const PatientDashboardIndicators = () => {
       return periods.some(({ start: ps, end: pe }) => start <= pe && end >= ps);
     };
 
-    const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
+    // Pacientes presentes no período (para paciente-dia e cálculo de fechamento)
+    const presentInPeriod = filteredPatients.filter(patientPresentInPeriods);
+
+    // Novas admissões no período: apenas pacientes com admission_date dentro do período selecionado
+    const admittedInMonth = filteredPatients.filter(p => {
+      const d = parseLocalDate(p.admission_date);
+      return !!d && matchPeriod(d);
+    });
+
+    // Fechamento mensal: presentes no período sem alta/óbito registrado no período
+    const stillPresentCount = presentInPeriod.filter(p => {
+      const d = parseLocalDate(p.discharge_date);
+      return !d || !matchPeriod(d);
+    }).length;
 
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
@@ -406,7 +417,7 @@ const PatientDashboardIndicators = () => {
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
       { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
-      { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
+      { name: "Internados", value: stillPresentCount, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
     // Top 15 antibióticos mais utilizados (tabela + clinical_data)
