@@ -246,6 +246,7 @@ const PatientDashboardIndicators = () => {
       const d = parseLocalDate(p.admission_date);
       return !!d && matchPeriod(d);
     });
+    const admittedIdSet = new Set(admittedInMonth.map(p => p.id));
 
     // Fechamento mensal: presentes no período sem alta/óbito registrado no período
     const stillPresentCount = presentInPeriod.filter(p => {
@@ -308,7 +309,7 @@ const PatientDashboardIndicators = () => {
       let total = 0;
       const perPatient: Array<{ id: string; name: string; days: number }> = [];
 
-      filteredPatients.forEach(p => {
+      admittedInMonth.forEach(p => {
         const patStart = parseLocalDate(p.admission_date);
         if (!patStart) return;
         const patEnd = p.discharge_date ? parseLocalDate(p.discharge_date) : new Date();
@@ -381,13 +382,14 @@ const PatientDashboardIndicators = () => {
 
 
     // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
+    // Filtra apenas pacientes admitidos no período selecionado
     const abFromTable = filteredPrescriptions.filter(rx => {
       const d = parseLocalDate(rx.start_date);
-      return !!d && matchPeriod(d);
+      return !!d && matchPeriod(d) && admittedIdSet.has(rx.patient_id);
     }).length;
 
     let abFromClinical = 0;
-    filteredPatients.forEach(p => {
+    admittedInMonth.forEach(p => {
       const atbs = p.clinical_data?.antibioticos;
       if (!Array.isArray(atbs)) return;
       atbs.forEach((a: any) => {
@@ -400,11 +402,11 @@ const PatientDashboardIndicators = () => {
     const extubationsTable = filteredDevices.filter(d => {
       if (d.device_type !== "vm") return false;
       const rd = parseLocalDate(d.removal_date);
-      return !!rd && matchPeriod(rd);
+      return !!rd && matchPeriod(rd) && admittedIdSet.has(d.patient_id);
     }).length;
 
     let extubationsClinical = 0;
-    filteredPatients.forEach(p => {
+    admittedInMonth.forEach(p => {
       const di = p.clinical_data?.dispInvasivos;
       if (!di) return;
       [di.vmRetirada, di.vmNovaRetirada].forEach((dt: string) => {
@@ -421,16 +423,18 @@ const PatientDashboardIndicators = () => {
     ].filter(d => d.value > 0);
 
     // Top 15 antibióticos mais utilizados (tabela + clinical_data)
+    // Filtra apenas pacientes admitidos no período
     const abCounter: Record<string, number> = {};
     const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
     filteredPrescriptions.forEach(rx => {
       const d = parseLocalDate(rx.start_date);
       if (!d || !matchPeriod(d)) return;
+      if (!admittedIdSet.has(rx.patient_id)) return;
       const name = rx.drug_name ? normalize(String(rx.drug_name)) : null;
       if (!name) return;
       abCounter[name] = (abCounter[name] || 0) + 1;
     });
-    filteredPatients.forEach(p => {
+    admittedInMonth.forEach(p => {
       const atbs = p.clinical_data?.antibioticos;
       if (!Array.isArray(atbs)) return;
       atbs.forEach((a: any) => {
