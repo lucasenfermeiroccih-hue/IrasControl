@@ -200,7 +200,8 @@ export default function MaternityReport() {
     if (!record) return;
     setGenerating(true);
     try {
-      generatePdf(record, hospitalName || "Hospital");
+      const logos = await loadHospitalLogos(hospitalId);
+      await generatePdf(record, hospitalName || "Hospital", logos);
       toast.success("Relatório PDF gerado.");
     } catch (err) {
       toast.error("Erro ao gerar PDF.");
