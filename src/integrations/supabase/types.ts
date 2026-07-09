@@ -4594,7 +4594,7 @@ export type Database = {
           id?: string
           is_system?: boolean
           role: Database["public"]["Enums"]["app_role"]
-          slug: string
+          slug?: string
           updated_at?: string
           user_id: string
         }
