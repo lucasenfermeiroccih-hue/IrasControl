@@ -17,6 +17,7 @@ import { useDDDDashboard } from "@/hooks/useDDDDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import AIAssistenteDDD from "@/components/AIAssistenteDDD";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 
 const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const COLORS = ["hsl(var(--primary))","hsl(var(--destructive))","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316"];
@@ -144,17 +145,56 @@ export default function DashboardDDD() {
             ins.push(`🔝 Unidade com maior consumo: ${topUnit}.`);
             return ins;
           }} />
-          <Button variant="outline" size="sm" onClick={() => {
-            if (!hospitalId) return;
-            exportPdf({
-              type: "ddd", hospitalId,
-              data: {
-                kpis: { totalDDD: totalConsumo, totalRecords: filtered.length, uniqueDrugs: antimicrobianos.length },
-                lines: filtered.slice(0, 80).map(d => ({ nome: d.antimicrobiano, apresentacao: d.unidade, quantidade: 0, total_g: d.totalG, indicador: d.indicadorConsumo })),
+          <DashboardPdfReport data={{
+            title: "Dashboard DDD — Consumo de Antimicrobianos",
+            subtitle: "Dose Diária Definida (DDD) por antimicrobiano e unidade hospitalar",
+            hospitalName: hospitalId || "Hospital",
+            referenceNorm: "OMS ATC/DDD Index · PNSP · Programa de Stewardship",
+            context:
+              "Este relatório apresenta o consumo de antimicrobianos expresso em Dose Diária Definida (DDD), métrica padronizada pela OMS para comparação do uso de antibióticos entre unidades hospitalares e ao longo do tempo. O monitoramento do consumo de antimicrobianos é componente central do Programa de Stewardship Antimicrobiano, visando o uso racional, redução da pressão seletiva e prevenção de resistência antimicrobiana.",
+            methodology:
+              "Dados coletados do sistema de dispensação farmacêutica. O indicador DDD é calculado pela razão entre a quantidade total dispensada (em gramas) e a dose diária definida pela OMS para cada antimicrobiano, normalizada por 100 pacientes-dia.",
+            kpis: [
+              { label: "Consumo Total DDD", value: String(totalConsumo), sub: "no período filtrado" },
+              { label: "Média por Registro", value: String(avgConsumo), sub: "DDD médio" },
+              { label: "Mais Utilizado", value: atmMaisUsado, sub: "antimicrobiano" },
+              { label: "Maior Consumo (Unidade)", value: unidadeMaiorConsumo, sub: "unidade hospitalar" },
+              { label: "Registros Analisados", value: String(filtered.length), sub: `de ${allData.length} total` },
+              { label: "Antimicrobianos Distintos", value: String(antimicrobianos.length), sub: "classes monitoradas" },
+            ],
+            extraTables: [
+              {
+                title: "Ranking de Consumo por Antimicrobiano (Top 5)",
+                headers: ["#", "Antimicrobiano", "Consumo DDD", "% do Total"],
+                rows: ranking.map((r, i) => [
+                  String(i + 1),
+                  r.name,
+                  String(r.value),
+                  `${r.pct}%`,
+                ]),
               },
-              filenamePrefix: "ddd",
-            });
-          }}><Download className="h-4 w-4 mr-1" />PDF</Button>
+              ...(barData.length > 0 ? [{
+                title: "Consumo por Unidade Hospitalar",
+                headers: ["Unidade", "Consumo DDD"],
+                rows: barData.slice(0, 10).map(b => [b.name, String(b.value)]),
+              }] : []),
+            ],
+            discussion: [
+              `O consumo total de antimicrobianos no período é de ${totalConsumo} DDD, com média de ${avgConsumo} por registro. O antimicrobiano mais utilizado é "${atmMaisUsado}" e a unidade com maior consumo é "${unidadeMaiorConsumo}". Foram analisados ${filtered.length} de ${allData.length} registros disponíveis.`,
+              `São monitorados ${antimicrobianos.length} antimicrobiano(s) distinto(s) em ${unidades.length} unidade(s) hospitalar(es). ${ranking.length > 0 ? "O top 5 de maior consumo representa a principal alvo de intervenção de stewardship antimicrobiano." : ""}`,
+              `A análise por unidade permite identificar setores com consumo elevado que podem se beneficiar de revisão prospectiva de prescrições e intervenções do programa de stewardship. Consumo acima de 50 DDD por registro deve ser investigado individualmente.`,
+              `O monitoramento contínuo do DDD é essencial para detectar tendências de aumento de consumo, correlacionar com perfis de resistência e avaliar a efetividade das intervenções de uso racional de antimicrobianos.`,
+            ].join("\n"),
+            recommendations: [
+              `Implementar ou fortalecer o Programa de Stewardship Antimicrobiano com revisão prospectiva de prescrições de "${atmMaisUsado}".`,
+              `Priorizar intervenções educativas na unidade "${unidadeMaiorConsumo}" — maior consumo de antimicrobianos.`,
+              "Realizar reuniões mensais do comitê de stewardship para revisão dos indicadores DDD e casos de uso empírico.",
+              "Integrar os dados de DDD com o antibiograma local para guiar a terapia empírica com base no perfil de sensibilidade.",
+              "Implementar alertas no sistema de prescrição para antimicrobianos de alto consumo ou reserva.",
+              "Monitorar correlação entre consumo de DDD e taxas de infecção por microrganismos multirresistentes.",
+            ],
+            filenamePrefix: "ddd-antimicrobianos",
+          }} />
           <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white"
             onClick={() => navigate("/quality/5w2h", { state: { prefill: {
               title: "Plano de Ação — Consumo de Antimicrobianos (DDD)",

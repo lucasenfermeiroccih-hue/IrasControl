@@ -24,6 +24,7 @@ import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -420,17 +421,55 @@ export default function DashboardHygiene() {
   const kr4 = Math.min(100, Math.round((fStats.goodSectors / Math.max(1, fStats.sectorData.length)) * 100));
   const kr5 = Math.min(100, fStats.nonCompliant === 0 ? 100 : Math.max(0, Math.round((1 - fStats.nonCompliant / Math.max(1, filteredItems.length)) * 100)));
 
-  // ── Export PDF ──
-  const handleExportPdf = () => {
-    if (!hospitalId) return;
-    exportPdf({
-      type: "audits", hospitalId,
-      data: {
-        kpis: { avgCompliance: fStats.avgCompliance, totalAudits: fStats.totalAudits, nonCompliant: fStats.nonCompliant },
-        audits: fStats.sectorData.map(s => ({ type: "Higiene das Mãos", sector: s.name, date: "", compliance: s.compliance, compliant: s.audits - s.nc, total: s.audits })),
-      },
-      filenamePrefix: "higiene-maos",
-    });
+  // ── Report Data ──
+  const reportData: DashboardReportData = {
+    title: "Dashboard — Higienização das Mãos",
+    subtitle: "5 Momentos OMS · KPIs, OKRs e indicadores para tomada de decisão",
+    hospitalName,
+    goal: `Meta OMS: ≥${META_OMS}%`,
+    referenceNorm: "WHO Hand Hygiene Guidelines 2009",
+    context:
+      "Este relatório apresenta o monitoramento da adesão à higienização das mãos pela equipe assistencial, seguindo os 5 Momentos preconizados pela Organização Mundial da Saúde (OMS). A higienização das mãos é a medida mais eficaz na prevenção de Infecções Relacionadas à Assistência à Saúde (IRAS). O monitoramento contínuo permite identificar setores com baixa adesão e direcionar intervenções educativas e estruturais.",
+    methodology:
+      "Auditoria direta por observação, com registro dos momentos de higienização por setor e profissional. Os dados são classificados por Momento OMS (1 a 5), setor e período, permitindo análise comparativa e identificação de oportunidades perdidas.",
+    kpis: [
+      { label: "Taxa de Adesão", value: `${fStats.adhesionRate}%`, sub: `Meta OMS: ${META_OMS}%`, status: fStats.adhesionRate >= META_OMS ? "ok" : fStats.adhesionRate >= 70 ? "warning" : "critical" },
+      { label: "Formulários Analisados", value: String(fStats.totalAudits), sub: "registros no período" },
+      { label: "Com Higienização", value: String(fStats.sim), sub: "instâncias conformes" },
+      { label: "Sem Higienização", value: String(fStats.nao), sub: "oportunidades perdidas", status: fStats.nao === 0 ? "ok" : "critical" },
+      { label: "Setores Adequados", value: String(fStats.goodSectors), sub: `de ${fStats.sectorData.length} setores`, status: "ok" },
+      { label: "Setores em Atenção", value: String(fStats.warningSectors), sub: "70–79% de adesão", status: fStats.warningSectors > 0 ? "warning" : "ok" },
+      { label: "Setores Críticos", value: String(fStats.criticalSectors), sub: "< 70% de adesão", status: fStats.criticalSectors === 0 ? "ok" : "critical" },
+      { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
+    ],
+    sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
+    discussion: [
+      `A taxa de adesão no período é de ${fStats.adhesionRate}%, ${fStats.adhesionRate >= META_OMS ? "dentro da meta OMS de " + META_OMS + "%, demonstrando bom desempenho" : "abaixo da meta OMS de " + META_OMS + "%, indicando necessidade de intervenção"}. Foram analisados ${fStats.totalAudits} formulários, com ${fStats.sim} instâncias conformes e ${fStats.nao} oportunidades perdidas.`,
+      fStats.criticalSectors > 0
+        ? `${fStats.criticalSectors} setor(es) em situação crítica (< 70%), exigindo intervenção prioritária. ${fStats.warningSectors} setor(es) em atenção (70–79%).`
+        : `Nenhum setor em situação crítica. ${fStats.warningSectors > 0 ? fStats.warningSectors + " setor(es) em atenção (70–79%)." : "Todos os setores com desempenho adequado (≥80%)."}`,
+      fStats.topFailures[0]
+        ? `Principal não conformidade: "${fStats.topFailures[0].item}" (${fStats.topFailures[0].count} ocorrências). Análise de causa raiz (Ishikawa) recomendada para este item.`
+        : "Nenhuma não conformidade recorrente identificada no período.",
+      `Tendência: ${fStats.improvement >= 0 ? "melhora de +" + fStats.improvement + "%" : "queda de " + Math.abs(fStats.improvement) + "%"} vs período anterior. ${fStats.improvement < 0 ? "Investigar causas: sobrecarga, insumos, treinamento." : "Manter estratégias bem-sucedidas."}`,
+    ].join("\n"),
+    recommendations: [
+      fStats.adhesionRate < META_OMS
+        ? `Intensificar campanha de higienização das mãos com meta de atingir ${META_OMS}% em 60 dias.`
+        : `Manter ações educativas para sustentabilidade da taxa de ${fStats.adhesionRate}%.`,
+      fStats.topFailures[0]
+        ? `Treinar especificamente sobre "${fStats.topFailures[0].item}" — principal não conformidade (${fStats.topFailures[0].count} ocorrências).`
+        : "Manter educação continuada sobre os 5 Momentos OMS.",
+      fStats.criticalSectors > 0
+        ? `Intervenção urgente nos ${fStats.criticalSectors} setor(es) crítico(s): feedback individualizado e auditoria semanal.`
+        : "Feedback positivo aos setores com melhor desempenho como incentivo.",
+      "Verificar disponibilidade e posicionamento de dispensers de álcool gel em todos os pontos de assistência.",
+      "Elaborar Plano de Ação 5W2H para as não conformidades e monitorar execução em 30 dias.",
+      "Divulgar os resultados à liderança de enfermagem e gestão hospitalar para apoio institucional.",
+    ],
+    filenamePrefix: "higiene-maos",
   };
 
   // ── Navigate to 5W2H ──
@@ -477,9 +516,7 @@ export default function DashboardHygiene() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPdf}>
-            <Download className="h-4 w-4 mr-1" />PDF
-          </Button>
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={buildSectorOptions(allAudits)} defaultAuditType="hand_hygiene" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];

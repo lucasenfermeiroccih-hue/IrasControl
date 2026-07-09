@@ -20,6 +20,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 const SPECIALTIES_DEFAULT = [
@@ -231,6 +232,8 @@ const PatientDashboardIndicators = () => {
       });
     });
 
+    // Paciente conta em CADA mês em que esteve internado (intersecção de período)
+    // Se internou em janeiro e teve alta em março, conta em jan, fev e mar — separados.
     const patientPresentInPeriods = (p: PatientRow) => {
       const start = parseLocalDate(getPatientPeriodStart(p));
       if (!start) return false;
@@ -238,19 +241,7 @@ const PatientDashboardIndicators = () => {
       return periods.some(({ start: ps, end: pe }) => start <= pe && end >= ps);
     };
 
-    // Pacientes presentes no período (para paciente-dia e cálculo de fechamento)
-    const presentInPeriod = filteredPatients.filter(patientPresentInPeriods);
-
-    // Novas admissões no período: apenas pacientes com admission_date dentro do período selecionado
-    const admittedInMonth = filteredPatients.filter(p => {
-      const d = parseLocalDate(p.admission_date);
-      return !!d && matchPeriod(d);
-    });
-    // Fechamento mensal: presentes no período sem alta/óbito registrado no período
-    const stillPresentCount = presentInPeriod.filter(p => {
-      const d = parseLocalDate(p.discharge_date);
-      return !d || !matchPeriod(d);
-    }).length;
+    const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
 
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
@@ -380,7 +371,6 @@ const PatientDashboardIndicators = () => {
 
 
     // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
-    // Conta por data de início no período, para todos os pacientes presentes
     const abFromTable = filteredPrescriptions.filter(rx => {
       const d = parseLocalDate(rx.start_date);
       return !!d && matchPeriod(d);
@@ -417,7 +407,7 @@ const PatientDashboardIndicators = () => {
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
       { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
-      { name: "Internados", value: stillPresentCount, color: "hsl(210, 60%, 50%)" },
+      { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
     // Top 15 antibióticos mais utilizados (tabela + clinical_data)
@@ -526,6 +516,63 @@ const PatientDashboardIndicators = () => {
             year={year}
             unit={unit}
           />
+          <DashboardPdfReport data={{
+            title: "Dashboard de Indicadores Operacionais",
+            subtitle: "Internações, desfechos, paciente-dia, dispositivos invasivos e antimicrobianos",
+            hospitalName: hospitalName || "Hospital",
+            referenceNorm: "ANVISA RDC 07/2010 · NHSN CDC · OPS",
+            context:
+              "Este relatório apresenta os indicadores operacionais assistenciais do período selecionado: admissões hospitalares por especialidade, desfechos (altas e óbitos), paciente-dia total, dias de utilização de dispositivos invasivos (CVC, SVD/SVU, Ventilação Mecânica) e uso de antimicrobianos. Estes indicadores são essenciais para o monitoramento da qualidade assistencial e cálculo das taxas de IRAS associadas a dispositivos.",
+            methodology:
+              "Dados coletados do sistema de monitoramento de pacientes. Cálculos de paciente-dia baseados em dias civis de internação no período selecionado. Dias de dispositivo computados a partir de inserção e retirada registrados no sistema.",
+            kpis: [
+              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "no período" },
+              { label: "Pacientes-Dia Total", value: String(indicators.totalPatientDays), sub: "dias acumulados" },
+              { label: "Óbitos", value: String(indicators.deaths), sub: "no período", status: indicators.deaths === 0 ? "ok" : "warning" },
+              { label: "Altas", value: String(indicators.discharges), sub: "altas registradas" },
+              { label: "Dias de CVC", value: String(indicators.cvcDays), sub: "cateter venoso central" },
+              { label: "Dias de SVD/SVU", value: String(indicators.svuDays), sub: "sonda vesical" },
+              { label: "Dias de VM", value: String(indicators.vmDays), sub: "ventilação mecânica" },
+              { label: "Uso de ATB", value: String(indicators.abCount), sub: "registros de antimicrobiano" },
+            ],
+            extraTables: [
+              ...(indicators.specialtyData && indicators.specialtyData.filter((s: any) => s.internacoes > 0).length > 0 ? [{
+                title: "Internações por Especialidade",
+                headers: ["Especialidade", "Internações"],
+                rows: indicators.specialtyData
+                  .filter((s: any) => s.internacoes > 0)
+                  .sort((a: any, b: any) => b.internacoes - a.internacoes)
+                  .map((s: any) => [s.fullName || s.name, String(s.internacoes)]),
+              }] : []),
+              ...(indicators.topAntibiotics && indicators.topAntibiotics.length > 0 ? [{
+                title: "Antimicrobianos Mais Utilizados",
+                headers: ["Antimicrobiano", "Registros"],
+                rows: indicators.topAntibiotics.slice(0, 10).map((a: any) => [a.name, String(a.value)]),
+              }] : []),
+              ...(indicators.topOrganisms && indicators.topOrganisms.length > 0 ? [{
+                title: "Microrganismos Identificados (Top 10)",
+                headers: ["Microrganismo", "Ocorrências"],
+                rows: indicators.topOrganisms.slice(0, 10).map((o: any) => [o.name, String(o.value)]),
+              }] : []),
+            ],
+            discussion: [
+              `No período analisado foram registradas ${indicators.totalAdmitted} internações, gerando ${indicators.totalPatientDays} paciente(s)-dia. Os desfechos incluem ${indicators.discharges} alta(s) e ${indicators.deaths} óbito(s). ${indicators.deaths > 0 ? "A taxa de mortalidade bruta é de " + (indicators.totalAdmitted > 0 ? ((indicators.deaths / indicators.totalAdmitted) * 100).toFixed(1) : 0) + "%." : "Nenhum óbito registrado no período."}`,
+              `Dias de dispositivos invasivos: CVC ${indicators.cvcDays} dias, SVD/SVU ${indicators.svuDays} dias, VM ${indicators.vmDays} dias. O índice de utilização de dispositivos invasivos é um indicador-chave para o risco de IRAS associadas (ICSC-CVC, ITU-CA, PAV). Maior utilização exige vigilância intensificada dos bundles de prevenção.`,
+              indicators.abCount > 0
+                ? `Foram registrados ${indicators.abCount} uso(s) de antimicrobianos. O monitoramento do perfil de uso de antibióticos é fundamental para o programa de stewardship antimicrobiano e prevenção de resistência.`
+                : "Nenhum registro de antimicrobiano no período. Verificar se os dados de dispensação estão sendo registrados corretamente.",
+              `Os dados deste relatório devem ser correlacionados com os indicadores epidemiológicos de IRAS (taxas de infecção, letalidade) para avaliação completa da qualidade assistencial e segurança do paciente.`,
+            ].join("\n"),
+            recommendations: [
+              indicators.cvcDays > 0 ? "Monitorar conformidade com bundle de CVC para prevenir ICSC-CVC — avaliar necessidade diária de manutenção do cateter." : "Registrar sistematicamente os dias de utilização de CVC para cálculo de densidade de incidência de ICSC.",
+              indicators.svuDays > 0 ? "Avaliar diariamente a necessidade de SVD/SVU — checagem de critérios de retirada reduz ITU-CA." : "Implementar registro sistemático de dias de SVD para vigilância de ITU-CA.",
+              indicators.vmDays > 0 ? "Aplicar bundle de prevenção de PAV (cabeceira 30-45°, higiene oral, avaliação diária de extubação)." : "Garantir registro dos dias de VM para cálculo de taxa de PAV quando aplicável.",
+              "Correlacionar paciente-dia e dias de dispositivo com as taxas de IRAS calculadas no Dashboard de Indicadores Epidemiológicos.",
+              "Realizar análise de prontuário dos óbitos relacionados a infecção para identificar oportunidades de melhoria.",
+              "Apresentar estes indicadores na reunião mensal da CCIH e ao núcleo de qualidade hospitalar.",
+            ],
+            filenamePrefix: "indicadores-operacionais",
+          }} />
           <MultiSelectFilter
             label="Unidade"
             placeholder="Todas as unidades"

@@ -28,8 +28,10 @@ import ChartActions from "@/components/ChartActions";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 import { toast } from "sonner";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+
 // ─── Constants ────────────────────────────────────────────────
 const CHECKLIST_GROUPS = [
   {
@@ -662,6 +664,51 @@ export default function DashboardPrecautions() {
 
   const sectorChartH = Math.max(200, sectorData.length * 36);
 
+  const reportData: DashboardReportData = {
+    title: "Monitoramento de Precaução e Isolamento",
+    subtitle: "Checklist de conformidade — protocolos de precaução e isolamento hospitalar",
+    hospitalName,
+    goal: "Meta: ≥90%",
+    referenceNorm: "ANVISA Nota Técnica 07/2017 · CDC Isolation Precautions",
+    context:
+      "Este relatório apresenta os indicadores de conformidade com os protocolos de precauções e isolamento hospitalar, incluindo precauções de contato (PC), precauções aéreas (PA), precauções por gotículas (PG) e proteção reversa (PR). A correta aplicação das precauções é fundamental para interromper a cadeia de transmissão de microrganismos, especialmente organismos multirresistentes (MRSA, VRE, Enterobactérias KPC). Meta: ≥90% de conformidade.",
+    methodology:
+      "Auditoria por checklist padronizado com verificação de: identificação e sinalização do quarto/leito, disponibilidade e uso de EPIs (luvas, avental, máscara), higienização das mãos na entrada/saída, procedimentos de isolamento e deisolamento, e registro em prontuário. Avaliação por setor e turno.",
+    kpis: [
+      { label: "Conformidade Geral", value: `${stats.pctConformidade}%`, sub: "Meta: 90%", status: stats.pctConformidade >= 90 ? "ok" : stats.pctConformidade >= 75 ? "warning" : "critical" },
+      { label: "Total de Auditorias", value: String(stats.totalRecords), sub: "registros no período" },
+      { label: "Itens Conformes", value: String(stats.totalConforme), sub: `de ${stats.totalAvaliado} avaliados` },
+      { label: "Não Conformidades", value: String(stats.totalNaoConforme), sub: "requerem ação", status: stats.totalNaoConforme === 0 ? "ok" : "critical" },
+      { label: "Itens N/A", value: String(stats.totalNA), sub: "não aplicáveis" },
+      { label: "Tendência", value: `${stats.delta >= 0 ? "+" : ""}${stats.delta}%`, sub: "vs mês anterior", status: stats.delta >= 0 ? "ok" : "warning" },
+    ],
+    sectorData: sectorData.map(s => ({ name: s.name, compliance: s.conformidade, audits: 0, nc: 0 })),
+    topIssues: paretoData.slice(0, 8).map(p => ({ item: p.fullQuestion, count: p.count })),
+    discussion: [
+      `A conformidade com os protocolos de precaução e isolamento no período é de ${stats.pctConformidade}%, ${stats.pctConformidade >= 90 ? "dentro da meta de 90%, demonstrando excelente adesão da equipe" : stats.pctConformidade >= 75 ? "em zona de atenção (75–89%), necessitando melhoria" : "abaixo da meta de 90%, representando risco de transmissão de microrganismos"}. Foram realizadas ${stats.totalRecords} auditoria(s) com ${stats.totalConforme} itens conformes e ${stats.totalNaoConforme} não conformidades identificadas.`,
+      sectorData.length > 0
+        ? `Análise por setor: o setor com menor conformidade é "${[...sectorData].sort((a, b) => a.conformidade - b.conformidade)[0]?.name}" (${[...sectorData].sort((a, b) => a.conformidade - b.conformidade)[0]?.conformidade}%), requerendo atenção imediata. O melhor desempenho é de "${sectorData[0]?.name}" (${sectorData[0]?.conformidade}%).`
+        : "Sem dados suficientes para análise setorial no período.",
+      paretoData[0]
+        ? `Principal não conformidade: "${paretoData[0].fullQuestion}" (${paretoData[0].count} ocorrências). A não adesão a este item representa risco direto de transmissão cruzada de microrganismos, especialmente em unidades com pacientes imunocomprometidos.`
+        : "Nenhuma não conformidade recorrente identificada no período avaliado.",
+      `Tendência: ${stats.delta >= 0 ? "melhora de +" + stats.delta + "%" : "queda de " + Math.abs(stats.delta) + "%"} em relação ao mês anterior. ${stats.delta < 0 ? "Investigar causas: mudança de equipe, disponibilidade de EPIs, treinamento insuficiente." : "Manter as práticas de sucesso e reforçar treinamento nos setores com menor desempenho."}`,
+    ].join("\n"),
+    recommendations: [
+      stats.pctConformidade < 90
+        ? "Implementar programa de educação continuada em precauções e isolamento com foco nos itens não conformes."
+        : "Manter o programa de educação continuada como ferramenta de sustentabilidade da conformidade.",
+      paretoData[0]
+        ? `Corrigir imediatamente a não conformidade "${paretoData[0].fullQuestion}" — item mais frequente de não adesão.`
+        : "Fortalecer a cultura de precauções com cartazes e lembretes visuais nos pontos de assistência.",
+      "Garantir disponibilidade permanente de EPIs (luvas, aventais, máscaras) nos carros de precaução.",
+      "Implementar feedback imediato ao profissional observado com não conformidade — abordagem respeitosa e educativa.",
+      "Realizar treinamento específico de precauções para novos colaboradores e equipes com maior rotatividade.",
+      "Elaborar Plano de Ação 5W2H para as principais não conformidades com prazo máximo de execução de 15 dias.",
+    ],
+    filenamePrefix: "precaucoes-isolamento",
+  };
+
   return (
     <div className="space-y-6">
 
@@ -677,6 +724,7 @@ export default function DashboardPrecautions() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={uniqueSectors} defaultAuditType="precaution" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];

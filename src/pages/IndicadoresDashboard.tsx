@@ -27,6 +27,7 @@ import {
 import { mesesOptions } from "@/data/indicadores-config";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 
 
 const neonatalWeightCategories = [
@@ -578,6 +579,56 @@ export default function IndicadoresDashboard() {
             {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileDown className="h-4 w-4 mr-1" />}
             Exportar Aba PDF
           </Button>
+          <DashboardPdfReport data={{
+            title: "Dashboard — Indicadores Epidemiológicos",
+            subtitle: "Vigilância de IRAS · Taxas de Infecção, Utilização de Dispositivos e Mortalidade",
+            hospitalName: hospitalId || "Hospital",
+            referenceNorm: "ANVISA RDC 07/2010 · NHSN CDC",
+            context:
+              "Este relatório apresenta os indicadores epidemiológicos de Infecções Relacionadas à Assistência à Saúde (IRAS), incluindo: densidade de incidência de infecção (por 1.000 pacientes-dia), taxas de utilização de dispositivos invasivos (CVC, VM, SVD), taxas de infecção por dispositivo, taxas de mortalidade relacionada à infecção e tempo médio de permanência. Estes indicadores são obrigatórios pelo ANVISA para hospitais de alta complexidade.",
+            methodology:
+              "Vigilância epidemiológica ativa com coleta prospectiva de dados. Indicadores calculados conforme metodologia NHSN (CDC): densidade de incidência = nº infecções / pacientes-dia × 1.000; taxa de utilização = dias de dispositivo / pacientes-dia × 100.",
+            kpis: [
+              { label: "Taxa de Infecção", value: taxaInfeccao.toFixed(2), sub: "por 1.000 pac-dia", status: taxaInfeccao === 0 ? "ok" : taxaInfeccao <= 2 ? "warning" : "critical" },
+              { label: "Taxa de Letalidade", value: `${taxaLetalidade.toFixed(1)}%`, sub: "óbitos/infecção", status: taxaLetalidade <= 10 ? "ok" : taxaLetalidade <= 25 ? "warning" : "critical" },
+              { label: "Taxa Inf. CVC", value: taxaInfCVC.toFixed(2), sub: "por 1.000 cvc-dia", status: taxaInfCVC === 0 ? "ok" : taxaInfCVC <= 2 ? "warning" : "critical" },
+              { label: "Taxa Inf. VM (PAV)", value: taxaInfVM.toFixed(2), sub: "por 1.000 vm-dia", status: taxaInfVM === 0 ? "ok" : taxaInfVM <= 2 ? "warning" : "critical" },
+              { label: "Taxa Inf. SVD (ITU)", value: taxaInfSVD.toFixed(2), sub: "por 1.000 svd-dia", status: taxaInfSVD === 0 ? "ok" : taxaInfSVD <= 3 ? "warning" : "critical" },
+              { label: "Pacientes-Dia", value: String(agg.numPacienteDiaTotal), sub: "total acumulado" },
+              { label: "Infecções IRAS", value: String(agg.numInfeccoes), sub: "total no período", status: agg.numInfeccoes === 0 ? "ok" : "warning" },
+              { label: "Tempo Permanência", value: `${tempoPermanencia.toFixed(1)} dias`, sub: "média hospitalar" },
+              { label: "Taxa Uso CVC", value: `${taxaUtilCVC.toFixed(1)}%`, sub: "utilização de CVC" },
+              { label: "Taxa Uso VM", value: `${taxaUtilVM.toFixed(1)}%`, sub: "utilização de VM" },
+              { label: "Taxa Uso Antibióticos", value: `${taxaUsoAtb.toFixed(1)}%`, sub: "pacientes com ATB" },
+            ],
+            extraTables: monthlyData.length > 0 ? [{
+              title: "Evolução Mensal dos Indicadores",
+              headers: ["Mês", "Tx. Infecção", "Tx. Letalidade", "Inf. CVC", "Inf. VM (PAV)", "Inf. SVD (ITU)"],
+              rows: monthlyData.map(m => [
+                m.mes,
+                m.taxaInfeccao.toFixed(2),
+                `${m.taxaLetalidade.toFixed(1)}%`,
+                m.taxaInfCVC.toFixed(2),
+                m.taxaInfVM.toFixed(2),
+                m.taxaInfSVD.toFixed(2),
+              ]),
+            }] : [],
+            discussion: [
+              `A taxa de infecção do período é de ${taxaInfeccao.toFixed(2)} por 1.000 pacientes-dia, com ${agg.numInfeccoes} infecção(ões) identificada(s). A taxa de letalidade relacionada à infecção é de ${taxaLetalidade.toFixed(1)}%. O tempo médio de permanência é de ${tempoPermanencia.toFixed(1)} dias.`,
+              `Taxas de infecção por dispositivo: CVC ${taxaInfCVC.toFixed(2)}/1.000 cvc-dia; VM (PAV) ${taxaInfVM.toFixed(2)}/1.000 vm-dia; SVD (ITU-CA) ${taxaInfSVD.toFixed(2)}/1.000 svd-dia. As taxas de utilização foram: CVC ${taxaUtilCVC.toFixed(1)}%, VM ${taxaUtilVM.toFixed(1)}%, SVD ${taxaUtilSVD.toFixed(1)}%.`,
+              `O uso de antimicrobianos foi registrado em ${taxaUsoAtb.toFixed(1)}% dos pacientes expostos, totalizando ${agg.numAntibioticosUtilizados} registros. O alto índice de uso de antibióticos deve ser monitorado em correlação com o perfil de resistência microbiológica local.`,
+              `Os indicadores acumulados de ${filtered.length} registro(s) em ${setorFiltro.length > 0 ? setorFiltro.join(", ") : "todos os setores"} representam a vigilância ativa de IRAS conforme exigido pela ANVISA para hospitais de alta complexidade.`,
+            ].join("\n"),
+            recommendations: [
+              taxaInfeccao > 2 ? "Intensificar medidas de prevenção de IRAS: higienização das mãos, bundles e precauções de isolamento." : "Manter as medidas preventivas de IRAS e vigilância epidemiológica ativa.",
+              taxaInfCVC > 0 ? `Revisar protocolo de bundle de CVC — taxa de infecção de ${taxaInfCVC.toFixed(2)}/1.000 cvc-dia requer investigação e intervenção.` : "Manter conformidade com bundle de CVC e auditoria regular.",
+              taxaInfVM > 0 ? `Implementar/reforçar bundle de prevenção de PAV — taxa de ${taxaInfVM.toFixed(2)}/1.000 vm-dia.` : "Manter práticas de bundle de VM e avaliação diária de extubação.",
+              taxaInfSVD > 3 ? `Taxa de ITU-CA de ${taxaInfSVD.toFixed(2)}/1.000 svd-dia acima do referencial — rever indicação e bundle de SVD.` : "Continuar avaliação diária da necessidade de SVD e manutenção do bundle.",
+              "Apresentar estes indicadores em reunião mensal da CCIH com direção médica e de enfermagem.",
+              "Notificar surtos ou variações significativas ao SNVS conforme Resolução 36/2008.",
+            ],
+            filenamePrefix: "indicadores-epidemiologicos",
+          }} />
         </div>
       </div>
 

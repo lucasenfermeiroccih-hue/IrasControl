@@ -24,6 +24,7 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "@/hooks/use-toast";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -404,7 +405,56 @@ export default function DashboardDispenser() {
   const kr4 = Math.min(100, Math.round((fStats.goodSectors / Math.max(1, fStats.sectorData.length)) * 100));
   const kr5 = Math.min(100, fStats.nonCompliant === 0 ? 100 : Math.max(0, Math.round((1 - fStats.nonCompliant / Math.max(1, fStats.totalItems)) * 100)));
 
-  // ── Export PDF ──
+  // ── Report Data ──
+  const reportData: DashboardReportData = {
+    title: "Dashboard — Vigilância de Dispensers",
+    subtitle: "Monitoramento de insumos · álcool gel, sabonete, papel toalha e EPIs",
+    hospitalName,
+    goal: `Meta: ≥${META}%`,
+    referenceNorm: "ANVISA RDC 42/2010 · PNSP",
+    context:
+      "Este relatório apresenta o monitoramento de dispensers e insumos essenciais para higienização das mãos: álcool gel (FMCA), sabonete líquido, papel toalha, luvas e EPIs. A disponibilidade e funcionalidade desses insumos é pré-requisito para a adesão à higienização das mãos e, consequentemente, para a prevenção de IRAS. A meta de conformidade é ≥" + META + "% em todos os setores.",
+    methodology:
+      "Auditoria de inspeção visual dos dispensers por setor, verificando disponibilidade do produto, funcionamento do equipamento, posicionamento adequado e condições gerais de manutenção. Registros classificados por tipo de dispenser, setor e período.",
+    kpis: [
+      { label: "Conformidade Geral", value: `${fStats.avgCompliance}%`, sub: `Meta: ${META}%`, status: fStats.avgCompliance >= META ? "ok" : fStats.avgCompliance >= 75 ? "warning" : "critical" },
+      { label: "Dispensers Auditados", value: String(fStats.totalAudits), sub: "registros no período" },
+      { label: "Itens Conformes", value: String(fStats.compliant), sub: `de ${fStats.totalItems} avaliados` },
+      { label: "Não Conformidades", value: String(fStats.nonCompliant), sub: "requerem ação imediata", status: fStats.nonCompliant === 0 ? "ok" : "critical" },
+      { label: "Setores Adequados", value: String(fStats.goodSectors), sub: `de ${fStats.sectorData.length} setores`, status: "ok" },
+      { label: "Setores em Atenção", value: String(fStats.warningSectors), sub: "75–89% conformidade", status: fStats.warningSectors > 0 ? "warning" : "ok" },
+      { label: "Setores Críticos", value: String(fStats.criticalSectors), sub: "< 75% conformidade", status: fStats.criticalSectors === 0 ? "ok" : "critical" },
+      { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
+    ],
+    sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
+    discussion: [
+      `A conformidade de dispensers no período é de ${fStats.avgCompliance}%, ${fStats.avgCompliance >= META ? "dentro da meta de " + META + "%, indicando boa gestão de insumos" : "abaixo da meta de " + META + "%, representando risco à disponibilidade de insumos para higienização"}. Foram auditados ${fStats.totalAudits} registros, com ${fStats.nonCompliant} não conformidade(s) identificada(s).`,
+      fStats.criticalSectors > 0
+        ? `${fStats.criticalSectors} setor(es) em situação crítica (< 75% de conformidade), comprometendo a higienização das mãos nessas áreas.`
+        : "Nenhum setor em situação crítica. Os insumos estão disponíveis de forma satisfatória no período avaliado.",
+      fStats.topFailures[0]
+        ? `Problema mais frequente: "${fStats.topFailures[0].item}" (${fStats.topFailures[0].count} ocorrências). Ação corretiva imediata necessária para garantir disponibilidade contínua.`
+        : "Nenhum problema específico recorrente identificado nos dispensers no período.",
+      `Tendência de ${fStats.improvement >= 0 ? "melhora de +" + fStats.improvement + "%" : "queda de " + Math.abs(fStats.improvement) + "%"} vs período anterior. ${fStats.improvement < 0 ? "Investigar causas: falha no abastecimento, quebra de equipamentos, falta de responsável pela reposição." : "Manter rotina de reposição e inspeção."}`,
+    ].join("\n"),
+    recommendations: [
+      `${fStats.avgCompliance < META ? "Intensificar" : "Manter"} rotina de inspeção e reposição de dispensers em todos os setores.`,
+      fStats.topFailures[0]
+        ? `Corrigir imediatamente o problema "${fStats.topFailures[0].item}" — principal causa de não conformidade.`
+        : "Estabelecer cronograma preventivo de manutenção e reposição de insumos.",
+      "Definir responsável por setor para checagem diária de dispensers e reposição proativa.",
+      fStats.criticalSectors > 0
+        ? `Priorizar manutenção/reposição nos ${fStats.criticalSectors} setor(es) crítico(s) com urgência.`
+        : "Manter o bom desempenho com auditorias mensais de conformidade.",
+      "Garantir estoque estratégico de álcool gel, sabonete e papel toalha para evitar ruptura de abastecimento.",
+      "Elaborar Plano de Ação 5W2H para cada tipo de não conformidade identificada.",
+    ],
+    filenamePrefix: "dispensers",
+  };
+
+  // ── Export PDF (legado) ──
   const handleExportPdf = () => {
     if (!hospitalId) return;
     exportPdf({
@@ -466,9 +516,7 @@ export default function DashboardDispenser() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPdf}>
-            <Download className="h-4 w-4 mr-1" />PDF
-          </Button>
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={buildSectorOptions(allAudits)} defaultAuditType="dispenser" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];

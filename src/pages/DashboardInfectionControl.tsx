@@ -22,6 +22,7 @@ import ChartActions from "@/components/ChartActions";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { toast } from "sonner";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 
@@ -369,7 +370,56 @@ export default function DashboardInfectionControl() {
     return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
   }, [stats, items]);
 
-  // ── Export PDF ──
+  // ── Report Data ──
+  const reportData: DashboardReportData = {
+    title: "Dashboard — Controle de Infecção",
+    subtitle: "Vigilância de processos · KPIs, OKRs e indicadores para tomada de decisão",
+    hospitalName,
+    goal: `Meta ANVISA: ≥${META}%`,
+    referenceNorm: "ANVISA RDC 07/2010 · Portaria MS 2.616/1998",
+    context:
+      "Este relatório apresenta os indicadores de conformidade dos processos de controle de infecção hospitalar, abrangendo bundles de CVC/SVD, precauções de isolamento, higiene do ambiente, manuseio de equipamentos e práticas assistenciais seguras. O controle de infecção sistematizado reduz a incidência de IRAS (ICSC-CVC, PAV, ITU-CA, ISC) e a morbimortalidade associada. Meta ANVISA: ≥" + META + "%.",
+    methodology:
+      "Auditoria de processos assistenciais com checklist padronizado pela CCIH. Avaliação de múltiplas categorias: bundles de dispositivos, higiene ambiental, precauções e práticas de segurança. Registros classificados por categoria, setor e período para análise de tendências e priorização de intervenções.",
+    kpis: [
+      { label: "Conformidade Geral", value: `${stats.avgCompliance}%`, sub: `Meta: ${META}%`, status: stats.avgCompliance >= META ? "ok" : stats.avgCompliance >= 75 ? "warning" : "critical" },
+      { label: "Auditorias no Período", value: String(stats.totalAudits), sub: "registros analisados" },
+      { label: "Itens Não Conformes", value: String(stats.nonCompliantItems), sub: "requerem ação", status: stats.nonCompliantItems === 0 ? "ok" : "critical" },
+      { label: "Tendência", value: `${stats.improvement >= 0 ? "+" : ""}${stats.improvement}%`, sub: "vs período anterior", status: stats.improvement >= 0 ? "ok" : "warning" },
+      { label: "Setores Adequados", value: String(derived.goodSectors), sub: `de ${stats.sectorData.length} setores`, status: "ok" },
+      { label: "Setores em Atenção", value: String(derived.warningSectors), sub: "75–84% conformidade", status: derived.warningSectors > 0 ? "warning" : "ok" },
+      { label: "Setores Críticos", value: String(derived.criticalSectors), sub: "< 75% conformidade", status: derived.criticalSectors === 0 ? "ok" : "critical" },
+      { label: "Categorias Avaliadas", value: String(stats.categoryData.length), sub: `${stats.categoryData.filter(c => c.compliance >= META).length} dentro da meta` },
+    ],
+    sectorData: stats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nonCompliant })),
+    monthlyTrend: (stats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    topIssues: stats.topFailures.map(f => ({ item: f.item, count: f.count })),
+    discussion: [
+      `A conformidade dos processos de controle de infecção no período é de ${stats.avgCompliance}%, ${stats.avgCompliance >= META ? "dentro da meta ANVISA de " + META + "%" : "abaixo da meta ANVISA de " + META + "%, indicando vulnerabilidades nos processos assistenciais que aumentam o risco de IRAS"}. Foram auditados ${stats.totalAudits} registros, identificando ${stats.nonCompliantItems} item(ns) não conforme(s).`,
+      derived.criticalSectors > 0
+        ? `${derived.criticalSectors} setor(es) em situação crítica (< 75%), representando focos prioritários de risco de infecção hospitalar. A distribuição de não conformidades por categoria revela as áreas de maior vulnerabilidade.`
+        : "Nenhum setor em situação crítica no período. A distribuição de não conformidades está dentro dos parâmetros de controle.",
+      stats.topFailures[0]
+        ? `A não conformidade mais frequente é "${stats.topFailures[0].item}" (${stats.topFailures[0].count} ocorrências). Este indicador requer análise de causa raiz e plano de ação estruturado com responsáveis e prazos definidos.`
+        : "Nenhuma não conformidade recorrente identificada. Os processos de controle de infecção estão sendo executados adequadamente.",
+      `Tendência: ${stats.improvement >= 0 ? "melhora de +" + stats.improvement + "%" : "queda de " + Math.abs(stats.improvement) + "%"} em relação ao período anterior. ${stats.improvement < 0 ? "Investigar fatores sistêmicos: rotatividade de equipe, mudanças de protocolo, sobrecarga de trabalho." : "Manter práticas bem-sucedidas e intensificar supervisão nos setores com menor conformidade."}`,
+    ].join("\n"),
+    recommendations: [
+      `${stats.avgCompliance < META ? "Implementar plano de melhoria emergencial para atingir a meta de " + META + "% em 60 dias." : "Sustentar a conformidade de " + stats.avgCompliance + "% com auditorias regulares e feedback contínuo."}`,
+      stats.topFailures[0]
+        ? `Priorizar correção de "${stats.topFailures[0].item}" com treinamento específico e supervisão reforçada.`
+        : "Manter educação continuada sobre processos de controle de infecção para toda a equipe assistencial.",
+      derived.criticalSectors > 0
+        ? `Intervenção imediata nos ${derived.criticalSectors} setor(es) crítico(s): auditoria semanal, feedback individualizado e capacitação.`
+        : "Fortalecer a cultura de segurança com reconhecimento dos setores com melhor desempenho.",
+      "Realizar revisão trimestral dos bundles e checklists com base em novas evidências e normas ANVISA.",
+      "Elaborar Plano de Ação 5W2H para cada não conformidade crítica identificada, com responsável e prazo definidos.",
+      "Apresentar estes resultados em reunião mensal da CCIH e à direção hospitalar para garantir suporte institucional.",
+    ],
+    filenamePrefix: "controle-infeccao",
+  };
+
+  // ── Export PDF (legado) ──
   const handleExportPdf = () => {
     if (!hospitalId) return;
     exportPdf({
@@ -429,9 +479,7 @@ export default function DashboardInfectionControl() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPdf}>
-            <Download className="h-4 w-4 mr-1" />PDF
-          </Button>
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={buildSectorOptions(allAudits)} defaultAuditType="infection_control" />
           <DashboardAIInsights
             generateInsights={() => {

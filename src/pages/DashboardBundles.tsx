@@ -13,6 +13,7 @@ import DashboardFilters from "@/components/DashboardFilters";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useState } from "react";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 
@@ -29,6 +30,48 @@ export default function DashboardBundles() {
   const [ano, setAno] = useState<string[]>([]);
   const [setor, setSetor] = useState<string[]>([]);
   const { stats, loading, allAudits } = useAuditDashboard("bundles", { dia, mes, ano, setor });
+
+  const reportData: DashboardReportData = {
+    title: "Dashboard — Bundles CVC/SVD",
+    subtitle: "Indicadores de conformidade de dispositivos invasivos · CVC e SVD",
+    hospitalName,
+    goal: "Meta: ≥85%",
+    referenceNorm: "ANVISA RDC 07/2010 · Protocolos PROQUALIS",
+    context:
+      "Este relatório apresenta os indicadores de conformidade dos bundles de inserção e manutenção de dispositivos vasculares (CVC — Cateter Venoso Central) e vesicais (SVD — Sonda Vesical de Demora). Os bundles são pacotes de intervenções com evidência científica que, aplicados em conjunto, reduzem significativamente a incidência de infecções associadas a dispositivos (ICSC-CVC e ITU-CA). A adesão completa a todos os elementos do bundle é obrigatória para máxima efetividade.",
+    methodology:
+      "Auditoria de conformidade com checklist de bundle validado para cada dispositivo. Avaliação dos elementos: higiene das mãos antes do procedimento, uso de barreira máxima, antissepsia da pele, escolha do sítio de inserção, checagem diária de necessidade e cuidados de manutenção. Registros por setor e período.",
+    kpis: [
+      { label: "Conformidade Geral", value: `${stats.avgCompliance}%`, sub: "Meta: 85%", status: stats.avgCompliance >= 85 ? "ok" : stats.avgCompliance >= 70 ? "warning" : "critical" },
+      { label: "Auditorias Realizadas", value: String(stats.totalAudits), sub: "registros no período" },
+      { label: "Não Conformidades", value: String(stats.nonCompliantItems), sub: "itens não conformes", status: stats.nonCompliantItems === 0 ? "ok" : "critical" },
+      { label: "Melhoria Período", value: `${stats.improvement >= 0 ? "+" : ""}${stats.improvement}%`, sub: "vs período anterior", status: stats.improvement >= 0 ? "ok" : "warning" },
+    ],
+    sectorData: stats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nonCompliant })),
+    monthlyTrend: (stats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    topIssues: stats.topFailures.map(f => ({ item: f.item, count: f.count })),
+    discussion: [
+      `A conformidade com os bundles CVC/SVD no período é de ${stats.avgCompliance}%, ${stats.avgCompliance >= 85 ? "dentro da meta de 85%, demonstrando boa adesão da equipe aos protocolos de prevenção de IRAS" : "abaixo da meta de 85%, aumentando o risco de infecções associadas a dispositivos (ICSC-CVC e ITU-CA)"}. Foram realizadas ${stats.totalAudits} auditoria(s), com ${stats.nonCompliantItems} não conformidade(s) identificada(s).`,
+      stats.sectorData.length > 0
+        ? `A análise setorial revela variabilidade de desempenho entre os setores: ${stats.sectorData.filter(s => s.compliance >= 85).length} setor(es) adequado(s) e ${stats.sectorData.filter(s => s.compliance < 85).length} setor(es) aquém da meta.`
+        : "Não há dados suficientes para análise setorial no período.",
+      stats.topFailures[0]
+        ? `Elemento de bundle com maior não conformidade: "${stats.topFailures[0].item}" (${stats.topFailures[0].count} ocorrências). A não adesão a qualquer elemento do bundle compromete a efetividade do conjunto e aumenta o risco de infecção.`
+        : "Todos os elementos dos bundles foram aplicados adequadamente no período avaliado.",
+      `Tendência: ${stats.improvement >= 0 ? "melhora de +" + stats.improvement + "%" : "queda de " + Math.abs(stats.improvement) + "%"} em relação ao período anterior. ${stats.improvement < 0 ? "Investigar mudanças de equipe, materiais ou protocolos que possam explicar a redução." : "Consolidar as práticas de sucesso e expandir para setores com menor desempenho."}`,
+    ].join("\n"),
+    recommendations: [
+      `${stats.avgCompliance < 85 ? "Realizar treinamento de reciclagem sobre bundles CVC/SVD com toda a equipe assistencial." : "Manter a educação continuada sobre bundles como parte da cultura de segurança hospitalar."}`,
+      stats.topFailures[0]
+        ? `Focar no elemento "${stats.topFailures[0].item}" — item mais frequentemente negligenciado no bundle.`
+        : "Garantir que todos os elementos do bundle sejam verificados em cada inserção e manutenção de dispositivo.",
+      "Implementar checagem diária documentada da necessidade de manutenção do dispositivo invasivo.",
+      "Realizar bundle review com a equipe médica e de enfermagem mensalmente para revisão de casos com não conformidade.",
+      "Monitorar correlação entre conformidade de bundles e taxas de ICSC-CVC e ITU-CA no setor de epidemiologia.",
+      "Elaborar Plano de Ação 5W2H para não conformidades identificadas, com responsável e prazo máximo de 15 dias.",
+    ],
+    filenamePrefix: "bundles",
+  };
 
   const handleExportPdf = () => {
     if (!hospitalId) return;
@@ -65,7 +108,7 @@ export default function DashboardBundles() {
           <p className="text-sm text-muted-foreground">Indicadores de conformidade de dispositivos invasivos</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPdf}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={buildSectorOptions(allAudits)} defaultAuditType="bundles" />
           <DashboardAIInsights generateInsights={() => {
           const ins: string[] = [];

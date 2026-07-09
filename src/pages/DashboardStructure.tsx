@@ -25,6 +25,7 @@ import { useAuditDashboard as useAudit } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -434,7 +435,56 @@ export default function DashboardStructure() {
   const kr4 = Math.min(100, Math.round((fStats.goodSectors / Math.max(1, fStats.sectorData.length)) * 100));
   const kr5 = Math.min(100, fStats.nonCompliant === 0 ? 100 : Math.max(0, Math.round((1 - fStats.nonCompliant / Math.max(1, fStats.totalItems)) * 100)));
 
-  // ── Export PDF ──
+  // ── Report Data ──
+  const reportData: DashboardReportData = {
+    title: "Dashboard — Estrutura Setorial",
+    subtitle: "Monitoramento de infraestrutura hospitalar · Ventilação, Saneamento, Manutenção e PGRSS",
+    hospitalName,
+    goal: `Meta ANVISA: ≥${META}%`,
+    referenceNorm: "ANVISA RDC 50/2002 · RDC 307/2002",
+    context:
+      "Este relatório apresenta o monitoramento das condições estruturais dos setores hospitalares, avaliando ventilação/climatização (HVAC), abastecimento de água e saneamento, manutenção predial, adequação dos leitos e áreas físicas, e gerenciamento de resíduos (PGRSS). A conformidade estrutural é determinante para a prevenção de IRAS, especialmente infecções por microrganismos ambientais. Meta ANVISA: ≥" + META + "%.",
+    methodology:
+      "Inspeção sistematizada dos setores hospitalares com checklist baseado nas normas ANVISA RDC 50/2002 e RDC 307/2002. Avaliação abrange 6 categorias: ventilação, água/saneamento, manutenção predial, leitos/áreas físicas, resíduos (PGRSS) e estrutura geral.",
+    kpis: [
+      { label: "Conformidade Geral", value: `${fStats.avgCompliance}%`, sub: `Meta ANVISA: ${META}%`, status: fStats.avgCompliance >= META ? "ok" : fStats.avgCompliance >= 75 ? "warning" : "critical" },
+      { label: "Auditorias no Período", value: String(fStats.totalAudits), sub: "registros analisados" },
+      { label: "Itens Conformes", value: String(fStats.compliant), sub: `de ${fStats.totalItems} avaliados` },
+      { label: "Não Conformidades", value: String(fStats.nonCompliant), sub: "requerem intervenção", status: fStats.nonCompliant === 0 ? "ok" : "critical" },
+      { label: "Setores Adequados", value: String(fStats.goodSectors), sub: `de ${fStats.sectorData.length} setores`, status: "ok" },
+      { label: "Setores em Atenção", value: String(fStats.warningSectors), sub: "75–84% conformidade", status: fStats.warningSectors > 0 ? "warning" : "ok" },
+      { label: "Setores Críticos", value: String(fStats.criticalSectors), sub: "< 75% conformidade", status: fStats.criticalSectors === 0 ? "ok" : "critical" },
+      { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
+    ],
+    sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
+    discussion: [
+      `A conformidade estrutural no período é de ${fStats.avgCompliance}%, ${fStats.avgCompliance >= META ? "dentro da meta ANVISA de " + META + "%" : "abaixo da meta ANVISA de " + META + "%, representando risco estrutural para a segurança assistencial"}. Foram avaliados ${fStats.totalAudits} registros de auditoria, com ${fStats.nonCompliant} não conformidade(s) identificada(s).`,
+      fStats.criticalSectors > 0
+        ? `${fStats.criticalSectors} setor(es) em situação crítica estrutural (< 75%), com potencial impacto na segurança de pacientes e trabalhadores. Intervenção prioritária necessária.`
+        : "Nenhum setor em situação crítica estrutural no período avaliado.",
+      fStats.topFailures[0]
+        ? `Problema estrutural mais frequente: "${fStats.topFailures[0].item}" (${fStats.topFailures[0].count} ocorrências). Esta não conformidade deve ser tratada com caráter de urgência pela engenharia/manutenção hospitalar.`
+        : "Nenhum problema estrutural recorrente identificado no período.",
+      `Tendência: ${fStats.improvement >= 0 ? "melhora de +" + fStats.improvement + "%" : "queda de " + Math.abs(fStats.improvement) + "%"} vs período anterior. ${fStats.improvement < 0 ? "Revisar plano de manutenção preventiva e verificar contratos de serviços de engenharia." : "Manter cronograma de manutenção preventiva e inspeções regulares."}`,
+    ].join("\n"),
+    recommendations: [
+      `${fStats.nonCompliant > 0 ? "Acionar engenharia/manutenção imediatamente para as " + fStats.nonCompliant + " não conformidade(s) identificada(s)." : "Manter o plano de manutenção preventiva para sustentabilidade da conformidade."}`,
+      fStats.topFailures[0]
+        ? `Priorizar correção de "${fStats.topFailures[0].item}" — problema estrutural mais frequente.`
+        : "Implementar rotina de inspeção preventiva quinzenal em todos os setores.",
+      "Elaborar cronograma de manutenção preventiva contemplando ventilação, hidráulica, elétrica e PGRSS.",
+      fStats.criticalSectors > 0
+        ? `Mobilizar recursos para os ${fStats.criticalSectors} setor(es) crítico(s) com prazo máximo de 30 dias para adequação.`
+        : "Fortalecer a cultura de manutenção preventiva e comunicação de problemas estruturais.",
+      "Documentar todas as ações corretivas em sistema de ordem de serviço para rastreabilidade.",
+      "Realizar reunião mensal entre CCIH, engenharia hospitalar e direção para acompanhamento dos indicadores estruturais.",
+    ],
+    filenamePrefix: "estrutura-setorial",
+  };
+
+  // ── Export PDF (legado) ──
   const handleExportPdf = () => {
     if (!hospitalId) return;
     exportPdf({
@@ -496,9 +546,7 @@ export default function DashboardStructure() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleExportPdf}>
-            <Download className="h-4 w-4 mr-1" />PDF
-          </Button>
+          <DashboardPdfReport data={reportData} />
           <AuditManagerReportButton hospitalId={hospitalId || ""} hospitalName={hospitalName} availableSectors={buildSectorOptions(allAudits)} defaultAuditType="cti_infrastructure" />
           <DashboardAIInsights generateInsights={() => {
             const ins: string[] = [];
