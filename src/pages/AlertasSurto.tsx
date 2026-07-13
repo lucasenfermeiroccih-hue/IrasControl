@@ -195,7 +195,7 @@ export default function AlertasSurto() {
 
     const pIds = pData.map((p: any) => p.id);
     const [precsRes, labsRes] = await Promise.all([
-      supabase.from("precautions").select("*").in("patient_id", pIds),
+      supabase.from("precautions").select("*, patients!inner(hospital_id)").eq("patients.hospital_id", hospitalId),
       supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }),
     ]);
 
