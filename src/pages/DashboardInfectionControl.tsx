@@ -308,6 +308,8 @@ export default function DashboardInfectionControl() {
     toast.success("Análise de causa raiz atualizada");
   };
 
+  const META = 85;
+
   // ── Derived metrics ──
   const derived = useMemo(() => {
     const criticalSectors = stats.sectorData.filter((s) => s.compliance < 75).length;
@@ -451,7 +453,6 @@ export default function DashboardInfectionControl() {
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  const META = 85;
   const complianceStatus = stats.avgCompliance >= META ? "Adequado" : stats.avgCompliance >= 75 ? "Atenção" : "Crítico";
   const complianceBadgeColor = stats.avgCompliance >= META ? "bg-emerald-100 text-emerald-800" : stats.avgCompliance >= 75 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800";
 
