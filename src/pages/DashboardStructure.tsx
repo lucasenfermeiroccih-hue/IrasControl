@@ -457,7 +457,7 @@ export default function DashboardStructure() {
       { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
     ],
     sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
-    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.label, value: m.compliance })),
     topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
     discussion: [
       `A conformidade estrutural no período é de ${fStats.avgCompliance}%, ${fStats.avgCompliance >= META ? "dentro da meta ANVISA de " + META + "%" : "abaixo da meta ANVISA de " + META + "%, representando risco estrutural para a segurança assistencial"}. Foram avaliados ${fStats.totalAudits} registros de auditoria, com ${fStats.nonCompliant} não conformidade(s) identificada(s).`,
