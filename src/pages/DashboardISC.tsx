@@ -1040,15 +1040,26 @@ export default function DashboardISC() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => (
-                    <Bar
-                      key={esp}
-                      dataKey={esp}
-                      stackId="esp"
-                      fill={COLORS[i % COLORS.length]}
-                      radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  ))}
+                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => {
+                    const isLast = i === cirurgiasEspecialidadeMes.especialidades.length - 1;
+                    return (
+                      <Bar
+                        key={esp}
+                        dataKey={esp}
+                        stackId="esp"
+                        fill={COLORS[i % COLORS.length]}
+                        radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      >
+                        {isLast && (
+                          <LabelList
+                            dataKey="total"
+                            position="top"
+                            style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    );
+                  })}
                   {metas.especialidade !== undefined && (
                     <ReferenceLine y={metas.especialidade} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.especialidade}`, position: "right", fontSize: 11 }} />
                   )}
