@@ -729,7 +729,7 @@ export default function DashboardISC() {
               { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
               { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
               { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
-              { label: "Taxa ISC", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true },
+              { label: "Taxa ISC (agregada)", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true, hint: `${kpis.totalISC} ISC / ${kpis.totalCirurgias} cirurgias` },
             ].map((kpi) => (
               <Card key={kpi.label} className={kpi.badge ? `border ${statusColor(kpis.taxaISC)}` : ""}>
                 <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-1">
