@@ -292,7 +292,9 @@ export default function DashboardISC() {
   const sitioData = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
-      if (r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.totalCirurgias;
+      if (!r.sitio) return;
+      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      sitios.forEach((s) => { map[s] = (map[s] || 0) + r.totalCirurgias; });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filtered]);
