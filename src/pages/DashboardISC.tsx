@@ -58,6 +58,40 @@ const PIE_COLORS = [
   "#f43f5e", "#6366f1",
 ];
 
+const ISC_SITE_LABELS = ["ISC superficial", "ISC profunda", "ISC de cavidade/órgão"];
+
+const normalizeIscSite = (value: string) => {
+  const trimmed = value.trim();
+  const normalized = trimmed
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("profund")) return "ISC profunda";
+  if (normalized.includes("cavidade") || normalized.includes("orgao") || normalized.includes("órgão") || normalized.includes("espaco") || normalized.includes("espaço")) {
+    return "ISC de cavidade/órgão";
+  }
+  if (normalized.includes("superfic")) return "ISC superficial";
+
+  return trimmed;
+};
+
+const splitIscSites = (sitio?: string | null) => {
+  if (!sitio) return [];
+
+  return Array.from(
+    new Set(
+      sitio
+        .split(/[,;\n]+/)
+        .map(normalizeIscSite)
+        .filter(Boolean)
+    )
+  );
+};
+
+const createIscSiteMap = () =>
+  Object.fromEntries(ISC_SITE_LABELS.map((label) => [label, 0])) as Record<string, number>;
+
 const statusColor = (rate: number) =>
   rate <= 2 ? "text-green-600 bg-green-50 border-green-200"
     : rate <= 5 ? "text-yellow-600 bg-yellow-50 border-yellow-200"
@@ -180,10 +214,9 @@ export default function DashboardISC() {
   const pieData = useMemo(() => {
     // Inclui TODOS os tipos de ISC (superficial, profunda, cavidade/órgão) presentes nos registros
     // filtrados. Cada registro pode ter múltiplos sítios separados por vírgula.
-    const map: Record<string, number> = {};
+    const map = createIscSiteMap();
     filtered.forEach((r) => {
-      if (!r.sitio) return;
-      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      const sitios = splitIscSites(r.sitio);
       sitios.forEach((s) => {
         if (!(s in map)) map[s] = 0;
         map[s] += r.iscConfirmada || 0;
@@ -261,9 +294,8 @@ export default function DashboardISC() {
     // Por sítio cirúrgico
     const porSitioMes: Record<string, Record<string, { cirurgias: number; isc: number }>> = {};
     filtered.forEach((r) => {
-      if (!r.sitio) return;
       const k = `${r.mes}/${r.ano}`;
-      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      const sitios = splitIscSites(r.sitio);
       sitios.forEach((s) => {
         if (!porSitioMes[s]) porSitioMes[s] = {};
         if (!porSitioMes[s][k]) porSitioMes[s][k] = { cirurgias: 0, isc: 0 };
@@ -290,10 +322,9 @@ export default function DashboardISC() {
 
   // Sítio cirúrgico (distribuição por sítio entre as cirurgias com sítio informado)
   const sitioData = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map = createIscSiteMap();
     filtered.forEach((r) => {
-      if (!r.sitio) return;
-      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      const sitios = splitIscSites(r.sitio);
       sitios.forEach((s) => { map[s] = (map[s] || 0) + r.totalCirurgias; });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
