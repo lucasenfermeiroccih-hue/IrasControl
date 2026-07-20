@@ -52,7 +52,11 @@ const COLORS = [
   "hsl(var(--chart-4))",
 ];
 
-const PIE_COLORS = ["#22c55e", "#eab308", "#ef4444"];
+const PIE_COLORS = [
+  "#22c55e", "#eab308", "#ef4444", "#3b82f6", "#a855f7",
+  "#f97316", "#14b8a6", "#ec4899", "#0ea5e9", "#84cc16",
+  "#f43f5e", "#6366f1",
+];
 
 const statusColor = (rate: number) =>
   rate <= 2 ? "text-green-600 bg-green-50 border-green-200"
@@ -174,11 +178,17 @@ export default function DashboardISC() {
   }, [filtered]);
 
   const pieData = useMemo(() => {
+    // Inclui TODOS os tipos de cirurgia (sítios) presentes nos registros filtrados,
+    // mesmo com 0 ISC confirmadas, para não omitir nenhum tipo de cirurgia da distribuição.
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
-      if (r.iscConfirmada > 0 && r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.iscConfirmada;
+      if (!r.sitio) return;
+      if (!(r.sitio in map)) map[r.sitio] = 0;
+      map[r.sitio] += r.iscConfirmada || 0;
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const barReintData = useMemo(() => {
@@ -294,7 +304,13 @@ export default function DashboardISC() {
       .sort(sortMesAno)
       .map(([name, vals]) => {
         const row: Record<string, any> = { name };
-        especialidades.forEach(e => { row[e] = vals[e] || 0; });
+        let total = 0;
+        especialidades.forEach(e => {
+          const v = vals[e] || 0;
+          row[e] = v;
+          total += v;
+        });
+        row.total = total;
         return row;
       });
     return { rows, especialidades };
@@ -713,13 +729,16 @@ export default function DashboardISC() {
               { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
               { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
               { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
-              { label: "Taxa ISC", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true },
+              { label: "Taxa ISC (agregada)", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true, hint: `${kpis.totalISC} ISC / ${kpis.totalCirurgias} cirurgias` },
             ].map((kpi) => (
               <Card key={kpi.label} className={kpi.badge ? `border ${statusColor(kpis.taxaISC)}` : ""}>
                 <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-1">
                   {kpi.icon}
                   <p className="text-xs text-muted-foreground">{kpi.label}</p>
                   <p className="text-xl font-bold">{kpi.value}</p>
+                  {(kpi as any).hint && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">{(kpi as any).hint}</p>
+                  )}
                   {kpi.badge && kpis.taxaISC <= 2 && (
                     <Badge variant="outline" className="text-green-600 border-green-300 text-[10px]">
                       <Award className="h-3 w-3 mr-1" /> Meta atingida
@@ -1024,15 +1043,26 @@ export default function DashboardISC() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => (
-                    <Bar
-                      key={esp}
-                      dataKey={esp}
-                      stackId="esp"
-                      fill={COLORS[i % COLORS.length]}
-                      radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  ))}
+                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => {
+                    const isLast = i === cirurgiasEspecialidadeMes.especialidades.length - 1;
+                    return (
+                      <Bar
+                        key={esp}
+                        dataKey={esp}
+                        stackId="esp"
+                        fill={COLORS[i % COLORS.length]}
+                        radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      >
+                        {isLast && (
+                          <LabelList
+                            dataKey="total"
+                            position="top"
+                            style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    );
+                  })}
                   {metas.especialidade !== undefined && (
                     <ReferenceLine y={metas.especialidade} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.especialidade}`, position: "right", fontSize: 11 }} />
                   )}
