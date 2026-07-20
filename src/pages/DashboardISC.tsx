@@ -178,11 +178,17 @@ export default function DashboardISC() {
   }, [filtered]);
 
   const pieData = useMemo(() => {
+    // Inclui TODOS os tipos de cirurgia (sítios) presentes nos registros filtrados,
+    // mesmo com 0 ISC confirmadas, para não omitir nenhum tipo de cirurgia da distribuição.
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
-      if (r.iscConfirmada > 0 && r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.iscConfirmada;
+      if (!r.sitio) return;
+      if (!(r.sitio in map)) map[r.sitio] = 0;
+      map[r.sitio] += r.iscConfirmada || 0;
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const barReintData = useMemo(() => {
