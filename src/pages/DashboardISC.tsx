@@ -178,13 +178,16 @@ export default function DashboardISC() {
   }, [filtered]);
 
   const pieData = useMemo(() => {
-    // Inclui TODOS os tipos de cirurgia (sítios) presentes nos registros filtrados,
-    // mesmo com 0 ISC confirmadas, para não omitir nenhum tipo de cirurgia da distribuição.
+    // Inclui TODOS os tipos de ISC (superficial, profunda, cavidade/órgão) presentes nos registros
+    // filtrados. Cada registro pode ter múltiplos sítios separados por vírgula.
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
       if (!r.sitio) return;
-      if (!(r.sitio in map)) map[r.sitio] = 0;
-      map[r.sitio] += r.iscConfirmada || 0;
+      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      sitios.forEach((s) => {
+        if (!(s in map)) map[s] = 0;
+        map[s] += r.iscConfirmada || 0;
+      });
     });
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
@@ -260,10 +263,13 @@ export default function DashboardISC() {
     filtered.forEach((r) => {
       if (!r.sitio) return;
       const k = `${r.mes}/${r.ano}`;
-      if (!porSitioMes[r.sitio]) porSitioMes[r.sitio] = {};
-      if (!porSitioMes[r.sitio][k]) porSitioMes[r.sitio][k] = { cirurgias: 0, isc: 0 };
-      porSitioMes[r.sitio][k].cirurgias += r.totalCirurgias;
-      porSitioMes[r.sitio][k].isc += r.iscConfirmada;
+      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      sitios.forEach((s) => {
+        if (!porSitioMes[s]) porSitioMes[s] = {};
+        if (!porSitioMes[s][k]) porSitioMes[s][k] = { cirurgias: 0, isc: 0 };
+        porSitioMes[s][k].cirurgias += r.totalCirurgias;
+        porSitioMes[s][k].isc += r.iscConfirmada;
+      });
     });
     const porSitio = Object.entries(porSitioMes).map(([sitio, mapMes]) => {
       const taxas = Object.values(mapMes)
@@ -286,7 +292,9 @@ export default function DashboardISC() {
   const sitioData = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach((r) => {
-      if (r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.totalCirurgias;
+      if (!r.sitio) return;
+      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      sitios.forEach((s) => { map[s] = (map[s] || 0) + r.totalCirurgias; });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filtered]);
