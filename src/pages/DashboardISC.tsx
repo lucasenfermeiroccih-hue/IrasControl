@@ -52,7 +52,11 @@ const COLORS = [
   "hsl(var(--chart-4))",
 ];
 
-const PIE_COLORS = ["#22c55e", "#eab308", "#ef4444"];
+const PIE_COLORS = [
+  "#22c55e", "#eab308", "#ef4444", "#3b82f6", "#a855f7",
+  "#f97316", "#14b8a6", "#ec4899", "#0ea5e9", "#84cc16",
+  "#f43f5e", "#6366f1",
+];
 
 const statusColor = (rate: number) =>
   rate <= 2 ? "text-green-600 bg-green-50 border-green-200"
