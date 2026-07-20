@@ -263,10 +263,13 @@ export default function DashboardISC() {
     filtered.forEach((r) => {
       if (!r.sitio) return;
       const k = `${r.mes}/${r.ano}`;
-      if (!porSitioMes[r.sitio]) porSitioMes[r.sitio] = {};
-      if (!porSitioMes[r.sitio][k]) porSitioMes[r.sitio][k] = { cirurgias: 0, isc: 0 };
-      porSitioMes[r.sitio][k].cirurgias += r.totalCirurgias;
-      porSitioMes[r.sitio][k].isc += r.iscConfirmada;
+      const sitios = r.sitio.split(",").map((s) => s.trim()).filter(Boolean);
+      sitios.forEach((s) => {
+        if (!porSitioMes[s]) porSitioMes[s] = {};
+        if (!porSitioMes[s][k]) porSitioMes[s][k] = { cirurgias: 0, isc: 0 };
+        porSitioMes[s][k].cirurgias += r.totalCirurgias;
+        porSitioMes[s][k].isc += r.iscConfirmada;
+      });
     });
     const porSitio = Object.entries(porSitioMes).map(([sitio, mapMes]) => {
       const taxas = Object.values(mapMes)
