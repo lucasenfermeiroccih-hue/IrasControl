@@ -304,7 +304,13 @@ export default function DashboardISC() {
       .sort(sortMesAno)
       .map(([name, vals]) => {
         const row: Record<string, any> = { name };
-        especialidades.forEach(e => { row[e] = vals[e] || 0; });
+        let total = 0;
+        especialidades.forEach(e => {
+          const v = vals[e] || 0;
+          row[e] = v;
+          total += v;
+        });
+        row.total = total;
         return row;
       });
     return { rows, especialidades };
