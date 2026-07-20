@@ -736,6 +736,9 @@ export default function DashboardISC() {
                   {kpi.icon}
                   <p className="text-xs text-muted-foreground">{kpi.label}</p>
                   <p className="text-xl font-bold">{kpi.value}</p>
+                  {(kpi as any).hint && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">{(kpi as any).hint}</p>
+                  )}
                   {kpi.badge && kpis.taxaISC <= 2 && (
                     <Badge variant="outline" className="text-green-600 border-green-300 text-[10px]">
                       <Award className="h-3 w-3 mr-1" /> Meta atingida
