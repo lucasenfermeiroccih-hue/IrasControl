@@ -289,9 +289,10 @@ export default function AlertasSurto() {
   }, [patients]);
   const optMat   = useMemo(() => [...new Set(patients.map(p => p.material).filter(Boolean))].sort(), [patients]);
 
-  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length;
+  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length || (selectedMonth ? 1 : 0) || (selectedYear ? 1 : 0);
   const clearAllFilters = () => {
     setFSetor([]); setFLeito([]); setFDataColeta([]); setFPrecaucao([]); setFOrganismo([]); setFMaterial([]);
+    setSelectedMonth(""); setSelectedYear("");
   };
 
   const alertas = useMemo((): Alerta[] => {
