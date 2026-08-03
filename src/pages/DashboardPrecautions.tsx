@@ -176,7 +176,7 @@ export default function DashboardPrecautions() {
   // Filters
   const [filterSector, setFilterSector] = useState("all");
   const [filterMes, setFilterMes] = useState("all");
-  const [filterAno, setFilterAno] = useState("all");
+  const [filterAno, setFilterAno] = useState(String(new Date().getFullYear()));
 
   // Chart meta values
   const [metaTrend, setMetaTrend] = useState<number | undefined>(undefined);
