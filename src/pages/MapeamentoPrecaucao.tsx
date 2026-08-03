@@ -144,6 +144,8 @@ export default function MapeamentoPrecaucao() {
   const [fLeito,     setFLeito]    = useState<string[]>([]);
   const [fLeitoOpen, setFLeitoOpen]= useState(false);
   const fLeitoRef = useRef<HTMLDivElement>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear,  setSelectedYear]  = useState<string>(String(new Date().getFullYear()));
   const [fDataColeta,setFDataColeta]= useState<string[]>([]);
   const [fDataColetaOpen, setFDataColetaOpen]= useState(false);
   const fDataColetaRef = useRef<HTMLDivElement>(null);
