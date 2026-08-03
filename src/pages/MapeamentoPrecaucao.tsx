@@ -1473,6 +1473,20 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
   const advFiltersBlock = (
     <div className="np" style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14, alignItems:"center" }}>
+      {/* Mês */}
+      <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+        style={{ ...inpStyle, width:"auto", minWidth:150, cursor:"pointer" }}>
+        <option value="">Mês: Todos os meses</option>
+        {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+          .map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
+      </select>
+      {/* Ano */}
+      <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+        style={{ ...inpStyle, width:"auto", minWidth:130, cursor:"pointer" }}>
+        <option value="">Ano: Todos os anos</option>
+        {Array.from({ length: new Date().getFullYear() + 1 - 2023 + 1 }, (_, i) => 2023 + i)
+          .map(y => <option key={y} value={String(y)}>{y}</option>)}
+      </select>
       {/* Setor */}
       <div ref={fSetorRef} style={{ position:"relative" }}>
         <button type="button"
