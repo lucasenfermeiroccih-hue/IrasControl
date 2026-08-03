@@ -815,9 +815,9 @@ export default function DashboardPrecautions() {
         <KpiCard icon={Activity}      label="Itens Avaliados"       value={stats.totalAvaliado}    color="text-blue-600" />
         <KpiCard
           icon={Shield} label="Precauções Ativas"
-          value={dbPrecautions.filter(p => p.is_active).length}
+          value={filteredPrecautions.filter(p => p.is_active).length}
           color="text-violet-600"
-          sub={`${dbPrecautions.length} total`}
+          sub={`${filteredPrecautions.length} total`}
         />
         <KpiCard
           icon={AlertTriangle} label="Setor Crítico"
