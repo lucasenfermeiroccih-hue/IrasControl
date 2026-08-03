@@ -11,6 +11,7 @@ import { sendToAgent } from "@/lib/agent-service";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Siren, BrainCircuit, Map, ShieldAlert, ShieldPlus, FileText, ListChecks, X, Filter } from "lucide-react";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MICROORGANISMS } from "@/data/microorganisms";
 import { toast } from "sonner";
 
@@ -255,15 +256,23 @@ export default function AlertasSurto() {
   const [fPrecaucao, setFPrecaucao] = useState<string[]>([]);
   const [fOrganismo, setFOrganismo] = useState<string[]>([]);
   const [fMaterial, setFMaterial] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
 
-  const matchAdv = useCallback((p: Patient) =>
-    (fSetor.length === 0 || fSetor.includes(p.setor)) &&
-    (fLeito.length === 0 || fLeito.includes(p.leito)) &&
-    (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
-    (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
-    (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
-    (fMaterial.length === 0 || fMaterial.includes(p.material)),
-    [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial]);
+  const matchAdv = useCallback((p: Patient) => {
+    const d = p.dataColeta || "";
+    if (selectedYear || selectedMonth) {
+      if (!d) return false;
+      if (selectedYear && d.slice(0, 4) !== selectedYear) return false;
+      if (selectedMonth && d.slice(5, 7) !== selectedMonth) return false;
+    }
+    return (fSetor.length === 0 || fSetor.includes(p.setor)) &&
+      (fLeito.length === 0 || fLeito.includes(p.leito)) &&
+      (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+      (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
+      (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
+      (fMaterial.length === 0 || fMaterial.includes(p.material));
+  }, [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial, selectedMonth, selectedYear]);
 
   /* ── derivados ── */
   const patientsF = useMemo(() => patients.filter(matchAdv), [patients, matchAdv]);
@@ -280,9 +289,10 @@ export default function AlertasSurto() {
   }, [patients]);
   const optMat   = useMemo(() => [...new Set(patients.map(p => p.material).filter(Boolean))].sort(), [patients]);
 
-  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length;
+  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length || (selectedMonth ? 1 : 0) || (selectedYear ? 1 : 0);
   const clearAllFilters = () => {
     setFSetor([]); setFLeito([]); setFDataColeta([]); setFPrecaucao([]); setFOrganismo([]); setFMaterial([]);
+    setSelectedMonth(""); setSelectedYear("");
   };
 
   const alertas = useMemo((): Alerta[] => {
@@ -719,6 +729,22 @@ Responda SOMENTE em JSON válido:
                 ) : null}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))", gap:8 }}>
+                <Select value={selectedMonth || "all"} onValueChange={v => setSelectedMonth(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Mês" /></SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+                      .map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear || "all"} onValueChange={v => setSelectedYear(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Ano" /></SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Todos os anos</SelectItem>
+                    {Array.from({ length: new Date().getFullYear() + 1 - 2023 + 1 }, (_, i) => 2023 + i)
+                      .map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <MultiSelectFilter label="Setor" selected={fSetor} onChange={setFSetor}
                   options={optSetor.map(s => ({ value:s, label:s }))} placeholder="Setor: Todos" />
                 <MultiSelectFilter label="Leito" selected={fLeito} onChange={setFLeito}

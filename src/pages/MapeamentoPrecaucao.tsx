@@ -144,6 +144,8 @@ export default function MapeamentoPrecaucao() {
   const [fLeito,     setFLeito]    = useState<string[]>([]);
   const [fLeitoOpen, setFLeitoOpen]= useState(false);
   const fLeitoRef = useRef<HTMLDivElement>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear,  setSelectedYear]  = useState<string>(String(new Date().getFullYear()));
   const [fDataColeta,setFDataColeta]= useState<string[]>([]);
   const [fDataColetaOpen, setFDataColetaOpen]= useState(false);
   const fDataColetaRef = useRef<HTMLDivElement>(null);
@@ -776,7 +778,17 @@ export default function MapeamentoPrecaucao() {
   const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
   const cntAerossol  = internados.filter(p => p.precaucao === "Aerossóis").length;
 
+  const matchPeriodo = (d: string) => {
+    if (!selectedMonth && !selectedYear) return true;
+    if (!d) return false;
+    const [y, m] = d.split("-");
+    if (selectedYear && y !== selectedYear) return false;
+    if (selectedMonth && m !== selectedMonth) return false;
+    return true;
+  };
+
   const matchAdv = (p: Patient) =>
+    matchPeriodo(p.dataColeta) &&
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
     (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
@@ -786,7 +798,7 @@ export default function MapeamentoPrecaucao() {
 
   const dashPatients = useMemo(() =>
     (dStatus.length === 0 ? patients : patients.filter(p => dStatus.includes(p.status))).filter(matchAdv),
-    [patients, dStatus, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, dStatus, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
   const dashCntTotal     = dashPatients.length;
   const dashCntContato   = dashPatients.filter(p => p.precaucao === "Contato").length;
@@ -795,11 +807,11 @@ export default function MapeamentoPrecaucao() {
 
   const internadosA = useMemo(
     () => internados.filter(matchAdv),
-    [internados, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [internados, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
   const patientsA = useMemo(
     () => patients.filter(matchAdv),
-    [patients, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
 
   const toggleSort = (key: string) => {
@@ -818,6 +830,7 @@ export default function MapeamentoPrecaucao() {
     });
 
   const displayed = applySort(patients.filter(p =>
+    matchPeriodo(p.dataColeta) &&
     (fStatus.length === 0 || fStatus.includes(p.status)) &&
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
@@ -1460,6 +1473,20 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
   const advFiltersBlock = (
     <div className="np" style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14, alignItems:"center" }}>
+      {/* Mês */}
+      <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+        style={{ ...inpStyle, width:"auto", minWidth:150, cursor:"pointer" }}>
+        <option value="">Mês: Todos os meses</option>
+        {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+          .map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
+      </select>
+      {/* Ano */}
+      <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+        style={{ ...inpStyle, width:"auto", minWidth:130, cursor:"pointer" }}>
+        <option value="">Ano: Todos os anos</option>
+        {Array.from({ length: new Date().getFullYear() + 1 - 2023 + 1 }, (_, i) => 2023 + i)
+          .map(y => <option key={y} value={String(y)}>{y}</option>)}
+      </select>
       {/* Setor */}
       <div ref={fSetorRef} style={{ position:"relative" }}>
         <button type="button"
