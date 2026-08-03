@@ -727,6 +727,22 @@ Responda SOMENTE em JSON válido:
                 ) : null}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))", gap:8 }}>
+                <Select value={selectedMonth || "all"} onValueChange={v => setSelectedMonth(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Mês" /></SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
+                      .map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear || "all"} onValueChange={v => setSelectedYear(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Ano" /></SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Todos os anos</SelectItem>
+                    {Array.from({ length: new Date().getFullYear() + 1 - 2023 + 1 }, (_, i) => 2023 + i)
+                      .map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <MultiSelectFilter label="Setor" selected={fSetor} onChange={setFSetor}
                   options={optSetor.map(s => ({ value:s, label:s }))} placeholder="Setor: Todos" />
                 <MultiSelectFilter label="Leito" selected={fLeito} onChange={setFLeito}
