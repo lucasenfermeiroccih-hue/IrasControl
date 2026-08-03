@@ -11,6 +11,7 @@ import { sendToAgent } from "@/lib/agent-service";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Siren, BrainCircuit, Map, ShieldAlert, ShieldPlus, FileText, ListChecks, X, Filter } from "lucide-react";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MICROORGANISMS } from "@/data/microorganisms";
 import { toast } from "sonner";
 
