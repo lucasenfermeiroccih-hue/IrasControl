@@ -778,7 +778,17 @@ export default function MapeamentoPrecaucao() {
   const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
   const cntAerossol  = internados.filter(p => p.precaucao === "Aerossóis").length;
 
+  const matchPeriodo = (d: string) => {
+    if (!selectedMonth && !selectedYear) return true;
+    if (!d) return false;
+    const [y, m] = d.split("-");
+    if (selectedYear && y !== selectedYear) return false;
+    if (selectedMonth && m !== selectedMonth) return false;
+    return true;
+  };
+
   const matchAdv = (p: Patient) =>
+    matchPeriodo(p.dataColeta) &&
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
     (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
@@ -788,7 +798,7 @@ export default function MapeamentoPrecaucao() {
 
   const dashPatients = useMemo(() =>
     (dStatus.length === 0 ? patients : patients.filter(p => dStatus.includes(p.status))).filter(matchAdv),
-    [patients, dStatus, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, dStatus, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
   const dashCntTotal     = dashPatients.length;
   const dashCntContato   = dashPatients.filter(p => p.precaucao === "Contato").length;
@@ -797,11 +807,11 @@ export default function MapeamentoPrecaucao() {
 
   const internadosA = useMemo(
     () => internados.filter(matchAdv),
-    [internados, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [internados, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
   const patientsA = useMemo(
     () => patients.filter(matchAdv),
-    [patients, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial, selectedMonth, selectedYear]
   );
 
   const toggleSort = (key: string) => {
