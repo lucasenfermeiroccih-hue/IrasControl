@@ -255,15 +255,23 @@ export default function AlertasSurto() {
   const [fPrecaucao, setFPrecaucao] = useState<string[]>([]);
   const [fOrganismo, setFOrganismo] = useState<string[]>([]);
   const [fMaterial, setFMaterial] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
 
-  const matchAdv = useCallback((p: Patient) =>
-    (fSetor.length === 0 || fSetor.includes(p.setor)) &&
-    (fLeito.length === 0 || fLeito.includes(p.leito)) &&
-    (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
-    (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
-    (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
-    (fMaterial.length === 0 || fMaterial.includes(p.material)),
-    [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial]);
+  const matchAdv = useCallback((p: Patient) => {
+    const d = p.dataColeta || "";
+    if (selectedYear || selectedMonth) {
+      if (!d) return false;
+      if (selectedYear && d.slice(0, 4) !== selectedYear) return false;
+      if (selectedMonth && d.slice(5, 7) !== selectedMonth) return false;
+    }
+    return (fSetor.length === 0 || fSetor.includes(p.setor)) &&
+      (fLeito.length === 0 || fLeito.includes(p.leito)) &&
+      (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+      (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
+      (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
+      (fMaterial.length === 0 || fMaterial.includes(p.material));
+  }, [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial, selectedMonth, selectedYear]);
 
   /* ── derivados ── */
   const patientsF = useMemo(() => patients.filter(matchAdv), [patients, matchAdv]);
