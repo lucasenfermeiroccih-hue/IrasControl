@@ -53,6 +53,7 @@ const publicSections = [
     label: "Monitoramento",
     items: [
       { title: "Pacientes", url: "/patients/monitoring", icon: Stethoscope },
+      { title: "Auditoria Pacientes", url: "/patients/audit-log", icon: History },
       { title: "Antimicrobianos", url: "/antimicrobials/monitoring", icon: Pill },
       { title: "Higiene", url: "/hygiene/monitoring", icon: Activity },
       { title: "Indicadores", url: "/indicadores/new", icon: TrendingUp },

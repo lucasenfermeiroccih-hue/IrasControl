@@ -75,6 +75,7 @@ import MaternityReport from "./pages/MaternityReport.tsx";
 import ProtocolosIA from "./pages/ProtocolosIA.tsx";
 import ReunioesMeetingsModule from "./pages/ReunioesMeetingsModule.tsx";
 import PermissoesUsuarios from "./pages/PermissoesUsuarios.tsx";
+import PatientAuditLog from "./pages/PatientAuditLog.tsx";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/forms" element={<Forms />} />
               <Route path="/patients/dashboard-indicators" element={<PatientDashboardIndicators />} />
               <Route path="/patients/monitoring" element={<PatientsMonitoring />} />
+              <Route path="/patients/audit-log" element={<PatientAuditLog />} />
               <Route element={<RequireAdmin />}>
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/users" element={<HospitalUsers />} />
