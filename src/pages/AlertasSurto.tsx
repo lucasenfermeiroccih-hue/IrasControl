@@ -248,10 +248,12 @@ export default function AlertasSurto() {
     return () => clearInterval(t)
   }, [])
 
-  /* ── filtros avançados (Setor, Leito, Data Coleta, Precaução, Microorganismo, Material) ── */
+  /* ── filtros avançados (Setor, Leito, Data Coleta, Mês, Ano, Precaução, Microorganismo, Material) ── */
   const [fSetor, setFSetor] = useState<string[]>([]);
   const [fLeito, setFLeito] = useState<string[]>([]);
   const [fDataColeta, setFDataColeta] = useState<string[]>([]);
+  const [fMes, setFMes] = useState<string[]>([]);
+  const [fAno, setFAno] = useState<string[]>([]);
   const [fPrecaucao, setFPrecaucao] = useState<string[]>([]);
   const [fOrganismo, setFOrganismo] = useState<string[]>([]);
   const [fMaterial, setFMaterial] = useState<string[]>([]);
@@ -260,19 +262,29 @@ export default function AlertasSurto() {
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
     (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+    (fMes.length === 0 || fMes.includes(p.dataColeta?.slice(5,7) || "")) &&
+    (fAno.length === 0 || fAno.includes(p.dataColeta?.slice(0,4) || "")) &&
     (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
     (fOrganismo.length === 0 || fOrganismo.includes(p.organismo)) &&
     (fMaterial.length === 0 || fMaterial.includes(p.material)),
-    [fSetor, fLeito, fDataColeta, fPrecaucao, fOrganismo, fMaterial]);
+    [fSetor, fLeito, fDataColeta, fMes, fAno, fPrecaucao, fOrganismo, fMaterial]);
 
   /* ── derivados ── */
   const patientsF = useMemo(() => patients.filter(matchAdv), [patients, matchAdv]);
   const internados = useMemo(() => patientsF.filter(p => p.status === "Internado"), [patientsF]);
 
   /* ── opções dos filtros (a partir do dataset completo) ── */
+  const MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const optSetor = useMemo(() => [...new Set(patients.map(p => p.setor).filter(Boolean))].sort(), [patients]);
   const optLeito = useMemo(() => [...new Set(patients.map(p => p.leito).filter(Boolean))].sort(), [patients]);
   const optData  = useMemo(() => [...new Set(patients.map(p => p.dataColeta).filter(Boolean))].sort().reverse(), [patients]);
+  const optMes   = useMemo(() => {
+    const found = new Set(patients.map(p => p.dataColeta?.slice(5,7)).filter(Boolean) as string[]);
+    return ["01","02","03","04","05","06","07","08","09","10","11","12"]
+      .filter(m => found.has(m))
+      .map(m => ({ value: m, label: MESES_NOMES[parseInt(m)-1] }));
+  }, [patients]);
+  const optAno   = useMemo(() => [...new Set(patients.map(p => p.dataColeta?.slice(0,4)).filter(Boolean))].sort().reverse().map(a => ({ value: a as string, label: a as string })), [patients]);
   const optPrec  = ["Contato", "Gotículas", "Aerossóis"];
   const optOrg   = useMemo(() => {
     const used = [...new Set(patients.map(p => p.organismo).filter(Boolean))];
@@ -280,9 +292,9 @@ export default function AlertasSurto() {
   }, [patients]);
   const optMat   = useMemo(() => [...new Set(patients.map(p => p.material).filter(Boolean))].sort(), [patients]);
 
-  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fPrecaucao.length || fOrganismo.length || fMaterial.length;
+  const hasAnyFilter = fSetor.length || fLeito.length || fDataColeta.length || fMes.length || fAno.length || fPrecaucao.length || fOrganismo.length || fMaterial.length;
   const clearAllFilters = () => {
-    setFSetor([]); setFLeito([]); setFDataColeta([]); setFPrecaucao([]); setFOrganismo([]); setFMaterial([]);
+    setFSetor([]); setFLeito([]); setFDataColeta([]); setFMes([]); setFAno([]); setFPrecaucao([]); setFOrganismo([]); setFMaterial([]);
   };
 
   const alertas = useMemo((): Alerta[] => {
@@ -725,6 +737,10 @@ Responda SOMENTE em JSON válido:
                   options={optLeito.map(l => ({ value:l, label:`Leito ${l}` }))} placeholder="Leito: Todos" />
                 <MultiSelectFilter label="Data da Coleta" selected={fDataColeta} onChange={setFDataColeta}
                   options={optData.map(d => ({ value:d, label: fmt(d) }))} placeholder="Data: Todas" />
+                <MultiSelectFilter label="Mês" selected={fMes} onChange={setFMes}
+                  options={optMes} placeholder="Mês: Todos" showNav />
+                <MultiSelectFilter label="Ano" selected={fAno} onChange={setFAno}
+                  options={optAno} placeholder="Ano: Todos" showNav />
                 <MultiSelectFilter label="Precaução" selected={fPrecaucao} onChange={setFPrecaucao}
                   options={optPrec.map(p => ({ value:p, label:p }))} placeholder="Precaução: Todas" />
                 <MultiSelectFilter label="Microorganismo" selected={fOrganismo} onChange={setFOrganismo}

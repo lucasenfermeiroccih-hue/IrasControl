@@ -156,6 +156,12 @@ export default function MapeamentoPrecaucao() {
   const [fMaterial,  setFMaterial] = useState<string[]>([]);
   const [fMaterialOpen, setFMaterialOpen] = useState(false);
   const fMaterialRef = useRef<HTMLDivElement>(null);
+  const [fMes,       setFMes]      = useState<string[]>([]);
+  const [fMesOpen,   setFMesOpen]  = useState(false);
+  const fMesRef = useRef<HTMLDivElement>(null);
+  const [fAno,       setFAno]      = useState<string[]>([]);
+  const [fAnoOpen,   setFAnoOpen]  = useState(false);
+  const fAnoRef = useRef<HTMLDivElement>(null);
   const [dStatus,     setDStatus]    = useState<string[]>(["Internado"]);
   const [dStatusOpen, setDStatusOpen]= useState(false);
   const dStatusRef = useRef<HTMLDivElement>(null);
@@ -771,6 +777,12 @@ export default function MapeamentoPrecaucao() {
   const internados   = patients.filter(p => p.status === "Internado");
   const availableLeitos = useMemo(() => [...new Set(patients.map(p => p.leito).filter(Boolean))].sort() as string[], [patients]);
   const availableDatas  = useMemo(() => [...new Set(patients.map(p => p.dataColeta).filter(Boolean))].sort() as string[], [patients]);
+  const availableAnos   = useMemo(() => [...new Set(patients.map(p => p.dataColeta?.slice(0,4)).filter(Boolean))].sort().reverse() as string[], [patients]);
+  const MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const availableMeses  = useMemo(() => {
+    const found = new Set(patients.map(p => p.dataColeta?.slice(5,7)).filter(Boolean) as string[]);
+    return ["01","02","03","04","05","06","07","08","09","10","11","12"].filter(m => found.has(m));
+  }, [patients]);
   const cntTotal     = internados.length;
   const cntContato   = internados.filter(p => p.precaucao === "Contato").length;
   const cntGoticulas = internados.filter(p => p.precaucao === "Gotículas").length;
@@ -780,13 +792,15 @@ export default function MapeamentoPrecaucao() {
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
     (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+    (fMes.length === 0 || fMes.includes(p.dataColeta?.slice(5,7) || "")) &&
+    (fAno.length === 0 || fAno.includes(p.dataColeta?.slice(0,4) || "")) &&
     (fOrganismo.length === 0 || fOrganismo.some(o => (p.organismo || "").split(" | ").map(s => s.trim()).includes(o))) &&
     (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
     (fMaterial.length === 0 || fMaterial.some(m => (p.material || "").split(" | ").map(s => s.trim()).includes(m)));
 
   const dashPatients = useMemo(() =>
     (dStatus.length === 0 ? patients : patients.filter(p => dStatus.includes(p.status))).filter(matchAdv),
-    [patients, dStatus, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, dStatus, fSetor, fLeito, fDataColeta, fMes, fAno, fOrganismo, fPrecaucao, fMaterial]
   );
   const dashCntTotal     = dashPatients.length;
   const dashCntContato   = dashPatients.filter(p => p.precaucao === "Contato").length;
@@ -795,11 +809,11 @@ export default function MapeamentoPrecaucao() {
 
   const internadosA = useMemo(
     () => internados.filter(matchAdv),
-    [internados, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [internados, fSetor, fLeito, fDataColeta, fMes, fAno, fOrganismo, fPrecaucao, fMaterial]
   );
   const patientsA = useMemo(
     () => patients.filter(matchAdv),
-    [patients, fSetor, fLeito, fDataColeta, fOrganismo, fPrecaucao, fMaterial]
+    [patients, fSetor, fLeito, fDataColeta, fMes, fAno, fOrganismo, fPrecaucao, fMaterial]
   );
 
   const toggleSort = (key: string) => {
@@ -822,6 +836,8 @@ export default function MapeamentoPrecaucao() {
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
     (fDataColeta.length === 0 || fDataColeta.includes(p.dataColeta)) &&
+    (fMes.length === 0 || fMes.includes(p.dataColeta?.slice(5,7) || "")) &&
+    (fAno.length === 0 || fAno.includes(p.dataColeta?.slice(0,4) || "")) &&
     (fOrganismo.length === 0 || fOrganismo.some(o => (p.organismo || "").split(" | ").map(s => s.trim()).includes(o))) &&
     (fPrecaucao.length === 0 || fPrecaucao.includes(p.precaucao)) &&
     (fMaterial.length === 0 || fMaterial.some(m => (p.material || "").split(" | ").map(s => s.trim()).includes(m))) &&
@@ -1551,6 +1567,72 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                     onChange={() => setFDataColeta(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
                     style={{ accentColor:"#0F4C75", width:14, height:14 }} />
                   {d.split("-").reverse().join("/")}
+                </label>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Mês */}
+      <div ref={fMesRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFMesOpen(o => !o)}
+          onBlur={e => { if (!fMesRef.current?.contains(e.relatedTarget as Node)) setFMesOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:150 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fMes.length === 0 ? "Mês: Todos" : fMes.length === 1 ? MESES_NOMES[parseInt(fMes[0])-1] : `Mês: ${fMes.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fMesOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:160, maxHeight:280, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fMes.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fMes.length === 0} onChange={() => setFMes([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {availableMeses.length === 0
+              ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhum dado disponível</div>
+              : availableMeses.map(m => (
+                <label key={m} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fMes.includes(m) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                  <input type="checkbox" checked={fMes.includes(m)}
+                    onChange={() => setFMes(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                    style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                  {MESES_NOMES[parseInt(m)-1]}
+                </label>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Ano */}
+      <div ref={fAnoRef} style={{ position:"relative" }}>
+        <button type="button"
+          onClick={() => setFAnoOpen(o => !o)}
+          onBlur={e => { if (!fAnoRef.current?.contains(e.relatedTarget as Node)) setFAnoOpen(false); }}
+          style={{ ...inpStyle, cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:120 }}>
+          <span style={{ flex:1, textAlign:"left", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {fAno.length === 0 ? "Ano: Todos" : fAno.length === 1 ? fAno[0] : `Ano: ${fAno.length} sel.`}
+          </span>
+          <span style={{ fontSize:9, flexShrink:0 }}>▼</span>
+        </button>
+        {fAnoOpen && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999, background:"var(--color-background-primary,#fff)", border:"0.5px solid var(--color-border-secondary,#d1d5db)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:120, maxHeight:220, overflowY:"auto", padding:"6px 0" }}
+            onMouseDown={e => e.preventDefault()}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", fontWeight: fAno.length === 0 ? 600 : 400 }}>
+              <input type="checkbox" checked={fAno.length === 0} onChange={() => setFAno([])} style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+              Todos
+            </label>
+            <div style={{ height:1, background:"var(--color-border-secondary,#e5e7eb)", margin:"4px 8px" }} />
+            {availableAnos.length === 0
+              ? <div style={{ padding:"8px 14px", fontSize:12, color:"var(--color-text-tertiary,#9ca3af)" }}>Nenhum dado disponível</div>
+              : availableAnos.map(a => (
+                <label key={a} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", cursor:"pointer", fontSize:12, color:"var(--color-text-primary,#111)", background: fAno.includes(a) ? "rgba(15,76,117,0.07)" : "transparent" }}>
+                  <input type="checkbox" checked={fAno.includes(a)}
+                    onChange={() => setFAno(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a])}
+                    style={{ accentColor:"#0F4C75", width:14, height:14 }} />
+                  {a}
                 </label>
               ))}
           </div>
