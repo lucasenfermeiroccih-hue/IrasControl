@@ -52,7 +52,45 @@ const COLORS = [
   "hsl(var(--chart-4))",
 ];
 
-const PIE_COLORS = ["#22c55e", "#eab308", "#ef4444"];
+const PIE_COLORS = [
+  "#22c55e", "#eab308", "#ef4444", "#3b82f6", "#a855f7",
+  "#f97316", "#14b8a6", "#ec4899", "#0ea5e9", "#84cc16",
+  "#f43f5e", "#6366f1",
+];
+
+const ISC_SITE_LABELS = ["ISC superficial", "ISC profunda", "ISC de cavidade/órgão"];
+
+const normalizeIscSite = (value: string) => {
+  const trimmed = value.trim();
+  const normalized = trimmed
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("profund")) return "ISC profunda";
+  if (normalized.includes("cavidade") || normalized.includes("orgao") || normalized.includes("órgão") || normalized.includes("espaco") || normalized.includes("espaço")) {
+    return "ISC de cavidade/órgão";
+  }
+  if (normalized.includes("superfic")) return "ISC superficial";
+
+  return trimmed;
+};
+
+const splitIscSites = (sitio?: string | null) => {
+  if (!sitio) return [];
+
+  return Array.from(
+    new Set(
+      sitio
+        .split(/[,;\n]+/)
+        .map(normalizeIscSite)
+        .filter(Boolean)
+    )
+  );
+};
+
+const createIscSiteMap = () =>
+  Object.fromEntries(ISC_SITE_LABELS.map((label) => [label, 0])) as Record<string, number>;
 
 const statusColor = (rate: number) =>
   rate <= 2 ? "text-green-600 bg-green-50 border-green-200"
@@ -174,11 +212,19 @@ export default function DashboardISC() {
   }, [filtered]);
 
   const pieData = useMemo(() => {
-    const map: Record<string, number> = {};
+    // Inclui TODOS os tipos de ISC (superficial, profunda, cavidade/órgão) presentes nos registros
+    // filtrados. Cada registro pode ter múltiplos sítios separados por vírgula.
+    const map = createIscSiteMap();
     filtered.forEach((r) => {
-      if (r.iscConfirmada > 0 && r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.iscConfirmada;
+      const sitios = splitIscSites(r.sitio);
+      sitios.forEach((s) => {
+        if (!(s in map)) map[s] = 0;
+        map[s] += r.iscConfirmada || 0;
+      });
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const barReintData = useMemo(() => {
@@ -248,12 +294,14 @@ export default function DashboardISC() {
     // Por sítio cirúrgico
     const porSitioMes: Record<string, Record<string, { cirurgias: number; isc: number }>> = {};
     filtered.forEach((r) => {
-      if (!r.sitio) return;
       const k = `${r.mes}/${r.ano}`;
-      if (!porSitioMes[r.sitio]) porSitioMes[r.sitio] = {};
-      if (!porSitioMes[r.sitio][k]) porSitioMes[r.sitio][k] = { cirurgias: 0, isc: 0 };
-      porSitioMes[r.sitio][k].cirurgias += r.totalCirurgias;
-      porSitioMes[r.sitio][k].isc += r.iscConfirmada;
+      const sitios = splitIscSites(r.sitio);
+      sitios.forEach((s) => {
+        if (!porSitioMes[s]) porSitioMes[s] = {};
+        if (!porSitioMes[s][k]) porSitioMes[s][k] = { cirurgias: 0, isc: 0 };
+        porSitioMes[s][k].cirurgias += r.totalCirurgias;
+        porSitioMes[s][k].isc += r.iscConfirmada;
+      });
     });
     const porSitio = Object.entries(porSitioMes).map(([sitio, mapMes]) => {
       const taxas = Object.values(mapMes)
@@ -274,9 +322,10 @@ export default function DashboardISC() {
 
   // Sítio cirúrgico (distribuição por sítio entre as cirurgias com sítio informado)
   const sitioData = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map = createIscSiteMap();
     filtered.forEach((r) => {
-      if (r.sitio) map[r.sitio] = (map[r.sitio] || 0) + r.totalCirurgias;
+      const sitios = splitIscSites(r.sitio);
+      sitios.forEach((s) => { map[s] = (map[s] || 0) + r.totalCirurgias; });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filtered]);
@@ -294,7 +343,13 @@ export default function DashboardISC() {
       .sort(sortMesAno)
       .map(([name, vals]) => {
         const row: Record<string, any> = { name };
-        especialidades.forEach(e => { row[e] = vals[e] || 0; });
+        let total = 0;
+        especialidades.forEach(e => {
+          const v = vals[e] || 0;
+          row[e] = v;
+          total += v;
+        });
+        row.total = total;
         return row;
       });
     return { rows, especialidades };
@@ -713,13 +768,16 @@ export default function DashboardISC() {
               { label: "Taxa Resposta", value: `${kpis.taxaResposta.toFixed(1)}%`, icon: <Activity className="h-5 w-5 text-primary" /> },
               { label: "Reinternações", value: kpis.totalReinternacoes, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
               { label: "ISC Confirmadas", value: kpis.totalISC, icon: <AlertTriangle className="h-5 w-5 text-primary" /> },
-              { label: "Taxa ISC", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true },
+              { label: "Taxa ISC (agregada)", value: `${kpis.taxaISC.toFixed(1)}%`, icon: statusIcon(kpis.taxaISC), badge: true, hint: `${kpis.totalISC} ISC / ${kpis.totalCirurgias} cirurgias` },
             ].map((kpi) => (
               <Card key={kpi.label} className={kpi.badge ? `border ${statusColor(kpis.taxaISC)}` : ""}>
                 <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-1">
                   {kpi.icon}
                   <p className="text-xs text-muted-foreground">{kpi.label}</p>
                   <p className="text-xl font-bold">{kpi.value}</p>
+                  {(kpi as any).hint && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">{(kpi as any).hint}</p>
+                  )}
                   {kpi.badge && kpis.taxaISC <= 2 && (
                     <Badge variant="outline" className="text-green-600 border-green-300 text-[10px]">
                       <Award className="h-3 w-3 mr-1" /> Meta atingida
@@ -1024,15 +1082,26 @@ export default function DashboardISC() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => (
-                    <Bar
-                      key={esp}
-                      dataKey={esp}
-                      stackId="esp"
-                      fill={COLORS[i % COLORS.length]}
-                      radius={i === cirurgiasEspecialidadeMes.especialidades.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  ))}
+                  {cirurgiasEspecialidadeMes.especialidades.map((esp, i) => {
+                    const isLast = i === cirurgiasEspecialidadeMes.especialidades.length - 1;
+                    return (
+                      <Bar
+                        key={esp}
+                        dataKey={esp}
+                        stackId="esp"
+                        fill={COLORS[i % COLORS.length]}
+                        radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      >
+                        {isLast && (
+                          <LabelList
+                            dataKey="total"
+                            position="top"
+                            style={{ fontSize: 11, fill: "hsl(var(--foreground))", fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    );
+                  })}
                   {metas.especialidade !== undefined && (
                     <ReferenceLine y={metas.especialidade} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Meta: ${metas.especialidade}`, position: "right", fontSize: 11 }} />
                   )}

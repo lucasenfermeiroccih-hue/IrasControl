@@ -443,7 +443,7 @@ export default function DashboardHygiene() {
       { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
     ],
     sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
-    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.label, value: m.compliance })),
     topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
     discussion: [
       `A taxa de adesão no período é de ${fStats.adhesionRate}%, ${fStats.adhesionRate >= META_OMS ? "dentro da meta OMS de " + META_OMS + "%, demonstrando bom desempenho" : "abaixo da meta OMS de " + META_OMS + "%, indicando necessidade de intervenção"}. Foram analisados ${fStats.totalAudits} formulários, com ${fStats.sim} instâncias conformes e ${fStats.nao} oportunidades perdidas.`,

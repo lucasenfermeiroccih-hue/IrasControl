@@ -427,7 +427,7 @@ export default function DashboardDispenser() {
       { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
     ],
     sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
-    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.month, value: m.compliance })),
+    monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.label, value: m.compliance })),
     topIssues: fStats.topFailures.map(f => ({ item: f.item, count: f.count })),
     discussion: [
       `A conformidade de dispensers no período é de ${fStats.avgCompliance}%, ${fStats.avgCompliance >= META ? "dentro da meta de " + META + "%, indicando boa gestão de insumos" : "abaixo da meta de " + META + "%, representando risco à disponibilidade de insumos para higienização"}. Foram auditados ${fStats.totalAudits} registros, com ${fStats.nonCompliant} não conformidade(s) identificada(s).`,

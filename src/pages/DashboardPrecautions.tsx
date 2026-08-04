@@ -176,7 +176,7 @@ export default function DashboardPrecautions() {
   // Filters
   const [filterSector, setFilterSector] = useState("all");
   const [filterMes, setFilterMes] = useState("all");
-  const [filterAno, setFilterAno] = useState("all");
+  const [filterAno, setFilterAno] = useState(String(new Date().getFullYear()));
 
   // Chart meta values
   const [metaTrend, setMetaTrend] = useState<number | undefined>(undefined);
@@ -291,8 +291,18 @@ export default function DashboardPrecautions() {
 
   const uniqueYears = useMemo(() => {
     const y = new Set(records.map(r => r.audit_date?.slice(0, 4)).filter(Boolean) as string[]);
+    const currentYear = new Date().getFullYear();
+    for (let a = 2023; a <= currentYear + 1; a++) y.add(String(a));
     return Array.from(y).sort().reverse();
   }, [records]);
+
+  const matchPeriodo = (date?: string | null) => {
+    if (filterMes === "all" && filterAno === "all") return true;
+    if (!date) return false;
+    if (filterMes !== "all" && date.slice(5, 7) !== filterMes.padStart(2, "0")) return false;
+    if (filterAno !== "all" && date.slice(0, 4) !== filterAno) return false;
+    return true;
+  };
 
   // ─── Filtered records ──────────────────────────────────────
   const filteredRecords = useMemo(() => records.filter(r => {
@@ -301,6 +311,11 @@ export default function DashboardPrecautions() {
     if (filterAno !== "all" && r.audit_date?.slice(0, 4) !== filterAno) return false;
     return true;
   }), [records, filterSector, filterMes, filterAno]);
+
+  const filteredPrecautions = useMemo(
+    () => dbPrecautions.filter(p => matchPeriodo((p.start_date || p.created_at || "").slice(0, 10))),
+    [dbPrecautions, filterMes, filterAno]
+  );
 
   // ─── Base stats ────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -800,9 +815,9 @@ export default function DashboardPrecautions() {
         <KpiCard icon={Activity}      label="Itens Avaliados"       value={stats.totalAvaliado}    color="text-blue-600" />
         <KpiCard
           icon={Shield} label="Precauções Ativas"
-          value={dbPrecautions.filter(p => p.is_active).length}
+          value={filteredPrecautions.filter(p => p.is_active).length}
           color="text-violet-600"
-          sub={`${dbPrecautions.length} total`}
+          sub={`${filteredPrecautions.length} total`}
         />
         <KpiCard
           icon={AlertTriangle} label="Setor Crítico"
