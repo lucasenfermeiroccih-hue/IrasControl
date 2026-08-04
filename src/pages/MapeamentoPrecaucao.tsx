@@ -832,7 +832,6 @@ export default function MapeamentoPrecaucao() {
     });
 
   const displayed = applySort(patients.filter(p =>
-    matchPeriodo(p.dataColeta) &&
     (fStatus.length === 0 || fStatus.includes(p.status)) &&
     (fSetor.length === 0 || fSetor.includes(p.setor)) &&
     (fLeito.length === 0 || fLeito.includes(p.leito)) &&
