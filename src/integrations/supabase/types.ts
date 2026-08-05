@@ -3270,6 +3270,50 @@ export type Database = {
           },
         ]
       }
+      patient_audit_log: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          diff_fields: string[] | null
+          hospital_id: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          patient_id: string
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          diff_fields?: string[] | null
+          hospital_id: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          patient_id: string
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          diff_fields?: string[] | null
+          hospital_id?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          patient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_audit_log_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_devices: {
         Row: {
           created_at: string
