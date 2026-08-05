@@ -113,18 +113,38 @@ export function usePatientMonitoring() {
   const fetchPatients = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .eq("hospital_id", hospitalId)
-      .neq("source", "precaution_map")
-      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Erro ao carregar pacientes:", error);
+    // Fetch all patients in pages of 1000 to bypass PostgREST max-rows limit,
+    // which would silently cut off older records when the total exceeds the server default.
+    const PAGE = 1000;
+    let allRows: any[] = [];
+    let from = 0;
+    let fetchError = null;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("hospital_id", hospitalId)
+        .neq("source", "precaution_map")
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+
+      if (error) {
+        fetchError = error;
+        break;
+      }
+      if (!data || data.length === 0) break;
+      allRows = [...allRows, ...data];
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+
+    if (fetchError) {
+      console.error("Erro ao carregar pacientes:", fetchError);
       toast.error("Erro ao carregar pacientes");
     } else {
-      setPatients((data || []).map(dbToPatient));
+      setPatients(allRows.map(dbToPatient));
     }
     setLoading(false);
   }, [hospitalId]);
@@ -164,16 +184,14 @@ export function usePatientMonitoring() {
     const dbData = patientToDb(merged, hospitalId);
     delete (dbData as any).hospital_id;
 
-    // Merge tab data into clinical_data if provided.
-    // Start from the full existing _clinicalData so fields not covered by patientToDb
-    // or _tabData are never silently dropped (prevents stale-session overwrites).
-    if (_tabData) {
-      dbData.clinical_data = {
-        ...((current as any)._clinicalData || {}),
-        ...(dbData.clinical_data as any || {}),
-        ..._tabData,
-      };
-    }
+    // Always merge existing _clinicalData so tab data (dispositivos, antibióticos,
+    // sinais vitais, etc.) is never wiped when saving only identification fields.
+    // When _tabData is also provided it is spread last, updating the tab state.
+    dbData.clinical_data = {
+      ...((current as any)._clinicalData || {}),
+      ...(dbData.clinical_data as any || {}),
+      ...(_tabData || {}),
+    };
     
     const { error } = await supabase
       .from("patients")

@@ -325,8 +325,11 @@ export default function PatientsMonitoring() {
     const admDate = p.dataAdmissao || p.dataInternacaoHospitalar;
     if (admDate) {
       const d = new Date(admDate);
-      if (filterMes.length > 0 && !filterMes.includes(meses[d.getMonth()])) return false;
-      if (filterAno.length > 0 && !filterAno.includes(String(d.getFullYear()))) return false;
+      // Use UTC methods: dates from the DB are ISO strings (YYYY-MM-DD) parsed as UTC,
+      // so getUTCMonth/getUTCFullYear avoid a timezone-shift that would misplace patients
+      // admitted on the 1st of the month into the previous month.
+      if (filterMes.length > 0 && !filterMes.includes(meses[d.getUTCMonth()])) return false;
+      if (filterAno.length > 0 && !filterAno.includes(String(d.getUTCFullYear()))) return false;
     } else {
       if (filterMes.length > 0 || filterAno.length > 0) return false;
     }
