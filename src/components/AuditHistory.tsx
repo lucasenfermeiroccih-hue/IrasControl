@@ -289,13 +289,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     setExportingId(record.id);
     try {
       const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
       const margin = 10;
       const usableW = pageW - margin * 2;
-      const ratio = canvas.height / canvas.width;
-      const imgH = usableW * ratio;
 
       const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
       const LOGO_H = 14;
@@ -304,15 +302,47 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
 
       const headerTop = hasLogos ? margin + LOGO_H + 3 : margin;
       pdf.setFontSize(12);
-      pdf.text(`Auditoria - ${auditType}`, margin, headerTop + 5);
+      pdf.text(`Auditoria - ${AUDIT_TYPE_LABEL[auditType] || auditType}`, margin, headerTop + 5);
       pdf.setFontSize(9);
       pdf.text(`Data: ${record.audit_date} | Setor: ${record.sector || "—"}`, margin, headerTop + 11);
-      pdf.addImage(imgData, "PNG", margin, headerTop + 16, usableW, Math.min(imgH, 260 - (hasLogos ? LOGO_H + 3 : 0)));
 
-      // Anexar fotos da auditoria (baixadas via storage para evitar CORS no canvas)
+      // Fator de conversão: pixels do canvas → mm no PDF
+      const mmPerPx = usableW / canvas.width;
+
+      // Fatia uma tira horizontal do canvas e adiciona na página atual
+      const drawStrip = (startPx: number, endPx: number, destY: number) => {
+        const stripH = endPx - startPx;
+        const tmp = document.createElement("canvas");
+        tmp.width = canvas.width;
+        tmp.height = stripH;
+        tmp.getContext("2d")!.drawImage(canvas, 0, -startPx);
+        pdf.addImage(tmp.toDataURL("image/png"), "PNG", margin, destY, usableW, stripH * mmPerPx);
+      };
+
+      // Espaço disponível na primeira página (abaixo do cabeçalho) e nas demais
+      const firstContentY = headerTop + 16;
+      const firstAvailMm = pageH - firstContentY - margin;
+      const otherAvailMm = pageH - 2 * margin;
+      const firstAvailPx = Math.floor(firstAvailMm / mmPerPx);
+
+      if (canvas.height <= firstAvailPx) {
+        // Cabe tudo na primeira página
+        drawStrip(0, canvas.height, firstContentY);
+      } else {
+        // Distribui o conteúdo por várias páginas
+        drawStrip(0, firstAvailPx, firstContentY);
+        let px = firstAvailPx;
+        while (px < canvas.height) {
+          pdf.addPage();
+          const take = Math.min(canvas.height - px, Math.floor(otherAvailMm / mmPerPx));
+          drawStrip(px, px + take, margin);
+          px += take;
+        }
+      }
+
+      // Fotos em páginas adicionais (baixadas via storage para evitar CORS no canvas)
       if (record.photo_urls && record.photo_urls.length > 0) {
-        const pageH = pdf.internal.pageSize.getHeight();
-        const maxImgH = 110; // mm por foto
+        const maxImgH = 110;
         pdf.addPage();
         let y = margin;
         pdf.setFontSize(12);
@@ -345,7 +375,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
         }
       }
 
-      pdf.save(`auditoria-${auditType}-${record.audit_date}.pdf`);
+      pdf.save(`auditoria-${AUDIT_TYPE_LABEL[auditType] || auditType}-${record.audit_date}.pdf`);
       toast.success("PDF exportado!");
     } catch {
       toast.error("Erro ao exportar PDF.");
