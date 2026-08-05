@@ -136,8 +136,9 @@ export function usePatientMonitoring() {
       }
       if (!data || data.length === 0) break;
       allRows = [...allRows, ...data];
-      if (data.length < PAGE) break;
-      from += PAGE;
+      // Advance by actual rows received, not by PAGE — server may cap at max_rows
+      // which is less than PAGE, causing a false "last page" if we checked data.length < PAGE.
+      from += data.length;
     }
 
     if (fetchError) {
