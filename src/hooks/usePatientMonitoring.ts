@@ -185,11 +185,24 @@ export function usePatientMonitoring() {
     const dbData = patientToDb(merged, hospitalId);
     delete (dbData as any).hospital_id;
 
-    // Always merge existing _clinicalData so tab data (dispositivos, antibióticos,
-    // sinais vitais, etc.) is never wiped when saving only identification fields.
-    // When _tabData is also provided it is spread last, updating the tab state.
+    // When saving only identification (no _tabData), fetch fresh clinical_data from DB
+    // to guarantee tab data is never lost due to stale/empty React state (_clinicalData).
+    // React state can be out-of-date if the page was loaded before another user's save,
+    // or if a newly-created patient was opened before fetchPatients refreshed.
+    let baseClinicalData: any = (current as any)._clinicalData || {};
+    if (!_tabData) {
+      const { data: freshPat } = await supabase
+        .from("patients")
+        .select("clinical_data")
+        .eq("id", id)
+        .single();
+      if (freshPat?.clinical_data) {
+        baseClinicalData = freshPat.clinical_data;
+      }
+    }
+
     dbData.clinical_data = {
-      ...((current as any)._clinicalData || {}),
+      ...baseClinicalData,
       ...(dbData.clinical_data as any || {}),
       ...(_tabData || {}),
     };
