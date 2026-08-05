@@ -203,9 +203,9 @@ export function usePatientMonitoring() {
       toast.error("Erro ao atualizar: " + error.message);
       return false;
     }
-    // Update local state with merged clinical data
-    const updatedClinicalData = _tabData ? { _clinicalData: { ...((current as any)._clinicalData || {}), ..._tabData } } : {};
-    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...patientUpdates, ...updatedClinicalData } : p));
+    // Always sync local _clinicalData with exactly what was written to the DB,
+    // so re-entering the patient in the same session never loads stale tab data.
+    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...patientUpdates, _clinicalData: dbData.clinical_data } as any : p));
     return true;
   };
 
