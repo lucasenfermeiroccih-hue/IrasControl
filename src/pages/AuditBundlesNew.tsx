@@ -13,6 +13,8 @@ import { ArrowLeft, Save, Activity, BarChart3, CheckCircle, XCircle, Loader2 } f
 import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 import { useSectors } from "@/hooks/useSectors";
+import { supabase } from "@/integrations/supabase/client";
+
 const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 function AdherenceBadge({ rate }: { rate: number }) {
@@ -166,8 +168,7 @@ export default function AuditBundlesNew() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AuditHistory auditType="bundles" onEdit={(record) => {
-            toast.info("Carregando dados para edição...");
+          <AuditHistory auditType="bundles" onEdit={async (record) => {
             // Parse observations to extract form data
             const obs = record.observations || "";
             const parts = obs.split("\n");
@@ -183,6 +184,37 @@ export default function AuditBundlesNew() {
               observations: parts.slice(1).join("\n").trim(),
             }));
             window.scrollTo(0, 0);
+
+            // Carrega os números dos bundles a partir dos itens salvos
+            const items = record.items ?? (await supabase
+              .from("audit_items")
+              .select("question, category, item_order")
+              .eq("audit_id", record.id)
+              .order("item_order")).data ?? [];
+
+            const next: Record<string, string> = {};
+            for (const it of items as { question: string }[]) {
+              const q = it.question || "";
+              let m = q.match(/^(CVC|SVD|PICC|CVU|CVA):\s*(\d+)\s*pacientes,\s*(\d+)\s*bundles abertos/i);
+              if (m) {
+                const p = m[1].toLowerCase();
+                next[`${p}Patients`] = m[2];
+                next[`${p}BundlesOpen`] = m[3];
+                continue;
+              }
+              m = q.match(/^(CVC|SVD|PICC|CVU|CVA)\s+Conformes:\s*(\d+)/i);
+              if (m) { next[`${m[1].toLowerCase()}CompleteBundles`] = m[2]; continue; }
+              m = q.match(/^(CVC|SVD|PICC|CVU|CVA)\s+Inconformes:\s*(\d+)/i);
+              if (m) { next[`${m[1].toLowerCase()}IncompleteBundles`] = m[2]; continue; }
+              m = q.match(/^PAV:\s*(\d+)\s*pacientes-dia em VM,\s*(\d+)\s*dias preenchidos/i);
+              if (m) { next.pavPacientesDia = m[1]; next.pavDiasPreenchidos = m[2]; continue; }
+              m = q.match(/^PAV Não Conforme:\s*(\d+)/i);
+              if (m) { next.pavNaoConforme = m[1]; }
+            }
+            if (Object.keys(next).length > 0) {
+              setForm(prev => ({ ...prev, ...next }));
+            }
+
           }} />
           <Button variant="outline" className="gap-2" onClick={() => navigate("/dashboard/bundles-compliance")}>
             <BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Ver Dashboard</span>
