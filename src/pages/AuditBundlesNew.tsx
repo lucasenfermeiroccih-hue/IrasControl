@@ -13,6 +13,8 @@ import { ArrowLeft, Save, Activity, BarChart3, CheckCircle, XCircle, Loader2 } f
 import { useAuditSave } from "@/hooks/useAuditSave";
 import AuditHistory from "@/components/AuditHistory";
 import { useSectors } from "@/hooks/useSectors";
+import { supabase } from "@/integrations/supabase/client";
+
 const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 function AdherenceBadge({ rate }: { rate: number }) {
