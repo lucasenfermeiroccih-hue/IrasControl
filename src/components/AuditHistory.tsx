@@ -287,8 +287,25 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     const el = cardRefs.current[record.id];
     if (!el) return;
     setExportingId(record.id);
+
+    const wasExpanded = expandedId === record.id;
     try {
+      // Garante que os itens estejam no DOM antes de capturar
+      if (!wasExpanded) {
+        await ensureItems(record.id);
+        setExpandedId(record.id);
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      // Remove temporariamente o overflow do container para html2canvas capturar o card inteiro
+      const scrollParent = el.parentElement;
+      const savedOverflow = scrollParent?.style.overflow ?? "";
+      const savedMaxH = scrollParent?.style.maxHeight ?? "";
+      if (scrollParent) { scrollParent.style.overflow = "visible"; scrollParent.style.maxHeight = "none"; }
+
       const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+
+      if (scrollParent) { scrollParent.style.overflow = savedOverflow; scrollParent.style.maxHeight = savedMaxH; }
       const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
@@ -380,6 +397,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     } catch {
       toast.error("Erro ao exportar PDF.");
     } finally {
+      if (!wasExpanded) setExpandedId(null);
       setExportingId(null);
     }
   };
