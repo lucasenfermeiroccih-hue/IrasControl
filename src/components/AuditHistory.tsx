@@ -165,15 +165,17 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     setLoading(true);
     const { data, error } = await supabase
       .from("audits")
-      .select("*")
+      .select("id, audit_date, audit_type, sector, compliance_rate, compliant_items, total_items, observations, created_at, photo_urls, photo_captions")
       .eq("hospital_id", hospitalId)
       .eq("audit_type", auditType as any)
-      .order("audit_date", { ascending: false });
+      .order("audit_date", { ascending: false })
+      .limit(300);
     if (!error && data) {
       setRecords(data as AuditRecord[]);
     }
     setLoading(false);
   }, [hospitalId, auditType]);
+
 
   useEffect(() => {
     if (open) fetchRecords();
