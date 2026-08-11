@@ -202,8 +202,7 @@ export default function DashboardAntibiogram() {
     });
     return Object.entries(map)
       .map(([name, v]) => ({ name, ...v, total: v.S + v.I + v.R, resistRate: Math.round((v.R / (v.S + v.I + v.R)) * 100) }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 12);
+      .sort((a, b) => b.total - a.total);
   }, [allResults]);
 
   const monthlyTrend = useMemo(() => {
@@ -259,7 +258,7 @@ export default function DashboardAntibiogram() {
         perfil: Object.entries(abMap).map(([ab, v]) => {
           const tot = v.S + v.I + v.R;
           return { antibiotic: ab, ...v, total: tot, resistRate: tot > 0 ? Math.round((v.R / tot) * 100) : 0 };
-        }).sort((a, b) => b.total - a.total),
+        }).sort((a, b) => b.resistRate - a.resistRate || b.total - a.total),
         setores: setoresList,
         setorAbMap,
       };
@@ -916,23 +915,66 @@ export default function DashboardAntibiogram() {
       {/* SIR by antibiotic */}
       <Card>
         <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle>
+          <div>
+            <CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              {sirByAntibiotic.length} antimicrobianos · barras empilhadas S/I/R (número absoluto de testes)
+            </CardDescription>
+          </div>
           <ChartActions chartRef={chartRefs.sirAntibiotico} chartTitle="Perfil de Sensibilidade por Antibiótico" metaValue={metas.sirAntibiotico} onMetaChange={(v) => setMeta("sirAntibiotico", v)} metaUnit="testes" />
         </CardHeader>
         <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.sirAntibiotico}>
-          <ResponsiveContainer width="100%" height={Math.max(320, sirByAntibiotic.length * 28)}>
+          <ResponsiveContainer width="100%" height={Math.max(360, sirByAntibiotic.length * 34)}>
             <BarChart data={sirByAntibiotic} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={130} interval={0} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={150} interval={0} />
+              <Tooltip formatter={(v: number, n: string) => [v, n === "S" ? "Sensível" : n === "I" ? "Intermediário" : "Resistente"]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v) => ({ S: "Sensível (S)", I: "Intermediário (I)", R: "Resistente (R)" }[v] || v)} />
               {metas.sirAntibiotico !== undefined && <ReferenceLine x={metas.sirAntibiotico} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.sirAntibiotico}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-              <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
-              <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
-              <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
+              <Bar dataKey="S" name="S" stackId="a" fill={SIR_COLORS.S} barSize={22}>
+                <LabelList dataKey="S" position="insideLeft" style={{ fontSize: 9, fill: "#fff", fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+              </Bar>
+              <Bar dataKey="I" name="I" stackId="a" fill={SIR_COLORS.I} barSize={22}>
+                <LabelList dataKey="I" position="insideLeft" style={{ fontSize: 9, fill: "#fff", fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+              </Bar>
+              <Bar dataKey="R" name="R" stackId="a" fill={SIR_COLORS.R} barSize={22} radius={[0, 4, 4, 0]}>
+                <LabelList dataKey="R" position="right" style={{ fontSize: 9, fill: SIR_COLORS.R, fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
+
+          {/* Summary table below chart */}
+          <div className="mt-3 overflow-x-auto rounded-md border">
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Antibiótico</TableHead>
+                  <TableHead className="text-center" style={{ color: SIR_COLORS.S }}>S</TableHead>
+                  <TableHead className="text-center" style={{ color: SIR_COLORS.I }}>I</TableHead>
+                  <TableHead className="text-center" style={{ color: SIR_COLORS.R }}>R</TableHead>
+                  <TableHead className="text-center">Total</TableHead>
+                  <TableHead className="text-center">%R</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sirByAntibiotic.map(r => (
+                  <TableRow key={r.name}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.S }}>{r.S}</TableCell>
+                    <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.I }}>{r.I}</TableCell>
+                    <TableCell className="text-center font-bold" style={{ color: SIR_COLORS.R }}>{r.R}</TableCell>
+                    <TableCell className="text-center font-bold">{r.total}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-bold" style={{ color: r.resistRate >= 50 ? SIR_COLORS.R : r.resistRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
+                        {r.resistRate}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -1279,52 +1321,67 @@ function AntibiogramTable({ data, title }: {
   title?: string;
 }) {
   if (data.length === 0) return <p className="text-xs text-muted-foreground py-3 text-center">Sem dados de antibiograma</p>;
+  const labelW = Math.min(200, Math.max(110, data.reduce((m, d) => Math.max(m, d.antibiotic.length), 0) * 7));
   return (
-    <div className="space-y-3">
-      {title && <p className="text-xs font-semibold text-muted-foreground">{title}</p>}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="overflow-x-auto rounded-md border">
-          <Table className="text-xs">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Antimicrobiano</TableHead>
-                <TableHead className="text-center" style={{ color: SIR_COLORS.S }}>S</TableHead>
-                <TableHead className="text-center" style={{ color: SIR_COLORS.I }}>I</TableHead>
-                <TableHead className="text-center" style={{ color: SIR_COLORS.R }}>R</TableHead>
-                <TableHead className="text-center">Total</TableHead>
-                <TableHead className="text-center">%R</TableHead>
+    <div className="space-y-4">
+      {title && (
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
+      )}
+      {/* Gráfico em full-width */}
+      <ResponsiveContainer width="100%" height={Math.max(200, data.length * 34 + 50)}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+          <YAxis dataKey="antibiotic" type="category" width={labelW} tick={{ fontSize: 10 }} interval={0} />
+          <Tooltip formatter={(v: number, n: string) => [v, n === "S" ? "Sensível" : n === "I" ? "Intermediário" : "Resistente"]} />
+          <Legend wrapperStyle={{ fontSize: 10 }} formatter={(v) => ({ S: "Sensível (S)", I: "Intermediário (I)", R: "Resistente (R)" }[v] || v)} />
+          <Bar dataKey="S" name="S" stackId="a" fill={SIR_COLORS.S} barSize={20}>
+            <LabelList dataKey="S" position="insideLeft" style={{ fontSize: 9, fill: "#fff", fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+          </Bar>
+          <Bar dataKey="I" name="I" stackId="a" fill={SIR_COLORS.I} barSize={20}>
+            <LabelList dataKey="I" position="insideLeft" style={{ fontSize: 9, fill: "#fff", fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+          </Bar>
+          <Bar dataKey="R" name="R" stackId="a" fill={SIR_COLORS.R} barSize={20} radius={[0, 4, 4, 0]}>
+            <LabelList dataKey="R" position="right" style={{ fontSize: 9, fill: SIR_COLORS.R, fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      {/* Tabela completa abaixo */}
+      <div className="overflow-x-auto rounded-md border">
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Antimicrobiano</TableHead>
+              <TableHead className="text-center" style={{ color: SIR_COLORS.S }}>S</TableHead>
+              <TableHead className="text-center" style={{ color: SIR_COLORS.I }}>I</TableHead>
+              <TableHead className="text-center" style={{ color: SIR_COLORS.R }}>R</TableHead>
+              <TableHead className="text-center">Total</TableHead>
+              <TableHead className="text-center">%R</TableHead>
+              <TableHead className="w-28">Barra %R</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map(r => (
+              <TableRow key={r.antibiotic}>
+                <TableCell className="font-medium">{r.antibiotic}</TableCell>
+                <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.S }}>{r.S}</TableCell>
+                <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.I }}>{r.I}</TableCell>
+                <TableCell className="text-center font-bold" style={{ color: SIR_COLORS.R }}>{r.R}</TableCell>
+                <TableCell className="text-center font-bold">{r.total}</TableCell>
+                <TableCell className="text-center">
+                  <span className="font-bold" style={{ color: r.resistRate >= 50 ? SIR_COLORS.R : r.resistRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
+                    {r.resistRate}%
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    <div className="h-1.5 rounded-full" style={{ width: `${r.resistRate}%`, backgroundColor: r.resistRate >= 50 ? SIR_COLORS.R : r.resistRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }} />
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map(r => (
-                <TableRow key={r.antibiotic}>
-                  <TableCell className="font-medium">{r.antibiotic}</TableCell>
-                  <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.S }}>{r.S}</TableCell>
-                  <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.I }}>{r.I}</TableCell>
-                  <TableCell className="text-center font-bold" style={{ color: SIR_COLORS.R }}>{r.R}</TableCell>
-                  <TableCell className="text-center font-bold">{r.total}</TableCell>
-                  <TableCell className="text-center">
-                    <span className="font-bold" style={{ color: r.resistRate >= 50 ? SIR_COLORS.R : r.resistRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
-                      {r.resistRate}%
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <ResponsiveContainer width="100%" height={Math.max(160, data.length * 26 + 50)}>
-          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
-            <YAxis dataKey="antibiotic" type="category" width={120} tick={{ fontSize: 9 }} interval={0} />
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
-            <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
-            <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
-          </BarChart>
-        </ResponsiveContainer>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -1387,17 +1444,31 @@ function BacteriasVigilanciaSection({ data }: { data: BacteriaVigilanciaData[] }
         </div>
 
         {/* Accordion por bactéria */}
-        {data.map(b => (
+        {data.map(b => {
+          const totalR = b.perfil.reduce((s, r) => s + r.R, 0);
+          const totalT = b.perfil.reduce((s, r) => s + r.total, 0);
+          const grRate = totalT > 0 ? Math.round((totalR / totalT) * 100) : 0;
+          const topResist = b.perfil.find(p => p.resistRate > 0);
+          return (
           <div key={b.label} className="border rounded-lg overflow-hidden">
             <button
               className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/30 transition-colors"
               onClick={() => toggle(b.label)}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold italic text-sm">{b.label}</span>
                 <Badge variant="outline" className="text-[10px]">{b.isolados} isolado{b.isolados !== 1 ? "s" : ""}</Badge>
+                <Badge variant="outline" className="text-[10px]" style={{ color: grRate >= 50 ? SIR_COLORS.R : grRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S, borderColor: grRate >= 50 ? SIR_COLORS.R : grRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
+                  %R geral: {grRate}%
+                </Badge>
+                {topResist && topResist.resistRate >= 50 && (
+                  <Badge className="text-[10px] bg-destructive/10 text-destructive border-destructive/30 border">
+                    Maior R: {topResist.antibiotic} ({topResist.resistRate}%)
+                  </Badge>
+                )}
+                <span className="text-[10px] text-muted-foreground">{b.perfil.length} antibióticos</span>
               </div>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expanded === b.label ? "rotate-180" : ""}`} />
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${expanded === b.label ? "rotate-180" : ""}`} />
             </button>
 
             {expanded === b.label && (
@@ -1442,7 +1513,7 @@ function BacteriasVigilanciaSection({ data }: { data: BacteriaVigilanciaData[] }
                     data={Object.entries(b.setorAbMap[setorSel[b.label]]).map(([ab, v]) => {
                       const tot = v.S + v.I + v.R;
                       return { antibiotic: ab, ...v, total: tot, resistRate: tot > 0 ? Math.round((v.R / tot) * 100) : 0 };
-                    }).sort((a, x) => x.total - a.total)}
+                    }).sort((a, x) => x.resistRate - a.resistRate || x.total - a.total)}
                   />
                 ) : (
                   <AntibiogramTable title="Antibiograma Geral" data={b.perfil} />
@@ -1450,7 +1521,8 @@ function BacteriasVigilanciaSection({ data }: { data: BacteriaVigilanciaData[] }
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -1549,8 +1621,7 @@ function SensibilidadePorOrganismo({ data }: { data: AntibiogramDashRecord[] }) 
     return Object.entries(map)
       .map(([name, v]) => ({ name, ...v, total: v.S + v.I + v.R }))
       .filter(d => d.total > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 20);
+      .sort((a, b) => b.total - a.total);
   }, [dataFiltered, selectedOrgs, selectedAntibiotics, selectedSIR]);
 
   // KPIs
