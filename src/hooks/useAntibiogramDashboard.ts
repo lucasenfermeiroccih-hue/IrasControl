@@ -20,7 +20,7 @@ export interface AntibiogramDashRecord {
 function detectPhenotypes(organism: string, results: AntibiogramDashRecord["results"]): string[] {
   const phenotypes: string[] = [];
   const resistantAbs = results.filter(r => r.sir === "R").map(r => r.antibiotic.toLowerCase());
-  
+
   if (organism.toLowerCase().includes("staphylococcus") && resistantAbs.some(a => a.includes("oxacilina"))) {
     phenotypes.push("MRSA");
   }
@@ -30,7 +30,7 @@ function detectPhenotypes(organism: string, results: AntibiogramDashRecord["resu
   if (organism.toLowerCase().includes("klebsiella") && resistantAbs.some(a => a.includes("meropenem") || a.includes("imipenem"))) {
     phenotypes.push("KPC");
   }
-  if (resistantAbs.some(a => a.includes("ceftriaxona") || a.includes("cefepima")) && 
+  if (resistantAbs.some(a => a.includes("ceftriaxona") || a.includes("cefepima")) &&
       !resistantAbs.some(a => a.includes("meropenem"))) {
     phenotypes.push("ESBL");
   }
@@ -50,13 +50,13 @@ export function useAntibiogramDashboard() {
     const fetchAll = async () => {
       setLoading(true);
 
-      // 1. Paginate lab_results to bypass 1000-row default
+      // 1. Paginate lab_results — sector now stored directly in the column
       const PAGE = 1000;
       let labResults: any[] = [];
       for (let from = 0; ; from += PAGE) {
         const { data: page, error } = await supabase
           .from("lab_results")
-          .select("id, collection_date, sample_type, organism, patient_id, status, created_at, notes")
+          .select("id, collection_date, sample_type, organism, patient_id, status, created_at, notes, sector")
           .eq("hospital_id", hospitalId)
           .not("organism", "is", null)
           .order("collection_date", { ascending: false })
@@ -72,7 +72,7 @@ export function useAntibiogramDashboard() {
         return;
       }
 
-      // 2. Paginate antibiogram_results in id-chunks (avoid URL length and 1000 row cap)
+      // 2. Paginate antibiogram_results in id-chunks
       const ids = labResults.map(r => r.id);
       const CHUNK = 200;
       const abResults: any[] = [];
@@ -92,17 +92,26 @@ export function useAntibiogramDashboard() {
         }
       }
 
-      // 3. Patient sectors in chunks
-      const patientIds = [...new Set(labResults.map(r => r.patient_id).filter(Boolean))] as string[];
-      const patientMap: Record<string, { sector: string }> = {};
-      for (let i = 0; i < patientIds.length; i += CHUNK) {
-        const chunk = patientIds.slice(i, i + CHUNK);
-        const { data: patients } = await supabase
-          .from("patients")
-          .select("id, sector")
-          .in("id", chunk);
-        for (const p of patients || []) {
-          patientMap[p.id] = { sector: p.sector || "Não informado" };
+      // 3. Fallback: for records still without sector, fetch from patients
+      //    (handles records inserted before the trigger was added)
+      const missingPatientIds = [
+        ...new Set(
+          labResults
+            .filter(r => (!r.sector || r.sector === "") && r.patient_id)
+            .map(r => r.patient_id as string)
+        ),
+      ];
+      const patientMap: Record<string, string> = {};
+      if (missingPatientIds.length > 0) {
+        for (let i = 0; i < missingPatientIds.length; i += CHUNK) {
+          const chunk = missingPatientIds.slice(i, i + CHUNK);
+          const { data: patients } = await supabase
+            .from("patients")
+            .select("id, sector")
+            .in("id", chunk);
+          for (const p of patients || []) {
+            if (p.sector) patientMap[p.id] = p.sector;
+          }
         }
       }
 
@@ -121,13 +130,19 @@ export function useAntibiogramDashboard() {
         }));
 
         const organism = lab.organism || "Desconhecido";
-        const notes = lab.notes || "";
-        const setorMatch = notes.match(/Setor:\s*([^|]+)/);
-        const sectorFromNotes = setorMatch ? setorMatch[1].trim() : "";
-        const sectorFromPatient = lab.patient_id ? (patientMap[lab.patient_id]?.sector || "") : "";
-        const sector = sectorFromNotes || sectorFromPatient || "Não informado";
+
+        // Use stored sector column first; fallback to patient; final fallback to notes regex
+        let sector: string = lab.sector || patientMap[lab.patient_id] || "";
+        if (!sector) {
+          // Legacy fallback: try to extract from notes (for records inserted before the trigger)
+          const notes = lab.notes || "";
+          const setorMatch = notes.match(/Setor:\s*([^|]+)/);
+          sector = setorMatch ? setorMatch[1].trim() : "";
+        }
+        if (!sector) sector = "Não informado";
 
         const detectedPhenotypes = detectPhenotypes(organism, results);
+        const notes = lab.notes || "";
         const mdrFromNotes = /MDR:\s*(sim|true)/i.test(notes);
         const mdr = mdrFromNotes || detectedPhenotypes.length > 0;
 
@@ -154,4 +169,3 @@ export function useAntibiogramDashboard() {
 
   return { data, loading: loading || ctxLoading, hospitalId, refresh };
 }
-
