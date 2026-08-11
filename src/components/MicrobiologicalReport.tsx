@@ -14,6 +14,14 @@ export interface ReportSummary {
   perfilSIR: { name: string; S: number; I: number; R: number; resistRate: number }[];
   tendenciaMensal: { month: string; exames: number; taxaResistencia: number }[];
   fenotiposDetectados: { name: string; value: number }[];
+  culturasPorMaterial?: { name: string; value: number }[];
+  bacteriasAlvo?: {
+    label: string;
+    short: string;
+    isolados: number;
+    setores: { setor: string; count: number }[];
+    perfil: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
+  }[];
 }
 
 interface Props {
@@ -281,24 +289,24 @@ function HBarChart({ data, colors, width = 680, barH = 18, labelW = 220 }: {
   );
 }
 
-function SIRStackedChart({ data, width = 680, barH = 16, labelW = 210 }: {
+function SIRStackedChart({ data, width = 680, barH = 18, labelW = 210 }: {
   data: { name: string; S: number; I: number; R: number; resistRate: number }[];
   width?: number; barH?: number; labelW?: number;
 }) {
-  const gap = 7;
-  const valW = 45;
+  const gap = 8;
+  const valW = 52;
   const chartW = width - labelW - valW;
-  const legendH = 22;
-  const h = legendH + data.length * (barH + gap) + gap + 4;
+  const legendH = 24;
+  const h = legendH + data.length * (barH + gap) + gap + 6;
   const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + "…" : s;
 
   return (
     <svg width={width} height={h} style={{ display: "block", fontFamily: FONT, overflow: "visible" }}>
       {/* Legend */}
       {[["S – Sensível", GREEN], ["I – Intermediário", ORANGE], ["R – Resistente", RED]].map(([label, color], li) => (
-        <g key={li} transform={`translate(${labelW + li * 140}, 2)`}>
-          <rect width={12} height={12} fill={color as string} rx="2" y="2" />
-          <text x={16} y={12} fontSize="9" fill="#374151">{label as string}</text>
+        <g key={li} transform={`translate(${labelW + li * 148}, 2)`}>
+          <rect width={12} height={12} fill={color as string} rx="2" y="3" />
+          <text x={17} y={13} fontSize="9.5" fill="#374151">{label as string}</text>
         </g>
       ))}
       {data.map((d, i) => {
@@ -314,9 +322,18 @@ function SIRStackedChart({ data, width = 680, barH = 16, labelW = 210 }: {
             <text x={labelW - 5} y={y + barH * 0.72} textAnchor="end" fontSize="10" fill="#374151">
               {truncate(d.name, 28)}
             </text>
-            {sW > 0 && <rect x={labelW} y={y} width={sW} height={barH} fill={GREEN} />}
+            <rect x={labelW} y={y} width={chartW} height={barH} fill="#f3f4f6" rx="2" />
+            {sW > 0 && <rect x={labelW} y={y} width={sW} height={barH} fill={GREEN} rx="2" />}
             {iW > 0 && <rect x={labelW + sW} y={y} width={iW} height={barH} fill={ORANGE} />}
             {rW > 0 && <rect x={labelW + sW + iW} y={y} width={rW} height={barH} fill={RED} />}
+            {/* S label */}
+            {sW > 22 && (
+              <text x={labelW + sW / 2} y={y + barH * 0.72} textAnchor="middle" fontSize="8.5" fill="white" fontWeight="700">{d.S}</text>
+            )}
+            {/* R label */}
+            {rW > 22 && (
+              <text x={labelW + sW + iW + rW / 2} y={y + barH * 0.72} textAnchor="middle" fontSize="8.5" fill="white" fontWeight="700">{d.R}</text>
+            )}
             <rect x={labelW + chartW + 4} y={y} width={valW - 4} height={barH} fill={rBg} rx="3" />
             <text x={labelW + chartW + valW / 2 + 2} y={y + barH * 0.72} textAnchor="middle" fontSize="10" fill={rC} fontWeight="700">
               {d.resistRate}%R
@@ -325,6 +342,20 @@ function SIRStackedChart({ data, width = 680, barH = 16, labelW = 210 }: {
         );
       })}
     </svg>
+  );
+}
+
+function BacteriaAntibiogramChart({ data, width = 680, barH = 16, labelW = 160 }: {
+  data: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
+  width?: number; barH?: number; labelW?: number;
+}) {
+  return (
+    <SIRStackedChart
+      data={data.map(d => ({ name: d.antibiotic, S: d.S, I: d.I, R: d.R, resistRate: d.resistRate }))}
+      width={width}
+      barH={barH}
+      labelW={labelW}
+    />
   );
 }
 
@@ -616,6 +647,122 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
               </div>
             )}
           </Section>
+
+          {/* ── 5b. CULTURAS POR MATERIAL BIOLÓGICO ── */}
+          {summary.culturasPorMaterial && summary.culturasPorMaterial.length > 0 && (
+            <Section title="5b. Culturas por Material Biológico" icon="🧪">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+                <div>
+                  <DataTable
+                    headers={["Material Biológico", "N", "% Total"]}
+                    rows={summary.culturasPorMaterial.map(m => [
+                      m.name,
+                      String(m.value),
+                      `${summary.totalExames > 0 ? ((m.value / summary.totalExames) * 100).toFixed(1) : 0}%`,
+                    ])}
+                    colWidths={["55%", "20%", "25%"]}
+                  />
+                </div>
+                <div>
+                  <p style={{ fontSize: "10px", color: GRAY, marginBottom: "6px", fontWeight: 600, fontFamily: FONT }}>Distribuição por Material</p>
+                  <HBarChart
+                    data={summary.culturasPorMaterial.slice(0, 10)}
+                    colors={["#0891b2","#0369a1","#4f46e5","#7c3aed","#db2777","#ea580c","#65a30d",TEAL,"#1a9177","#2ab599"]}
+                    width={310} labelW={130} barH={16}
+                  />
+                </div>
+              </div>
+            </Section>
+          )}
+
+          {/* ── 5c. BACTÉRIAS PRIORITÁRIAS DE VIGILÂNCIA ── */}
+          {summary.bacteriasAlvo && summary.bacteriasAlvo.length > 0 && (
+            <Section title="5c. Perfil das Bactérias Prioritárias de Vigilância" icon="🦠">
+              <p style={{ fontSize: "10.5px", color: GRAY, marginBottom: "10px", fontFamily: FONT }}>
+                Staphylococcus aureus · Klebsiella pneumoniae · Proteus sp. · Acinetobacter sp. · Pseudomonas sp. · Escherichia coli
+              </p>
+              {/* Tabela resumo das bactérias */}
+              <div style={{ marginBottom: "14px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: FONT }}>
+                  <thead>
+                    <tr style={{ background: TEAL, color: "white" }}>
+                      {["Bactéria", "Isolados", "Principais Setores", "% Resistência Geral"].map((h, i) => (
+                        <th key={i} style={{ textAlign: i === 0 ? "left" : "center", padding: "7px 10px", fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.bacteriasAlvo.map((b, i) => {
+                      const allR = b.perfil.reduce((s, r) => s + r.R, 0);
+                      const allT = b.perfil.reduce((s, r) => s + r.total, 0);
+                      const gRRate = allT > 0 ? Math.round((allR / allT) * 100) : 0;
+                      const rC = gRRate >= 50 ? RED : gRRate >= 30 ? ORANGE : GREEN;
+                      return (
+                        <tr key={b.label} style={{ background: i % 2 === 0 ? "#f9fafb" : "white", borderBottom: "1px solid #e5e7eb" }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 600, fontStyle: "italic" }}>{b.label}</td>
+                          <td style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700 }}>{b.isolados}</td>
+                          <td style={{ padding: "6px 10px", fontSize: "10px", color: GRAY }}>
+                            {b.setores.slice(0, 3).map(s => `${s.setor} (${s.count})`).join(" · ")}
+                          </td>
+                          <td style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, color: rC }}>{gRRate}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Antibiograma detalhado por bactéria */}
+              {summary.bacteriasAlvo.filter(b => b.perfil.length > 0).map((b, bi) => (
+                <div key={b.label} style={{ marginBottom: "18px", border: "1px solid #e5e7eb", borderRadius: "8px", overflow: "hidden" }}>
+                  <div style={{ background: "#f3f4f6", padding: "8px 14px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: "11px", fontStyle: "italic", fontFamily: FONT }}>{b.label}</span>
+                    <span style={{ fontSize: "10px", color: GRAY, fontFamily: FONT }}>{b.isolados} isolado{b.isolados !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div style={{ padding: "12px 14px" }}>
+                    {/* Setores */}
+                    {b.setores.length > 0 && (
+                      <p style={{ fontSize: "9.5px", color: GRAY, marginBottom: "8px", fontFamily: FONT }}>
+                        <strong>Setores:</strong>{" "}
+                        {b.setores.map(s => `${s.setor} (n=${s.count})`).join(" · ")}
+                      </p>
+                    )}
+                    {/* Tabela SIR */}
+                    <p style={{ fontSize: "10px", color: GRAY, marginBottom: "6px", fontWeight: 600, fontFamily: FONT }}>Antibiograma — Perfil S/I/R</p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "start" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", fontFamily: FONT }}>
+                        <thead>
+                          <tr style={{ background: TEAL, color: "white" }}>
+                            {["Antimicrobiano", "S", "I", "R", "Total", "%R"].map((h, hi) => (
+                              <th key={hi} style={{ textAlign: hi === 0 ? "left" : "center", padding: "5px 8px", fontWeight: 600 }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {b.perfil.slice(0, 15).map((r, ri) => {
+                            const rC = r.resistRate >= 50 ? RED : r.resistRate >= 30 ? ORANGE : GREEN;
+                            return (
+                              <tr key={r.antibiotic} style={{ background: ri % 2 === 0 ? "#f9fafb" : "white", borderBottom: "1px solid #e5e7eb" }}>
+                                <td style={{ padding: "4px 8px", fontWeight: 500 }}>{r.antibiotic}</td>
+                                <td style={{ textAlign: "center", padding: "4px 8px", color: GREEN, fontWeight: 600 }}>{r.S}</td>
+                                <td style={{ textAlign: "center", padding: "4px 8px", color: ORANGE, fontWeight: 600 }}>{r.I}</td>
+                                <td style={{ textAlign: "center", padding: "4px 8px", color: RED, fontWeight: 700 }}>{r.R}</td>
+                                <td style={{ textAlign: "center", padding: "4px 8px", fontWeight: 700 }}>{r.total}</td>
+                                <td style={{ textAlign: "center", padding: "4px 8px", fontWeight: 700, color: rC }}>{r.resistRate}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <div>
+                        <BacteriaAntibiogramChart data={b.perfil.slice(0, 12)} width={310} barH={14} labelW={130} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Section>
+          )}
 
           {/* ── 6. FENÓTIPOS MDR ── */}
           <Section title="6. Fenótipos de Multirresistência (MDR)" accent="#b91c1c" icon="⚠️">

@@ -23,7 +23,7 @@ import {
 import {
   ArrowLeft, FileText, FileSpreadsheet, Activity, Bug, ShieldAlert,
   TrendingUp, TrendingDown, Award, AlertTriangle, Beaker, Microscope, Clock,
-  Sparkles, Bot, Loader2, Download, RefreshCw, CalendarIcon, X,
+  Sparkles, Bot, Loader2, Download, RefreshCw, CalendarIcon, X, ChevronDown, FlaskConical,
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,24 @@ const CHART_COLORS = [
   "hsl(15,80%,55%)",
 ];
 const SIR_COLORS: Record<string, string> = { S: "hsl(142,71%,35%)", I: "hsl(38,92%,50%)", R: "hsl(0,72%,51%)" };
+
+const BACTERIAS_ALVO = [
+  { label: "Staphylococcus aureus", short: "S. aureus", pattern: /staphylococcus\s*aureus/i },
+  { label: "Klebsiella pneumoniae", short: "K. pneumoniae", pattern: /klebsiella\s*pneumoniae/i },
+  { label: "Proteus sp.", short: "Proteus", pattern: /proteus/i },
+  { label: "Acinetobacter sp.", short: "Acinetobacter", pattern: /acinetobacter/i },
+  { label: "Pseudomonas sp.", short: "Pseudomonas", pattern: /pseudomonas/i },
+  { label: "Escherichia coli", short: "E. coli", pattern: /escherichia\s*coli/i },
+];
+
+type BacteriaVigilanciaData = {
+  label: string;
+  short: string;
+  isolados: number;
+  perfil: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
+  setores: { setor: string; count: number; S: number; I: number; R: number }[];
+  setorAbMap: Record<string, Record<string, { S: number; I: number; R: number }>>;
+};
 
 export default function DashboardAntibiogram() {
   const navigate = useNavigate();
@@ -206,6 +224,48 @@ export default function DashboardAntibiogram() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
+  const culturasPorMaterial = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(d => { map[d.site] = (map[d.site] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  const bacteriasAlvoData = useMemo((): BacteriaVigilanciaData[] => {
+    return BACTERIAS_ALVO.map(({ label, short, pattern }) => {
+      const records = filtered.filter(d => pattern.test(d.organism));
+      if (records.length === 0) return null;
+      const abMap: Record<string, { S: number; I: number; R: number }> = {};
+      records.forEach(d => d.results.forEach(r => {
+        if (!r.antibiotic || !["S","I","R"].includes(r.sir)) return;
+        if (!abMap[r.antibiotic]) abMap[r.antibiotic] = { S: 0, I: 0, R: 0 };
+        (abMap[r.antibiotic] as Record<string,number>)[r.sir]++;
+      }));
+      const setorAbMap: Record<string, Record<string, { S: number; I: number; R: number }>> = {};
+      records.forEach(d => {
+        if (!setorAbMap[d.sector]) setorAbMap[d.sector] = {};
+        d.results.forEach(r => {
+          if (!r.antibiotic || !["S","I","R"].includes(r.sir)) return;
+          if (!setorAbMap[d.sector][r.antibiotic]) setorAbMap[d.sector][r.antibiotic] = { S: 0, I: 0, R: 0 };
+          (setorAbMap[d.sector][r.antibiotic] as Record<string,number>)[r.sir]++;
+        });
+      });
+      const setoresList = Object.entries(setorAbMap).map(([setor, abData]) => {
+        const count = records.filter(d => d.sector === setor).length;
+        const totals = Object.values(abData).reduce((acc, v) => ({ S: acc.S + v.S, I: acc.I + v.I, R: acc.R + v.R }), { S: 0, I: 0, R: 0 });
+        return { setor, count, ...totals };
+      }).sort((a, b) => b.count - a.count);
+      return {
+        label, short, isolados: records.length,
+        perfil: Object.entries(abMap).map(([ab, v]) => {
+          const tot = v.S + v.I + v.R;
+          return { antibiotic: ab, ...v, total: tot, resistRate: tot > 0 ? Math.round((v.R / tot) * 100) : 0 };
+        }).sort((a, b) => b.total - a.total),
+        setores: setoresList,
+        setorAbMap,
+      };
+    }).filter((b): b is BacteriaVigilanciaData => b !== null);
+  }, [filtered]);
+
   // Summary calculado a partir dos dados filtrados no cliente (para PDF Visual sem IA)
   const filteredSummary = useMemo((): ReportSummary => {
     const dates = filtered.map(d => d.collectionDate).filter(Boolean).sort();
@@ -231,10 +291,16 @@ export default function DashboardAntibiogram() {
       perfilSIR: sirByAntibiotic,
       tendenciaMensal: monthlyTrend,
       fenotiposDetectados: phenotypeDist,
+      culturasPorMaterial,
+      bacteriasAlvo: bacteriasAlvoData.map(({ label, short, isolados, perfil, setores }) => ({
+        label, short, isolados, perfil,
+        setores: setores.map(({ setor, count }) => ({ setor, count })),
+      })),
     };
   }, [filtered, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno,
       totalExams, totalTests, resistanceRate, sensitivityRate, phenotypeCount,
-      orgCounts, sectorData, sirByAntibiotic, monthlyTrend, phenotypeDist]);
+      orgCounts, sectorData, sirByAntibiotic, monthlyTrend, phenotypeDist,
+      culturasPorMaterial, bacteriasAlvoData]);
 
   const riskLevel = resistanceRate > 40 ? "critical" : resistanceRate > 25 ? "high" : resistanceRate > 15 ? "moderate" : "low";
   const riskConfig: Record<string, { label: string; color: string; icon: typeof ShieldAlert }> = {
@@ -800,6 +866,53 @@ export default function DashboardAntibiogram() {
         </Card>
       </div>
 
+      {/* Culturas por Material Biológico */}
+      {culturasPorMaterial.length > 0 && (
+        <Card>
+          <CardHeader className="p-3 md:p-6 pb-0">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-info" /> Culturas por Material Biológico
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Distribuição dos {totalExams} exames por tipo de amostra</p>
+          </CardHeader>
+          <CardContent className="p-2 md:p-6 pt-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ResponsiveContainer width="100%" height={Math.max(180, culturasPorMaterial.length * 34 + 40)}>
+                <BarChart data={culturasPorMaterial} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11 }} interval={0} />
+                  <Tooltip formatter={(v: number) => [`${v} culturas`, "Total"]} />
+                  <Bar dataKey="value" name="Culturas" fill="hsl(199,89%,48%)" radius={[0, 4, 4, 0]} barSize={20}>
+                    <LabelList dataKey="value" position="right" style={{ fontSize: 9, fill: "#374151", fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="overflow-x-auto rounded-md border self-start">
+                <Table className="text-xs">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Material Biológico</TableHead>
+                      <TableHead className="text-center">N</TableHead>
+                      <TableHead className="text-center">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {culturasPorMaterial.map(m => (
+                      <TableRow key={m.name}>
+                        <TableCell className="font-medium">{m.name}</TableCell>
+                        <TableCell className="text-center font-bold">{m.value}</TableCell>
+                        <TableCell className="text-center">{totalExams > 0 ? Math.round((m.value / totalExams) * 100) : 0}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* SIR by antibiotic */}
       <Card>
         <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
@@ -914,6 +1027,11 @@ export default function DashboardAntibiogram() {
       </Card>
 
 
+
+      {/* Bactérias Prioritárias de Vigilância */}
+      {bacteriasAlvoData.length > 0 && (
+        <BacteriasVigilanciaSection data={bacteriasAlvoData} />
+      )}
 
       {/* Sensibilidade por Microrganismo */}
       <SensibilidadePorOrganismo data={filtered} />
@@ -1150,6 +1268,191 @@ export default function DashboardAntibiogram() {
         },
       } as AnalysisConfig} />
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// Bactérias Prioritárias de Vigilância
+// ═══════════════════════════════════════════════════
+function AntibiogramTable({ data, title }: {
+  data: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
+  title?: string;
+}) {
+  if (data.length === 0) return <p className="text-xs text-muted-foreground py-3 text-center">Sem dados de antibiograma</p>;
+  return (
+    <div className="space-y-3">
+      {title && <p className="text-xs font-semibold text-muted-foreground">{title}</p>}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="overflow-x-auto rounded-md border">
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Antimicrobiano</TableHead>
+                <TableHead className="text-center" style={{ color: SIR_COLORS.S }}>S</TableHead>
+                <TableHead className="text-center" style={{ color: SIR_COLORS.I }}>I</TableHead>
+                <TableHead className="text-center" style={{ color: SIR_COLORS.R }}>R</TableHead>
+                <TableHead className="text-center">Total</TableHead>
+                <TableHead className="text-center">%R</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map(r => (
+                <TableRow key={r.antibiotic}>
+                  <TableCell className="font-medium">{r.antibiotic}</TableCell>
+                  <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.S }}>{r.S}</TableCell>
+                  <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.I }}>{r.I}</TableCell>
+                  <TableCell className="text-center font-bold" style={{ color: SIR_COLORS.R }}>{r.R}</TableCell>
+                  <TableCell className="text-center font-bold">{r.total}</TableCell>
+                  <TableCell className="text-center">
+                    <span className="font-bold" style={{ color: r.resistRate >= 50 ? SIR_COLORS.R : r.resistRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
+                      {r.resistRate}%
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <ResponsiveContainer width="100%" height={Math.max(160, data.length * 26 + 50)}>
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+            <YAxis dataKey="antibiotic" type="category" width={120} tick={{ fontSize: 9 }} interval={0} />
+            <Tooltip />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Bar dataKey="S" name="Sensível" stackId="a" fill={SIR_COLORS.S} />
+            <Bar dataKey="I" name="Intermediário" stackId="a" fill={SIR_COLORS.I} />
+            <Bar dataKey="R" name="Resistente" stackId="a" fill={SIR_COLORS.R} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function BacteriasVigilanciaSection({ data }: { data: BacteriaVigilanciaData[] }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [setorSel, setSetorSel] = useState<Record<string, string>>({});
+
+  const toggle = (label: string) => setExpanded(prev => prev === label ? null : label);
+  const selectSetor = (label: string, setor: string) =>
+    setSetorSel(prev => ({ ...prev, [label]: prev[label] === setor ? "" : setor }));
+
+  return (
+    <Card>
+      <CardHeader className="p-3 md:p-6 pb-2">
+        <CardTitle className="text-sm md:text-base flex items-center gap-2">
+          <Bug className="h-4 w-4 text-destructive" /> Bactérias Prioritárias de Vigilância
+        </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Staphylococcus aureus · Klebsiella pneumoniae · Proteus · Acinetobacter · Pseudomonas · E. coli
+        </p>
+      </CardHeader>
+      <CardContent className="p-3 md:p-6 pt-0 space-y-3">
+        {/* Tabela resumo */}
+        <div className="overflow-x-auto rounded-md border">
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Bactéria</TableHead>
+                <TableHead className="text-center">Isolados</TableHead>
+                <TableHead>Principais Setores</TableHead>
+                <TableHead className="text-center">% Resistência Geral</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map(b => {
+                const allR = b.perfil.reduce((s, r) => s + r.R, 0);
+                const allT = b.perfil.reduce((s, r) => s + r.total, 0);
+                const gRRate = allT > 0 ? Math.round((allR / allT) * 100) : 0;
+                return (
+                  <TableRow key={b.label} className="cursor-pointer hover:bg-muted/50" onClick={() => toggle(b.label)}>
+                    <TableCell className="font-semibold italic">{b.label}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">{b.isolados}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-[10px]">
+                      {b.setores.slice(0, 3).map(s => `${s.setor} (${s.count})`).join(" · ")}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-bold" style={{ color: gRRate >= 50 ? SIR_COLORS.R : gRRate >= 30 ? SIR_COLORS.I : SIR_COLORS.S }}>
+                        {gRRate}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Accordion por bactéria */}
+        {data.map(b => (
+          <div key={b.label} className="border rounded-lg overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/30 transition-colors"
+              onClick={() => toggle(b.label)}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-semibold italic text-sm">{b.label}</span>
+                <Badge variant="outline" className="text-[10px]">{b.isolados} isolado{b.isolados !== 1 ? "s" : ""}</Badge>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expanded === b.label ? "rotate-180" : ""}`} />
+            </button>
+
+            {expanded === b.label && (
+              <div className="p-3 border-t bg-muted/10 space-y-4">
+                {/* Breakdown por setor */}
+                <div>
+                  <p className="text-xs font-semibold mb-2 text-muted-foreground">Por setor (clique para ver antibiograma do setor):</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {b.setores.map(s => {
+                      const totR = s.S + s.I + s.R;
+                      const pctR = totR > 0 ? Math.round((s.R / totR) * 100) : 0;
+                      const isSelected = setorSel[b.label] === s.setor;
+                      return (
+                        <button
+                          key={s.setor}
+                          onClick={() => selectSetor(b.label, s.setor)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-colors ${isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+                        >
+                          <span className="font-medium">{s.setor}</span>
+                          <span className="opacity-70">n={s.count}</span>
+                          <span className="font-bold" style={{ color: isSelected ? "inherit" : (pctR >= 50 ? SIR_COLORS.R : pctR >= 30 ? SIR_COLORS.I : SIR_COLORS.S) }}>
+                            {pctR}%R
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {setorSel[b.label] && (
+                      <button
+                        onClick={() => selectSetor(b.label, setorSel[b.label])}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border border-muted-foreground/30 text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-2.5 w-2.5" /> Geral
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Antibiograma — geral ou por setor selecionado */}
+                {setorSel[b.label] && b.setorAbMap[setorSel[b.label]] ? (
+                  <AntibiogramTable
+                    title={`Antibiograma — ${setorSel[b.label]}`}
+                    data={Object.entries(b.setorAbMap[setorSel[b.label]]).map(([ab, v]) => {
+                      const tot = v.S + v.I + v.R;
+                      return { antibiotic: ab, ...v, total: tot, resistRate: tot > 0 ? Math.round((v.R / tot) * 100) : 0 };
+                    }).sort((a, x) => x.total - a.total)}
+                  />
+                ) : (
+                  <AntibiogramTable title="Antibiograma Geral" data={b.perfil} />
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
