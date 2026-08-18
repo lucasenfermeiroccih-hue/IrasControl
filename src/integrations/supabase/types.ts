@@ -2047,6 +2047,7 @@ export type Database = {
           sample_location_enabled: string | null
           sample_material: string | null
           sample_type: string | null
+          sector: string | null
           status: Database["public"]["Enums"]["lab_result_status"]
           updated_at: string
         }
@@ -2068,6 +2069,7 @@ export type Database = {
           sample_location_enabled?: string | null
           sample_material?: string | null
           sample_type?: string | null
+          sector?: string | null
           status?: Database["public"]["Enums"]["lab_result_status"]
           updated_at?: string
         }
@@ -2089,6 +2091,7 @@ export type Database = {
           sample_location_enabled?: string | null
           sample_material?: string | null
           sample_type?: string | null
+          sector?: string | null
           status?: Database["public"]["Enums"]["lab_result_status"]
           updated_at?: string
         }
