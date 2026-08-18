@@ -179,6 +179,22 @@ const App = () => (
               <Route path="/maternidade/relatorio" element={<MaternityReport />} />
               <Route path="/protocolos-ia" element={<ProtocolosIA />} />
               <Route path="/reunioes-atas" element={<ReunioesMeetingsModule />} />
+              <Route path="/hygiene-logistics/dashboard" element={<HLDashboard />} />
+              <Route path="/hygiene-logistics/stock" element={<HLStock />} />
+              <Route path="/hygiene-logistics/products" element={<HLProducts />} />
+              <Route path="/hygiene-logistics/monthly-order" element={<HLMonthlyOrder />} />
+              <Route path="/hygiene-logistics/resupply-matrix" element={<HLResupplyMatrix />} />
+              <Route path="/hygiene-logistics/abc-curve" element={<HLAbcCurve />} />
+              <Route path="/hygiene-logistics/sawtooth" element={<HLSawtooth />} />
+              <Route path="/hygiene-logistics/sawtooth/:productId" element={<HLSawtooth />} />
+              <Route path="/hygiene-logistics/stock-entry" element={<HLStockEntry />} />
+              <Route path="/hygiene-logistics/sector-output" element={<HLSectorOutput />} />
+              <Route path="/hygiene-logistics/equipment-inventory" element={<HLEquipmentInventory />} />
+              <Route path="/hygiene-logistics/cleaning-schedule" element={<HLCleaningSchedule />} />
+              <Route path="/hygiene-logistics/cleaning-audit" element={<HLCleaningAudit />} />
+              <Route path="/hygiene-logistics/nonconformities" element={<HLNonconformities />} />
+              <Route path="/hygiene-logistics/reports" element={<HLReports />} />
+              <Route path="/hygiene-logistics/settings" element={<HLSettings />} />
             </Route>
           </Route>
 
