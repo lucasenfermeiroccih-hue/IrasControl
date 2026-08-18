@@ -100,7 +100,28 @@ const publicSections = [
     ],
   },
   {
+    label: "Higiene & Logística",
+    items: [
+      { title: "Painel Executivo", url: "/hygiene-logistics/dashboard", icon: ClipboardList },
+      { title: "Estoque Almoxarifado", url: "/hygiene-logistics/stock", icon: Package },
+      { title: "Grade de Materiais", url: "/hygiene-logistics/products", icon: ClipboardList },
+      { title: "Pedido do Mês", url: "/hygiene-logistics/monthly-order", icon: ShoppingBag },
+      { title: "Ressuprimento 20+5", url: "/hygiene-logistics/resupply-matrix", icon: BarChart3 },
+      { title: "Curva ABC", url: "/hygiene-logistics/abc-curve", icon: TrendingUp },
+      { title: "Curva Dente de Serra", url: "/hygiene-logistics/sawtooth/HIG-001", icon: TrendingUp },
+      { title: "Entrada de Produtos", url: "/hygiene-logistics/stock-entry", icon: Package },
+      { title: "Saída por Setor", url: "/hygiene-logistics/sector-output", icon: ArrowLeftRight },
+      { title: "Dispensers e Lixeiras", url: "/hygiene-logistics/equipment-inventory", icon: FlaskConical },
+      { title: "Cronograma de Limpeza", url: "/hygiene-logistics/cleaning-schedule", icon: Droplets },
+      { title: "Auditoria de Limpeza", url: "/hygiene-logistics/cleaning-audit", icon: ClipboardCheck },
+      { title: "Não Conformidades", url: "/hygiene-logistics/nonconformities", icon: ShieldAlert },
+      { title: "Relatórios Logísticos", url: "/hygiene-logistics/reports", icon: FileText },
+      { title: "Config. Logísticas", url: "/hygiene-logistics/settings", icon: Settings },
+    ],
+  },
+  {
     label: "IA",
+
     items: [
       { title: "Biblioteca de Agentes", url: "/agentes", icon: Sparkles },
       { title: "Protocolos com IA", url: "/protocolos-ia", icon: BookOpen },

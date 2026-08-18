@@ -76,6 +76,21 @@ import ProtocolosIA from "./pages/ProtocolosIA.tsx";
 import ReunioesMeetingsModule from "./pages/ReunioesMeetingsModule.tsx";
 import PermissoesUsuarios from "./pages/PermissoesUsuarios.tsx";
 import PatientAuditLog from "./pages/PatientAuditLog.tsx";
+import HLDashboard from "./modules/hygiene-logistics/pages/HLDashboard.tsx";
+import HLStock from "./modules/hygiene-logistics/pages/HLStock.tsx";
+import HLProducts from "./modules/hygiene-logistics/pages/HLProducts.tsx";
+import HLMonthlyOrder from "./modules/hygiene-logistics/pages/HLMonthlyOrder.tsx";
+import HLResupplyMatrix from "./modules/hygiene-logistics/pages/HLResupplyMatrix.tsx";
+import HLAbcCurve from "./modules/hygiene-logistics/pages/HLAbcCurve.tsx";
+import HLSawtooth from "./modules/hygiene-logistics/pages/HLSawtooth.tsx";
+import HLStockEntry from "./modules/hygiene-logistics/pages/HLStockEntry.tsx";
+import HLSectorOutput from "./modules/hygiene-logistics/pages/HLSectorOutput.tsx";
+import HLEquipmentInventory from "./modules/hygiene-logistics/pages/HLEquipmentInventory.tsx";
+import HLCleaningSchedule from "./modules/hygiene-logistics/pages/HLCleaningSchedule.tsx";
+import HLCleaningAudit from "./modules/hygiene-logistics/pages/HLCleaningAudit.tsx";
+import HLNonconformities from "./modules/hygiene-logistics/pages/HLNonconformities.tsx";
+import HLReports from "./modules/hygiene-logistics/pages/HLReports.tsx";
+import HLSettings from "./modules/hygiene-logistics/pages/HLSettings.tsx";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +179,22 @@ const App = () => (
               <Route path="/maternidade/relatorio" element={<MaternityReport />} />
               <Route path="/protocolos-ia" element={<ProtocolosIA />} />
               <Route path="/reunioes-atas" element={<ReunioesMeetingsModule />} />
+              <Route path="/hygiene-logistics/dashboard" element={<HLDashboard />} />
+              <Route path="/hygiene-logistics/stock" element={<HLStock />} />
+              <Route path="/hygiene-logistics/products" element={<HLProducts />} />
+              <Route path="/hygiene-logistics/monthly-order" element={<HLMonthlyOrder />} />
+              <Route path="/hygiene-logistics/resupply-matrix" element={<HLResupplyMatrix />} />
+              <Route path="/hygiene-logistics/abc-curve" element={<HLAbcCurve />} />
+              <Route path="/hygiene-logistics/sawtooth" element={<HLSawtooth />} />
+              <Route path="/hygiene-logistics/sawtooth/:productId" element={<HLSawtooth />} />
+              <Route path="/hygiene-logistics/stock-entry" element={<HLStockEntry />} />
+              <Route path="/hygiene-logistics/sector-output" element={<HLSectorOutput />} />
+              <Route path="/hygiene-logistics/equipment-inventory" element={<HLEquipmentInventory />} />
+              <Route path="/hygiene-logistics/cleaning-schedule" element={<HLCleaningSchedule />} />
+              <Route path="/hygiene-logistics/cleaning-audit" element={<HLCleaningAudit />} />
+              <Route path="/hygiene-logistics/nonconformities" element={<HLNonconformities />} />
+              <Route path="/hygiene-logistics/reports" element={<HLReports />} />
+              <Route path="/hygiene-logistics/settings" element={<HLSettings />} />
             </Route>
           </Route>
 
