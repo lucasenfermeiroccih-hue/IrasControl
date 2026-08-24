@@ -1241,6 +1241,413 @@ export type Database = {
         }
         Relationships: []
       }
+      hygiene_abc_classifications: {
+        Row: {
+          abc_class: string
+          accumulated_pct: number | null
+          calculated_at: string | null
+          control_recommendation: string | null
+          criticality: string | null
+          hospital_id: string | null
+          id: string
+          individual_pct: number | null
+          monthly_consumption_value: number | null
+          product_id: string | null
+          reference_month: string | null
+        }
+        Insert: {
+          abc_class: string
+          accumulated_pct?: number | null
+          calculated_at?: string | null
+          control_recommendation?: string | null
+          criticality?: string | null
+          hospital_id?: string | null
+          id?: string
+          individual_pct?: number | null
+          monthly_consumption_value?: number | null
+          product_id?: string | null
+          reference_month?: string | null
+        }
+        Update: {
+          abc_class?: string
+          accumulated_pct?: number | null
+          calculated_at?: string | null
+          control_recommendation?: string | null
+          criticality?: string | null
+          hospital_id?: string | null
+          id?: string
+          individual_pct?: number | null
+          monthly_consumption_value?: number | null
+          product_id?: string | null
+          reference_month?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_abc_classifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_abc_classifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_abc_classifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_audit_event_items: {
+        Row: {
+          created_at: string | null
+          deadline: string | null
+          description: string
+          event_id: string | null
+          evidence: string | null
+          id: string
+          notes: string | null
+          reaudit_required: boolean | null
+          responsible_correction: string | null
+          status: string | null
+          template_item_id: string | null
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deadline?: string | null
+          description: string
+          event_id?: string | null
+          evidence?: string | null
+          id?: string
+          notes?: string | null
+          reaudit_required?: boolean | null
+          responsible_correction?: string | null
+          status?: string | null
+          template_item_id?: string | null
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deadline?: string | null
+          description?: string
+          event_id?: string | null
+          evidence?: string | null
+          id?: string
+          notes?: string | null
+          reaudit_required?: boolean | null
+          responsible_correction?: string | null
+          status?: string | null
+          template_item_id?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_audit_event_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_audit_event_items_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_audit_template_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_audit_events: {
+        Row: {
+          action_plan_generated: boolean | null
+          audit_date: string | null
+          audit_type: string
+          auditor_name: string | null
+          classification: string | null
+          created_at: string | null
+          created_by: string | null
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          score: number | null
+          sector_name: string
+          template_id: string | null
+        }
+        Insert: {
+          action_plan_generated?: boolean | null
+          audit_date?: string | null
+          audit_type: string
+          auditor_name?: string | null
+          classification?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
+          sector_name: string
+          template_id?: string | null
+        }
+        Update: {
+          action_plan_generated?: boolean | null
+          audit_date?: string | null
+          audit_type?: string
+          auditor_name?: string | null
+          classification?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
+          sector_name?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_audit_events_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_audit_events_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_audit_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_audit_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_audit_template_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          order_index: number | null
+          template_id: string | null
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          order_index?: number | null
+          template_id?: string | null
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          order_index?: number | null
+          template_id?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_audit_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_audit_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_audit_templates: {
+        Row: {
+          audit_type: string
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          audit_type: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          audit_type?: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_audit_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_audit_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_cleaning_executions: {
+        Row: {
+          actual_time: string | null
+          cleaning_type: string
+          created_at: string | null
+          created_by: string | null
+          execution_date: string | null
+          hospital_id: string | null
+          id: string
+          non_completion_reason: string | null
+          notes: string | null
+          responsible_name: string | null
+          schedule_id: string | null
+          scheduled_time: string | null
+          sector_name: string
+          shift: string | null
+          status: string | null
+          supervisor_name: string | null
+        }
+        Insert: {
+          actual_time?: string | null
+          cleaning_type: string
+          created_at?: string | null
+          created_by?: string | null
+          execution_date?: string | null
+          hospital_id?: string | null
+          id?: string
+          non_completion_reason?: string | null
+          notes?: string | null
+          responsible_name?: string | null
+          schedule_id?: string | null
+          scheduled_time?: string | null
+          sector_name: string
+          shift?: string | null
+          status?: string | null
+          supervisor_name?: string | null
+        }
+        Update: {
+          actual_time?: string | null
+          cleaning_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          execution_date?: string | null
+          hospital_id?: string | null
+          id?: string
+          non_completion_reason?: string | null
+          notes?: string | null
+          responsible_name?: string | null
+          schedule_id?: string | null
+          scheduled_time?: string | null
+          sector_name?: string
+          shift?: string | null
+          status?: string | null
+          supervisor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_cleaning_executions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_cleaning_executions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_cleaning_executions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_cleaning_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_cleaning_schedules: {
+        Row: {
+          active: boolean | null
+          cleaning_type: string
+          created_at: string | null
+          frequency: string
+          hospital_id: string | null
+          id: string
+          responsible_name: string | null
+          scheduled_time: string | null
+          sector_name: string
+          shift: string | null
+          supervisor_name: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          cleaning_type: string
+          created_at?: string | null
+          frequency: string
+          hospital_id?: string | null
+          id?: string
+          responsible_name?: string | null
+          scheduled_time?: string | null
+          sector_name: string
+          shift?: string | null
+          supervisor_name?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          cleaning_type?: string
+          created_at?: string | null
+          frequency?: string
+          hospital_id?: string | null
+          id?: string
+          responsible_name?: string | null
+          scheduled_time?: string | null
+          sector_name?: string
+          shift?: string | null
+          supervisor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_cleaning_schedules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_cleaning_schedules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hygiene_consumption_records: {
         Row: {
           ano: string
@@ -1303,6 +1710,1244 @@ export type Database = {
           },
           {
             foreignKeyName: "hygiene_consumption_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_environmental_equipment: {
+        Row: {
+          action_status: string | null
+          alcohol_dispensers_total: number | null
+          alcohol_dispensers_working: number | null
+          bathrooms_count: number | null
+          common_bins_total: number | null
+          common_bins_working: number | null
+          correction_deadline: string | null
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          infectious_bins_total: number | null
+          infectious_bins_working: number | null
+          inspection_date: string | null
+          inspector_name: string | null
+          notes: string | null
+          paper_dispensers_total: number | null
+          paper_dispensers_working: number | null
+          photo_url: string | null
+          responsible_correction: string | null
+          sector_name: string
+          soap_dispensers_total: number | null
+          soap_dispensers_working: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_status?: string | null
+          alcohol_dispensers_total?: number | null
+          alcohol_dispensers_working?: number | null
+          bathrooms_count?: number | null
+          common_bins_total?: number | null
+          common_bins_working?: number | null
+          correction_deadline?: string | null
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          infectious_bins_total?: number | null
+          infectious_bins_working?: number | null
+          inspection_date?: string | null
+          inspector_name?: string | null
+          notes?: string | null
+          paper_dispensers_total?: number | null
+          paper_dispensers_working?: number | null
+          photo_url?: string | null
+          responsible_correction?: string | null
+          sector_name: string
+          soap_dispensers_total?: number | null
+          soap_dispensers_working?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_status?: string | null
+          alcohol_dispensers_total?: number | null
+          alcohol_dispensers_working?: number | null
+          bathrooms_count?: number | null
+          common_bins_total?: number | null
+          common_bins_working?: number | null
+          correction_deadline?: string | null
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          infectious_bins_total?: number | null
+          infectious_bins_working?: number | null
+          inspection_date?: string | null
+          inspector_name?: string | null
+          notes?: string | null
+          paper_dispensers_total?: number | null
+          paper_dispensers_working?: number | null
+          photo_url?: string | null
+          responsible_correction?: string | null
+          sector_name?: string
+          soap_dispensers_total?: number | null
+          soap_dispensers_working?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_environmental_equipment_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_environmental_equipment_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_logistic_params: {
+        Row: {
+          alert_window_days: number | null
+          cmm_months: number | null
+          coverage_days: number | null
+          created_at: string | null
+          default_lead_time: number | null
+          hospital_id: string | null
+          id: string
+          safety_days: number | null
+          target_days: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          alert_window_days?: number | null
+          cmm_months?: number | null
+          coverage_days?: number | null
+          created_at?: string | null
+          default_lead_time?: number | null
+          hospital_id?: string | null
+          id?: string
+          safety_days?: number | null
+          target_days?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          alert_window_days?: number | null
+          cmm_months?: number | null
+          coverage_days?: number | null
+          created_at?: string | null
+          default_lead_time?: number | null
+          hospital_id?: string | null
+          id?: string
+          safety_days?: number | null
+          target_days?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_logistic_params_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_logistic_params_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_monthly_consumption: {
+        Row: {
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          product_id: string | null
+          reference_month: string
+          sector_breakdown: Json | null
+          total_consumed: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          product_id?: string | null
+          reference_month: string
+          sector_breakdown?: Json | null
+          total_consumed?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          product_id?: string | null
+          reference_month?: string
+          sector_breakdown?: Json | null
+          total_consumed?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_monthly_consumption_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_monthly_consumption_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_monthly_consumption_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_monthly_order_items: {
+        Row: {
+          approver_id: string | null
+          auto_justification: string | null
+          cmm: number | null
+          created_at: string | null
+          current_stock: number | null
+          id: string
+          manual_justification: string | null
+          order_id: string | null
+          ordered_qty: number | null
+          product_id: string | null
+          purchase_status: string | null
+          status: string | null
+          technical_suggested_qty: number | null
+        }
+        Insert: {
+          approver_id?: string | null
+          auto_justification?: string | null
+          cmm?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          manual_justification?: string | null
+          order_id?: string | null
+          ordered_qty?: number | null
+          product_id?: string | null
+          purchase_status?: string | null
+          status?: string | null
+          technical_suggested_qty?: number | null
+        }
+        Update: {
+          approver_id?: string | null
+          auto_justification?: string | null
+          cmm?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          manual_justification?: string | null
+          order_id?: string | null
+          ordered_qty?: number | null
+          product_id?: string | null
+          purchase_status?: string | null
+          status?: string | null
+          technical_suggested_qty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_monthly_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_monthly_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_monthly_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_monthly_orders: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          reference_month: string
+          status: string | null
+          submitted_by: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          reference_month: string
+          status?: string | null
+          submitted_by?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          reference_month?: string
+          status?: string | null
+          submitted_by?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_monthly_orders_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_monthly_orders_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_nonconformities: {
+        Row: {
+          closed_at: string | null
+          corrective_action: string | null
+          created_at: string | null
+          created_by: string | null
+          deadline: string | null
+          description: string
+          effectiveness_check: string | null
+          hospital_id: string | null
+          id: string
+          responsible_name: string | null
+          root_cause: string | null
+          sector_name: string | null
+          severity: string | null
+          source: string
+          source_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          corrective_action?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deadline?: string | null
+          description: string
+          effectiveness_check?: string | null
+          hospital_id?: string | null
+          id?: string
+          responsible_name?: string | null
+          root_cause?: string | null
+          sector_name?: string | null
+          severity?: string | null
+          source: string
+          source_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          corrective_action?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deadline?: string | null
+          description?: string
+          effectiveness_check?: string | null
+          hospital_id?: string | null
+          id?: string
+          responsible_name?: string | null
+          root_cause?: string | null
+          sector_name?: string | null
+          severity?: string | null
+          source?: string
+          source_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_nonconformities_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_nonconformities_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_notifications: {
+        Row: {
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          message: string | null
+          product_id: string | null
+          read: boolean | null
+          sector_name: string | null
+          severity: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          message?: string | null
+          product_id?: string | null
+          read?: boolean | null
+          sector_name?: string | null
+          severity?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          message?: string | null
+          product_id?: string | null
+          read?: boolean | null
+          sector_name?: string | null
+          severity?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_notifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_pdf_import_items: {
+        Row: {
+          batch: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string
+          job_id: string | null
+          match_status: string | null
+          product_id: string | null
+          quantity: number | null
+          raw_code: string | null
+          raw_product_name: string | null
+          unit: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          batch?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string
+          job_id?: string | null
+          match_status?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          raw_code?: string | null
+          raw_product_name?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          batch?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string
+          job_id?: string | null
+          match_status?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          raw_code?: string | null
+          raw_product_name?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_pdf_import_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_pdf_import_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_pdf_import_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_pdf_import_jobs: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          extracted_date: string | null
+          extracted_document_number: string | null
+          extracted_supplier: string | null
+          file_name: string | null
+          hospital_id: string | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          extracted_date?: string | null
+          extracted_document_number?: string | null
+          extracted_supplier?: string | null
+          file_name?: string | null
+          hospital_id?: string | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          extracted_date?: string | null
+          extracted_document_number?: string | null
+          extracted_supplier?: string | null
+          file_name?: string | null
+          hospital_id?: string | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_pdf_import_jobs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_pdf_import_jobs_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_product_categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          hospital_id: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_product_categories_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_product_categories_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_products: {
+        Row: {
+          abc_class: string | null
+          category: string
+          ccih_controlled: boolean | null
+          cmm: number | null
+          code: string
+          conversion_factor: number | null
+          created_at: string | null
+          criticality: string | null
+          current_stock: number | null
+          historical_consumption: number[] | null
+          hospital_id: string | null
+          id: string
+          input_unit: string
+          lead_time_days: number | null
+          main_supplier_id: string | null
+          name: string
+          notes: string | null
+          output_unit: string
+          safety_days: number | null
+          status: string | null
+          target_days: number | null
+          unit_cost: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          abc_class?: string | null
+          category: string
+          ccih_controlled?: boolean | null
+          cmm?: number | null
+          code: string
+          conversion_factor?: number | null
+          created_at?: string | null
+          criticality?: string | null
+          current_stock?: number | null
+          historical_consumption?: number[] | null
+          hospital_id?: string | null
+          id?: string
+          input_unit?: string
+          lead_time_days?: number | null
+          main_supplier_id?: string | null
+          name: string
+          notes?: string | null
+          output_unit?: string
+          safety_days?: number | null
+          status?: string | null
+          target_days?: number | null
+          unit_cost?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          abc_class?: string | null
+          category?: string
+          ccih_controlled?: boolean | null
+          cmm?: number | null
+          code?: string
+          conversion_factor?: number | null
+          created_at?: string | null
+          criticality?: string | null
+          current_stock?: number | null
+          historical_consumption?: number[] | null
+          hospital_id?: string | null
+          id?: string
+          input_unit?: string
+          lead_time_days?: number | null
+          main_supplier_id?: string | null
+          name?: string
+          notes?: string | null
+          output_unit?: string
+          safety_days?: number | null
+          status?: string | null
+          target_days?: number | null
+          unit_cost?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_products_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_products_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_products_main_supplier_id_fkey"
+            columns: ["main_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_resupply_snapshots: {
+        Row: {
+          abc_class: string | null
+          cmd: number | null
+          cmm: number | null
+          coverage_days: number | null
+          created_at: string | null
+          current_stock: number | null
+          days_to_order: number | null
+          hospital_id: string | null
+          id: string
+          product_id: string | null
+          reorder_point_days: number | null
+          reorder_point_qty: number | null
+          snapshot_date: string | null
+          stock_status: string | null
+          suggested_purchase: number | null
+          target_stock_25d: number | null
+        }
+        Insert: {
+          abc_class?: string | null
+          cmd?: number | null
+          cmm?: number | null
+          coverage_days?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          days_to_order?: number | null
+          hospital_id?: string | null
+          id?: string
+          product_id?: string | null
+          reorder_point_days?: number | null
+          reorder_point_qty?: number | null
+          snapshot_date?: string | null
+          stock_status?: string | null
+          suggested_purchase?: number | null
+          target_stock_25d?: number | null
+        }
+        Update: {
+          abc_class?: string | null
+          cmd?: number | null
+          cmm?: number | null
+          coverage_days?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          days_to_order?: number | null
+          hospital_id?: string | null
+          id?: string
+          product_id?: string | null
+          reorder_point_days?: number | null
+          reorder_point_qty?: number | null
+          snapshot_date?: string | null
+          stock_status?: string | null
+          suggested_purchase?: number | null
+          target_stock_25d?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_resupply_snapshots_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_resupply_snapshots_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_resupply_snapshots_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_sector_request_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          justification: string | null
+          product_id: string | null
+          released_qty: number | null
+          request_id: string | null
+          requested_qty: number
+          status: string | null
+          suggested_qty: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          justification?: string | null
+          product_id?: string | null
+          released_qty?: number | null
+          request_id?: string | null
+          requested_qty: number
+          status?: string | null
+          suggested_qty?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          justification?: string | null
+          product_id?: string | null
+          released_qty?: number | null
+          request_id?: string | null
+          requested_qty?: number
+          status?: string | null
+          suggested_qty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_sector_request_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_sector_request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_sector_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_sector_requests: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          received_by: string | null
+          request_date: string | null
+          requested_by: string | null
+          sector_name: string
+          separated_by: string | null
+          shift: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          received_by?: string | null
+          request_date?: string | null
+          requested_by?: string | null
+          sector_name: string
+          separated_by?: string | null
+          shift?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          received_by?: string | null
+          request_date?: string | null
+          requested_by?: string | null
+          sector_name?: string
+          separated_by?: string | null
+          shift?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_sector_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_sector_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_stock_adjustments: {
+        Row: {
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          new_qty: number
+          notes: string | null
+          previous_qty: number
+          product_id: string | null
+          reason: string
+          responsible_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          new_qty: number
+          notes?: string | null
+          previous_qty: number
+          product_id?: string | null
+          reason: string
+          responsible_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          new_qty?: number
+          notes?: string | null
+          previous_qty?: number
+          product_id?: string | null
+          reason?: string
+          responsible_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_stock_adjustments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_adjustments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_stock_entries: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          document_number: string | null
+          document_type: string | null
+          entry_date: string
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          supplier_id: string | null
+          total_value: number | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_number?: string | null
+          document_type?: string | null
+          entry_date?: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          total_value?: number | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_number?: string | null
+          document_type?: string | null
+          entry_date?: string
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          total_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_stock_entries_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_entries_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_entries_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_stock_entry_items: {
+        Row: {
+          batch: string | null
+          created_at: string | null
+          entry_id: string | null
+          expiry_date: string | null
+          id: string
+          location_id: string | null
+          product_id: string | null
+          quantity: number
+          status: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          batch?: string | null
+          created_at?: string | null
+          entry_id?: string | null
+          expiry_date?: string | null
+          id?: string
+          location_id?: string | null
+          product_id?: string | null
+          quantity: number
+          status?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          batch?: string | null
+          created_at?: string | null
+          entry_id?: string | null
+          expiry_date?: string | null
+          id?: string
+          location_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          status?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_stock_entry_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_stock_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_entry_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_stock_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_entry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_stock_locations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          hospital_id: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          hospital_id?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_stock_locations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_locations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_stock_movements: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          hospital_id: string | null
+          id: string
+          movement_type: string
+          notes: string | null
+          product_id: string | null
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+          sector_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          movement_type: string
+          notes?: string | null
+          product_id?: string | null
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+          sector_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          hospital_id?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          sector_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_stock_movements_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_movements_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "hygiene_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hygiene_suppliers: {
+        Row: {
+          cnpj: string | null
+          contact: string | null
+          created_at: string | null
+          email: string | null
+          hospital_id: string | null
+          id: string
+          lead_time_days: number | null
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          contact?: string | null
+          created_at?: string | null
+          email?: string | null
+          hospital_id?: string | null
+          id?: string
+          lead_time_days?: number | null
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          contact?: string | null
+          created_at?: string | null
+          email?: string | null
+          hospital_id?: string | null
+          id?: string
+          lead_time_days?: number | null
+          name?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hygiene_suppliers_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hygiene_suppliers_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals_summary"
