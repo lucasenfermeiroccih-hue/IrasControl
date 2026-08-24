@@ -211,29 +211,75 @@ export function AppSidebar() {
     check();
   }, [user, isReady]);
 
-  const beforeIA = publicSections.filter((s) => s.label !== "IA");
-  const iaSection = publicSections.find((s) => s.label === "IA");
   const accountSection = isAdmin ? adminSection : userOnlySection;
 
-  const renderSection = (section: typeof publicSections[0]) => (
-    <SidebarGroup key={section.label}>
-      <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {section.items.map((item) => (
-            <SidebarMenuItem key={item.url}>
-              <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                  <item.icon className="mr-2 h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
+  // Grupos recolhíveis — o estado é persistido no navegador
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("iras.sidebar.openGroups");
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return { Geral: true };
+  });
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try { localStorage.setItem("iras.sidebar.openGroups", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const setAllGroups = (open: boolean) => {
+    const labels = [
+      ...publicSections.map((s) => s.label),
+      ...modulesSections.map((s) => s.label),
+      ...iaSections.map((s) => s.label),
+      accountSection.label,
+    ];
+    const next: Record<string, boolean> = {};
+    labels.forEach((l) => { next[l] = open; });
+    try { localStorage.setItem("iras.sidebar.openGroups", JSON.stringify(next)); } catch { /* ignore */ }
+    setOpenGroups(next);
+  };
+
+  const renderSection = (section: { label: string; items: { title: string; url: string; icon: React.ElementType }[] }) => {
+    const hasActive = section.items.some((i) => location.pathname === i.url);
+    const isOpen = collapsed || (openGroups[section.label] ?? hasActive);
+
+    return (
+      <SidebarGroup key={section.label}>
+        {!collapsed && (
+          <SidebarGroupLabel
+            asChild
+            className="cursor-pointer select-none hover:text-sidebar-primary"
+          >
+            <button type="button" onClick={() => toggleGroup(section.label)} className="flex w-full items-center justify-between">
+              <span className="truncate">{section.label}</span>
+              <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+            </button>
+          </SidebarGroupLabel>
+        )}
+        {isOpen && (
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {section.items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title}>
+                    <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        )}
+      </SidebarGroup>
+    );
+  };
+
 
   return (
     <Sidebar collapsible="icon">
