@@ -393,7 +393,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* IA */}
-        {iaSection && renderSection(iaSection)}
+        {iaSections.map(renderSection)}
 
         {/* Guardião Hospitalar */}
         <SidebarGroup>
