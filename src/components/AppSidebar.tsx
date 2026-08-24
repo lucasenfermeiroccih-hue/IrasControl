@@ -4,7 +4,7 @@ import {
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
   KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert, HardHat,
-  History, Baby, BookOpen,
+  History, Baby, BookOpen, ChevronDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
