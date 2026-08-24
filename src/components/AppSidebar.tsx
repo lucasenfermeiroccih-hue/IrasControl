@@ -290,8 +290,31 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {!collapsed && (
+          <div className="flex items-center gap-1 px-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setAllGroups(false)}
+              className="flex-1 rounded-md border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+            >
+              Recolher tudo
+            </button>
+            <button
+              type="button"
+              onClick={() => setAllGroups(true)}
+              className="flex-1 rounded-md border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+            >
+              Expandir tudo
+            </button>
+          </div>
+        )}
+
         {/* Geral → Relatórios */}
-        {beforeIA.map(renderSection)}
+        {publicSections.map(renderSection)}
+
+        {/* Módulos do sistema */}
+        {modulesSections.map(renderSection)}
+
 
         {/* Maternidade — visível somente para hospitais do tipo maternidade */}
         {hospitalType === "maternidade" && (
