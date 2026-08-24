@@ -99,8 +99,11 @@ const publicSections = [
       { title: "Formulários", url: "/forms", icon: FolderOpen },
     ],
   },
+];
+
+const modulesSections = [
   {
-    label: "Higiene & Logística",
+    label: "Módulo Higiene & Logística",
     items: [
       { title: "Painel Executivo", url: "/hygiene-logistics/dashboard", icon: ClipboardList },
       { title: "Estoque Almoxarifado", url: "/hygiene-logistics/stock", icon: Package },
@@ -119,6 +122,10 @@ const publicSections = [
       { title: "Config. Logísticas", url: "/hygiene-logistics/settings", icon: Settings },
     ],
   },
+];
+
+const _restSections = [
+
   {
     label: "IA",
 
