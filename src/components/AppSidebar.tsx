@@ -124,7 +124,8 @@ const modulesSections = [
   },
 ];
 
-const _restSections = [
+const iaSections = [
+
 
   {
     label: "IA",
