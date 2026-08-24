@@ -366,84 +366,14 @@ export function AppSidebar() {
         )}
 
         {/* Qualidade — acima de IA */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Qualidade</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location.pathname === "/quality/5w2h"}>
-                  <NavLink to="/quality/5w2h" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                    <ClipboardList className="mr-2 h-4 w-4 shrink-0 text-sidebar-primary" />
-                    {!collapsed && <span>Planos 5W2H</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => navigate("/kanban-ccih")} className="cursor-pointer hover:bg-sidebar-accent/50 w-full">
-                  <KanbanSquare className="mr-2 h-4 w-4 shrink-0 text-sidebar-primary" />
-                  {!collapsed && <span>Kanban CCIH</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderSection(qualitySection)}
 
         {/* Ferramentas instaladas */}
-        {installedTools.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {installedTools.map(tool => {
-                  const Icon = SIDEBAR_ICON_MAP[tool.icon_name] ?? Package;
-                  return (
-                    <SidebarMenuItem key={tool.tool_id}>
-                      <SidebarMenuButton asChild isActive={location.pathname.startsWith(tool.route)}>
-                        <NavLink to={tool.route} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <Icon className="mr-2 h-4 w-4 shrink-0" />
-                          {!collapsed && <span className="truncate">{tool.name}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {toolsSection.items.length > 0 && renderSection(toolsSection)}
 
         {/* Notificações ANVISA/PLACON */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Notificações ANVISA</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location.pathname === "/notificacoes"}>
-                  <NavLink to="/notificacoes" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                    <Bell className="mr-2 h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Notificações</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location.pathname === "/notificacoes/dashboard"}>
-                  <NavLink to="/notificacoes/dashboard" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                    <BarChart3 className="mr-2 h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Dashboard ANVISA</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location.pathname === "/notificacoes/historico"}>
-                  <NavLink to="/notificacoes/historico" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                    <History className="mr-2 h-4 w-4 shrink-0" />
-                    {!collapsed && <span>Histórico</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderSection(anvisaSection)}
+
 
         {/* IA */}
         {iaSections.map(renderSection)}
