@@ -230,13 +230,43 @@ export function AppSidebar() {
     });
   };
 
+  const qualitySection = {
+    label: "Qualidade",
+    items: [
+      { title: "Planos 5W2H", url: "/quality/5w2h", icon: ClipboardList },
+      { title: "Kanban CCIH", url: "/kanban-ccih", icon: KanbanSquare },
+    ],
+  };
+
+  const toolsSection = {
+    label: "Ferramentas",
+    items: installedTools.map((tool) => ({
+      title: tool.name,
+      url: tool.route,
+      icon: SIDEBAR_ICON_MAP[tool.icon_name] ?? Package,
+    })),
+  };
+
+  const anvisaSection = {
+    label: "Notificações ANVISA",
+    items: [
+      { title: "Notificações", url: "/notificacoes", icon: Bell },
+      { title: "Dashboard ANVISA", url: "/notificacoes/dashboard", icon: BarChart3 },
+      { title: "Histórico", url: "/notificacoes/historico", icon: History },
+    ],
+  };
+
   const setAllGroups = (open: boolean) => {
     const labels = [
       ...publicSections.map((s) => s.label),
       ...modulesSections.map((s) => s.label),
+      qualitySection.label,
+      toolsSection.label,
+      anvisaSection.label,
       ...iaSections.map((s) => s.label),
       accountSection.label,
     ];
+
     const next: Record<string, boolean> = {};
     labels.forEach((l) => { next[l] = open; });
     try { localStorage.setItem("iras.sidebar.openGroups", JSON.stringify(next)); } catch { /* ignore */ }
