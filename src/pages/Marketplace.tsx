@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ShoppingBag, Search, Star, Download, CheckCircle, Puzzle,
   BarChart3, FileText, Shield, Microscope, Pill, Bell,
-  ClipboardList, Package, ExternalLink, Loader2, Trash2
+  ClipboardList, Package, ExternalLink, Loader2, Trash2, Truck
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,7 @@ interface Installation {
 
 const ICON_MAP: Record<string, React.ElementType> = {
   ClipboardList, Shield, FileText, Microscope, Pill, Bell,
-  BarChart3, Puzzle, CheckCircle, Package,
+  BarChart3, Puzzle, CheckCircle, Package, Truck,
 };
 
 const CATEGORIES = ["Todos", "Auditorias", "Monitoramento", "Relatórios", "Analytics", "IA", "Operacional", "Integração", "Comunicação"];
