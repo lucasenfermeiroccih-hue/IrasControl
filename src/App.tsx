@@ -91,6 +91,8 @@ import HLCleaningAudit from "./modules/hygiene-logistics/pages/HLCleaningAudit.t
 import HLNonconformities from "./modules/hygiene-logistics/pages/HLNonconformities.tsx";
 import HLReports from "./modules/hygiene-logistics/pages/HLReports.tsx";
 import HLSettings from "./modules/hygiene-logistics/pages/HLSettings.tsx";
+import HLOrderSchedule from "./modules/hygiene-logistics/pages/HLOrderSchedule.tsx";
+import HLValueGrid from "./modules/hygiene-logistics/pages/HLValueGrid.tsx";
 
 const queryClient = new QueryClient();
 
@@ -195,6 +197,8 @@ const App = () => (
               <Route path="/hygiene-logistics/nonconformities" element={<HLNonconformities />} />
               <Route path="/hygiene-logistics/reports" element={<HLReports />} />
               <Route path="/hygiene-logistics/settings" element={<HLSettings />} />
+              <Route path="/hygiene-logistics/order-schedule" element={<HLOrderSchedule />} />
+              <Route path="/hygiene-logistics/value-grid" element={<HLValueGrid />} />
             </Route>
           </Route>
 

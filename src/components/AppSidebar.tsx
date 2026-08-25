@@ -4,7 +4,7 @@ import {
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
   KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert, HardHat,
-  History, Baby, BookOpen, ChevronDown,
+  History, Baby, BookOpen, ChevronDown, CalendarDays, CircleDollarSign,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -108,6 +108,8 @@ const modulesSections = [
       { title: "Painel Executivo", url: "/hygiene-logistics/dashboard", icon: ClipboardList },
       { title: "Estoque Almoxarifado", url: "/hygiene-logistics/stock", icon: Package },
       { title: "Grade de Materiais", url: "/hygiene-logistics/products", icon: ClipboardList },
+      { title: "Grade de Pedidos", url: "/hygiene-logistics/order-schedule", icon: CalendarDays },
+      { title: "Grade de Valor", url: "/hygiene-logistics/value-grid", icon: CircleDollarSign },
       { title: "Pedido do Mês", url: "/hygiene-logistics/monthly-order", icon: ShoppingBag },
       { title: "Ressuprimento 20+5", url: "/hygiene-logistics/resupply-matrix", icon: BarChart3 },
       { title: "Curva ABC", url: "/hygiene-logistics/abc-curve", icon: TrendingUp },
