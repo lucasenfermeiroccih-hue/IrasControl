@@ -306,38 +306,11 @@ export interface EquipmentSectorRow {
   ultimaVistoria: string;
 }
 
-const EQUIP_BASE: [string, number, number, number][] = [
-  ["UTI Adulto", 8, 12, 6],
-  ["UTI Neonatal", 4, 8, 4],
-  ["Centro Cirúrgico", 6, 10, 5],
-  ["CME", 2, 4, 2],
-  ["Pronto-Socorro", 15, 18, 12],
-  ["Maternidade", 12, 14, 8],
-  ["Internação Clínica", 18, 16, 10],
-  ["Internação Cirúrgica", 16, 14, 8],
-  ["Pediatria", 10, 10, 6],
-  ["Ambulatório", 8, 6, 4],
-  ["Área ADM", 14, 12, 8],
-  ["Hotelaria/Zeladoria", 17, 12, 5],
-];
+export const EQUIPMENT: EquipmentSectorRow[] = [];
 
-export const EQUIPMENT: EquipmentSectorRow[] = EQUIP_BASE.map(([setor, banheiros, dispQuebrados, lixeirasQuebradas], i) => ({
-  setor,
-  banheiros,
-  dispSabonete: banheiros + 2,
-  dispAlcool: banheiros + 4,
-  dispPapel: banheiros + 1,
-  lixeirasComuns: banheiros + 3,
-  lixeirasInfectantes: Math.round(banheiros * 0.8) + 2,
-  dispQuebrados,
-  lixeirasQuebradas,
-  ausentes: (i % 4) + 1,
-  ultimaVistoria: `2026-08-${String(((i * 2) % 16) + 1).padStart(2, "0")}`,
-}));
-
-export const TOTAL_BANHEIROS = 130;
-export const TOTAL_DISP_QUEBRADOS = 116;
-export const TOTAL_LIXEIRAS_QUEBRADAS = 68;
+export const TOTAL_BANHEIROS = 0;
+export const TOTAL_DISP_QUEBRADOS = 0;
+export const TOTAL_LIXEIRAS_QUEBRADAS = 0;
 
 export interface EquipmentItem {
   id: string; setor: string; tipo: string; local: string;
@@ -345,22 +318,7 @@ export interface EquipmentItem {
   responsavel: string; prazo: string; planoStatus: string;
 }
 
-export const EQUIPMENT_ITEMS: EquipmentItem[] = SETORES.flatMap((setor, si) =>
-  Array.from({ length: 6 }).map((_, i) => {
-    const tipos = ["Dispenser Sabonete", "Dispenser Álcool Gel", "Dispenser Papel Toalha", "Lixeira Comum", "Lixeira Infectante", "Dispenser Papel Higiênico"];
-    const statuses: EquipmentItem["status"][] = ["Funcionando", "Quebrado", "Funcionando", "Ausente", "Quebrado", "Inadequado"];
-    return {
-      id: `EQ-${String(si + 1).padStart(2, "0")}-${i + 1}`,
-      setor,
-      tipo: tipos[i],
-      local: i < 3 ? `Banheiro ${i + 1}` : i === 3 ? "Corredor principal" : "Posto de enfermagem",
-      status: statuses[(si + i) % statuses.length],
-      responsavel: ["Manutenção Predial", "Hotelaria", "CCIH", "Engenharia Clínica"][(si + i) % 4],
-      prazo: `2026-09-${String(((si + i) % 27) + 1).padStart(2, "0")}`,
-      planoStatus: ["Aberto", "Em andamento", "Concluído"][(si + i) % 3],
-    };
-  }),
-);
+export const EQUIPMENT_ITEMS: EquipmentItem[] = [];
 
 export interface SectorOutput {
   id: string; data: string; turno: "Manhã" | "Tarde" | "Noite"; setor: string;
@@ -369,29 +327,7 @@ export interface SectorOutput {
   status: string; justificativa: string; observacao: string;
 }
 
-export const SECTOR_OUTPUTS: SectorOutput[] = SETORES.flatMap((setor, si) =>
-  Array.from({ length: 5 }).map((_, i) => {
-    const p = PRODUCTS[(si + i * 3) % PRODUCTS.length];
-    const sugerida = 4 + ((si + i) % 6);
-    const liberada = sugerida + [(0), (2), (-1), (0), (3)][i];
-    return {
-      id: `SAI-${si + 1}-${i + 1}`,
-      data: `2026-08-${String(18 - i).padStart(2, "0")}`,
-      turno: (["Manhã", "Tarde", "Noite"] as const)[(si + i) % 3],
-      setor,
-      produto: p.nome,
-      solicitada: sugerida + 1,
-      sugerida,
-      liberada,
-      respSolicitacao: ["Enf. Marina", "Enf. Carlos", "Téc. Julia"][(si + i) % 3],
-      respSeparacao: ["Almox. Pedro", "Almox. Ana"][(si + i) % 2],
-      respRetirada: ["Aux. Rita", "Aux. Bruno"][(si + i) % 2],
-      status: liberada === sugerida ? "Liberado" : liberada > sugerida ? "Liberado acima" : "Liberado parcial",
-      justificativa: liberada !== sugerida ? "Demanda extra por isolamento de contato" : "",
-      observacao: "",
-    };
-  }),
-);
+export const SECTOR_OUTPUTS: SectorOutput[] = [];
 
 export interface CleaningTask {
   id: string; data: string; setor: string; tipo: string; frequencia: string;
@@ -402,27 +338,7 @@ export interface CleaningTask {
 
 export const CLEANING_TYPES = ["Concorrente", "Terminal", "Imediata", "Banheiro", "Leito", "Isolamento", "Área Crítica", "Posto de Enfermagem", "Programada Semanal", "Programada Mensal"];
 
-export const CLEANING_SCHEDULE: CleaningTask[] = Array.from({ length: 42 }).map((_, i) => {
-  const day = 18 - Math.floor(i / 6);
-  const statuses: CleaningTask["status"][] = ["Concluído", "Concluído", "Atrasado", "Concluído", "Não realizado", "Previsto"];
-  const status = statuses[i % statuses.length];
-  return {
-    id: `LIM-${i + 1}`,
-    data: `2026-08-${String(day).padStart(2, "0")}`,
-    setor: SETORES[i % SETORES.length],
-    tipo: CLEANING_TYPES[i % CLEANING_TYPES.length],
-    frequencia: ["Diária", "Por turno", "Semanal", "Mensal"][i % 4],
-    turno: ["Manhã", "Tarde", "Noite"][i % 3],
-    previsto: ["08:00", "14:00", "20:00"][i % 3],
-    realizado: status === "Concluído" ? ["08:20", "14:15", "20:35"][i % 3] : "",
-    profissional: ["Ana Souza", "João Lima", "Marta Reis", "Carlos Dias"][i % 4],
-    supervisor: ["Sup. Fátima", "Sup. Rogério"][i % 2],
-    status,
-    motivo: status === "Não realizado" ? "Falta de insumo no setor" : "",
-    evidencia: status === "Concluído" ? "Checklist assinado" : "",
-    observacao: "",
-  };
-});
+export const CLEANING_SCHEDULE: CleaningTask[] = [];
 
 export interface AuditRecordHL {
   id: string; data: string; setor: string; tipo: string; auditor: string;
@@ -445,11 +361,7 @@ export const CHECKLISTS: Record<string, string[]> = {
   "Dispensers e Lixeiras": ["Dispensers fixados corretamente", "Sem vazamento ou quebra", "Lixeiras com tampa e pedal", "Identificação de resíduo correta"],
 };
 
-export const CLEANING_AUDITS: AuditRecordHL[] = [
-  { id: "AUD-001", data: "2026-08-14", setor: "UTI Adulto", tipo: "Terminal", auditor: "Enf. CCIH Renata", turno: "Manhã", score: 94, classificacao: "Aprovado", itensConformes: 17, itensAplicaveis: 18 },
-  { id: "AUD-002", data: "2026-08-15", setor: "Pronto-Socorro", tipo: "Banheiro", auditor: "Enf. CCIH Renata", turno: "Tarde", score: 84, classificacao: "Aprovado com Ressalva", itensConformes: 16, itensAplicaveis: 19 },
-  { id: "AUD-003", data: "2026-08-17", setor: "Internação Clínica", tipo: "Concorrente", auditor: "Téc. CCIH Paulo", turno: "Noite", score: 62, classificacao: "Reprovado", itensConformes: 10, itensAplicaveis: 16 },
-];
+export const CLEANING_AUDITS: AuditRecordHL[] = [];
 
 export interface NonConformity {
   id: string; origem: "Auditoria" | "Manual" | "Alerta"; setor: string; data: string;
@@ -458,38 +370,19 @@ export interface NonConformity {
   acao: string; encerramento: string;
 }
 
-export const NONCONFORMITIES: NonConformity[] = [
-  { id: "NC-001", origem: "Auditoria", setor: "Internação Clínica", data: "2026-08-17", descricao: "Score de limpeza concorrente abaixo de 70% (62%)", classificacao: "Alta", responsavel: "Sup. Hotelaria", prazo: "2026-08-27", status: "Aberta", acao: "Retreinamento da equipe e reauditoria em 10 dias", encerramento: "" },
-  { id: "NC-002", origem: "Alerta", setor: "Pronto-Socorro", data: "2026-08-16", descricao: "18 dispensers quebrados sem reparo há mais de 30 dias", classificacao: "Alta", responsavel: "Manutenção Predial", prazo: "2026-09-05", status: "Em andamento", acao: "Ordem de serviço aberta para substituição em lote", encerramento: "" },
-  { id: "NC-003", origem: "Manual", setor: "CME", data: "2026-07-30", descricao: "Detergente enzimático com cobertura inferior ao lead time", classificacao: "Média", responsavel: "Almoxarifado", prazo: "2026-08-10", status: "Vencida", acao: "Compra emergencial solicitada", encerramento: "" },
-];
+export const NONCONFORMITIES: NonConformity[] = [];
 
 export interface StockEntry {
   id: string; data: string; nf: string; fornecedor: string; produto: string;
   quantidade: number; valor: number; lote: string; validade: string; conferente: string;
 }
 
-export const STOCK_ENTRIES: StockEntry[] = PRODUCTS.slice(0, 10).map((p, i) => ({
-  id: `ENT-${i + 1}`,
-  data: `2026-08-${String(i + 2).padStart(2, "0")}`,
-  nf: `NF-${45000 + i}`,
-  fornecedor: p.fornecedor,
-  produto: p.nome,
-  quantidade: Math.round(p.cmm * 0.8),
-  valor: Math.round(p.cmm * 0.8 * p.custoUnitario * 100) / 100,
-  lote: p.lote,
-  validade: p.validade,
-  conferente: ["Almox. Pedro", "Almox. Ana"][i % 2],
-}));
+export const STOCK_ENTRIES: StockEntry[] = [];
 
 export interface ParamLog {
   id: string; data: string; parametro: string; anterior: string; novo: string; usuario: string;
 }
 
-export const PARAM_LOGS: ParamLog[] = [
-  { id: "LOG-1", data: "2026-07-02", parametro: "Lead time padrão", anterior: "10", novo: "7", usuario: "Coord. CCIH" },
-  { id: "LOG-2", data: "2026-07-20", parametro: "Dias de segurança", anterior: "3", novo: "5", usuario: "Coord. CCIH" },
-  { id: "LOG-3", data: "2026-08-05", parametro: "Cobertura operacional", anterior: "15", novo: "20", usuario: "Diretoria Assistencial" },
-];
+export const PARAM_LOGS: ParamLog[] = [];
 
 export const FORNECEDORES = ["DBS PRODUTOS HOSPITALARES"];
