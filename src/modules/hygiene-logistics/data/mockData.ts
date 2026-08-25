@@ -10,6 +10,59 @@ export const SETORES = [
 
 export const CATEGORIAS = ["Papel", "Sabonete", "Álcool", "Saneante", "Saco Lixo", "EPI", "Equipamento", "Acessório"];
 
+// Posição de Estoque — SOULMV — HGNI — 25/08/2026
+// [codigo, qtd_atual, custo_medio]
+const SOULMV_RAW: Array<[string, number, number]> = [
+  ["1749",  24,   149.293],
+  ["22479", 100,  20.0],
+  ["22485", 10,   17.29],
+  ["22592", 45,   36.4],
+  ["22481", 45,   36.4],
+  ["2690",  10,   15.34],
+  ["2689",  10,   15.34],
+  ["7110",  75,   11.7],
+  ["1521",  76,   7.54],
+  ["22453", 100,  24.67],
+  ["22430", 57,   30.0],
+  ["22494", 77,   60.44],
+  ["19191", 80,   178.5723],
+  ["6512",  79,   197.0],
+  ["1029",  94,   23.7654],
+  ["22435", 29,   53.9578],
+  ["8763",  15,   6.29],
+  ["60",    50,   3.03],
+  ["22468", 940,  0.31],
+  ["22469", 1000, 0.26],
+  ["22470", 50,   1.17],
+  ["22471", 50,   1.17],
+  ["22472", 100,  0.31],
+  ["63",    60,   29.77],
+  ["22549", 230,  25.77],
+  ["78",    120,  4.03],
+  ["1016",  46,   127.4],
+  ["22643", 95,   96.0],
+  ["22676", 45,   16.0],
+  ["6526",  25,   63.65],
+  ["22451", 11,   39.94],
+  ["22454", 78,   126.35],
+  ["22540", 50,   6.89],
+  ["89",    69,   22.0],
+  ["22652", 265,  60.0],
+  ["22646", 228,  79.36],
+  ["22648", 213,  35.0],
+  ["22645", 180,  64.9],
+  ["22649", 97,   83.0],
+  ["4893",  20,   27.12],
+  ["22463", 20,   48.88],
+  ["22547", 5,    12.27],
+  ["22427", 351,  15.0],
+];
+
+// Lookup rápido: codigo → [qtd_atual, custo_medio]
+const SOULMV: Record<string, [number, number]> = Object.fromEntries(
+  SOULMV_RAW.map(([cod, qty, cost]) => [cod, [qty, cost]])
+);
+
 export interface HLProduct extends ProductLike {
   id: string;
   unidadeEntrada: string;
@@ -51,6 +104,10 @@ function critFromCat(cat: string): "Alta" | "Média" | "Baixa" {
 }
 
 const GRADE_LIMPEZA: Array<[string, string, string]> = [
+  // Itens presentes no estoque SOULMV mas ausentes na grade original — adicionados em 25/08/2026
+  ["1749","ACIDO PERACETICO 0,2% 5L","GALÃO"],
+  ["19191","DESINFETANTE HOSPITALAR (PERÓXIDO) 5L","GALÃO"],
+  ["1029","DETERGENTE DESINCRUSTANTE ENZIMATICO 1000ML","FRASCO"],
   ["22427","ÁLCOOL GEL 70% BEIRA LEITO 500ML","UNIDADE"],
   ["22428","ALCOOL ESPUMA 1500 ML","UNIDADE"],
   ["22484","ALCOOL GEL PARA HIGIENE DE MÃOS","UNIDADE"],
@@ -174,86 +231,48 @@ const GRADE_LIMPEZA: Array<[string, string, string]> = [
   ["2691","VASSOURA PIAÇAVA GARI COM CABO","UNIDADE"],
 ];
 
-const MOCK_PRODUCTS: HLProduct[] = [
-  ["HIG-001","Papel Toalha Folha Dupla","Papel","Fardo (8 pcts)","Pacote",8,45,38,18.5,"A","Alta"],
-  ["HIG-002","Papel Higiênico 300m","Papel","Caixa (8 rolos)","Rolo",8,22,30,42,"A","Alta"],
-  ["HIG-003","Sabonete Líquido Neutro 5L","Sabonete","Galão","Galão",1,18,25,28,"A","Alta"],
-  ["HIG-004","Álcool Gel 70% 5L","Álcool","Galão","Galão",1,8,22,45,"A","Alta"],
-  ["HIG-005","Álcool Etílico 70% 1L","Álcool","Caixa (12 un)","Frasco",12,5,18,96,"A","Alta"],
-  ["HIG-006","Hipoclorito Sódio 1% 5L","Saneante","Galão","Galão",1,30,20,12,"C","Média"],
-  ["HIG-007","Desinfetante Quaternário 5L","Saneante","Galão","Galão",1,12,15,35,"B","Alta"],
-  ["HIG-008","Detergente Enzimático 5L","Saneante","Galão","Galão",1,6,10,85,"B","Alta"],
-  ["HIG-009","Saco Lixo Infectante 100L","Saco Lixo","Fardo (100 un)","Unidade",100,8,12,120,"A","Alta"],
-  ["HIG-010","Saco Lixo Comum 100L","Saco Lixo","Fardo (100 un)","Unidade",100,15,18,65,"A","Média"],
-  ["HIG-011","Saco Lixo Comum 30L","Saco Lixo","Fardo (100 un)","Unidade",100,20,22,38,"B","Média"],
-  ["HIG-012","Luva Procedimento M","EPI","Caixa (100 un)","Par",50,40,35,32,"A","Alta"],
-  ["HIG-013","Avental Descartável","EPI","Pacote (50 un)","Unidade",50,25,30,55,"A","Alta"],
-  ["HIG-014","Mop Molhado Refil","Equipamento","Unidade","Unidade",1,15,8,22,"C","Baixa"],
-  ["HIG-015","Cabo Mop Universal","Equipamento","Unidade","Unidade",1,20,3,45,"C","Baixa"],
-  ["HIG-016","Balde 10L","Equipamento","Unidade","Unidade",1,18,2,18,"C","Baixa"],
-  ["HIG-017","Borrifador 500ml","Acessório","Unidade","Unidade",1,30,5,8.5,"C","Baixa"],
-  ["HIG-018","Clorexidina Degermante 1L","Saneante","Frasco","Frasco",1,10,12,42,"B","Alta"],
-  ["HIG-019","Toalha de Papel Multifolha","Papel","Fardo (6 pcts)","Pacote",6,12,20,32,"B","Média"],
-  ["HIG-020","Dispenser Álcool Gel (reparo)","Acessório","Unidade","Unidade",1,5,2,85,"C","Média"],
-].map((r, i) => {
-  const [codigo, nome, categoria, unidadeEntrada, unidadeSaida, fatorConversao, estoqueVigente, cmm, custoUnitario, curvaABC, criticidade] = r as [
-    string, string, string, string, string, number, number, number, number, "A" | "B" | "C", "Alta" | "Média" | "Baixa"
-  ];
+// CMM estimado = qtd_atual ÷ 2 (estimativa conservadora de ~2 meses de cobertura).
+// Calibrar com dados históricos de consumo quando disponíveis.
+function cmmFromStock(qtd: number): number {
+  return Math.max(1, Math.round(qtd / 2));
+}
+
+export const PRODUCTS: HLProduct[] = GRADE_LIMPEZA.map(([codigo, nome, apresentacao]) => {
+  const categoria = catFromNome(nome);
+  const curvaABC = abcFromCat(categoria);
+  const criticidade = critFromCat(categoria);
+  const real = SOULMV[codigo];
+  const estoqueVigente = real ? real[0] : 0;
+  const custoUnitario = real ? real[1] : 0;
+  const cmm = real ? cmmFromStock(real[0]) : 0;
   return {
     id: codigo,
-    codigo, nome, categoria, unidadeEntrada, unidadeSaida, fatorConversao,
-    estoqueVigente, cmm, custoUnitario, curvaABC, criticidade,
+    codigo,
+    nome,
+    categoria,
+    unidadeEntrada: apresentacao,
+    unidadeSaida: apresentacao,
+    fatorConversao: 1,
+    estoqueVigente,
+    cmm,
+    custoUnitario,
+    curvaABC,
+    criticidade,
     leadTime: 7,
     diasSeguranca: 5,
     estoqueAlvoDias: 25,
     status: "Ativo" as const,
-    controladoCCIH: ["Papel", "Sabonete", "Álcool", "Saneante", "EPI"].includes(categoria),
-    local: `Almox. CCIH — Prateleira ${String.fromCharCode(65 + (i % 6))}${(i % 4) + 1}`,
-    lote: `L${2026}${String(100 + i)}`,
-    validade: `2027-${String((i % 12) + 1).padStart(2, "0")}-28`,
-    ultimaEntrada: `2026-08-${String(((i * 3) % 15) + 1).padStart(2, "0")}`,
-    ultimaSaida: `2026-08-${String(((i * 2) % 10) + 6).padStart(2, "0")}`,
-    fornecedor: ["Higicorp Distribuidora", "Nova Clean LTDA", "MedSupply RJ", "Baixada Suprimentos"][i % 4],
-    pedidoMes: Math.round(cmm * [0.6, 1, 1.4, 1.1, 0][i % 5]),
-    historico: h(cmm),
-  };
+    controladoCCIH: ["Álcool", "EPI", "Saneante", "Papel", "Sabonete", "Saco Lixo"].includes(categoria),
+    local: "",
+    lote: "",
+    validade: "",
+    ultimaEntrada: real ? "2026-08-25" : "",
+    ultimaSaida: "",
+    fornecedor: "",
+    pedidoMes: cmm,
+    historico: real ? h(cmm) : [],
+  } as HLProduct;
 });
-
-export const PRODUCTS: HLProduct[] = [
-  ...MOCK_PRODUCTS,
-  ...GRADE_LIMPEZA.map(([codigo, nome, apresentacao], i) => {
-    const categoria = catFromNome(nome);
-    const curvaABC = abcFromCat(categoria);
-    const criticidade = critFromCat(categoria);
-    return {
-      id: codigo,
-      codigo,
-      nome,
-      categoria,
-      unidadeEntrada: apresentacao,
-      unidadeSaida: apresentacao,
-      fatorConversao: 1,
-      estoqueVigente: 0,
-      cmm: 0,
-      custoUnitario: 0,
-      curvaABC,
-      criticidade,
-      leadTime: 7,
-      diasSeguranca: 5,
-      estoqueAlvoDias: 25,
-      status: "Ativo" as const,
-      controladoCCIH: ["Álcool", "EPI", "Saneante", "Papel", "Sabonete", "Saco Lixo"].includes(categoria),
-      local: "",
-      lote: "",
-      validade: "",
-      ultimaEntrada: "",
-      ultimaSaida: "",
-      fornecedor: "",
-      pedidoMes: 0,
-      historico: [],
-    } as HLProduct;
-  }),
-];
 
 export interface EquipmentSectorRow {
   setor: string;
