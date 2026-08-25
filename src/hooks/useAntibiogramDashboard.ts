@@ -56,7 +56,7 @@ export function useAntibiogramDashboard() {
       for (let from = 0; ; from += PAGE) {
         const { data: page, error } = await supabase
           .from("lab_results")
-          .select("id, collection_date, sample_type, organism, patient_id, status, created_at, notes, sector")
+          .select("id, collection_date, sample_type, sample_material, organism, patient_id, status, created_at, notes, sector")
           .eq("hospital_id", hospitalId)
           .not("organism", "is", null)
           .order("collection_date", { ascending: false })
@@ -153,7 +153,7 @@ export function useAntibiogramDashboard() {
           sector,
           patientId: lab.patient_id || "",
           organism,
-          site: lab.sample_type || "Não informado",
+          site: lab.sample_material || lab.sample_type || "Não informado",
           results,
           detectedPhenotypes,
           mdr,
