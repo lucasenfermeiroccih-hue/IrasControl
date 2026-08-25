@@ -1,5 +1,25 @@
 import React, { forwardRef } from "react";
 
+export interface BacteriaSensitivity {
+  bacteria: string;
+  short: string;
+  isolados: number;
+  perfil: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
+}
+
+export interface SectorProfile {
+  setor: string;
+  totalCulturas: number;
+  culturasPorMaterial: { name: string; value: number }[];
+  prevalenciaOrganismos: { name: string; value: number }[];
+  prevalenciaPorMaterial: { material: string; organismo: string; count: number }[];
+  sensibilidadePorBacteria: BacteriaSensitivity[];
+  mrsa: number;
+  vre: number;
+  kpc: number;
+  esbl: number;
+}
+
 export interface ReportSummary {
   periodo: string;
   periodStart: string;
@@ -22,6 +42,7 @@ export interface ReportSummary {
     setores: { setor: string; count: number }[];
     perfil: { antibiotic: string; S: number; I: number; R: number; total: number; resistRate: number }[];
   }[];
+  setoresPerfil?: SectorProfile[];
 }
 
 interface Props {
@@ -428,6 +449,299 @@ function FenotipoChart({ data, width = 680, barH = 22, labelW = 80 }: {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Pie Chart (SVG inline — html2canvas-safe)
+// ──────────────────────────────────────────────────────────────────────────
+const PIE_COLORS_DEFAULT = [
+  "#0f6b5c","#1a9177","#2ab599","#0891b2","#0369a1",
+  "#4f46e5","#7c3aed","#db2777","#ea580c","#65a30d","#d97706","#9ca3af",
+];
+
+function PieChartSVG({ data, colors = PIE_COLORS_DEFAULT, width = 340, size = 160 }: {
+  data: { name: string; value: number }[];
+  colors?: string[];
+  width?: number;
+  size?: number;
+}) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0 || data.length === 0) {
+    return <p style={{ fontSize: "10px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem dados disponíveis</p>;
+  }
+  const cx = size / 2, cy = size / 2, r = size / 2 - 6;
+  let currentAngle = -Math.PI / 2;
+  const slices = data.map((d, i) => {
+    const sliceAngle = (d.value / total) * 2 * Math.PI;
+    const startAngle = currentAngle;
+    const endAngle = startAngle + sliceAngle;
+    const midAngle = startAngle + sliceAngle / 2;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+    const path = `M ${cx.toFixed(1)} ${cy.toFixed(1)} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z`;
+    const pct = Math.round((d.value / total) * 100);
+    const lx = cx + r * 0.6 * Math.cos(midAngle);
+    const ly = cy + r * 0.6 * Math.sin(midAngle);
+    currentAngle = endAngle;
+    return { path, color: colors[i % colors.length], pct, lx, ly, name: d.name, value: d.value };
+  });
+  const cols = 2;
+  const itemH = 15;
+  const rows = Math.ceil(data.length / cols);
+  const legendH = rows * itemH + 10;
+  const colW = width / cols;
+  return (
+    <svg width={width} height={size + legendH} style={{ display: "block", fontFamily: FONT, overflow: "visible" }}>
+      <g transform={`translate(${((width - size) / 2).toFixed(1)}, 0)`}>
+        {slices.map((s, i) => (
+          <g key={i}>
+            <path d={s.path} fill={s.color} stroke="white" strokeWidth="1.5" />
+            {s.pct >= 6 && (
+              <text x={s.lx.toFixed(1)} y={(s.ly + 3.5).toFixed(1)} textAnchor="middle" fontSize="9" fill="white" fontWeight="700">{s.pct}%</text>
+            )}
+          </g>
+        ))}
+      </g>
+      {data.map((d, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const label = d.name.length > 22 ? d.name.slice(0, 21) + "…" : d.name;
+        return (
+          <g key={i} transform={`translate(${col * colW + 4}, ${size + 8 + row * itemH})`}>
+            <rect width={9} height={9} fill={colors[i % colors.length]} rx="2" y="2" />
+            <text x={13} y={11} fontSize="9" fill="#374151">{label} ({d.value})</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Per-sector section helpers
+// ──────────────────────────────────────────────────────────────────────────
+const ROMAN_NUMERALS = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV"];
+
+function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: "14px", border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden" }}>
+      <div style={{ background: "#f1f5f9", padding: "5px 12px", borderBottom: "1px solid #e2e8f0" }}>
+        <p style={{ margin: 0, fontSize: "10px", fontWeight: 700, color: "#475569", fontFamily: FONT }}>{title}</p>
+      </div>
+      <div style={{ padding: "10px 12px" }}>{children}</div>
+    </div>
+  );
+}
+
+function DiscussionBlock({ content }: { content?: string }) {
+  if (!content) return null;
+  return (
+    <div style={{ marginTop: "8px", padding: "8px 12px", background: TEAL_LIGHT, borderRadius: "5px", borderLeft: `3px solid ${TEAL}` }}>
+      <p style={{ fontWeight: 700, fontSize: "10px", color: TEAL, margin: "0 0 3px", fontFamily: FONT }}>Discussão:</p>
+      <AiSection content={content} />
+    </div>
+  );
+}
+
+function SectorSection({ sp, idx, discussions, chartColors }: {
+  sp: SectorProfile;
+  idx: number;
+  discussions?: { culturas?: string; organismos?: string; material?: string; sensibilidade?: string; geral?: string };
+  chartColors: string[];
+}) {
+  const roman = ROMAN_NUMERALS[idx] || String(idx + 1);
+  const materialGroups: Record<string, { organismo: string; count: number }[]> = {};
+  for (const item of sp.prevalenciaPorMaterial) {
+    if (!materialGroups[item.material]) materialGroups[item.material] = [];
+    materialGroups[item.material].push({ organismo: item.organismo, count: item.count });
+  }
+  const bacteriasComDados = sp.sensibilidadePorBacteria.filter(b => b.isolados > 0);
+
+  return (
+    <div style={{ marginBottom: "20px" }}>
+      {/* Sector header */}
+      <div style={{ background: TEAL, color: "white", padding: "9px 18px", borderRadius: "7px", marginBottom: "12px" }}>
+        <h2 style={{ margin: 0, fontSize: "12px", fontWeight: 700, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.01em" }}>
+          {roman}. Perfil Microbiológico e de Sensibilidade Antimicrobiana: {sp.setor}
+        </h2>
+        <p style={{ margin: "2px 0 0", fontSize: "9.5px", opacity: 0.85, fontFamily: FONT }}>
+          N = {sp.totalCulturas} culturas positivas
+          {" · "}MRSA: {sp.mrsa > 0 ? `${sp.mrsa} caso${sp.mrsa > 1 ? "s" : ""}` : "Ausente"}
+          {" · "}VRE: {sp.vre > 0 ? `${sp.vre} caso${sp.vre > 1 ? "s" : ""}` : "Ausente"}
+          {" · "}KPC: {sp.kpc > 0 ? `${sp.kpc} caso${sp.kpc > 1 ? "s" : ""}` : "Ausente"}
+          {" · "}ESBL: {sp.esbl > 0 ? `${sp.esbl} caso${sp.esbl > 1 ? "s" : ""}` : "Ausente"}
+        </p>
+      </div>
+
+      {discussions?.geral && (
+        <div style={{ marginBottom: "10px", padding: "8px 12px", background: "#f8fafc", borderRadius: "5px", border: "1px solid #e2e8f0" }}>
+          <AiSection content={discussions.geral} />
+        </div>
+      )}
+
+      {/* Block 1 – Culturas por material (pizza) */}
+      <SubSection title={`Gráfico ${roman}.1 – Distribuição de Culturas Positivas por Tipo de Material`}>
+        {sp.culturasPorMaterial.length === 0 ? (
+          <p style={{ fontSize: "10px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem dados de material para este setor.</p>
+        ) : (
+          <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+            <PieChartSVG data={sp.culturasPorMaterial} colors={PIE_COLORS_DEFAULT} width={310} size={150} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <DataTable
+                headers={["Material Biológico", "N", "% Setor"]}
+                rows={sp.culturasPorMaterial.map(m => [
+                  m.name, String(m.value),
+                  sp.totalCulturas > 0 ? `${((m.value / sp.totalCulturas) * 100).toFixed(1)}%` : "—",
+                ])}
+                colWidths={["55%", "20%", "25%"]}
+              />
+            </div>
+          </div>
+        )}
+        <DiscussionBlock content={discussions?.culturas} />
+      </SubSection>
+
+      {/* Block 2 – Prevalência de microrganismos (barras horizontais) */}
+      <SubSection title={`Gráfico ${roman}.2 – Prevalência de Microrganismos Identificados`}>
+        {sp.prevalenciaOrganismos.length === 0 ? (
+          <p style={{ fontSize: "10px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem dados de organismos para este setor.</p>
+        ) : (
+          <>
+            <HBarChart data={sp.prevalenciaOrganismos} colors={chartColors} width={680} labelW={210} barH={17} />
+            <div style={{ marginTop: "8px" }}>
+              <DataTable
+                headers={["Microrganismo", "Isolados", "% Setor"]}
+                rows={sp.prevalenciaOrganismos.map(o => [
+                  o.name, String(o.value),
+                  sp.totalCulturas > 0 ? `${((o.value / sp.totalCulturas) * 100).toFixed(1)}%` : "—",
+                ])}
+                colWidths={["55%", "20%", "25%"]}
+              />
+            </div>
+          </>
+        )}
+        <DiscussionBlock content={discussions?.organismos} />
+      </SubSection>
+
+      {/* Block 3 – Prevalência por material/espécime (grid de cards) */}
+      <SubSection title={`Gráfico ${roman}.3 – Prevalência de Microrganismos por Espécime`}>
+        {Object.keys(materialGroups).length === 0 ? (
+          <p style={{ fontSize: "10px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem dados de espécime para este setor.</p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px" }}>
+            {Object.entries(materialGroups).sort((a, b) =>
+              b[1].reduce((s, x) => s + x.count, 0) - a[1].reduce((s, x) => s + x.count, 0)
+            ).map(([material, orgs]) => {
+              const subtotal = orgs.reduce((s, x) => s + x.count, 0);
+              return (
+                <div key={material} style={{ border: "1px solid #e2e8f0", borderRadius: "5px", overflow: "hidden" }}>
+                  <div style={{ background: "#f8fafc", padding: "4px 8px", borderBottom: "1px solid #e2e8f0" }}>
+                    <p style={{ margin: 0, fontSize: "9px", fontWeight: 700, color: "#475569", fontFamily: FONT }}>
+                      {material} <span style={{ fontWeight: 400, color: GRAY }}>(n={subtotal})</span>
+                    </p>
+                  </div>
+                  <div style={{ padding: "5px 8px" }}>
+                    {orgs.sort((a, b) => b.count - a.count).map((o, oi) => {
+                      const barW = Math.round((o.count / subtotal) * 100);
+                      return (
+                        <div key={oi} style={{ marginBottom: "3px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "8.5px", color: "#374151", fontFamily: FONT, marginBottom: "1px" }}>
+                            <span style={{ fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "78%" }}>{o.organismo}</span>
+                            <span style={{ fontWeight: 700 }}>{o.count}</span>
+                          </div>
+                          <div style={{ height: "4px", background: "#e5e7eb", borderRadius: "2px" }}>
+                            <div style={{ height: "4px", width: `${barW}%`, background: TEAL, borderRadius: "2px" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <DiscussionBlock content={discussions?.material} />
+      </SubSection>
+
+      {/* Block 4 – Sensibilidade antimicrobiana (SIR empilhado por bactéria) */}
+      <SubSection title={`Gráfico ${roman}.4 – Perfil de Sensibilidade Antimicrobiana dos Principais Agentes`}>
+        {bacteriasComDados.length === 0 ? (
+          <p style={{ fontSize: "10px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem dados de antibiograma para este setor.</p>
+        ) : (
+          <>
+            {/* MDR phenotype strip */}
+            <div style={{ display: "flex", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+              {[
+                { label: "MRSA", val: sp.mrsa },
+                { label: "VRE", val: sp.vre },
+                { label: "KPC", val: sp.kpc },
+                { label: "ESBL", val: sp.esbl },
+              ].map(({ label, val }) => (
+                <span key={label} style={{
+                  background: val > 0 ? "#fef2f2" : "#f0fdf4",
+                  color: val > 0 ? RED : GREEN,
+                  border: `1px solid ${val > 0 ? "#fecaca" : "#bbf7d0"}`,
+                  borderRadius: "20px", padding: "2px 9px", fontSize: "9px", fontWeight: 700, fontFamily: FONT,
+                }}>
+                  {label}: {val > 0 ? `${val} caso${val > 1 ? "s" : ""}` : "Ausente"}
+                </span>
+              ))}
+            </div>
+            {bacteriasComDados.map((bact, bi) => (
+              <div key={bi} style={{ marginBottom: "12px" }}>
+                <p style={{ fontWeight: 700, fontSize: "10px", color: "#374151", margin: "0 0 4px", fontFamily: FONT }}>
+                  <em>{bact.bacteria}</em> — n={bact.isolados}
+                </p>
+                {bact.perfil.length === 0 ? (
+                  <p style={{ fontSize: "9.5px", color: GRAY, fontStyle: "italic", fontFamily: FONT, margin: 0 }}>Sem testes de sensibilidade registrados.</p>
+                ) : (
+                  <SIRStackedChart
+                    data={bact.perfil.map(p => ({ name: p.antibiotic, S: p.S, I: p.I, R: p.R, resistRate: p.resistRate }))}
+                    width={680} barH={15} labelW={175}
+                  />
+                )}
+              </div>
+            ))}
+          </>
+        )}
+        <DiscussionBlock content={discussions?.sensibilidade} />
+      </SubSection>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Parse per-sector AI discussions from markdown
+// ──────────────────────────────────────────────────────────────────────────
+function parseSectorDiscussions(md: string): Record<string, { culturas?: string; organismos?: string; material?: string; sensibilidade?: string; geral?: string }> {
+  const out: Record<string, { culturas?: string; organismos?: string; material?: string; sensibilidade?: string; geral?: string }> = {};
+  const sectorParts = md.split(/\n(?=## SETOR:\s)/i);
+  for (const part of sectorParts) {
+    const headerMatch = part.match(/^## SETOR:\s*(.+)/i);
+    if (!headerMatch) continue;
+    const key = headerMatch[1].trim().toUpperCase();
+    out[key] = {};
+    const subParts = part.split(/\n(?=### )/);
+    for (const sub of subParts) {
+      const subMatch = sub.match(/^### (.+)/);
+      if (!subMatch) {
+        const geral = sub.replace(/^## SETOR:\s*.+\n/i, "").trim();
+        if (geral) out[key].geral = geral;
+        continue;
+      }
+      const subKey = subMatch[1].trim().toUpperCase();
+      const content = sub.replace(/^### .+\n/, "").trim();
+      if (subKey.includes("CULTUR")) out[key].culturas = content;
+      else if (subKey.includes("ORGANIS") || subKey.includes("MICROB")) out[key].organismos = content;
+      else if (subKey.includes("MATER") || subKey.includes("ESPEC")) out[key].material = content;
+      else if (subKey.includes("SENSIB") || subKey.includes("ANTIMICR")) out[key].sensibilidade = content;
+    }
+  }
+  return out;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // KPI Card
 // ──────────────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -473,6 +787,8 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
       }
       return "";
     };
+
+    const sectorDiscussions = parseSectorDiscussions(aiContent);
 
     const CHART_COLORS = [
       TEAL, "#1a9177", "#2ab599", "#0891b2", "#0369a1",
@@ -537,6 +853,39 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
 
         {/* ── BODY ─────────────────────────────────────────────────── */}
         <div style={{ padding: "26px 44px 36px" }}>
+
+          {/* ── SUMÁRIO / TOC ── */}
+          {summary.setoresPerfil && summary.setoresPerfil.length > 0 && (
+            <Section title="Sumário" icon="📑">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 24px" }}>
+                {[
+                  { num: "1", title: "Sumário Executivo" },
+                  { num: "2", title: "Metodologia e Critérios" },
+                  { num: "3", title: "Indicadores Globais" },
+                  { num: "4", title: "Distribuição por Setor" },
+                  { num: "5", title: "Perfil Microbiológico Global" },
+                  { num: "5b", title: "Culturas por Material Biológico" },
+                  { num: "5c", title: "Bactérias Prioritárias de Vigilância" },
+                  ...summary.setoresPerfil.map((sp, i) => ({
+                    num: `${ROMAN_NUMERALS[i] || i + 1}`,
+                    title: `Perfil Setor: ${sp.setor}`,
+                  })),
+                  { num: "6", title: "Fenótipos MDR" },
+                  { num: "7", title: "Antibiograma Consolidado" },
+                  { num: "8", title: "Tendências Temporais" },
+                  { num: "9", title: "Alertas Epidemiológicos" },
+                  { num: "10", title: "Recomendações Clínicas" },
+                  { num: "11", title: "Plano de Ação CCIH" },
+                  { num: "12", title: "Conclusão" },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: "6px", padding: "3px 0", borderBottom: "1px dotted #e5e7eb", fontSize: "10.5px", fontFamily: FONT }}>
+                    <span style={{ color: TEAL, fontWeight: 700, minWidth: "28px" }}>{item.num}.</span>
+                    <span style={{ color: "#374151" }}>{item.title}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {/* ── 1. SUMÁRIO EXECUTIVO ── */}
           <Section title="1. Sumário Executivo" icon="📋">
@@ -665,10 +1014,10 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
                 </div>
                 <div>
                   <p style={{ fontSize: "10px", color: GRAY, marginBottom: "6px", fontWeight: 600, fontFamily: FONT }}>Distribuição por Material</p>
-                  <HBarChart
-                    data={summary.culturasPorMaterial.slice(0, 10)}
-                    colors={["#0891b2","#0369a1","#4f46e5","#7c3aed","#db2777","#ea580c","#65a30d",TEAL,"#1a9177","#2ab599"]}
-                    width={310} labelW={130} barH={16}
+                  <PieChartSVG
+                    data={summary.culturasPorMaterial.slice(0, 12)}
+                    colors={PIE_COLORS_DEFAULT}
+                    width={310} size={140}
                   />
                 </div>
               </div>
@@ -762,6 +1111,33 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
                 </div>
               ))}
             </Section>
+          )}
+
+          {/* ── SEÇÕES POR SETOR (I–VIII) ── */}
+          {summary.setoresPerfil && summary.setoresPerfil.length > 0 && (
+            <>
+              <div style={{ marginBottom: "18px", borderTop: `3px solid ${TEAL}`, paddingTop: "16px" }}>
+                <h2 style={{ fontSize: "13px", fontWeight: 700, color: TEAL, margin: "0 0 4px", fontFamily: FONT, textTransform: "uppercase" }}>
+                  Análise por Setor Hospitalar
+                </h2>
+                <p style={{ fontSize: "10.5px", color: GRAY, margin: 0, fontFamily: FONT }}>
+                  Perfil microbiológico e de sensibilidade antimicrobiana detalhado por unidade de internação
+                </p>
+              </div>
+              {summary.setoresPerfil.map((sp, idx) => {
+                const key = sp.setor.toUpperCase();
+                const discussions = sectorDiscussions[key] || {};
+                return (
+                  <SectorSection
+                    key={sp.setor}
+                    sp={sp}
+                    idx={idx}
+                    discussions={discussions}
+                    chartColors={CHART_COLORS}
+                  />
+                );
+              })}
+            </>
           )}
 
           {/* ── 6. FENÓTIPOS MDR ── */}

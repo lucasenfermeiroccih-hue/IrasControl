@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     // 1) lab_results no hospital + período + com organismo
     const { data: labResults, error: labErr } = await supabase
       .from("lab_results")
-      .select("id, collection_date, sample_type, organism, patient_id, status, notes")
+      .select("id, collection_date, sample_type, sample_material, organism, patient_id, status, notes, sector")
       .eq("hospital_id", hospitalId)
       .gte("collection_date", isoStart)
       .lte("collection_date", isoEnd)
@@ -162,13 +162,34 @@ Deno.serve(async (req) => {
     let phenotypeExams = 0;
     const monthly: Record<string, { total: number; R: number }> = {};
 
+    // Per-sector aggregation for CCIH structured report
+    type SpData = {
+      culturasPorMaterial: Record<string, number>;
+      organismos: Record<string, number>;
+      materialOrg: Record<string, Record<string, number>>;
+      bacteriaSensitivity: Record<string, Record<string, { S: number; I: number; R: number }>>;
+      mrsa: number; vre: number; kpc: number; esbl: number;
+    };
+    const sectorProfileMap: Record<string, SpData> = {};
+
     for (const ex of exams) {
       const org = ex.organism || "Desconhecido";
       orgCounts[org] = (orgCounts[org] || 0) + 1;
       const notes = ex.notes || "";
       const m = notes.match(/Setor:\s*([^|]+)/);
-      const sector = (m ? m[1].trim() : "") || (ex.patient_id ? sectorMap[ex.patient_id] : "") || "Não informado";
+      const sector: string = (ex as any).sector || (m ? m[1].trim() : "") || (ex.patient_id ? sectorMap[ex.patient_id] : "") || "Não informado";
       sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+      // Per-sector detail
+      if (!sectorProfileMap[sector]) sectorProfileMap[sector] = {
+        culturasPorMaterial: {}, organismos: {}, materialOrg: {}, bacteriaSensitivity: {},
+        mrsa: 0, vre: 0, kpc: 0, esbl: 0,
+      };
+      const sp = sectorProfileMap[sector];
+      const material: string = (ex as any).sample_material || ex.sample_type || "Não informado";
+      sp.culturasPorMaterial[material] = (sp.culturasPorMaterial[material] || 0) + 1;
+      sp.organismos[org] = (sp.organismos[org] || 0) + 1;
+      if (!sp.materialOrg[material]) sp.materialOrg[material] = {};
+      sp.materialOrg[material][org] = (sp.materialOrg[material][org] || 0) + 1;
       const month = (ex.collection_date || "").slice(0, 7);
       if (month) {
         if (!monthly[month]) monthly[month] = { total: 0, R: 0 };
@@ -187,7 +208,42 @@ Deno.serve(async (req) => {
       const phenos = detectPhenotypes(org, myAbs);
       if (phenos.length > 0) phenotypeExams++;
       phenos.forEach(p => { phenoCounts[p] = (phenoCounts[p] || 0) + 1; });
+      // Per-sector phenotypes
+      if (phenos.includes("MRSA")) sp.mrsa++;
+      if (phenos.includes("VRE")) sp.vre++;
+      if (phenos.includes("KPC")) sp.kpc++;
+      if (phenos.includes("ESBL")) sp.esbl++;
+      // Per-sector bacteria sensitivity
+      for (const ab of myAbs) {
+        if (!sp.bacteriaSensitivity[org]) sp.bacteriaSensitivity[org] = {};
+        if (!sp.bacteriaSensitivity[org][ab.antibiotic]) sp.bacteriaSensitivity[org][ab.antibiotic] = { S: 0, I: 0, R: 0 };
+        if (ab.sensitivity === "S" || ab.sensitivity === "I" || ab.sensitivity === "R") {
+          (sp.bacteriaSensitivity[org][ab.antibiotic] as Record<string, number>)[ab.sensitivity]++;
+        }
+      }
     }
+
+    // Build setoresPerfil summary
+    const setoresPerfil = Object.entries(sectorProfileMap).sort((a, b) => {
+      const ta = Object.values(a[1].culturasPorMaterial).reduce((s, v) => s + v, 0);
+      const tb = Object.values(b[1].culturasPorMaterial).reduce((s, v) => s + v, 0);
+      return tb - ta;
+    }).map(([setor, sp]) => {
+      const totalCulturas = Object.values(sp.culturasPorMaterial).reduce((s, v) => s + v, 0);
+      const prevalenciaPorMaterial: { material: string; organismo: string; count: number }[] = [];
+      for (const [mat, orgMap] of Object.entries(sp.materialOrg)) {
+        for (const [o, cnt] of Object.entries(orgMap).sort((a, b) => b[1] - a[1]).slice(0, 3)) {
+          prevalenciaPorMaterial.push({ material: mat, organismo: o, count: cnt });
+        }
+      }
+      return {
+        setor, totalCulturas,
+        culturasPorMaterial: Object.entries(sp.culturasPorMaterial).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value })),
+        prevalenciaOrganismos: Object.entries(sp.organismos).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value })),
+        prevalenciaPorMaterial,
+        mrsa: sp.mrsa, vre: sp.vre, kpc: sp.kpc, esbl: sp.esbl,
+      };
+    });
 
     const topOrganismos = Object.entries(orgCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
       .map(([name, value]) => ({ name, value }));
@@ -217,46 +273,79 @@ Deno.serve(async (req) => {
       perfilSIR,
       tendenciaMensal,
       fenotiposDetectados,
+      setoresPerfil,
     };
 
-    // Chamar Lovable AI
-    const systemPrompt = `Você é um médico infectologista sênior e especialista em vigilância epidemiológica de IRAS (Infecções Relacionadas à Assistência à Saúde) em hospitais brasileiros. Seu papel é elaborar relatórios mensais completos de Perfil de Sensibilidade Antimicrobiana com rigor técnico, seguindo os padrões ANVISA, CDC e OMS. Use markdown com cabeçalhos ## para seções principais e ### para subseções. Seja objetivo, técnico e acionável. Produza SEMPRE todas as seções solicitadas, mesmo que os dados sejam escassos — nesse caso, escreva "Dados insuficientes para análise conclusiva neste período."`;
+    // Chamar OpenAI com prompt CCIH estruturado
+    const systemPrompt = `Você é um enfermeiro especialista em Controle de Infecção Hospitalar (CCIH/SCIH/NSP) redigindo o relatório microbiológico anual de uma instituição hospitalar brasileira.
+Tom: objetivo, normativo, técnico-científico, orientado à ação antimicrobiana e vigilância epidemiológica.
+Referências: ANVISA, CDC, BrCAST/EUCAST, CLSI, OMS.
+Regras:
+- Use markdown com ## para seções e ### para subseções.
+- Grafia científica em itálico com asteriscos: *Klebsiella pneumoniae*, *S. aureus*, etc.
+- Sempre cite N (total de isolados) e percentuais.
+- Nomeie MRSA, VRE, KPC, ESBL como MDR críticos.
+- Se dados insuficientes (N<3), declare limitação em vez de inventar.
+- Produza TODAS as seções solicitadas sem omitir nenhuma.`;
 
-    const userPrompt = `Gere o RELATÓRIO MENSAL COMPLETO de Perfil de Sensibilidade Antimicrobiana Hospitalar para o período ${periodLabel} (${isoStart} a ${isoEnd}).
+    const sectorNames = setoresPerfil.map(sp => sp.setor);
+    const sectorDiscussionBlocks = sectorNames.map(setor => {
+      const sId = setor.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+      const sp = setoresPerfil.find(s => s.setor === setor)!;
+      return `
+## SETOR: ${setor}
+Texto introdutório geral do setor (1-2 parágrafos): perfil epidemiológico, N total de culturas (${sp.totalCulturas}), principais achados, MRSA=${sp.mrsa}, VRE=${sp.vre}, KPC=${sp.kpc}, ESBL=${sp.esbl}.
 
-INSTRUÇÃO CRÍTICA: Use EXATAMENTE estes cabeçalhos de seção (## NOME DA SEÇÃO) para que o sistema possa parsear corretamente:
+### CULTURAS_${sId}
+Discussão do Gráfico 1 — culturas positivas por material biológico para ${setor}. Indique N total, material predominante (${sp.culturasPorMaterial[0]?.name || "—"}, n=${sp.culturasPorMaterial[0]?.value || 0}), segundo material, e possíveis limitações de coleta.
+
+### ORGANISMOS_${sId}
+Discussão do Gráfico 2 — prevalência de microrganismos em ${setor}. Identifique agente predominante (${sp.prevalenciaOrganismos[0]?.name || "—"}, n=${sp.prevalenciaOrganismos[0]?.value || 0}), os seguintes; sinalize S. coagulase-negativo como possível contaminação; destaque MDR.
+
+### MATERIAL_${sId}
+Discussão do Gráfico 3 — prevalência por espécime em ${setor}. Correlacione agente principal a cada material/foco infeccioso; comente coerência clínica e implicações terapêuticas.
+
+### SENSIBILIDADE_${sId}
+Discussão do Gráfico 4 — sensibilidade antimicrobiana em ${setor}. Destaque taxa de MRSA/oxacilina-resistência, presença/ausência de VRE, perfil de carbapenêmicos frente a gram-negativos MDR. Feche com orientação de uso racional de antimicrobianos.`;
+    }).join("\n");
+
+    const userPrompt = `Gere o RELATÓRIO MICROBIOLÓGICO COMPLETO CCIH para o período ${periodLabel} (${isoStart} a ${isoEnd}).
+
+INSTRUÇÃO CRÍTICA: Use EXATAMENTE os cabeçalhos abaixo para que o sistema possa parsear e exibir cada discussão ao lado do gráfico correspondente.
 
 ## RESUMO EXECUTIVO
-Escreva 2-3 parágrafos narrativos sobre o período. Contextualize os achados, destaque os principais riscos e o panorama geral da resistência antimicrobiana. Mencione os microrganismos e setores de maior preocupação.
+2-3 parágrafos narrativos: panorama geral da resistência, N total de culturas (${totalExams}), taxa de resistência global (${resistanceRate}%), microrganismos e setores mais preocupantes, fenótipos MDR detectados.
 
 ## ANÁLISE MICROBIOLÓGICA
-Analise os microrganismos predominantes e suas implicações clínicas. Discuta o significado clínico de cada patógeno, contextualize com a literatura e com padrões epidemiológicos brasileiros. Explique o risco para os pacientes.
+Analise os microrganismos predominantes (dados globais). Discuta significado clínico de cada patógeno, risco para pacientes e contexto epidemiológico brasileiro.
 
 ## PERFIL DE RESISTÊNCIA
-Analise os antibióticos com maior taxa de resistência (>30% R). Discuta mecanismos de resistência prováveis (ESBL, KPC, MBL, MRSA, VRE), implicações terapêuticas e riscos para falha de tratamento empírico.
+Analise antibióticos com >30% de resistência. Discuta mecanismos prováveis (ESBL, KPC, MBL, MRSA, VRE), implicações terapêuticas e risco de falha empírica.
 
 ## TENDÊNCIAS TEMPORAIS
-Comente a evolução mensal dos dados. Identifique tendências de aumento ou queda. Avalie se há padrão de surto, sazonalidade ou estabilização. Sugira o que pode estar impulsionando as mudanças.
-
-## ANÁLISE POR SETOR
-Aponte os setores com maior pressão antimicrobiana. Identifique focos de transmissão cruzada potencial. Relacione o perfil de resistência com as características de cada setor (UTI, PS, enfermarias).
+Comente evolução mensal. Identifique tendências de alta/queda, padrão de surto ou sazonalidade.
 
 ## ALERTAS EPIDEMIOLÓGICOS
-Liste de 3 a 5 alertas IMEDIATOS em formato bullet point. Seja específico: cite o microrganismo, o setor, o antimicrobiano e o nível de risco. Use linguagem acionável.
+3-5 alertas IMEDIATOS em bullets: cite microrganismo, setor, antimicrobiano e nível de risco. Linguagem acionável.
 
 ## RECOMENDAÇÕES CLÍNICAS
-Liste de 5 a 8 recomendações concretas baseadas nos dados. Inclua: stewardship antimicrobiano, precauções de isolamento, vigilância ativa, educação permanente, revisão de protocolos e medidas de controle de infecção.
+5-8 recomendações concretas: stewardship, isolamento, vigilância ativa, educação, revisão de protocolos.
 
 ## PLANO DE AÇÃO CCIH
-Apresente uma tabela markdown com as colunas: Problema | Impacto (Alto/Médio/Baixo) | Ação Proposta | Responsável | Prazo. Liste de 4 a 6 ações prioritárias baseadas nos achados.
+Tabela markdown: | Problema | Impacto | Ação Proposta | Responsável | Prazo |
+4-6 ações prioritárias.
 
 ## CONCLUSÃO
-Escreva 1 parágrafo de fechamento sintetizando os achados mais críticos, o nível de risco geral do período e as prioridades para o próximo ciclo de monitoramento.
+1 parágrafo: achados críticos, nível de risco geral do período, prioridades para próximo ciclo.
 
 ---
-DADOS ESTRUTURADOS DO PERÍODO (use estes dados como base factual para toda a análise):
+SEÇÕES POR SETOR (gere exatamente estes cabeçalhos para cada setor):
+${sectorDiscussionBlocks}
+
+---
+DADOS ESTRUTURADOS (use como base factual — não invente valores):
 \`\`\`json
-${JSON.stringify(summary, null, 2)}
+${JSON.stringify({ globalSummary: { totalExams, totalTests, resistanceRate, sensitivityRate, phenotypeExams, topOrganismos, fenotiposDetectados }, setoresPerfil }, null, 2).slice(0, 12000)}
 \`\`\``;
 
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -266,7 +355,8 @@ ${JSON.stringify(summary, null, 2)}
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
+        max_tokens: 8000,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useAntibiogramDashboard, type AntibiogramDashRecord } from "@/hooks/useAntibiogramDashboard";
 import { supabase } from "@/integrations/supabase/client";
-import MicrobiologicalReport, { type ReportSummary } from "@/components/MicrobiologicalReport";
+import MicrobiologicalReport, { type ReportSummary, type SectorProfile, type BacteriaSensitivity } from "@/components/MicrobiologicalReport";
 import DashboardAnalysisTabs, { AnalysisConfig } from "@/components/DashboardAnalysisTabs";
 import InfectologistInsightsPanel from "@/components/InfectologistInsightsPanel";
 import html2canvas from "html2canvas";
@@ -266,6 +266,69 @@ export default function DashboardAntibiogram() {
     }).filter((b): b is BacteriaVigilanciaData => b !== null);
   }, [filtered]);
 
+  // Per-sector profiles for CCIH report
+  const sectorProfiles = useMemo((): SectorProfile[] => {
+    type SpData = {
+      culturasPorMaterial: Record<string, number>;
+      organismos: Record<string, number>;
+      materialOrg: Record<string, Record<string, number>>;
+      bacteriaSensitivity: Record<string, Record<string, { S: number; I: number; R: number }>>;
+      mrsa: number; vre: number; kpc: number; esbl: number;
+    };
+    const map: Record<string, SpData> = {};
+    for (const d of filtered) {
+      if (!map[d.sector]) map[d.sector] = {
+        culturasPorMaterial: {}, organismos: {}, materialOrg: {}, bacteriaSensitivity: {}, mrsa: 0, vre: 0, kpc: 0, esbl: 0,
+      };
+      const sp = map[d.sector];
+      sp.culturasPorMaterial[d.site] = (sp.culturasPorMaterial[d.site] || 0) + 1;
+      sp.organismos[d.organism] = (sp.organismos[d.organism] || 0) + 1;
+      if (!sp.materialOrg[d.site]) sp.materialOrg[d.site] = {};
+      sp.materialOrg[d.site][d.organism] = (sp.materialOrg[d.site][d.organism] || 0) + 1;
+      if (d.detectedPhenotypes.includes("MRSA")) sp.mrsa++;
+      if (d.detectedPhenotypes.includes("VRE")) sp.vre++;
+      if (d.detectedPhenotypes.includes("KPC")) sp.kpc++;
+      if (d.detectedPhenotypes.includes("ESBL")) sp.esbl++;
+      for (const res of d.results) {
+        if (!sp.bacteriaSensitivity[d.organism]) sp.bacteriaSensitivity[d.organism] = {};
+        if (!sp.bacteriaSensitivity[d.organism][res.antibiotic]) sp.bacteriaSensitivity[d.organism][res.antibiotic] = { S: 0, I: 0, R: 0 };
+        sp.bacteriaSensitivity[d.organism][res.antibiotic][res.sir]++;
+      }
+    }
+    return Object.entries(map)
+      .sort((a, b) => {
+        const tot = (sp: SpData) => Object.values(sp.culturasPorMaterial).reduce((s, v) => s + v, 0);
+        return tot(b[1]) - tot(a[1]);
+      })
+      .map(([setor, sp]) => {
+        const totalCulturas = Object.values(sp.culturasPorMaterial).reduce((s, v) => s + v, 0);
+        const prevalenciaPorMaterial: { material: string; organismo: string; count: number }[] = [];
+        for (const [mat, orgMap] of Object.entries(sp.materialOrg)) {
+          const topOrgs = Object.entries(orgMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
+          for (const [org, count] of topOrgs) prevalenciaPorMaterial.push({ material: mat, organismo: org, count });
+        }
+        const sensibilidadePorBacteria: BacteriaSensitivity[] = BACTERIAS_ALVO.map(bact => {
+          const matchedKey = Object.keys(sp.bacteriaSensitivity).find(o => bact.pattern.test(o));
+          if (!matchedKey) return { bacteria: bact.label, short: bact.short, isolados: 0, perfil: [] };
+          const isolados = sp.organismos[matchedKey] || 0;
+          const abMap = sp.bacteriaSensitivity[matchedKey] || {};
+          const perfil = Object.entries(abMap).map(([antibiotic, sir]) => {
+            const total = sir.S + sir.I + sir.R;
+            return { antibiotic, S: sir.S, I: sir.I, R: sir.R, total, resistRate: total > 0 ? Math.round((sir.R / total) * 100) : 0 };
+          }).sort((a, b) => (b.S + b.I + b.R) - (a.S + a.I + a.R));
+          return { bacteria: bact.label, short: bact.short, isolados, perfil };
+        });
+        return {
+          setor, totalCulturas,
+          culturasPorMaterial: Object.entries(sp.culturasPorMaterial).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value })),
+          prevalenciaOrganismos: Object.entries(sp.organismos).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name, value })),
+          prevalenciaPorMaterial,
+          sensibilidadePorBacteria,
+          mrsa: sp.mrsa, vre: sp.vre, kpc: sp.kpc, esbl: sp.esbl,
+        };
+      });
+  }, [filtered]);
+
   // Summary calculado a partir dos dados filtrados no cliente (para PDF Visual sem IA)
   const filteredSummary = useMemo((): ReportSummary => {
     const dates = filtered.map(d => d.collectionDate).filter(Boolean).sort();
@@ -296,11 +359,12 @@ export default function DashboardAntibiogram() {
         label, short, isolados, perfil,
         setores: setores.map(({ setor, count }) => ({ setor, count })),
       })),
+      setoresPerfil: sectorProfiles,
     };
   }, [filtered, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno,
       totalExams, totalTests, resistanceRate, sensitivityRate, phenotypeCount,
       orgCounts, sectorData, sirByAntibiotic, monthlyTrend, phenotypeDist,
-      culturasPorMaterial, bacteriasAlvoData]);
+      culturasPorMaterial, bacteriasAlvoData, sectorProfiles]);
 
   const riskLevel = resistanceRate > 40 ? "critical" : resistanceRate > 25 ? "high" : resistanceRate > 15 ? "moderate" : "low";
   const riskConfig: Record<string, { label: string; color: string; icon: typeof ShieldAlert }> = {
@@ -437,7 +501,7 @@ export default function DashboardAntibiogram() {
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
       setDirectExportData({
-        summary: data.summary || filteredSummary,
+        summary: { ...(data.summary || filteredSummary), setoresPerfil: filteredSummary.setoresPerfil },
         aiContent: data.ai_content || "",
         hospitalName: data.hospital_name || reportHospitalName,
         filename: `relatorio-antimicrobiano-${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -495,7 +559,7 @@ export default function DashboardAntibiogram() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       setReportResult(data.ai_content);
-      if (data.summary) setReportSummary(data.summary);
+      if (data.summary) setReportSummary({ ...data.summary, setoresPerfil: filteredSummary.setoresPerfil });
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
       toast({ title: "Relatório gerado", description: "Salvo no histórico." });
     } catch (error: any) {
