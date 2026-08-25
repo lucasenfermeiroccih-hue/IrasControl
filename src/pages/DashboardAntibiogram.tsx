@@ -71,6 +71,16 @@ export default function DashboardAntibiogram() {
   const [filtroAno, setFiltroAno] = useState<string[]>([]);
   const [filtroAntibiotico, setFiltroAntibiotico] = useState<string[]>([]);
 
+  // ── Dialog de configuração do relatório ──────────────────────────────────
+  const [reportGenDialogOpen, setReportGenDialogOpen] = useState(false);
+  const [reportGenType, setReportGenType] = useState<"visual" | "ai">("ai");
+  const [dlgMes, setDlgMes] = useState<string[]>([]);
+  const [dlgAno, setDlgAno] = useState<string[]>([]);
+  const [dlgSetor, setDlgSetor] = useState<string[]>([]);
+  const [dlgSite, setDlgSite] = useState<string[]>([]);
+  const [dlgOrg, setDlgOrg] = useState<string[]>([]);
+  const [pendingReport, setPendingReport] = useState<"visual" | "ai" | null>(null);
+
   // Chart refs + metas
   const chartRefs = {
     setor: useRef<HTMLDivElement>(null),
@@ -100,6 +110,16 @@ export default function DashboardAntibiogram() {
   ), [allData, filtroSetor, filtroSite, filtroOrg, filtroMes, filtroAno]);
 
   const anosDisp = useMemo(() => [...new Set(allData.map(d => d.collectionDate?.substring(0, 4)).filter((v): v is string => !!v))].sort(), [allData]);
+
+  // Preview dos dados para o dialog de relatório
+  const dlgFiltered = useMemo(() => allData.filter(d =>
+    (dlgMes.length === 0 || dlgMes.includes(d.collectionDate?.substring(5, 7) || "")) &&
+    (dlgAno.length === 0 || dlgAno.includes(d.collectionDate?.substring(0, 4) || "")) &&
+    (dlgSetor.length === 0 || dlgSetor.includes(d.sector)) &&
+    (dlgSite.length === 0 || dlgSite.includes(d.site)) &&
+    (dlgOrg.length === 0 || dlgOrg.includes(d.organism))
+  ), [allData, dlgMes, dlgAno, dlgSetor, dlgSite, dlgOrg]);
+  const dlgSetoresUniq = useMemo(() => [...new Set(dlgFiltered.map(d => d.sector).filter(Boolean))].length, [dlgFiltered]);
 
   const antibioticosDisp = useMemo(() => {
     const s = new Set<string>();
@@ -485,6 +505,35 @@ export default function DashboardAntibiogram() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directExportData]);
 
+  // Dispara geração após filtros do dialog serem aplicados no estado principal
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingReport) return;
+    if (pendingReport === "visual") handleExportPDFVisual();
+    else handlePDFRelatorio();
+    setPendingReport(null);
+  }, [pendingReport]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openReportGenDialog = (type: "visual" | "ai") => {
+    setDlgMes([...filtroMes]);
+    setDlgAno([...filtroAno]);
+    setDlgSetor([...filtroSetor]);
+    setDlgSite([...filtroSite]);
+    setDlgOrg([...filtroOrg]);
+    setReportGenType(type);
+    setReportGenDialogOpen(true);
+  };
+
+  const handleConfirmReportGen = () => {
+    setFiltroMes(dlgMes);
+    setFiltroAno(dlgAno);
+    setFiltroSetor(dlgSetor);
+    setFiltroSite(dlgSite);
+    setFiltroOrg(dlgOrg);
+    setReportGenDialogOpen(false);
+    setPendingReport(reportGenType);
+  };
+
   const handleExportExcel = () => toast({ title: "Exportar Excel", description: "Em breve." });
 
   // PDF Visual — captura MicrobiologicalReport com dados filtrados (sem IA)
@@ -680,10 +729,10 @@ export default function DashboardAntibiogram() {
           </Button>
           <Button
             variant="outline" size="sm"
-            onClick={handleExportPDFVisual}
+            onClick={() => openReportGenDialog("visual")}
             disabled={pdfVisualLoading || pdfStructuredLoading}
             className="gap-1.5 text-xs"
-            title="Exporta relatório visual com gráficos dos dados filtrados (sem IA)"
+            title="Selecione filtros e exporte relatório visual (sem IA)"
           >
             {pdfVisualLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
             PDF Visual
@@ -692,10 +741,10 @@ export default function DashboardAntibiogram() {
           <AuditManagerReportButton defaultMode="monthly_sector_compiled" />
           <Button
             variant="outline" size="sm"
-            onClick={handlePDFRelatorio}
+            onClick={() => openReportGenDialog("ai")}
             disabled={pdfStructuredLoading || pdfVisualLoading}
             className="gap-1.5 text-xs border-primary/40 hover:bg-primary/10"
-            title="Gera relatório completo com IA e exporta PDF com os dados filtrados"
+            title="Selecione filtros e gere relatório completo com IA"
           >
             {pdfStructuredLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5 text-primary" />}
             PDF Relatório
@@ -1261,6 +1310,115 @@ export default function DashboardAntibiogram() {
 
       </div>
       {/* /dashboardRef */}
+
+      {/* ── Dialog de Configuração do Relatório ──────────────────────── */}
+      <Dialog open={reportGenDialogOpen} onOpenChange={setReportGenDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Configurar Relatório
+            </DialogTitle>
+            <DialogDescription>
+              Selecione os filtros para o relatório antes de gerar o PDF
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Ano */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ano</label>
+              <MultiSelectFilter
+                label="Selecionar anos"
+                selected={dlgAno}
+                onChange={setDlgAno}
+                options={anosDisp.map(a => ({ value: a, label: a }))}
+              />
+            </div>
+
+            {/* Mês */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mês</label>
+              <MultiSelectFilter
+                label="Selecionar meses"
+                selected={dlgMes}
+                onChange={setDlgMes}
+                options={["01","02","03","04","05","06","07","08","09","10","11","12"].map((m, i) => ({
+                  value: m,
+                  label: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][i],
+                }))}
+              />
+            </div>
+
+            {/* Setor */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Setor Hospitalar</label>
+              <MultiSelectFilter
+                label="Todos os setores"
+                selected={dlgSetor}
+                onChange={setDlgSetor}
+                options={setores.map(s => ({ value: s, label: s }))}
+              />
+            </div>
+
+            {/* Material */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Material Biológico</label>
+              <MultiSelectFilter
+                label="Todos os materiais"
+                selected={dlgSite}
+                onChange={setDlgSite}
+                options={sites.map(s => ({ value: s, label: s }))}
+              />
+            </div>
+
+            {/* Organismo */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Microrganismo</label>
+              <MultiSelectFilter
+                label="Todos os microrganismos"
+                selected={dlgOrg}
+                onChange={setDlgOrg}
+                options={organismos.map(o => ({ value: o, label: o }))}
+              />
+            </div>
+
+            {/* Preview */}
+            <div className="rounded-lg bg-muted/60 border px-4 py-3 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{dlgFiltered.length}</span> culturas selecionadas
+                {dlgSetoresUniq > 0 && <span> · <span className="font-semibold text-foreground">{dlgSetoresUniq}</span> setores</span>}
+              </div>
+              {dlgFiltered.length === 0 && (
+                <span className="text-xs text-destructive font-medium">Nenhum dado no filtro</span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setReportGenDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 gap-1.5"
+              disabled={dlgFiltered.length === 0 || pdfVisualLoading || pdfStructuredLoading}
+              onClick={() => { setReportGenType("visual"); handleConfirmReportGen(); }}
+            >
+              {pdfVisualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              PDF Visual
+            </Button>
+            <Button
+              className="flex-1 gap-1.5"
+              disabled={dlgFiltered.length === 0 || pdfStructuredLoading || pdfVisualLoading}
+              onClick={() => { setReportGenType("ai"); handleConfirmReportGen(); }}
+            >
+              {pdfStructuredLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              PDF com IA
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* AI Generated Insights Dialog */}
       <Dialog open={!!aiInsights} onOpenChange={(o) => !o && setAiInsights(null)}>
