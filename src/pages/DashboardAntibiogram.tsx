@@ -423,26 +423,44 @@ export default function DashboardAntibiogram() {
   const [pdfVisualLoading, setPdfVisualLoading] = useState(false);
 
   const exportDirectPDF = async (el: HTMLDivElement, filename: string) => {
-    const canvas = await html2canvas(el, {
-      scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 794, windowWidth: 794, scrollY: 0,
-    });
-    const imgData = canvas.toDataURL("image/png");
+    const A4_W = 210;   // mm
+    const A4_H = 297;   // mm
+    const EL_W_PX = 794;
+    const SCALE = 2;
+
+    const pdfPages = Array.from(el.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+    const targets: HTMLElement[] = pdfPages.length > 0 ? pdfPages : [el];
+
     const pdf = new jsPDF("p", "mm", "a4");
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = pdf.internal.pageSize.getHeight();
-    const imgH = (canvas.height * pdfW) / canvas.width;
-    let heightLeft = imgH;
-    let position = 0;
-    pdf.addImage(imgData, "PNG", 0, position, pdfW, imgH);
-    heightLeft -= pdfH;
-    while (heightLeft > 0) {
-      position = heightLeft - imgH;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, pdfW, imgH);
-      heightLeft -= pdfH;
+    let first = true;
+
+    for (const pageEl of targets) {
+      await new Promise<void>(r => setTimeout(r, 60));
+
+      const canvas = await html2canvas(pageEl, {
+        scale: SCALE,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        width: EL_W_PX,
+        windowWidth: EL_W_PX,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      if (!imgData || imgData === "data:," || canvas.height < 4) continue;
+
+      // Height in mm: canvas is SCALE× the element, element is EL_W_PX wide
+      const heightMM = (canvas.height / SCALE / EL_W_PX) * A4_W;
+      const numPages = Math.ceil(heightMM / A4_H);
+
+      for (let p = 0; p < numPages; p++) {
+        if (!first) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, -(p * A4_H), A4_W, heightMM);
+        first = false;
+      }
     }
+
     pdf.save(filename);
-    toast({ title: "PDF exportado", description: "Download iniciado." });
+    toast({ title: "PDF exportado", description: `${targets.length} páginas geradas. Download iniciado.` });
   };
 
   // Dispara exportação assim que o MicrobiologicalReport oculto for renderizado
@@ -452,7 +470,7 @@ export default function DashboardAntibiogram() {
     if (!el) return;
 
     const run = async () => {
-      await new Promise(r => setTimeout(r, 350)); // aguarda render completo
+      await new Promise(r => setTimeout(r, 700)); // aguarda render completo dos gráficos SVG
       try {
         await exportDirectPDF(el, directExportData.filename);
       } catch (e: any) {

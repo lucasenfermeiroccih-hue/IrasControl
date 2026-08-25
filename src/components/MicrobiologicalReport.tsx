@@ -802,7 +802,7 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
       }}>
 
         {/* ── CAPA ─────────────────────────────────────────────────── */}
-        <div style={{
+        <div data-pdf-page style={{
           background: `linear-gradient(135deg, ${TEAL} 0%, #1a9177 60%, #2ab599 100%)`,
           padding: "36px 44px 28px",
         }}>
@@ -851,8 +851,8 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
           </div>
         </div>
 
-        {/* ── BODY ─────────────────────────────────────────────────── */}
-        <div style={{ padding: "26px 44px 36px" }}>
+        {/* ── PAGE 2: Sumário + Indicadores + Setores ─────────────── */}
+        <div data-pdf-page style={{ padding: "26px 44px 8px", background: "white" }}>
 
           {/* ── SUMÁRIO / TOC ── */}
           {summary.setoresPerfil && summary.setoresPerfil.length > 0 && (
@@ -970,6 +970,10 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
               </div>
             )}
           </Section>
+        </div>
+
+        {/* ── PAGE 3: Perfil Microbiológico ─────────────────────────── */}
+        <div data-pdf-page style={{ padding: "8px 44px 8px", background: "white" }}>
 
           {/* ── 5. PERFIL MICROBIOLÓGICO ── */}
           <Section title="5. Perfil Microbiológico — Microrganismos Predominantes" icon="🧫">
@@ -1024,8 +1028,12 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
             </Section>
           )}
 
+        </div>
+
+        {/* ── PAGE 4: Bactérias Prioritárias de Vigilância ─────────── */}
+        {summary.bacteriasAlvo && summary.bacteriasAlvo.length > 0 && (
+          <div data-pdf-page style={{ padding: "8px 44px 8px", background: "white" }}>
           {/* ── 5c. BACTÉRIAS PRIORITÁRIAS DE VIGILÂNCIA ── */}
-          {summary.bacteriasAlvo && summary.bacteriasAlvo.length > 0 && (
             <Section title="5c. Perfil das Bactérias Prioritárias de Vigilância" icon="🦠">
               <p style={{ fontSize: "10.5px", color: GRAY, marginBottom: "10px", fontFamily: FONT }}>
                 Staphylococcus aureus · Klebsiella pneumoniae · Proteus sp. · Acinetobacter sp. · Pseudomonas sp. · Escherichia coli
@@ -1111,34 +1119,32 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
                 </div>
               ))}
             </Section>
-          )}
+          </div>
+        )}
 
-          {/* ── SEÇÕES POR SETOR (I–VIII) ── */}
-          {summary.setoresPerfil && summary.setoresPerfil.length > 0 && (
-            <>
-              <div style={{ marginBottom: "18px", borderTop: `3px solid ${TEAL}`, paddingTop: "16px" }}>
-                <h2 style={{ fontSize: "13px", fontWeight: 700, color: TEAL, margin: "0 0 4px", fontFamily: FONT, textTransform: "uppercase" }}>
-                  Análise por Setor Hospitalar
-                </h2>
-                <p style={{ fontSize: "10.5px", color: GRAY, margin: 0, fontFamily: FONT }}>
-                  Perfil microbiológico e de sensibilidade antimicrobiana detalhado por unidade de internação
-                </p>
-              </div>
-              {summary.setoresPerfil.map((sp, idx) => {
-                const key = sp.setor.toUpperCase();
-                const discussions = sectorDiscussions[key] || {};
-                return (
-                  <SectorSection
-                    key={sp.setor}
-                    sp={sp}
-                    idx={idx}
-                    discussions={discussions}
-                    chartColors={CHART_COLORS}
-                  />
-                );
-              })}
-            </>
-          )}
+        {/* ── PÁGINAS POR SETOR (uma página A4 por setor) ─────────── */}
+        {summary.setoresPerfil && summary.setoresPerfil.length > 0 && summary.setoresPerfil.map((sp, idx) => {
+          const key = sp.setor.toUpperCase();
+          const discussions = sectorDiscussions[key] || {};
+          return (
+            <div key={sp.setor} data-pdf-page style={{ padding: "8px 44px 8px", background: "white" }}>
+              {idx === 0 && (
+                <div style={{ marginBottom: "14px", borderTop: `3px solid ${TEAL}`, paddingTop: "14px" }}>
+                  <h2 style={{ fontSize: "13px", fontWeight: 700, color: TEAL, margin: "0 0 4px", fontFamily: FONT, textTransform: "uppercase" }}>
+                    Análise por Setor Hospitalar
+                  </h2>
+                  <p style={{ fontSize: "10.5px", color: GRAY, margin: 0, fontFamily: FONT }}>
+                    Perfil microbiológico e de sensibilidade antimicrobiana detalhado por unidade de internação
+                  </p>
+                </div>
+              )}
+              <SectorSection sp={sp} idx={idx} discussions={discussions} chartColors={CHART_COLORS} />
+            </div>
+          );
+        })}
+
+        {/* ── PAGE N: Fenótipos + Antibiograma + Análise Setorial ──── */}
+        <div data-pdf-page style={{ padding: "8px 44px 8px", background: "white" }}>
 
           {/* ── 6. FENÓTIPOS MDR ── */}
           <Section title="6. Fenótipos de Multirresistência (MDR)" accent="#b91c1c" icon="⚠️">
@@ -1234,6 +1240,10 @@ const MicrobiologicalReport = forwardRef<HTMLDivElement, Props>(
               <AiSection content={get("ANÁLISE SETORIAL DETALHADA", "ANALISE SETORIAL DETALHADA", "ANÁLISE POR SETOR DETALHADA")} />
             </Section>
           )}
+        </div>
+
+        {/* ── PAGE FINAL: Tendências + Alertas + Recomendações ─────── */}
+        <div data-pdf-page style={{ padding: "8px 44px 36px", background: "white" }}>
 
           {/* ── 8. TENDÊNCIAS TEMPORAIS ── */}
           <Section title="8. Tendências Temporais de Resistência" icon="📈">
