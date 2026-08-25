@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -806,77 +807,109 @@ export default function DashboardAntibiogram() {
         </div>
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle>
-            <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
-          </CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
-            {sectorData.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10 text-sm">Sem dados de setor</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(240, sectorData.length * 36 + 40)}>
-                <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={Math.min(220, Math.max(110, sectorData.reduce((m, s) => Math.max(m, String(s.name).length), 0) * 7))}
-                    tick={{ fontSize: 11 }}
-                    interval={0}
-                  />
-                  <Tooltip formatter={(v: number) => [`${v} exames`, "Exames"]} />
-                  {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                  <Bar dataKey="value" name="Exames" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm md:text-base">Microrganismos Mais Frequentes</CardTitle>
-            <ChartActions chartRef={chartRefs.organismos} chartTitle="Microrganismos Mais Frequentes" />
-          </CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.organismos}>
-            <div className="flex flex-col items-center gap-3">
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={120} paddingAngle={2}>
-                    {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] md:text-xs w-full">
-                {orgCounts.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-1.5 min-w-0">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="text-muted-foreground truncate">{d.name}</span>
-                    <span className="font-semibold ml-auto shrink-0">{d.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="visao-geral" className="mt-2">
+        <TabsList className="h-auto flex-wrap gap-1 justify-start w-full mb-2 bg-muted/50 p-1">
+          <TabsTrigger value="visao-geral" className="text-xs md:text-sm">Visão Geral</TabsTrigger>
+          <TabsTrigger value="materiais" className="text-xs md:text-sm">Materiais</TabsTrigger>
+          <TabsTrigger value="sensibilidade" className="text-xs md:text-sm">Sensibilidade</TabsTrigger>
+          <TabsTrigger value="mdr" className="text-xs md:text-sm">MDR</TabsTrigger>
+          <TabsTrigger value="microrganismo" className="text-xs md:text-sm">Por Microrganismo</TabsTrigger>
+          <TabsTrigger value="tendencia" className="text-xs md:text-sm">Tendência</TabsTrigger>
+          <TabsTrigger value="fenotipos" className="text-xs md:text-sm">Fenótipos</TabsTrigger>
+          <TabsTrigger value="exames" className="text-xs md:text-sm">Exames Detalhados</TabsTrigger>
+        </TabsList>
 
-      {/* Culturas por Material Biológico */}
-      {culturasPorMaterial.length > 0 && (
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0">
-            <CardTitle className="text-sm md:text-base flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-info" /> Culturas por Material Biológico
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Distribuição dos {totalExams} exames por tipo de amostra</p>
-          </CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ResponsiveContainer width="100%" height={Math.max(180, culturasPorMaterial.length * 34 + 40)}>
+        {/* Visão Geral: Distribuição por Setor + Microrganismos + Insights */}
+        <TabsContent value="visao-geral" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle>
+                <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
+              </CardHeader>
+              <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
+                {sectorData.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-10 text-sm">Sem dados de setor</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={Math.max(240, sectorData.length * 36 + 40)}>
+                    <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={Math.min(220, Math.max(110, sectorData.reduce((m, s) => Math.max(m, String(s.name).length), 0) * 7))}
+                        tick={{ fontSize: 11 }}
+                        interval={0}
+                      />
+                      <Tooltip formatter={(v: number) => [`${v} exames`, "Exames"]} />
+                      {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.setor}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                      <Bar dataKey="value" name="Exames" fill="hsl(168,66%,34%)" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm md:text-base">Microrganismos Mais Frequentes</CardTitle>
+                <ChartActions chartRef={chartRefs.organismos} chartTitle="Microrganismos Mais Frequentes" />
+              </CardHeader>
+              <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.organismos}>
+                <div className="flex flex-col items-center gap-3">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={orgCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={120} paddingAngle={2}>
+                        {orgCounts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(value: number, _name: string, props: any) => [`${value} isolados`, props.payload.name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] md:text-xs w-full">
+                    {orgCounts.map((d, i) => (
+                      <div key={d.name} className="flex items-center gap-1.5 min-w-0">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="text-muted-foreground truncate">{d.name}</span>
+                        <span className="font-semibold ml-auto shrink-0">{d.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="p-3 md:p-6 pb-2">
+              <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" /> Insights Automáticos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 md:p-6 pt-0">
+              <ul className="space-y-1.5">
+                {insights.map((ins, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs md:text-sm">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{ins}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Culturas por Material Biológico */}
+        <TabsContent value="materiais" className="mt-4">
+          {culturasPorMaterial.length > 0 ? (
+            <Card>
+              <CardHeader className="p-3 md:p-6 pb-0">
+                <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4 text-info" /> Culturas por Material Biológico
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Distribuição dos {totalExams} exames por tipo de amostra</p>
+              </CardHeader>
+              <CardContent className="p-2 md:p-6 pt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ResponsiveContainer width="100%" height={Math.max(180, culturasPorMaterial.length * 34 + 40)}>
                 <BarChart data={culturasPorMaterial} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
@@ -910,9 +943,13 @@ export default function DashboardAntibiogram() {
             </div>
           </CardContent>
         </Card>
-      )}
+          ) : (
+            <p className="text-center text-muted-foreground py-12 text-sm">Sem dados de material biológico no período selecionado.</p>
+          )}
+        </TabsContent>
 
-      {/* SIR by antibiotic */}
+        {/* Perfil de Sensibilidade por Antibiótico */}
+        <TabsContent value="sensibilidade" className="mt-4">
       <Card>
         <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
           <div>
@@ -977,7 +1014,10 @@ export default function DashboardAntibiogram() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        {/* Perfil MDR + Bactérias Prioritárias de Vigilância */}
+        <TabsContent value="mdr" className="space-y-4 mt-4">
       {/* ═══ MDR (Multirresistente) — Perfil de Resistência & Sensibilidade ═══ */}
       <Card className="border-destructive/30">
         <CardHeader className="p-3 md:p-6 pb-2">
@@ -1074,72 +1114,68 @@ export default function DashboardAntibiogram() {
       {bacteriasAlvoData.length > 0 && (
         <BacteriasVigilanciaSection data={bacteriasAlvoData} />
       )}
+        </TabsContent>
 
-      {/* Sensibilidade por Microrganismo */}
+        {/* Sensibilidade por Microrganismo */}
+        <TabsContent value="microrganismo" className="mt-4">
       <SensibilidadePorOrganismo data={filtered} />
+        </TabsContent>
 
-      {/* Monthly trend + Phenotypes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm md:text-base">Tendência Mensal de Resistência</CardTitle>
-            <ChartActions chartRef={chartRefs.tendenciaMensal} chartTitle="Tendência Mensal de Resistência" metaValue={metas.tendenciaMensal} onMetaChange={(v) => setMeta("tendenciaMensal", v)} metaUnit="%" />
-          </CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.tendenciaMensal}>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={monthlyTrend} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                <YAxis unit="%" tick={{ fontSize: 10 }} width={42} domain={[0, 100]} />
-                <Tooltip formatter={(v: number) => [`${v}%`, "Resistência"]} />
-                {metas.tendenciaMensal !== undefined && <ReferenceLine y={metas.tendenciaMensal} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.tendenciaMensal}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm md:text-base">Fenótipos de Resistência</CardTitle>
-            <ChartActions chartRef={chartRefs.fenotipos} chartTitle="Fenótipos de Resistência" metaValue={metas.fenotipos} onMetaChange={(v) => setMeta("fenotipos", v)} metaUnit="casos" />
-          </CardHeader>
-          <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.fenotipos}>
-            {phenotypeDist.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={phenotypeDist} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
-                  <YAxis tick={{ fontSize: 10 }} width={32} allowDecimals={false} />
-                  <Tooltip formatter={(v: number) => [`${v} casos`, "Casos"]} />
-                  {metas.fenotipos !== undefined && <ReferenceLine y={metas.fenotipos} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.fenotipos}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
-                  <Bar dataKey="value" name="Casos" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} barSize={32} />
-                </BarChart>
+        {/* Tendência Mensal de Resistência */}
+        <TabsContent value="tendencia" className="mt-4">
+          <Card>
+            <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm md:text-base">Tendência Mensal de Resistência</CardTitle>
+              <ChartActions chartRef={chartRefs.tendenciaMensal} chartTitle="Tendência Mensal de Resistência" metaValue={metas.tendenciaMensal} onMetaChange={(v) => setMeta("tendenciaMensal", v)} metaUnit="%" />
+            </CardHeader>
+            <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.tendenciaMensal}>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={monthlyTrend} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <YAxis unit="%" tick={{ fontSize: 10 }} width={42} domain={[0, 100]} />
+                  <Tooltip formatter={(v: number) => [`${v}%`, "Resistência"]} />
+                  {metas.tendenciaMensal !== undefined && <ReferenceLine y={metas.tendenciaMensal} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.tendenciaMensal}%`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                  <Line type="monotone" dataKey="taxaResistencia" name="Resistência" stroke="hsl(0,72%,51%)" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
               </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Insights */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="p-3 md:p-6 pb-2">
-          <CardTitle className="text-sm md:text-base flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" /> Insights Automáticos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 md:p-6 pt-0">
-          <ul className="space-y-1.5">
-            {insights.map((ins, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs md:text-sm">
-                <span className="text-primary mt-0.5">•</span>
-                <span>{ins}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+        {/* Fenótipos de Resistência */}
+        <TabsContent value="fenotipos" className="mt-4">
+          <Card>
+            <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm md:text-base">Fenótipos de Resistência</CardTitle>
+              <ChartActions chartRef={chartRefs.fenotipos} chartTitle="Fenótipos de Resistência" metaValue={metas.fenotipos} onMetaChange={(v) => setMeta("fenotipos", v)} metaUnit="casos" />
+            </CardHeader>
+            <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.fenotipos}>
+              {phenotypeDist.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10 text-sm">Nenhum fenótipo detectado</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={phenotypeDist} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                    <YAxis tick={{ fontSize: 10 }} width={32} allowDecimals={false} />
+                    <Tooltip formatter={(v: number) => [`${v} casos`, "Casos"]} />
+                    {metas.fenotipos !== undefined && <ReferenceLine y={metas.fenotipos} stroke="hsl(0,72%,51%)" strokeDasharray="4 4" label={{ value: `Meta: ${metas.fenotipos}`, fontSize: 10, fill: "hsl(0,72%,51%)" }} />}
+                    <Bar dataKey="value" name="Casos" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} barSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Exames Detalhados */}
+        <TabsContent value="exames" className="space-y-4 mt-4">
+          <TemporalAnalysis filtered={filtered} />
+          <Separator />
+          <DetailedTable data={filtered} />
+        </TabsContent>
+      </Tabs>
 
       </div>
       {/* /dashboardRef */}
@@ -1159,12 +1195,6 @@ export default function DashboardAntibiogram() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <TemporalAnalysis filtered={filtered} />
-
-      <Separator />
-
-      <DetailedTable data={filtered} />
 
       {/* Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
