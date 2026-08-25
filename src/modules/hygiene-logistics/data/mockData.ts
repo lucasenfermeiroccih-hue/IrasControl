@@ -231,10 +231,22 @@ const GRADE_LIMPEZA: Array<[string, string, string]> = [
   ["2691","VASSOURA PIAÇAVA GARI COM CABO","UNIDADE"],
 ];
 
-// CMM estimado = qtd_atual ÷ 2 (estimativa conservadora de ~2 meses de cobertura).
-// Calibrar com dados históricos de consumo quando disponíveis.
-function cmmFromStock(qtd: number): number {
-  return Math.max(1, Math.round(qtd / 2));
+// CMM estimado por cobertura esperada de estoque por categoria.
+// Atualizar com consumo real ao fim de setembro/2026.
+const COBERTURA_MESES: Record<string, number> = {
+  "Álcool":    1.5,  // alto giro
+  "Saco Lixo": 1.5,  // alto giro
+  "Papel":     1.5,  // alto giro
+  "Sabonete":  1.5,  // alto giro
+  "EPI":       2.0,
+  "Saneante":  2.0,
+  "Equipamento": 4.0,
+  "Acessório": 4.0,
+};
+
+function cmmFromStock(qtd: number, categoria: string): number {
+  const meses = COBERTURA_MESES[categoria] ?? 2.0;
+  return Math.max(1, Math.round(qtd / meses));
 }
 
 export const PRODUCTS: HLProduct[] = GRADE_LIMPEZA.map(([codigo, nome, apresentacao]) => {
@@ -244,7 +256,7 @@ export const PRODUCTS: HLProduct[] = GRADE_LIMPEZA.map(([codigo, nome, apresenta
   const real = SOULMV[codigo];
   const estoqueVigente = real ? real[0] : 0;
   const custoUnitario = real ? real[1] : 0;
-  const cmm = real ? cmmFromStock(real[0]) : 0;
+  const cmm = real ? cmmFromStock(real[0], categoria) : 0;
   return {
     id: codigo,
     codigo,
