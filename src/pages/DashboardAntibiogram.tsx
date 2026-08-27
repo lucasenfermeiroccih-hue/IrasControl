@@ -599,6 +599,8 @@ export default function DashboardAntibiogram() {
   // Insights via edge function (período curto, sem salvar como relatório completo)
   const handleAIInsights = async () => {
     setAiInsightsLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -608,13 +610,19 @@ export default function DashboardAntibiogram() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ period: "ultimo-mes", save: false }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar insights");
       setAiInsights(data.ai_content);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Falha ao gerar insights.", variant: "destructive" });
+      const msg = e?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : e.message || "Falha ao gerar insights.";
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     } finally {
+      clearTimeout(timeoutId);
       setAiInsightsLoading(false);
     }
   };
