@@ -631,6 +631,8 @@ export default function DashboardAntibiogram() {
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setReportResult(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
