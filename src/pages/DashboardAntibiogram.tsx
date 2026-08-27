@@ -455,7 +455,9 @@ export default function DashboardAntibiogram() {
     let first = true;
 
     for (const pageEl of targets) {
-      await new Promise<void>(r => setTimeout(r, 60));
+      await new Promise<void>(resolve => {
+        setTimeout(() => requestAnimationFrame(() => resolve()), 250);
+      });
 
       const canvas = await html2canvas(pageEl, {
         scale: SCALE,
@@ -490,7 +492,7 @@ export default function DashboardAntibiogram() {
     if (!el) return;
 
     const run = async () => {
-      await new Promise(r => setTimeout(r, 700)); // aguarda render completo dos gráficos SVG
+      await new Promise(r => setTimeout(r, 1800)); // aguarda render completo dos gráficos SVG
       try {
         await exportDirectPDF(el, directExportData.filename);
       } catch (e: any) {
@@ -509,9 +511,12 @@ export default function DashboardAntibiogram() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pendingReport) return;
-    if (pendingReport === "visual") handleExportPDFVisual();
-    else handlePDFRelatorio();
-    setPendingReport(null);
+    const run = async () => {
+      if (pendingReport === "visual") await handleExportPDFVisual();
+      else await handlePDFRelatorio();
+      setPendingReport(null);
+    };
+    run();
   }, [pendingReport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openReportGenDialog = (type: "visual" | "ai") => {
@@ -551,6 +556,8 @@ export default function DashboardAntibiogram() {
   const [pdfStructuredLoading, setPdfStructuredLoading] = useState(false);
   const handlePDFRelatorio = async () => {
     setPdfStructuredLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -563,7 +570,9 @@ export default function DashboardAntibiogram() {
           period: reportPeriod,
           filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
@@ -574,8 +583,12 @@ export default function DashboardAntibiogram() {
         filename: `relatorio-antimicrobiano-${new Date().toISOString().slice(0, 10)}.pdf`,
       });
     } catch (e: any) {
+      clearTimeout(timeoutId);
       setPdfStructuredLoading(false);
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      const msg = e?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : e.message;
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     }
   };
 
@@ -586,6 +599,8 @@ export default function DashboardAntibiogram() {
   // Insights via edge function (período curto, sem salvar como relatório completo)
   const handleAIInsights = async () => {
     setAiInsightsLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -595,13 +610,19 @@ export default function DashboardAntibiogram() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ period: "ultimo-mes", save: false }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar insights");
       setAiInsights(data.ai_content);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Falha ao gerar insights.", variant: "destructive" });
+      const msg = e?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : e.message || "Falha ao gerar insights.";
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     } finally {
+      clearTimeout(timeoutId);
       setAiInsightsLoading(false);
     }
   };
@@ -610,6 +631,8 @@ export default function DashboardAntibiogram() {
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setReportResult(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -622,7 +645,9 @@ export default function DashboardAntibiogram() {
           period: reportPeriod,
           filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       setReportResult(data.ai_content);
@@ -630,8 +655,12 @@ export default function DashboardAntibiogram() {
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
       toast({ title: "Relatório gerado", description: "Salvo no histórico." });
     } catch (error: any) {
-      toast({ title: "Erro", description: error.message || "Falha ao gerar relatório.", variant: "destructive" });
+      const msg = error?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : error.message || "Falha ao gerar relatório.";
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     } finally {
+      clearTimeout(timeoutId);
       setReportLoading(false);
     }
   };

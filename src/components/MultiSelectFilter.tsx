@@ -19,8 +19,10 @@ export default function MultiSelectFilter({
   label, selected, onChange, options, placeholder = "Todos", className, showNav,
 }: MultiSelectFilterProps) {
   const toggle = (val: string) => {
-    if (selected.includes(val)) onChange(selected.filter((s) => s !== val));
-    else onChange([...selected, val]);
+    const next = selected.includes(val)
+      ? selected.filter((s) => s !== val)
+      : [...selected, val];
+    onChange(next.length === options.length ? [] : next);
   };
 
   const allSelected = options.length > 0 && selected.length === options.length;
