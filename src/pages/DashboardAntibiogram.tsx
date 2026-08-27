@@ -556,6 +556,8 @@ export default function DashboardAntibiogram() {
   const [pdfStructuredLoading, setPdfStructuredLoading] = useState(false);
   const handlePDFRelatorio = async () => {
     setPdfStructuredLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -568,7 +570,9 @@ export default function DashboardAntibiogram() {
           period: reportPeriod,
           filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
@@ -579,8 +583,12 @@ export default function DashboardAntibiogram() {
         filename: `relatorio-antimicrobiano-${new Date().toISOString().slice(0, 10)}.pdf`,
       });
     } catch (e: any) {
+      clearTimeout(timeoutId);
       setPdfStructuredLoading(false);
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      const msg = e?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : e.message;
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     }
   };
 
