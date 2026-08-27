@@ -455,7 +455,9 @@ export default function DashboardAntibiogram() {
     let first = true;
 
     for (const pageEl of targets) {
-      await new Promise<void>(r => setTimeout(r, 60));
+      await new Promise<void>(resolve => {
+        setTimeout(() => requestAnimationFrame(() => resolve()), 250);
+      });
 
       const canvas = await html2canvas(pageEl, {
         scale: SCALE,
@@ -490,7 +492,7 @@ export default function DashboardAntibiogram() {
     if (!el) return;
 
     const run = async () => {
-      await new Promise(r => setTimeout(r, 700)); // aguarda render completo dos gráficos SVG
+      await new Promise(r => setTimeout(r, 1800)); // aguarda render completo dos gráficos SVG
       try {
         await exportDirectPDF(el, directExportData.filename);
       } catch (e: any) {
@@ -509,9 +511,12 @@ export default function DashboardAntibiogram() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pendingReport) return;
-    if (pendingReport === "visual") handleExportPDFVisual();
-    else handlePDFRelatorio();
-    setPendingReport(null);
+    const run = async () => {
+      if (pendingReport === "visual") await handleExportPDFVisual();
+      else await handlePDFRelatorio();
+      setPendingReport(null);
+    };
+    run();
   }, [pendingReport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openReportGenDialog = (type: "visual" | "ai") => {
