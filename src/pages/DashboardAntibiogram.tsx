@@ -645,7 +645,9 @@ export default function DashboardAntibiogram() {
           period: reportPeriod,
           filters: { setor: filtroSetor, site: filtroSite, organismo: filtroOrg, mes: filtroMes, ano: filtroAno },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erro ao gerar relatório");
       setReportResult(data.ai_content);
@@ -653,8 +655,12 @@ export default function DashboardAntibiogram() {
       if (data.hospital_name) setReportHospitalName(data.hospital_name);
       toast({ title: "Relatório gerado", description: "Salvo no histórico." });
     } catch (error: any) {
-      toast({ title: "Erro", description: error.message || "Falha ao gerar relatório.", variant: "destructive" });
+      const msg = error?.name === "AbortError"
+        ? "Tempo limite excedido (90s). Tente novamente com filtros mais específicos."
+        : error.message || "Falha ao gerar relatório.";
+      toast({ title: "Erro", description: msg, variant: "destructive" });
     } finally {
+      clearTimeout(timeoutId);
       setReportLoading(false);
     }
   };
