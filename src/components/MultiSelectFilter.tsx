@@ -116,17 +116,19 @@ export default function MultiSelectFilter({
                 </div>
               )}
               {options.map((opt) => (
-                <label
+                <div
                   key={opt.value}
-                  className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer hover:bg-accent transition-colors"
+                  className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer hover:bg-accent transition-colors select-none"
+                  onClick={() => toggle(opt.value)}
                 >
                   <Checkbox
                     checked={selected.includes(opt.value)}
                     onCheckedChange={() => toggle(opt.value)}
+                    onClick={(e) => e.stopPropagation()}
                     className="h-4 w-4"
                   />
                   <span className="truncate">{opt.label}</span>
-                </label>
+                </div>
               ))}
             </div>
           </ScrollArea>

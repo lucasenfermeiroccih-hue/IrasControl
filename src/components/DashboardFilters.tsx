@@ -96,17 +96,19 @@ function MultiSelect({
           <ScrollArea className="h-[260px]">
             <div className="p-2 space-y-0.5">
               {options.map((opt) => (
-                <label
+                <div
                   key={opt}
-                  className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer hover:bg-accent transition-colors"
+                  className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer hover:bg-accent transition-colors select-none"
+                  onClick={() => toggle(opt)}
                 >
                   <Checkbox
                     checked={selected.includes(opt)}
                     onCheckedChange={() => toggle(opt)}
+                    onClick={(e) => e.stopPropagation()}
                     className="h-4 w-4"
                   />
                   <span>{opt}</span>
-                </label>
+                </div>
               ))}
             </div>
           </ScrollArea>

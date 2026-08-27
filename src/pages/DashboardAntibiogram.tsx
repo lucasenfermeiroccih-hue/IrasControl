@@ -443,10 +443,10 @@ export default function DashboardAntibiogram() {
   const [pdfVisualLoading, setPdfVisualLoading] = useState(false);
 
   const exportDirectPDF = async (el: HTMLDivElement, filename: string) => {
-    const A4_W = 210;   // mm
-    const A4_H = 297;   // mm
+    const A4_W = 210;
+    const A4_H = 297;
     const EL_W_PX = 794;
-    const SCALE = 2;
+    const SCALE = 1.5;
 
     const pdfPages = Array.from(el.querySelectorAll<HTMLElement>("[data-pdf-page]"));
     const targets: HTMLElement[] = pdfPages.length > 0 ? pdfPages : [el];
@@ -454,10 +454,13 @@ export default function DashboardAntibiogram() {
     const pdf = new jsPDF("p", "mm", "a4");
     let first = true;
 
-    for (const pageEl of targets) {
-      await new Promise<void>(resolve => {
-        setTimeout(() => requestAnimationFrame(() => resolve()), 250);
-      });
+    for (let i = 0; i < targets.length; i++) {
+      const pageEl = targets[i];
+      toast({ title: `Gerando PDF… ${i + 1}/${targets.length}`, description: "Aguarde, processando gráficos." });
+
+      // Yield ao browser entre páginas para não travar a UI
+      await new Promise<void>(resolve => setTimeout(resolve, 80));
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
       const canvas = await html2canvas(pageEl, {
         scale: SCALE,
@@ -465,24 +468,24 @@ export default function DashboardAntibiogram() {
         backgroundColor: "#ffffff",
         width: EL_W_PX,
         windowWidth: EL_W_PX,
+        logging: false,
       });
 
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/jpeg", 0.88);
       if (!imgData || imgData === "data:," || canvas.height < 4) continue;
 
-      // Height in mm: canvas is SCALE× the element, element is EL_W_PX wide
       const heightMM = (canvas.height / SCALE / EL_W_PX) * A4_W;
       const numPages = Math.ceil(heightMM / A4_H);
 
       for (let p = 0; p < numPages; p++) {
         if (!first) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -(p * A4_H), A4_W, heightMM);
+        pdf.addImage(imgData, "JPEG", 0, -(p * A4_H), A4_W, heightMM);
         first = false;
       }
     }
 
     pdf.save(filename);
-    toast({ title: "PDF exportado", description: `${targets.length} páginas geradas. Download iniciado.` });
+    toast({ title: "PDF exportado!", description: `${targets.length} página(s) gerada(s). Download iniciado.` });
   };
 
   // Dispara exportação assim que o MicrobiologicalReport oculto for renderizado
@@ -492,7 +495,8 @@ export default function DashboardAntibiogram() {
     if (!el) return;
 
     const run = async () => {
-      await new Promise(r => setTimeout(r, 1800)); // aguarda render completo dos gráficos SVG
+      toast({ title: "Preparando PDF…", description: "Aguardando renderização dos gráficos (alguns segundos)." });
+      await new Promise(r => setTimeout(r, 1800));
       try {
         await exportDirectPDF(el, directExportData.filename);
       } catch (e: any) {
@@ -556,6 +560,7 @@ export default function DashboardAntibiogram() {
   const [pdfStructuredLoading, setPdfStructuredLoading] = useState(false);
   const handlePDFRelatorio = async () => {
     setPdfStructuredLoading(true);
+    toast({ title: "Gerando relatório com IA…", description: "Consultando OpenAI. Isso pode levar até 90 segundos." });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
@@ -599,6 +604,7 @@ export default function DashboardAntibiogram() {
   // Insights via edge function (período curto, sem salvar como relatório completo)
   const handleAIInsights = async () => {
     setAiInsightsLoading(true);
+    toast({ title: "Gerando Insights IA…", description: "Analisando dados de resistência. Aguarde até 90 segundos." });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
@@ -631,6 +637,7 @@ export default function DashboardAntibiogram() {
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setReportResult(null);
+    toast({ title: "Gerando relatório IA…", description: "Processando dados microbiológicos. Aguarde até 90 segundos." });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
