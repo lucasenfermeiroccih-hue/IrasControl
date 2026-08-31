@@ -759,8 +759,32 @@ const CasesInvestigation = () => {
                 { key: "examesImagem", label: "Exames de imagem" },
               ];
               const filled = evFields.filter(f => (ev[f.key] || "").toString().trim());
-              const hasContent = filled.length > 0 || abx.length > 0 || p?.base_diseases || p?.admission_reason;
+              const di: any = cd.dispInvasivos || {};
+              const deviceLabels: { key: string; label: string }[] = [
+                { key: "cvc", label: "CVC (Cateter Venoso Central)" },
+                { key: "cvp", label: "CVP (Cateter Venoso Periférico)" },
+                { key: "svu", label: "SVD (Sonda Vesical de Demora)" },
+                { key: "vm", label: "VM (Ventilação Mecânica)" },
+                { key: "tqt", label: "TQT (Traqueostomia)" },
+                { key: "hemo", label: "Hemodiálise" },
+                { key: "picc", label: "PICC" },
+                { key: "cuv", label: "CUV (Cateter Umbilical Venoso)" },
+                { key: "cva", label: "CVA (Cateter Umbilical Arterial)" },
+              ];
+              const devices = deviceLabels
+                .map(d => ({ ...d, insercao: di[`${d.key}Insercao`] || "", retirada: di[`${d.key}Retirada`] || "" }))
+                .filter(d => !!d.insercao);
+              const calcDias = (insercao: string, retirada?: string): string => {
+                if (!insercao) return "—";
+                const start = new Date(insercao);
+                const end = retirada ? new Date(retirada) : new Date();
+                const dias = Math.round((end.getTime() - start.getTime()) / 86400000);
+                return retirada ? `${dias} dias` : `Em uso (${dias}d)`;
+              };
+              const labPanel: any[] = Array.isArray(cd.labPanel) ? cd.labPanel : [];
+              const hasContent = filled.length > 0 || abx.length > 0 || devices.length > 0 || labPanel.length > 0 || p?.base_diseases || p?.admission_reason;
               if (!monitorCase?.patient_id || !p || !hasContent) return null;
+
               return (
                 <Card className="border-blue-200 bg-blue-50/40 dark:bg-blue-950/20">
                   <CardHeader className="pb-3">
@@ -802,6 +826,44 @@ const CasesInvestigation = () => {
                         </table>
                       </div>
                     )}
+                    {devices.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Dispositivos Invasivos:</p>
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-muted-foreground text-left"><th className="py-1">Dispositivo</th><th className="py-1">Inserção</th><th className="py-1">Retirada</th><th className="py-1">Permanência</th></tr></thead>
+                          <tbody>
+                            {devices.map(d => (
+                              <tr key={d.key} className="border-t border-border/60">
+                                <td className="py-1">{d.label}</td>
+                                <td className="py-1">{d.insercao}</td>
+                                <td className="py-1">{d.retirada || "—"}</td>
+                                <td className="py-1">{calcDias(d.insercao, d.retirada || undefined)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {labPanel.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Exames Microbiológicos:</p>
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-muted-foreground text-left"><th className="py-1">Exame</th><th className="py-1">Data</th><th className="py-1">Microrganismo</th><th className="py-1">Sensibilidade</th><th className="py-1">MDR</th></tr></thead>
+                          <tbody>
+                            {labPanel.map((l: any, i: number) => (
+                              <tr key={i} className="border-t border-border/60">
+                                <td className="py-1">{l.exame || "—"}</td>
+                                <td className="py-1">{l.data || "—"}</td>
+                                <td className="py-1">{l.microrganismo || "—"}</td>
+                                <td className="py-1">{l.sensibilidade || "—"}</td>
+                                <td className="py-1">{l.mdr ? <Badge className="bg-red-100 text-red-700 text-[9px]">MDR</Badge> : null}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     {(p.base_diseases || p.admission_reason) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/60">
                         {p.base_diseases && <div><span className="text-muted-foreground">Doenças de base:</span> <span className="font-medium">{p.base_diseases}</span></div>}
