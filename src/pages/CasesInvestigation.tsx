@@ -826,6 +826,44 @@ const CasesInvestigation = () => {
                         </table>
                       </div>
                     )}
+                    {devices.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Dispositivos Invasivos:</p>
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-muted-foreground text-left"><th className="py-1">Dispositivo</th><th className="py-1">Inserção</th><th className="py-1">Retirada</th><th className="py-1">Permanência</th></tr></thead>
+                          <tbody>
+                            {devices.map(d => (
+                              <tr key={d.key} className="border-t border-border/60">
+                                <td className="py-1">{d.label}</td>
+                                <td className="py-1">{d.insercao}</td>
+                                <td className="py-1">{d.retirada || "—"}</td>
+                                <td className="py-1">{calcDias(d.insercao, d.retirada || undefined)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {labPanel.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Exames Microbiológicos:</p>
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-muted-foreground text-left"><th className="py-1">Exame</th><th className="py-1">Data</th><th className="py-1">Microrganismo</th><th className="py-1">Sensibilidade</th><th className="py-1">MDR</th></tr></thead>
+                          <tbody>
+                            {labPanel.map((l: any, i: number) => (
+                              <tr key={i} className="border-t border-border/60">
+                                <td className="py-1">{l.exame || "—"}</td>
+                                <td className="py-1">{l.data || "—"}</td>
+                                <td className="py-1">{l.microrganismo || "—"}</td>
+                                <td className="py-1">{l.sensibilidade || "—"}</td>
+                                <td className="py-1">{l.mdr ? <Badge className="bg-red-100 text-red-700 text-[9px]">MDR</Badge> : null}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     {(p.base_diseases || p.admission_reason) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/60">
                         {p.base_diseases && <div><span className="text-muted-foreground">Doenças de base:</span> <span className="font-medium">{p.base_diseases}</span></div>}
