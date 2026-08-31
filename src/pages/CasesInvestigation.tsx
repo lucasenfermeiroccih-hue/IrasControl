@@ -206,7 +206,15 @@ const CasesInvestigation = () => {
 
   // 8. Dispositivos
   const [dispInvasivos, setDispInvasivos] = useState({
-    cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "",
+    cvcInsercao: "", cvcRetirada: "",
+    cvpInsercao: "", cvpRetirada: "",
+    svuInsercao: "", svuRetirada: "",
+    vmInsercao:  "", vmRetirada:  "",
+    tqtInsercao: "", tqtRetirada: "",
+    hemoInsercao:"", hemoRetirada:"",
+    piccInsercao:"", piccRetirada:"",
+    cuvInsercao: "", cuvRetirada: "",
+    cvaInsercao: "", cvaRetirada: "",
   });
   const [fatoresRiscoSel, setFatoresRiscoSel] = useState<string[]>([]);
 
@@ -286,10 +294,17 @@ const CasesInvestigation = () => {
       setOcorrencia(prev => ({ ...prev, unidadeSetor: d.setor || "", leito: d.leito || "" }));
       if (d.labPanel) setLabResults(d.labPanel);
       if (d.dispInvasivos) {
+        const di = d.dispInvasivos as any;
         setDispInvasivos({
-          cvcInsercao: d.dispInvasivos.cvcInsercao || "", cvcRetirada: d.dispInvasivos.cvcRetirada || "",
-          svuInsercao: d.dispInvasivos.svuInsercao || "", svuRetirada: d.dispInvasivos.svuRetirada || "",
-          vmInsercao: d.dispInvasivos.vmInsercao || "", vmRetirada: d.dispInvasivos.vmRetirada || "",
+          cvcInsercao: di.cvcInsercao  || "", cvcRetirada:  di.cvcRetirada  || "",
+          cvpInsercao: di.cvpInsercao  || "", cvpRetirada:  di.cvpRetirada  || "",
+          svuInsercao: di.svuInsercao  || "", svuRetirada:  di.svuRetirada  || "",
+          vmInsercao:  di.vmInsercao   || "", vmRetirada:   di.vmRetirada   || "",
+          tqtInsercao: di.tqtInsercao  || "", tqtRetirada:  di.tqtRetirada  || "",
+          hemoInsercao:di.hemoInsercao || "", hemoRetirada: di.hemoRetirada || "",
+          piccInsercao:di.piccInsercao || "", piccRetirada: di.piccRetirada || "",
+          cuvInsercao: di.cuvInsercao  || "", cuvRetirada:  di.cuvRetirada  || "",
+          cvaInsercao: di.cvaInsercao  || "", cvaRetirada:  di.cvaRetirada  || "",
         });
       }
       if (d.criteriosSelecionados) setCriteriosSelecionados(d.criteriosSelecionados);
@@ -517,11 +532,26 @@ const CasesInvestigation = () => {
         : (Array.isArray(pCd.labPanel) ? pCd.labPanel : [])
     );
     setDispInvasivos(
-      d.dispInvasivos || (pCd.dispInvasivos ? {
-        cvcInsercao: pCd.dispInvasivos.cvcInsercao || "", cvcRetirada: pCd.dispInvasivos.cvcRetirada || "",
-        svuInsercao: pCd.dispInvasivos.svuInsercao || "", svuRetirada: pCd.dispInvasivos.svuRetirada || "",
-        vmInsercao: pCd.dispInvasivos.vmInsercao || "", vmRetirada: pCd.dispInvasivos.vmRetirada || "",
-      } : { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" })
+      d.dispInvasivos || (pCd.dispInvasivos ? (() => {
+        const di: any = pCd.dispInvasivos;
+        return {
+          cvcInsercao: di.cvcInsercao  || "", cvcRetirada:  di.cvcRetirada  || "",
+          cvpInsercao: di.cvpInsercao  || "", cvpRetirada:  di.cvpRetirada  || "",
+          svuInsercao: di.svuInsercao  || "", svuRetirada:  di.svuRetirada  || "",
+          vmInsercao:  di.vmInsercao   || "", vmRetirada:   di.vmRetirada   || "",
+          tqtInsercao: di.tqtInsercao  || "", tqtRetirada:  di.tqtRetirada  || "",
+          hemoInsercao:di.hemoInsercao || "", hemoRetirada: di.hemoRetirada || "",
+          piccInsercao:di.piccInsercao || "", piccRetirada: di.piccRetirada || "",
+          cuvInsercao: di.cuvInsercao  || "", cuvRetirada:  di.cuvRetirada  || "",
+          cvaInsercao: di.cvaInsercao  || "", cvaRetirada:  di.cvaRetirada  || "",
+        };
+      })() : {
+        cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "",
+        svuInsercao: "", svuRetirada: "", vmInsercao:  "", vmRetirada:  "",
+        tqtInsercao: "", tqtRetirada: "", hemoInsercao:"", hemoRetirada:"",
+        piccInsercao:"", piccRetirada:"", cuvInsercao: "", cuvRetirada: "",
+        cvaInsercao: "", cvaRetirada: "",
+      })
     );
     setFatoresRiscoSel(d.fatoresRiscoSel || []);
     setCirurgia(d.cirurgia || { procedimento: "", dataCirurgia: "", contaminacao: "", implante: "Não", profilaxia: "", observacoes: "" });
@@ -547,7 +577,13 @@ const CasesInvestigation = () => {
     setCriteriosSelecionados([]);
     setJustificativaClinica("");
     setLabResults([]);
-    setDispInvasivos({ cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" });
+    setDispInvasivos({
+      cvcInsercao: "", cvcRetirada: "", cvpInsercao: "", cvpRetirada: "",
+      svuInsercao: "", svuRetirada: "", vmInsercao:  "", vmRetirada:  "",
+      tqtInsercao: "", tqtRetirada: "", hemoInsercao:"", hemoRetirada:"",
+      piccInsercao:"", piccRetirada:"", cuvInsercao: "", cuvRetirada: "",
+      cvaInsercao: "", cvaRetirada: "",
+    });
     setFatoresRiscoSel([]);
     setCirurgia({ procedimento: "", dataCirurgia: "", contaminacao: "", implante: "Não", profilaxia: "", observacoes: "" });
     setResponsavel("");
@@ -673,6 +709,12 @@ const CasesInvestigation = () => {
   const cvcDays = dispInvasivos.cvcInsercao ? daysFromDate(dispInvasivos.cvcInsercao) : null;
   const svuDays = dispInvasivos.svuInsercao ? daysFromDate(dispInvasivos.svuInsercao) : null;
   const vmDays = dispInvasivos.vmInsercao ? daysFromDate(dispInvasivos.vmInsercao) : null;
+  const cvpDays  = dispInvasivos.cvpInsercao  ? daysFromDate(dispInvasivos.cvpInsercao)  : null;
+  const tqtDays  = dispInvasivos.tqtInsercao  ? daysFromDate(dispInvasivos.tqtInsercao)  : null;
+  const hemoDays = dispInvasivos.hemoInsercao ? daysFromDate(dispInvasivos.hemoInsercao) : null;
+  const piccDays = dispInvasivos.piccInsercao ? daysFromDate(dispInvasivos.piccInsercao) : null;
+  const cuvDays  = dispInvasivos.cuvInsercao  ? daysFromDate(dispInvasivos.cuvInsercao)  : null;
+  const cvaDays  = dispInvasivos.cvaInsercao  ? daysFromDate(dispInvasivos.cvaInsercao)  : null;
 
   const currentCriterios = criteriosDiagPorTipo[classif.tipoEvento] || criteriosDiagPorTipo.default;
   const currentTopografias = topografias[classif.tipoEvento] || [];
@@ -1094,9 +1136,15 @@ const CasesInvestigation = () => {
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[
-                        { label: "CVC", ins: "cvcInsercao", ret: "cvcRetirada", days: cvcDays },
-                        { label: "SVD", ins: "svuInsercao", ret: "svuRetirada", days: svuDays },
-                        { label: "VM", ins: "vmInsercao", ret: "vmRetirada", days: vmDays },
+                        { label: "CVC (Cateter Venoso Central)",    ins: "cvcInsercao",  ret: "cvcRetirada",  days: cvcDays  },
+                        { label: "CVP (Cateter Venoso Periférico)", ins: "cvpInsercao",  ret: "cvpRetirada",  days: cvpDays  },
+                        { label: "SVD (Sonda Vesical de Demora)",   ins: "svuInsercao",  ret: "svuRetirada",  days: svuDays  },
+                        { label: "VM (Ventilação Mecânica)",        ins: "vmInsercao",   ret: "vmRetirada",   days: vmDays   },
+                        { label: "TQT (Traqueostomia)",             ins: "tqtInsercao",  ret: "tqtRetirada",  days: tqtDays  },
+                        { label: "Hemodiálise",                     ins: "hemoInsercao", ret: "hemoRetirada", days: hemoDays },
+                        { label: "PICC",                            ins: "piccInsercao", ret: "piccRetirada", days: piccDays },
+                        { label: "CUV (Cateter Umbilical Venoso)",  ins: "cuvInsercao",  ret: "cuvRetirada",  days: cuvDays  },
+                        { label: "CVA (Cateter Umbilical Arterial)",ins: "cvaInsercao",  ret: "cvaRetirada",  days: cvaDays  },
                       ].map(dev => (
                         <div key={dev.label} className="space-y-2 p-3 rounded-lg border">
                           <div className="flex items-center justify-between">
