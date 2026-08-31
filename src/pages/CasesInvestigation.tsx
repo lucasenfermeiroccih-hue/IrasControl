@@ -23,6 +23,7 @@ import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useSectors } from "@/hooks/useSectors";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ─── Types & Config ────────────────────────────────────────────
 type CaseStatus = "open" | "investigating" | "confirmed" | "discarded" | "closed";
@@ -40,7 +41,21 @@ interface InfectionCase {
   notes: string | null;
   investigation_data?: any;
   patient_id?: string | null;
-  patient?: { full_name: string; medical_record: string | null; sector: string | null } | null;
+  patient?: {
+    full_name: string;
+    medical_record: string | null;
+    sector: string | null;
+    bed?: string | null;
+    birth_date?: string | null;
+    gender?: string | null;
+    admission_date?: string | null;
+    specialty?: string | null;
+    diagnosis?: string | null;
+    admission_reason?: string | null;
+    base_diseases?: string | null;
+    origin?: string | null;
+    clinical_data?: any | null;
+  } | null;
 
 }
 
