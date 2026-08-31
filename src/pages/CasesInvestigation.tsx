@@ -150,6 +150,7 @@ const CasesInvestigation = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailCase, setDetailCase] = useState<InfectionCase | null>(null);
+  const [monitorCase, setMonitorCase] = useState<InfectionCase | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [search, setSearch] = useState("");
