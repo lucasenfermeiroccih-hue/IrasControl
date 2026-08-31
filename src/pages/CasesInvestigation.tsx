@@ -1342,7 +1342,7 @@ const CasesInvestigation = () => {
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.case_number || c.id.slice(0, 8)}</TableCell>
                     <TableCell>
-                      <div className="font-medium">{c.patient?.full_name || "—"}</div>
+                      <div className="font-medium flex items-center gap-1.5">{c.patient?.full_name || "—"}<EvolucaoBadge c={c} /></div>
                       <div className="text-xs text-muted-foreground">{c.patient?.medical_record || ""}</div>
                     </TableCell>
                     <TableCell>{c.patient?.sector || "—"}</TableCell>
@@ -1370,7 +1370,7 @@ const CasesInvestigation = () => {
               <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-sm">{c.patient?.full_name || "—"}</p>
+                    <p className="font-semibold text-sm flex items-center gap-1.5">{c.patient?.full_name || "—"}<EvolucaoBadge c={c} /></p>
                     <p className="text-[10px] text-muted-foreground">{c.case_number || c.id.slice(0, 8)}</p>
                   </div>
                   <Badge variant={statusConfig[c.status]?.variant || "outline"} className="text-[10px] shrink-0">{statusConfig[c.status]?.label || c.status}</Badge>
