@@ -759,8 +759,32 @@ const CasesInvestigation = () => {
                 { key: "examesImagem", label: "Exames de imagem" },
               ];
               const filled = evFields.filter(f => (ev[f.key] || "").toString().trim());
-              const hasContent = filled.length > 0 || abx.length > 0 || p?.base_diseases || p?.admission_reason;
+              const di: any = cd.dispInvasivos || {};
+              const deviceLabels: { key: string; label: string }[] = [
+                { key: "cvc", label: "CVC (Cateter Venoso Central)" },
+                { key: "cvp", label: "CVP (Cateter Venoso Periférico)" },
+                { key: "svu", label: "SVD (Sonda Vesical de Demora)" },
+                { key: "vm", label: "VM (Ventilação Mecânica)" },
+                { key: "tqt", label: "TQT (Traqueostomia)" },
+                { key: "hemo", label: "Hemodiálise" },
+                { key: "picc", label: "PICC" },
+                { key: "cuv", label: "CUV (Cateter Umbilical Venoso)" },
+                { key: "cva", label: "CVA (Cateter Umbilical Arterial)" },
+              ];
+              const devices = deviceLabels
+                .map(d => ({ ...d, insercao: di[`${d.key}Insercao`] || "", retirada: di[`${d.key}Retirada`] || "" }))
+                .filter(d => !!d.insercao);
+              const calcDias = (insercao: string, retirada?: string): string => {
+                if (!insercao) return "—";
+                const start = new Date(insercao);
+                const end = retirada ? new Date(retirada) : new Date();
+                const dias = Math.round((end.getTime() - start.getTime()) / 86400000);
+                return retirada ? `${dias} dias` : `Em uso (${dias}d)`;
+              };
+              const labPanel: any[] = Array.isArray(cd.labPanel) ? cd.labPanel : [];
+              const hasContent = filled.length > 0 || abx.length > 0 || devices.length > 0 || labPanel.length > 0 || p?.base_diseases || p?.admission_reason;
               if (!monitorCase?.patient_id || !p || !hasContent) return null;
+
               return (
                 <Card className="border-blue-200 bg-blue-50/40 dark:bg-blue-950/20">
                   <CardHeader className="pb-3">
