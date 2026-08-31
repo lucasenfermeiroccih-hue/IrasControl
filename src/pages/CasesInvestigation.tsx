@@ -535,6 +535,7 @@ const CasesInvestigation = () => {
 
   // ── New notification (quick) ──
   const handleNewNotification = () => {
+    setMonitorCase(null);
     const proto = "NOT-" + Date.now().toString().slice(-8);
     setEditingCaseId(null);
     setProtocolo(proto);
@@ -742,6 +743,75 @@ const CasesInvestigation = () => {
         </div>
 
         <div className="mt-6 space-y-4 max-w-5xl">
+            {(() => {
+              const p = monitorCase?.patient;
+              const cd: any = (p?.clinical_data as any) || {};
+              const ev: Record<string, string> = cd.evolucao || {};
+              const abx: any[] = Array.isArray(cd.antibioticos) ? cd.antibioticos : [];
+              const evFields: { key: string; label: string }[] = [
+                { key: "evolucaoInternacao", label: "Evolução durante internação" },
+                { key: "colonizacoes", label: "Colonizações" },
+                { key: "antibioticoPrevio", label: "Antibióticos prévios" },
+                { key: "antibioticosCTI", label: "Antibióticos no CTI" },
+                { key: "dispositivosInvasivos", label: "Dispositivos invasivos (texto)" },
+                { key: "condutasDiarias", label: "Condutas diárias" },
+                { key: "resultadoCulturasCTI", label: "Resultado de culturas" },
+                { key: "examesImagem", label: "Exames de imagem" },
+              ];
+              const filled = evFields.filter(f => (ev[f.key] || "").toString().trim());
+              const hasContent = filled.length > 0 || abx.length > 0 || p?.base_diseases || p?.admission_reason;
+              if (!monitorCase?.patient_id || !p || !hasContent) return null;
+              return (
+                <Card className="border-blue-200 bg-blue-50/40 dark:bg-blue-950/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+                      <span className="flex items-center gap-2"><ClipboardList className="h-4 w-4 text-blue-600" />Resumo do Monitoramento</span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {p.bed && <Badge variant="outline" className="text-[10px]">Leito: {p.bed}</Badge>}
+                        {p.sector && <Badge variant="outline" className="text-[10px]">Unidade: {p.sector}</Badge>}
+                        {p.gender && <Badge variant="outline" className="text-[10px]">Sexo: {p.gender}</Badge>}
+                        {p.admission_date && <Badge variant="outline" className="text-[10px]">Internação: {p.admission_date}</Badge>}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    {filled.length > 0 && (
+                      <div className="space-y-2">
+                        {filled.map(f => (
+                          <div key={f.key}>
+                            <p className="text-xs font-medium text-muted-foreground">{f.label}:</p>
+                            <p className="whitespace-pre-wrap text-sm">{ev[f.key]}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {abx.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Antibióticos em uso:</p>
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-muted-foreground text-left"><th className="py-1">Nome</th><th className="py-1">Início</th><th className="py-1">Fim</th></tr></thead>
+                          <tbody>
+                            {abx.map((a: any, i: number) => (
+                              <tr key={a.id || i} className="border-t border-border/60">
+                                <td className="py-1">{a.nome || "—"}</td>
+                                <td className="py-1">{a.dataInicio || "—"}</td>
+                                <td className="py-1">{a.dataFim || "Em uso"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {(p.base_diseases || p.admission_reason) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/60">
+                        {p.base_diseases && <div><span className="text-muted-foreground">Doenças de base:</span> <span className="font-medium">{p.base_diseases}</span></div>}
+                        {p.admission_reason && <div><span className="text-muted-foreground">Motivo de internação:</span> <span className="font-medium">{p.admission_reason}</span></div>}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
             {(detailStep === 0 || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle></CardHeader>
