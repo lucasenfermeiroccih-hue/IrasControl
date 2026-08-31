@@ -306,7 +306,7 @@ const CasesInvestigation = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("infection_cases")
-      .select("*, patient:patients(full_name, medical_record, sector)")
+      .select("*, patient:patients(full_name, medical_record, sector, bed, birth_date, gender, admission_date, specialty, diagnosis, admission_reason, base_diseases, origin, clinical_data)")
       .eq("hospital_id", hospitalId)
       .order("created_at", { ascending: false });
     if (!error && data) setCases(data.map(d => ({ ...d, patient: d.patient as any })));
@@ -485,19 +485,43 @@ const CasesInvestigation = () => {
     setEditingCaseId(c.id);
     setProtocolo(c.case_number || "INV-" + c.id.slice(0, 8));
     const d = c.investigation_data || {};
-    setIdent(d.ident || {
-      nome: c.patient?.full_name || "", prontuario: c.patient?.medical_record || "",
-      nascimento: "", sexo: "", admissao: c.detection_date, unidade: c.patient?.sector || "",
-      leito: "", especialidade: "", diagnostico: c.infection_type || "", origem: "",
+    const p = c.patient;
+    const pCd = (p?.clinical_data as any) || {};
+    setMonitorCase(c);
+    setIdent({
+      nome: d.ident?.nome || p?.full_name || "",
+      prontuario: d.ident?.prontuario || p?.medical_record || "",
+      nascimento: d.ident?.nascimento || p?.birth_date || "",
+      sexo: d.ident?.sexo || p?.gender || "",
+      admissao: d.ident?.admissao || p?.admission_date || c.detection_date || "",
+      unidade: d.ident?.unidade || p?.sector || "",
+      leito: d.ident?.leito || p?.bed || "",
+      especialidade: d.ident?.especialidade || p?.specialty || "",
+      diagnostico: d.ident?.diagnostico || p?.diagnosis || c.infection_type || "",
+      origem: d.ident?.origem || p?.origin || "",
     });
     setClassif(d.classif || { tipoEvento: c.infection_type || "", topografia: "", categoria: "", criterioInicial: "" });
     setInvestigationStatus(c.status);
     setStatusHistory(d.statusHistory || []);
-    setOcorrencia(d.ocorrencia || { unidadeSetor: c.patient?.sector || "", leito: "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
-    setCriteriosSelecionados(d.criteriosSelecionados || []);
+    setOcorrencia(d.ocorrencia || { unidadeSetor: p?.sector || "", leito: p?.bed || "", dataSintomas: "", dataSuspeita: "", dataNotificacao: "", origemNotificacao: "" });
+    setCriteriosSelecionados(
+      (d.criteriosSelecionados && d.criteriosSelecionados.length > 0)
+        ? d.criteriosSelecionados
+        : (pCd.criteriosSelecionados || [])
+    );
     setJustificativaClinica(d.justificativaClinica || "");
-    setLabResults(d.labResults || []);
-    setDispInvasivos(d.dispInvasivos || { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" });
+    setLabResults(
+      (d.labResults && d.labResults.length > 0)
+        ? d.labResults
+        : (Array.isArray(pCd.labPanel) ? pCd.labPanel : [])
+    );
+    setDispInvasivos(
+      d.dispInvasivos || (pCd.dispInvasivos ? {
+        cvcInsercao: pCd.dispInvasivos.cvcInsercao || "", cvcRetirada: pCd.dispInvasivos.cvcRetirada || "",
+        svuInsercao: pCd.dispInvasivos.svuInsercao || "", svuRetirada: pCd.dispInvasivos.svuRetirada || "",
+        vmInsercao: pCd.dispInvasivos.vmInsercao || "", vmRetirada: pCd.dispInvasivos.vmRetirada || "",
+      } : { cvcInsercao: "", cvcRetirada: "", svuInsercao: "", svuRetirada: "", vmInsercao: "", vmRetirada: "" })
+    );
     setFatoresRiscoSel(d.fatoresRiscoSel || []);
     setCirurgia(d.cirurgia || { procedimento: "", dataCirurgia: "", contaminacao: "", implante: "Não", profilaxia: "", observacoes: "" });
     setResponsavel(d.responsavel || "");
