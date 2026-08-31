@@ -1487,3 +1487,23 @@ const CasesInvestigation = () => {
 };
 
 export default CasesInvestigation;
+
+// ── Badge indicando que o paciente possui evolução registrada no monitoramento ──
+function EvolucaoBadge({ c }: { c: InfectionCase }) {
+  const ev = (c.patient?.clinical_data as any)?.evolucao;
+  if (!c.patient_id || !ev) return null;
+  const hasAny = Object.values(ev as Record<string, string>).some(v => (v || "").toString().trim());
+  if (!hasAny) return null;
+  const texto = ((ev.evolucaoInternacao || "") as string).trim();
+  const preview = texto ? texto.slice(0, 120) + (texto.length > 120 ? "…" : "") : "Evolução registrada no monitoramento";
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300">Com evolução</Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs">{preview}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
