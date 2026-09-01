@@ -43,6 +43,7 @@ interface InfectionCase {
   case_number: string | null;
   infection_type: string | null;
   infection_site: string | null;
+  classificacao: string | null;
   device_related: boolean;
   device_type: string | null;
   status: CaseStatus;
