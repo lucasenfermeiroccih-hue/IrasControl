@@ -26,6 +26,16 @@ import { useSectors } from "@/hooks/useSectors";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ─── Types & Config ────────────────────────────────────────────
+function dispositivoPrincipal(evento: string, dispositivos: string[]): string | null {
+  if (!dispositivos.length) return null;
+  const preferido =
+    evento === "PAV" ? "vm" :
+    evento === "IPCS-CVC" ? "cvc" :
+    evento === "ITU-SVD" ? "svu" : null;
+  if (preferido) return preferido;
+  return dispositivos[0];
+}
+
 type CaseStatus = "open" | "investigating" | "confirmed" | "discarded" | "closed";
 
 interface InfectionCase {
