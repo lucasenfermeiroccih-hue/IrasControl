@@ -136,7 +136,7 @@ export default function NotificacaoInvestigacaoCCIH() {
       patient_id: patientId || null,
       case_number: caseId,
       infection_type: form.evento || null,
-      infection_site: form.classificacao || null,
+      classificacao: form.classificacao || null,
       device_related: !!deviceTypeMap[form.evento],
       device_type: (deviceTypeMap[form.evento] as any) || null,
       detection_date: form.dataDeteccao,
