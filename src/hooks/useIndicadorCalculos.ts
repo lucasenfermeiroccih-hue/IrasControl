@@ -49,6 +49,12 @@ export interface IndicadorCalculados {
   taxaInfPele: number | null;
   taxaInfCorrenteSanguinea: number | null;
   taxaUsoAntibioticos: number | null;
+  densidadeIRAS: number | null;
+  taxaInfeccaoHospitalarSaidas: number | null;
+  taxaUsoAntibioticosPacienteDia: number | null;
+  tempoPermanenciaSaidas: number | null;
+  taxaLetalidadeGlobal: number | null;
+  taxaLetalidadeIRAS: number | null;
 }
 
 function safeDiv(numerator: number, denominator: number, multiplier: number): number | null {
