@@ -79,8 +79,8 @@ export interface CalculatedField {
 }
 
 export const calculatedFields: CalculatedField[] = [
-  { id: "taxaSaidas", label: "Taxa de Saídas (%)", formula: "(infecções / saídas) × 100" },
-  { id: "tempoPermanencia", label: "Tempo de Permanência (dias)", formula: "(pac UTI início + pac dia total + dias UTI sub) / (dias UTI início + admissões)" },
+  { id: "taxaSaidas", label: "Taxa de Infecção sobre Saídas (%)", formula: "(infecções / saídas) × 100" },
+  { id: "tempoPermanencia", label: "Tempo de Permanência — método interno (dias)", formula: "(dias UTI início + pac dia total + dias UTI sub) / (pac UTI início + admissões)" },
   { id: "taxaInfeccao", label: "Taxa de Infecção (‰)", formula: "(infecções / paciente dia total) × 1000" },
   { id: "pacienteExposto", label: "Paciente Exposto", formula: "admissões + pacientes UTI início" },
   { id: "pacienteEmRisco", label: "Paciente em Risco (%)", formula: "(infecções / paciente exposto) × 100" },
