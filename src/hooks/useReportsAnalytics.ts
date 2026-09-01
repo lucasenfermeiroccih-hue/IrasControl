@@ -27,7 +27,9 @@ export function useReportsAnalytics(periodo: string) {
         supabase.from("audits").select("*").eq("hospital_id", hospitalId).gte("audit_date", cutoffStr).order("audit_date"),
         supabase.from("lab_results").select("id, organism, collection_date, sample_type").eq("hospital_id", hospitalId).gte("collection_date", cutoffStr),
         supabase.from("precautions").select("*").gte("start_date", cutoffStr),
+        supabase.from("patients").select("id, sector").eq("hospital_id", hospitalId),
       ]);
+      setPatients(patientsRes.data || []);
 
       setInfectionCases(casesRes.data || []);
       setAudits(auditsRes.data || []);
