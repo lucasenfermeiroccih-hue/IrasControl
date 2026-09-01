@@ -140,7 +140,7 @@ export function useReportsAnalytics(periodo: string) {
         criticalAlerts,
       },
     };
-  }, [infectionCases, audits, labResults, antibiogramResults, precautions]);
+  }, [infectionCases, audits, labResults, antibiogramResults, precautions, patientSectorMap]);
 
   return { analytics, loading: loading || ctxLoading, hospitalId };
 }
