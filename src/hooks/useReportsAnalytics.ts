@@ -10,6 +10,7 @@ export function useReportsAnalytics(periodo: string) {
   const [labResults, setLabResults] = useState<any[]>([]);
   const [antibiogramResults, setAntibiogramResults] = useState<any[]>([]);
   const [precautions, setPrecautions] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
 
   const monthsBack = periodo === "mes" ? 1 : periodo === "trimestre" ? 3 : periodo === "semestre" ? 6 : 12;
 
