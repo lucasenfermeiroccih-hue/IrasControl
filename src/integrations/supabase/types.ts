@@ -468,6 +468,13 @@ export type Database = {
             referencedRelation: "lab_results"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "antibiogram_results_lab_result_id_fkey"
+            columns: ["lab_result_id"]
+            isOneToOne: false
+            referencedRelation: "vw_microbiologia_setor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       antimicrobial_prescriptions: {
@@ -770,6 +777,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      correcoes_qualidade_dado: {
+        Row: {
+          acao: string
+          estado_anterior: Json
+          estado_novo: Json | null
+          executado_em: string
+          executado_por: string
+          id: string
+          lote: string
+          motivo: string
+          registro_id: string | null
+          tabela: string
+        }
+        Insert: {
+          acao: string
+          estado_anterior: Json
+          estado_novo?: Json | null
+          executado_em?: string
+          executado_por?: string
+          id?: string
+          lote: string
+          motivo: string
+          registro_id?: string | null
+          tabela: string
+        }
+        Update: {
+          acao?: string
+          estado_anterior?: Json
+          estado_novo?: Json | null
+          executado_em?: string
+          executado_por?: string
+          id?: string
+          lote?: string
+          motivo?: string
+          registro_id?: string | null
+          tabela?: string
+        }
+        Relationships: []
       }
       crm_contacts: {
         Row: {
@@ -3018,6 +3064,7 @@ export type Database = {
       infection_cases: {
         Row: {
           case_number: string | null
+          classificacao: string | null
           confirmation_date: string | null
           created_at: string
           created_by: string | null
@@ -3037,6 +3084,7 @@ export type Database = {
         }
         Insert: {
           case_number?: string | null
+          classificacao?: string | null
           confirmation_date?: string | null
           created_at?: string
           created_by?: string | null
@@ -3056,6 +3104,7 @@ export type Database = {
         }
         Update: {
           case_number?: string | null
+          classificacao?: string | null
           confirmation_date?: string | null
           created_at?: string
           created_by?: string | null
@@ -6394,8 +6443,132 @@ export type Database = {
           },
         ]
       }
+      vw_indicadores_padronizados: {
+        Row: {
+          admissoes: number | null
+          altas: number | null
+          ano: number | null
+          atb: number | null
+          created_at: string | null
+          cvc_dia: number | null
+          data_vigilancia: string | null
+          densidade_ipcsl: number | null
+          densidade_iras: number | null
+          densidade_itu_svd: number | null
+          densidade_pav: number | null
+          hospital_id: string | null
+          hospital_nome: string | null
+          id: string | null
+          ipcsl: number | null
+          iras: number | null
+          iras_importadas: number | null
+          is_duplicata: boolean | null
+          itu_svd: number | null
+          letalidade_global_pct: number | null
+          letalidade_iras_pct: number | null
+          mes: string | null
+          mes_num: number | null
+          obitos: number | null
+          obitos_infeccao: number | null
+          paciente_dia: number | null
+          paciente_exposto: number | null
+          pav: number | null
+          periodo: string | null
+          registrado_taxa_atb: number | null
+          registrado_taxa_ih_campo: number | null
+          registrado_taxa_saidas: number | null
+          registrado_tmp: number | null
+          saidas: number | null
+          serie_comparavel_tmp: boolean | null
+          setor: string | null
+          svd_dia: number | null
+          taxa_atb_por_paciente_dia: number | null
+          taxa_atb_por_paciente_exposto: number | null
+          taxa_ih_pct: number | null
+          tmp_dias: number | null
+          updated_at: string | null
+          versao_calculo_atb: string | null
+          versao_calculo_tmp: string | null
+          versao_registro: number | null
+          vm_dia: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicadores_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "indicadores_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_microbiologia_setor: {
+        Row: {
+          ano: number | null
+          carbapenemase: string | null
+          carbapenemase_confirmada: boolean | null
+          carbapenemase_nao_preenchida: boolean | null
+          carbapenemase_type: string | null
+          collection_date: string | null
+          esbl: string | null
+          esbl_confirmada: boolean | null
+          esbl_nao_preenchida: boolean | null
+          hospital_id: string | null
+          hospital_nome: string | null
+          id: string | null
+          marcador_mdr: boolean | null
+          mes_num: number | null
+          organism: string | null
+          periodo: string | null
+          result_date: string | null
+          sample_category: string | null
+          sample_material: string | null
+          sample_type: string | null
+          sem_paciente_vinculado: boolean | null
+          setor: string | null
+          setor_original: string | null
+          tipo_amostra: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_results_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_results_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_qualidade_dado: {
+        Row: {
+          data_referencia: string | null
+          detalhe: string | null
+          hospital_id: string | null
+          pendencia: string | null
+          registro_id: string | null
+          severidade: string | null
+          tabela: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      fn_calcular_indicadores: { Args: { p_inputs: Json }; Returns: Json }
+      fn_setor_canonico: { Args: { p_setor: string }; Returns: string }
       get_primary_admin_hospital_ids: { Args: never; Returns: string[] }
       get_user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       has_any_super_admin: { Args: never; Returns: boolean }
