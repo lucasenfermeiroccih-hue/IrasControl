@@ -442,8 +442,9 @@ const CasesInvestigation = () => {
       }
       const { error } = await supabase.from("infection_cases").insert({
         hospital_id: hospitalId, patient_id: patientId, infection_type: form.evento,
-        infection_site: form.classificacao, device_related: form.dispositivos.length > 0,
-        device_type: form.dispositivos[0] as any || null, notes: form.observacoes,
+        classificacao: form.classificacao || null,
+        device_related: form.dispositivos.length > 0 || ["PAV","IPCS-CVC","ITU-SVD"].includes(form.evento),
+        device_type: dispositivoPrincipal(form.evento, form.dispositivos) as any, notes: form.observacoes,
         created_by: userId, status: "open" as const,
       });
       if (error) toast.error("Erro ao criar caso: " + error.message); else { toast.success("Caso registrado!"); fetchCases(); }
