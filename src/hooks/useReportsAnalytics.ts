@@ -71,10 +71,10 @@ export function useReportsAnalytics(periodo: string) {
       meta: 10,
     }));
 
-    // Infection by sector (using infection_site as proxy)
+    // Infection by sector (using the patient's sector)
     const sectorMap: Record<string, number> = {};
     for (const c of infectionCases) {
-      const s = c.infection_site || "Não informado";
+      const s = (c.patient_id ? patientSectorMap[c.patient_id] : null) || "Não informado";
       sectorMap[s] = (sectorMap[s] || 0) + 1;
     }
     const infectionBySector = Object.entries(sectorMap).map(([setor, casos]) => ({ setor, casos })).sort((a, b) => b.casos - a.casos).slice(0, 6);
