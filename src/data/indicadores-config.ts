@@ -97,5 +97,11 @@ export const calculatedFields: CalculatedField[] = [
   { id: "taxaInfTratoRespiratorio", label: "Taxa Infecção Trato Respiratório (‰)", formula: "(ITR / paciente dia total) × 1000" },
   { id: "taxaInfPele", label: "Taxa Infecção de Pele (‰)", formula: "(pele / paciente dia total) × 1000" },
   { id: "taxaInfCorrenteSanguinea", label: "Taxa Infecção Corrente Sanguínea (‰)", formula: "(ICS / paciente dia total) × 1000" },
-  { id: "taxaUsoAntibioticos", label: "Taxa Uso Antibióticos (%)", formula: "(antibióticos / paciente exposto) × 100" },
+  { id: "taxaUsoAntibioticos", label: "Uso de Antibióticos por Paciente Exposto (%)", formula: "(antibióticos / paciente exposto) × 100" },
+  { id: "densidadeIRAS", label: "Densidade de Incidência de IRAS (‰)", formula: "(IRAS / paciente-dia) × 1000" },
+  { id: "taxaInfeccaoHospitalarSaidas", label: "Taxa de Infecção Hospitalar (%)", formula: "(IRAS / saídas) × 100" },
+  { id: "taxaUsoAntibioticosPacienteDia", label: "Taxa de Uso de Antimicrobianos (%)", formula: "(uso de antimicrobianos / paciente-dia) × 100" },
+  { id: "tempoPermanenciaSaidas", label: "Tempo Médio de Permanência (dias)", formula: "paciente-dia / saídas" },
+  { id: "taxaLetalidadeGlobal", label: "Letalidade Global (%)", formula: "(óbitos / saídas) × 100" },
+  { id: "taxaLetalidadeIRAS", label: "Letalidade por IRAS (%)", formula: "(óbitos por infecção / IRAS) × 100" },
 ];
