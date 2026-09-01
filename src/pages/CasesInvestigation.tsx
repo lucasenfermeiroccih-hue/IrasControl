@@ -411,7 +411,7 @@ const CasesInvestigation = () => {
     setForm({
       paciente: c.patient?.full_name || "", prontuario: c.patient?.medical_record || "",
       setor: c.patient?.sector || "", evento: c.infection_type || "",
-      classificacao: c.infection_site || "", dispositivos: c.device_type ? [c.device_type] : [],
+      classificacao: c.classificacao ?? c.infection_site ?? "", dispositivos: c.device_type ? [c.device_type] : [],
       observacoes: c.notes || "",
     });
     setDetailCase(null);
