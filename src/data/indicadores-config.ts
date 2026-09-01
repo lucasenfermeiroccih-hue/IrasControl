@@ -84,7 +84,7 @@ export const calculatedFields: CalculatedField[] = [
   { id: "taxaInfeccao", label: "Taxa de Infecção (‰)", formula: "(infecções / paciente dia total) × 1000" },
   { id: "pacienteExposto", label: "Paciente Exposto", formula: "admissões + pacientes UTI início" },
   { id: "pacienteEmRisco", label: "Paciente em Risco (%)", formula: "(infecções / paciente exposto) × 100" },
-  { id: "taxaInfeccaoHospitalar", label: "Taxa de Infecção Hospitalar (‰)", formula: "(infecções / paciente dia total) × 1000" },
+  { id: "taxaInfeccaoHospitalar", label: "Densidade de Infecção Hospitalar (‰)", formula: "(infecções / paciente dia total) × 1000" },
   { id: "taxaLetalidade", label: "Taxa de Letalidade (%)", formula: "(óbitos c/ infecção / pac c/ infecção) × 100" },
   { id: "taxaUtilizacaoCVC", label: "Taxa Utilização CVC (%)", formula: "(utilização CVC / paciente dia total) × 100" },
   { id: "taxaInfeccaoCVC", label: "Taxa Infecção CVC (‰)", formula: "(infecção CVC / utilização CVC) × 1000" },
