@@ -22,7 +22,7 @@ export function useReportsAnalytics(periodo: string) {
 
     const fetchAll = async () => {
       setLoading(true);
-      const [casesRes, auditsRes, labRes, precRes] = await Promise.all([
+      const [casesRes, auditsRes, labRes, precRes, patientsRes] = await Promise.all([
         supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId).gte("detection_date", cutoffStr).order("detection_date"),
         supabase.from("audits").select("*").eq("hospital_id", hospitalId).gte("audit_date", cutoffStr).order("audit_date"),
         supabase.from("lab_results").select("id, organism, collection_date, sample_type").eq("hospital_id", hospitalId).gte("collection_date", cutoffStr),
