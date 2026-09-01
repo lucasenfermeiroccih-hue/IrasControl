@@ -48,6 +48,12 @@ export function useReportsAnalytics(periodo: string) {
     fetchAll();
   }, [hospitalId, monthsBack]);
 
+  const patientSectorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of patients) if (p?.id) map[p.id] = p.sector || "Não informado";
+    return map;
+  }, [patients]);
+
   // Compute analytics
   const analytics = useMemo(() => {
     // Monthly IRAS trend
