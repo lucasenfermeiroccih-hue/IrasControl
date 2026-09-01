@@ -79,12 +79,12 @@ export interface CalculatedField {
 }
 
 export const calculatedFields: CalculatedField[] = [
-  { id: "taxaSaidas", label: "Taxa de Saídas (%)", formula: "(infecções / saídas) × 100" },
-  { id: "tempoPermanencia", label: "Tempo de Permanência (dias)", formula: "(pac UTI início + pac dia total + dias UTI sub) / (dias UTI início + admissões)" },
+  { id: "taxaSaidas", label: "Taxa de Infecção sobre Saídas (%)", formula: "(infecções / saídas) × 100" },
+  { id: "tempoPermanencia", label: "Tempo de Permanência — método interno (dias)", formula: "(dias UTI início + pac dia total + dias UTI sub) / (pac UTI início + admissões)" },
   { id: "taxaInfeccao", label: "Taxa de Infecção (‰)", formula: "(infecções / paciente dia total) × 1000" },
   { id: "pacienteExposto", label: "Paciente Exposto", formula: "admissões + pacientes UTI início" },
   { id: "pacienteEmRisco", label: "Paciente em Risco (%)", formula: "(infecções / paciente exposto) × 100" },
-  { id: "taxaInfeccaoHospitalar", label: "Taxa de Infecção Hospitalar (‰)", formula: "(infecções / paciente dia total) × 1000" },
+  { id: "taxaInfeccaoHospitalar", label: "Densidade de Infecção Hospitalar (‰)", formula: "(infecções / paciente dia total) × 1000" },
   { id: "taxaLetalidade", label: "Taxa de Letalidade (%)", formula: "(óbitos c/ infecção / pac c/ infecção) × 100" },
   { id: "taxaUtilizacaoCVC", label: "Taxa Utilização CVC (%)", formula: "(utilização CVC / paciente dia total) × 100" },
   { id: "taxaInfeccaoCVC", label: "Taxa Infecção CVC (‰)", formula: "(infecção CVC / utilização CVC) × 1000" },
@@ -97,5 +97,11 @@ export const calculatedFields: CalculatedField[] = [
   { id: "taxaInfTratoRespiratorio", label: "Taxa Infecção Trato Respiratório (‰)", formula: "(ITR / paciente dia total) × 1000" },
   { id: "taxaInfPele", label: "Taxa Infecção de Pele (‰)", formula: "(pele / paciente dia total) × 1000" },
   { id: "taxaInfCorrenteSanguinea", label: "Taxa Infecção Corrente Sanguínea (‰)", formula: "(ICS / paciente dia total) × 1000" },
-  { id: "taxaUsoAntibioticos", label: "Taxa Uso Antibióticos (%)", formula: "(antibióticos / paciente exposto) × 100" },
+  { id: "taxaUsoAntibioticos", label: "Uso de Antibióticos por Paciente Exposto (%)", formula: "(antibióticos / paciente exposto) × 100" },
+  { id: "densidadeIRAS", label: "Densidade de Incidência de IRAS (‰)", formula: "(IRAS / paciente-dia) × 1000" },
+  { id: "taxaInfeccaoHospitalarSaidas", label: "Taxa de Infecção Hospitalar (%)", formula: "(IRAS / saídas) × 100" },
+  { id: "taxaUsoAntibioticosPacienteDia", label: "Taxa de Uso de Antimicrobianos (%)", formula: "(uso de antimicrobianos / paciente-dia) × 100" },
+  { id: "tempoPermanenciaSaidas", label: "Tempo Médio de Permanência (dias)", formula: "paciente-dia / saídas" },
+  { id: "taxaLetalidadeGlobal", label: "Letalidade Global (%)", formula: "(óbitos / saídas) × 100" },
+  { id: "taxaLetalidadeIRAS", label: "Letalidade por IRAS (%)", formula: "(óbitos por infecção / IRAS) × 100" },
 ];

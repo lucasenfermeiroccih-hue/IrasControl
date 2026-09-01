@@ -32,6 +32,7 @@ interface InfectionCase {
   case_number: string | null;
   infection_type: string | null;
   infection_site: string | null;
+  classificacao: string | null;
   device_related: boolean;
   device_type: string | null;
   status: CaseStatus;
@@ -53,6 +54,21 @@ const statusConfig: Record<CaseStatus, { label: string; variant: "default" | "se
 };
 
 const eventos = ["IPCS-CVC", "ITU-SVD", "PAV", "ISC", "Surto", "Óbito relacionado a IRAS", "Colonização MR"];
+
+/**
+ * infection_cases.device_type guarda UM dispositivo, mas o formulário permite marcar
+ * vários. Antes gravava-se sempre dispositivos[0] e, como o array é montado na ordem
+ * cvc -> svu -> vm, toda PAV de paciente com CVC era gravada como "cvc".
+ */
+function dispositivoPrincipal(evento: string, dispositivos: string[]): string | null {
+  if (!dispositivos.length) return null;
+  const preferido =
+    evento === "PAV" ? "vm" :
+    evento === "IPCS-CVC" ? "cvc" :
+    evento === "ITU-SVD" ? "svu" : null;
+  if (preferido) return preferido;
+  return dispositivos[0];
+}
 const classificacoes = ["IRAS confirmada", "IRAS provável", "Colonização", "Contaminação", "Em investigação"];
 
 const topografias: Record<string, string[]> = {
@@ -369,7 +385,7 @@ const CasesInvestigation = () => {
     setForm({
       paciente: c.patient?.full_name || "", prontuario: c.patient?.medical_record || "",
       setor: c.patient?.sector || "", evento: c.infection_type || "",
-      classificacao: c.infection_site || "", dispositivos: c.device_type ? [c.device_type] : [],
+      classificacao: c.classificacao ?? c.infection_site ?? "", dispositivos: c.device_type ? [c.device_type] : [],
       observacoes: c.notes || "",
     });
     setDetailCase(null);
@@ -382,8 +398,9 @@ const CasesInvestigation = () => {
     setSaving(true);
     if (editingCase) {
       const { error } = await supabase.from("infection_cases").update({
-        infection_type: form.evento, infection_site: form.classificacao,
-        device_related: form.dispositivos.length > 0, device_type: form.dispositivos[0] as any || null,
+        infection_type: form.evento, classificacao: form.classificacao,
+        device_related: form.dispositivos.length > 0 || ["PAV","IPCS-CVC","ITU-SVD"].includes(form.evento),
+        device_type: dispositivoPrincipal(form.evento, form.dispositivos) as any,
         notes: form.observacoes,
       }).eq("id", editingCase.id);
       if (error) toast.error("Erro ao atualizar caso"); else { toast.success("Caso atualizado!"); fetchCases(); }
@@ -399,8 +416,9 @@ const CasesInvestigation = () => {
       }
       const { error } = await supabase.from("infection_cases").insert({
         hospital_id: hospitalId, patient_id: patientId, infection_type: form.evento,
-        infection_site: form.classificacao, device_related: form.dispositivos.length > 0,
-        device_type: form.dispositivos[0] as any || null, notes: form.observacoes,
+        classificacao: form.classificacao,
+        device_related: form.dispositivos.length > 0 || ["PAV","IPCS-CVC","ITU-SVD"].includes(form.evento),
+        device_type: dispositivoPrincipal(form.evento, form.dispositivos) as any, notes: form.observacoes,
         created_by: userId, status: "open" as const,
       });
       if (error) toast.error("Erro ao criar caso: " + error.message); else { toast.success("Caso registrado!"); fetchCases(); }

@@ -3018,6 +3018,7 @@ export type Database = {
       infection_cases: {
         Row: {
           case_number: string | null
+          classificacao: string | null
           confirmation_date: string | null
           created_at: string
           created_by: string | null
@@ -3037,6 +3038,7 @@ export type Database = {
         }
         Insert: {
           case_number?: string | null
+          classificacao?: string | null
           confirmation_date?: string | null
           created_at?: string
           created_by?: string | null
@@ -3056,6 +3058,7 @@ export type Database = {
         }
         Update: {
           case_number?: string | null
+          classificacao?: string | null
           confirmation_date?: string | null
           created_at?: string
           created_by?: string | null

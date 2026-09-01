@@ -10,6 +10,7 @@ export function useReportsAnalytics(periodo: string) {
   const [labResults, setLabResults] = useState<any[]>([]);
   const [antibiogramResults, setAntibiogramResults] = useState<any[]>([]);
   const [precautions, setPrecautions] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
 
   const monthsBack = periodo === "mes" ? 1 : periodo === "trimestre" ? 3 : periodo === "semestre" ? 6 : 12;
 
@@ -21,17 +22,19 @@ export function useReportsAnalytics(periodo: string) {
 
     const fetchAll = async () => {
       setLoading(true);
-      const [casesRes, auditsRes, labRes, precRes] = await Promise.all([
+      const [casesRes, auditsRes, labRes, precRes, patientsRes] = await Promise.all([
         supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId).gte("detection_date", cutoffStr).order("detection_date"),
         supabase.from("audits").select("*").eq("hospital_id", hospitalId).gte("audit_date", cutoffStr).order("audit_date"),
         supabase.from("lab_results").select("id, organism, collection_date, sample_type").eq("hospital_id", hospitalId).gte("collection_date", cutoffStr),
         supabase.from("precautions").select("*").gte("start_date", cutoffStr),
+        supabase.from("patients").select("id, sector").eq("hospital_id", hospitalId),
       ]);
 
       setInfectionCases(casesRes.data || []);
       setAudits(auditsRes.data || []);
       setLabResults(labRes.data || []);
       setPrecautions(precRes.data || []);
+      setPatients(patientsRes.data || []);
 
       // Fetch antibiogram results for lab results
       const labIds = (labRes.data || []).map((l: any) => l.id);
@@ -44,6 +47,12 @@ export function useReportsAnalytics(periodo: string) {
     };
     fetchAll();
   }, [hospitalId, monthsBack]);
+
+  const patientSectorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of patients) if (p.id && p.sector) map[p.id] = p.sector;
+    return map;
+  }, [patients]);
 
   // Compute analytics
   const analytics = useMemo(() => {
@@ -62,10 +71,10 @@ export function useReportsAnalytics(periodo: string) {
       meta: 10,
     }));
 
-    // Infection by sector (using infection_site as proxy)
+    // Infection by sector (resolved via patients table)
     const sectorMap: Record<string, number> = {};
     for (const c of infectionCases) {
-      const s = c.infection_site || "Não informado";
+      const s = (c.patient_id && patientSectorMap[c.patient_id]) || "Não informado";
       sectorMap[s] = (sectorMap[s] || 0) + 1;
     }
     const infectionBySector = Object.entries(sectorMap).map(([setor, casos]) => ({ setor, casos })).sort((a, b) => b.casos - a.casos).slice(0, 6);
@@ -131,7 +140,7 @@ export function useReportsAnalytics(periodo: string) {
         criticalAlerts,
       },
     };
-  }, [infectionCases, audits, labResults, antibiogramResults, precautions]);
+  }, [infectionCases, audits, labResults, antibiogramResults, precautions, patientSectorMap]);
 
   return { analytics, loading: loading || ctxLoading, hospitalId };
 }

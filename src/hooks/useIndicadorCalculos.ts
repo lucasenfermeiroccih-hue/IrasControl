@@ -49,6 +49,12 @@ export interface IndicadorCalculados {
   taxaInfPele: number | null;
   taxaInfCorrenteSanguinea: number | null;
   taxaUsoAntibioticos: number | null;
+  densidadeIRAS: number | null;
+  taxaInfeccaoHospitalarSaidas: number | null;
+  taxaUsoAntibioticosPacienteDia: number | null;
+  tempoPermanenciaSaidas: number | null;
+  taxaLetalidadeGlobal: number | null;
+  taxaLetalidadeIRAS: number | null;
 }
 
 function safeDiv(numerator: number, denominator: number, multiplier: number): number | null {
@@ -83,6 +89,12 @@ export function useIndicadorCalculos(v: IndicadorInputs): IndicadorCalculados {
       taxaInfPele: safeDiv(v.infeccaoPele, v.numPacienteDiaTotal, 1000),
       taxaInfCorrenteSanguinea: safeDiv(v.infeccaoCorrenteSanguinea, v.numPacienteDiaTotal, 1000),
       taxaUsoAntibioticos: safeDiv(v.numAntibioticosUtilizados, pacienteExposto, 100),
+      densidadeIRAS: safeDiv(v.numInfeccoes, v.numPacienteDiaTotal, 1000),
+      taxaInfeccaoHospitalarSaidas: safeDiv(v.numInfeccoes, v.numSaidas, 100),
+      taxaUsoAntibioticosPacienteDia: safeDiv(v.numAntibioticosUtilizados, v.numPacienteDiaTotal, 100),
+      tempoPermanenciaSaidas: safeDiv(v.numPacienteDiaTotal, v.numSaidas, 1),
+      taxaLetalidadeGlobal: safeDiv(v.numObitosTotal, v.numSaidas, 100),
+      taxaLetalidadeIRAS: safeDiv(v.numObitosInfeccao, v.numInfeccoes, 100),
     };
   }, [v]);
 }
