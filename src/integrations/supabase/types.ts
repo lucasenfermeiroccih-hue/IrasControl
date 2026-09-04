@@ -4977,7 +4977,7 @@ export type Database = {
           id: string
           new_data: Json | null
           old_data: Json | null
-          patient_id: string
+          patient_id: string | null
         }
         Insert: {
           action: string
@@ -4999,7 +4999,7 @@ export type Database = {
           id?: string
           new_data?: Json | null
           old_data?: Json | null
-          patient_id?: string
+          patient_id?: string | null
         }
         Relationships: [
           {
