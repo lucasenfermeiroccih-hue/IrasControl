@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -315,7 +316,7 @@ export default function DashboardPrecautions() {
   // ─── Paginação do histórico de auditorias ──────────────────
   // Evita renderizar centenas de linhas de uma vez (página muito longa/lenta
   // com barra de rolagem enorme). Mesma abordagem da tela de monitoramento.
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = LIST_PAGE_SIZE;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);

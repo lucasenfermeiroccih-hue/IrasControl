@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { History, Pencil, Trash2, FileDown, Filter, FilterX, Loader2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,38 +56,38 @@ export default function ISCHistory({ onEdit }: Props) {
   const hasActiveFilters = filterMes || filterAno;
   const clearFilters = () => { setFilterMes(""); setFilterAno(""); };
 
+  // Paginação server-side: filtros e fatia vão para a query
+  const PAGE_SIZE = LIST_PAGE_SIZE;
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+
   const fetchRecords = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("isc_records")
-      .select("*, isc_record_indicators(*)")
-      .eq("hospital_id", hospitalId)
+      .select("*, isc_record_indicators(*)", { count: "exact" })
+      .eq("hospital_id", hospitalId);
+    if (filterMes) query = query.eq("mes", filterMes);
+    if (filterAno) query = query.eq("ano", filterAno);
+    const from = (page - 1) * PAGE_SIZE;
+    const { data, error, count } = await query
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(from, from + PAGE_SIZE - 1);
     setLoading(false);
     if (error) { toast.error("Erro ao carregar histórico ISC"); return; }
     setRecords(data || []);
-  }, [hospitalId]);
+    setTotalCount(count || 0);
+  }, [hospitalId, filterMes, filterAno, page, PAGE_SIZE]);
 
   useEffect(() => {
     if (open) fetchRecords();
   }, [open, fetchRecords]);
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
-      if (filterMes && r.mes !== filterMes) return false;
-      if (filterAno && r.ano !== filterAno) return false;
-      return true;
-    });
-  }, [records, filterMes, filterAno]);
-
-  const PAGE_SIZE = 20;
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const paged = filteredRecords.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [filterMes, filterAno, records]);
+  // Volta para a 1ª página quando os filtros mudam
+  useEffect(() => { setPage(1); }, [filterMes, filterAno]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -98,7 +99,8 @@ export default function ISCHistory({ onEdit }: Props) {
     setDeleteId(null);
     if (error) { toast.error("Erro ao excluir registro"); return; }
     toast.success("Registro excluído com sucesso.");
-    setRecords(prev => prev.filter(r => r.id !== deleteId));
+    if (records.length === 1 && page > 1) setPage((p) => p - 1);
+    else fetchRecords();
   };
 
   const dbToISCRegistro = (rec: any): ISCRegistro => {
@@ -208,16 +210,16 @@ export default function ISCHistory({ onEdit }: Props) {
             <div className="flex items-center gap-2 flex-wrap">
               {filterMes && <Badge variant="secondary" className="text-xs">{meses[Number(filterMes) - 1]}</Badge>}
               {filterAno && <Badge variant="secondary" className="text-xs">Ano: {filterAno}</Badge>}
-              <span className="text-xs text-muted-foreground">— {filteredRecords.length} registro(s)</span>
+              <span className="text-xs text-muted-foreground">— {totalCount} registro(s)</span>
             </div>
           )}
 
           <ScrollArea className="max-h-[55vh]">
             {loading ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-            ) : filteredRecords.length === 0 ? (
+            ) : records.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground text-sm">
-                {records.length === 0 ? "Nenhum registro salvo ainda." : "Nenhum registro encontrado com os filtros aplicados."}
+                {hasActiveFilters ? "Nenhum registro encontrado com os filtros aplicados." : "Nenhum registro salvo ainda."}
               </div>
             ) : (
               <Table>
@@ -230,7 +232,7 @@ export default function ISCHistory({ onEdit }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paged.map((rec) => {
+                  {records.map((rec) => {
                     const mesNome = rec.mes ? meses[Number(rec.mes) - 1] || rec.mes : "—";
                     return (
                       <TableRow key={rec.id}>
@@ -251,9 +253,9 @@ export default function ISCHistory({ onEdit }: Props) {
               </Table>
             )}
           </ScrollArea>
-          {filteredRecords.length > PAGE_SIZE && (
+          {totalCount > PAGE_SIZE && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2">
-              <p className="text-xs text-muted-foreground">Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filteredRecords.length)} de {filteredRecords.length}</p>
+              <p className="text-xs text-muted-foreground">Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, totalCount)} de {totalCount}</p>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
                 <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>

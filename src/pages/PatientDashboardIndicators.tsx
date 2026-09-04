@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "react-router-dom";
 import ChartActions from "@/components/ChartActions";
 import DashboardAnalysisTabs, { AnalysisConfig } from "@/components/DashboardAnalysisTabs";
@@ -987,7 +988,7 @@ function DeviceBreakdownCard({
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"cvc" | "svu" | "vm">("cvc");
-  const DEV_PAGE_SIZE = 20;
+  const DEV_PAGE_SIZE = LIST_PAGE_SIZE;
   const [devPage, setDevPage] = useState(1);
   useEffect(() => { setDevPage(1); }, [tab, cvcBreakdown, svuBreakdown, vmBreakdown]);
 

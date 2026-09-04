@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export default function CRM() {
     return matchSearch && matchStage;
   });
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = LIST_PAGE_SIZE;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);

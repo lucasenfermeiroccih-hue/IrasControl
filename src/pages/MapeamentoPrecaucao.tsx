@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -849,7 +850,7 @@ export default function MapeamentoPrecaucao() {
       p.setor.toLowerCase().includes(search.toLowerCase()))
   ));
 
-  const MAP_PAGE_SIZE = 20;
+  const MAP_PAGE_SIZE = LIST_PAGE_SIZE;
   const [mapPage, setMapPage] = useState(1);
   const mapTotalPages = Math.max(1, Math.ceil(displayed.length / MAP_PAGE_SIZE));
   const mapPageSafe = Math.min(mapPage, mapTotalPages);

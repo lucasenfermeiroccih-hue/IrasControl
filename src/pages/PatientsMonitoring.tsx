@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -163,7 +164,7 @@ export default function PatientsMonitoring() {
   };
   // Paginação da listagem — evita renderizar centenas de linhas de uma vez
   // (o que deixava a página muito longa/lenta com uma barra de rolagem enorme)
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = LIST_PAGE_SIZE;
   const [page, setPage] = useState(1);
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);

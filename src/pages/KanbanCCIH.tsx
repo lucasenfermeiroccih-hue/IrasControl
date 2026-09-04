@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -512,7 +513,7 @@ export default function KanbanCCIH() {
   })();
 
   // ── Manage-tab pagination ─────────────────────────────────────────────────
-  const MANAGE_PAGE_SIZE = 20;
+  const MANAGE_PAGE_SIZE = LIST_PAGE_SIZE;
   const [managePage, setManagePage] = useState(1);
   const manageTotalPages = Math.max(1, Math.ceil(manageTarefas.length / MANAGE_PAGE_SIZE));
   const managePageSafe = Math.min(managePage, manageTotalPages);

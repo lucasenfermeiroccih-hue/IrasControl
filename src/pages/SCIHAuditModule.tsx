@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -401,7 +402,7 @@ export default function SCIHAuditModule() {
   });
 
   // ─── HISTORICO PAGINATION ─────────────────────────────────────────────────
-  const HIST_PAGE_SIZE = 20;
+  const HIST_PAGE_SIZE = LIST_PAGE_SIZE;
   const [histPage, setHistPage] = useState(1);
   const histList = appData.historico || [];
   const histTotalPages = Math.max(1, Math.ceil(histList.length / HIST_PAGE_SIZE));
