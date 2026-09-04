@@ -360,6 +360,16 @@ const CasesInvestigation = () => {
     return !search || name.toLowerCase().includes(search.toLowerCase()) || record.toLowerCase().includes(search.toLowerCase());
   });
 
+  // ─── Paginação da listagem ─────────────────────────────────
+  // Evita renderizar centenas de linhas de uma vez (página muito longa/lenta
+  // com barra de rolagem enorme). Mesma abordagem da tela de monitoramento.
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [search, filterStatus, filterEvento, filterSetor, filterMes, filterAno]);
+
   const clearFilters = () => {
     setFilterMes("Todos"); setFilterAno(String(new Date().getFullYear()));
     setFilterSetor("Todos"); setFilterEvento("Todos");
@@ -1246,7 +1256,7 @@ const CasesInvestigation = () => {
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum caso encontrado.</TableCell></TableRow>}
-                {filtered.map((c) => (
+                {paged.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.case_number || c.id.slice(0, 8)}</TableCell>
                     <TableCell>
@@ -1274,7 +1284,7 @@ const CasesInvestigation = () => {
 
           <div className="md:hidden space-y-2 p-3">
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum caso.</p>}
-            {filtered.map((c) => (
+            {paged.map((c) => (
               <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -1291,6 +1301,24 @@ const CasesInvestigation = () => {
               </div>
             ))}
           </div>
+
+          {/* Controles de paginação */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 md:px-0 py-3 border-t">
+              <p className="text-xs text-muted-foreground">
+                Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filtered.length)} de {filtered.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                  Próxima <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
