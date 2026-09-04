@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import {
   Stethoscope, Search, Users, AlertTriangle, Activity, Thermometer,
   Plus, Pencil, LogOut, Clock, Save, Eye, FileText, ShieldAlert, Syringe,
@@ -360,6 +361,14 @@ export default function PatientsMonitoring() {
     });
     return arr;
   })();
+  const PAGE_SIZE = 15;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [search, filterMes, filterAno, filterSetor, filterStatus, sortKey, sortDir]);
+
   const activeCount = filteredForKpis.filter(p => p.status === "active").length;
   const totalCount = filteredForKpis.length;
   const deceasedCount = filteredForKpis.filter(p => p.status === "deceased").length;
@@ -1831,7 +1840,7 @@ export default function PatientsMonitoring() {
                 {filtered.length === 0 && (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
                 )}
-                {filtered.map(p => {
+                {paginated.map(p => {
                   const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
                   const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
                   const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
@@ -1894,7 +1903,7 @@ export default function PatientsMonitoring() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2 p-3">
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum paciente.</p>}
-            {filtered.map(p => {
+            {paginated.map(p => {
               const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
               const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
               const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
@@ -1945,6 +1954,47 @@ export default function PatientsMonitoring() {
               );
             })}
           </div>
+
+          {filtered.length > 0 && (
+            <div className="flex flex-col items-center gap-2 p-3 md:pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Mostrando {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} de {filtered.length}
+              </p>
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent className="flex-wrap">
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        aria-disabled={currentPage === 1}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        onClick={(e) => { e.preventDefault(); setPage(Math.max(1, currentPage - 1)); }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                      <PaginationItem key={n}>
+                        <PaginationLink
+                          href="#"
+                          isActive={n === currentPage}
+                          onClick={(e) => { e.preventDefault(); setPage(n); }}
+                        >
+                          {n}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        aria-disabled={currentPage === totalPages}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                        onClick={(e) => { e.preventDefault(); setPage(Math.min(totalPages, currentPage + 1)); }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
       </>
