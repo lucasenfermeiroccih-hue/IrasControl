@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,6 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import MultiSelectFilter from "@/components/MultiSelectFilter";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import {
   Stethoscope, Search, Users, AlertTriangle, Activity, Thermometer,
   Plus, Pencil, LogOut, Clock, Save, Eye, FileText, ShieldAlert, Syringe,
@@ -162,6 +162,10 @@ export default function PatientsMonitoring() {
       setSortDir("asc");
     }
   };
+  // Paginação da listagem — evita renderizar centenas de linhas de uma vez
+  // (o que deixava a página muito longa/lenta com uma barra de rolagem enorme)
+  const PAGE_SIZE = LIST_PAGE_SIZE;
+  const [page, setPage] = useState(1);
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [dischargeConfirmOpen, setDischargeConfirmOpen] = useState(false);
@@ -361,12 +365,10 @@ export default function PatientsMonitoring() {
     });
     return arr;
   })();
-  const PAGE_SIZE = 15;
-  const [page, setPage] = useState(1);
+  // Recalcula fatia paginada; volta para a 1ª página quando filtros/ordenação mudam
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const paginated = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageSafe = Math.min(page, totalPages);
+  const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
   useEffect(() => { setPage(1); }, [search, filterMes, filterAno, filterSetor, filterStatus, sortKey, sortDir]);
 
   const activeCount = filteredForKpis.filter(p => p.status === "active").length;
@@ -1840,7 +1842,7 @@ export default function PatientsMonitoring() {
                 {filtered.length === 0 && (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum paciente encontrado.</TableCell></TableRow>
                 )}
-                {paginated.map(p => {
+                {paged.map(p => {
                   const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
                   const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
                   const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
@@ -1903,7 +1905,7 @@ export default function PatientsMonitoring() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2 p-3">
             {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Nenhum paciente.</p>}
-            {paginated.map(p => {
+            {paged.map(p => {
               const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
               const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
               const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
@@ -1955,44 +1957,21 @@ export default function PatientsMonitoring() {
             })}
           </div>
 
-          {filtered.length > 0 && (
-            <div className="flex flex-col items-center gap-2 p-3 md:pt-4 border-t border-border">
+          {/* Controles de paginação */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 md:px-0 py-3 border-t">
               <p className="text-xs text-muted-foreground">
-                Mostrando {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} de {filtered.length}
+                Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filtered.length)} de {filtered.length}
               </p>
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent className="flex-wrap">
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        aria-disabled={currentPage === 1}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                        onClick={(e) => { e.preventDefault(); setPage(Math.max(1, currentPage - 1)); }}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                      <PaginationItem key={n}>
-                        <PaginationLink
-                          href="#"
-                          isActive={n === currentPage}
-                          onClick={(e) => { e.preventDefault(); setPage(n); }}
-                        >
-                          {n}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        aria-disabled={currentPage === totalPages}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                        onClick={(e) => { e.preventDefault(); setPage(Math.min(totalPages, currentPage + 1)); }}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                  Próxima <ChevronLeft className="h-4 w-4 rotate-180" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

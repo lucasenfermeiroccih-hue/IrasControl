@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Copy, Trash2, Edit, Eye, FolderOpen, FileText, ClipboardCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, Search, Copy, Trash2, Edit, Eye, FolderOpen, FileText, ClipboardCheck, CheckCircle2, Loader2, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -73,6 +74,13 @@ export default function Forms() {
     const matchStatus = statusFilter === "all" || t.status === statusFilter;
     return matchSearch && matchCat && matchStatus;
   });
+
+  const PAGE_SIZE = LIST_PAGE_SIZE;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [search, catFilter, statusFilter]);
 
   const stats = {
     total: templates.length,
@@ -270,7 +278,7 @@ export default function Forms() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((t) => (
+                      {paged.map((t) => (
                         <TableRow key={t.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -299,6 +307,16 @@ export default function Forms() {
                     </TableBody>
                   </Table>
                 </div>
+                {filtered.length > PAGE_SIZE && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2 px-4">
+                    <p className="text-xs text-muted-foreground">Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filtered.length)} de {filtered.length}</p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                      <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
+                      <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

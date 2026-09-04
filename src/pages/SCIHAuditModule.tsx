@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import type { Json } from "@/integrations/supabase/types";
 import { CHECKLISTS_DATA } from "@/data/scih-checklists";
 import { compressImage } from "@/lib/compressImage";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const SCIH_CSS = `
@@ -397,6 +400,15 @@ export default function SCIHAuditModule() {
     includeComparative: false,
     includeActionPlan: true,
   });
+
+  // ─── HISTORICO PAGINATION ─────────────────────────────────────────────────
+  const HIST_PAGE_SIZE = LIST_PAGE_SIZE;
+  const [histPage, setHistPage] = useState(1);
+  const histList = appData.historico || [];
+  const histTotalPages = Math.max(1, Math.ceil(histList.length / HIST_PAGE_SIZE));
+  const histPageSafe = Math.min(histPage, histTotalPages);
+  const pagedHist = histList.slice((histPageSafe - 1) * HIST_PAGE_SIZE, histPageSafe * HIST_PAGE_SIZE);
+  useEffect(() => { setHistPage(1); }, [histList.length]);
 
   // ─── COMPUTED ─────────────────────────────────────────────────────────────
 
@@ -1958,7 +1970,7 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
               </thead>
               <tbody>
                 {appData.historico.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--text2)", padding:24 }}>Nenhuma auditoria registrada.</td></tr>}
-                {appData.historico.map(h => (
+                {pagedHist.map(h => (
                   <tr key={h.id} style={{ background: selectedHistIds.has(h.id!) ? "rgba(26,158,117,.07)" : undefined }}>
                     <td>
                       <input type="checkbox" style={{ cursor:"pointer", accentColor:"var(--teal)", width:15, height:15 }}
@@ -2000,6 +2012,16 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
                 ))}
               </tbody>
             </table>
+            {histList.length > HIST_PAGE_SIZE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2" style={{ padding:"8px 14px" }}>
+                <p className="text-xs text-muted-foreground">Mostrando {(histPageSafe - 1) * HIST_PAGE_SIZE + 1}–{Math.min(histPageSafe * HIST_PAGE_SIZE, histList.length)} de {histList.length}</p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8" disabled={histPageSafe <= 1} onClick={() => setHistPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                  <span className="text-xs text-muted-foreground px-1">Página {histPageSafe} de {histTotalPages}</span>
+                  <Button variant="outline" size="sm" className="h-8" disabled={histPageSafe >= histTotalPages} onClick={() => setHistPage(p => Math.min(histTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

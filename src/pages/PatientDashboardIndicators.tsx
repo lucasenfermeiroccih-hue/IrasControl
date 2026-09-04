@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "react-router-dom";
 import ChartActions from "@/components/ChartActions";
 import DashboardAnalysisTabs, { AnalysisConfig } from "@/components/DashboardAnalysisTabs";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Users, BedDouble, Skull, HeartPulse, Syringe,
   Activity, ArrowUpFromLine, Stethoscope, Wind, Cable, Droplets, Loader2,
-  Pill, Microscope, FileText, ArrowUp, ArrowDown, ArrowUpDown
+  Pill, Microscope, FileText, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -987,11 +988,17 @@ function DeviceBreakdownCard({
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"cvc" | "svu" | "vm">("cvc");
+  const DEV_PAGE_SIZE = LIST_PAGE_SIZE;
+  const [devPage, setDevPage] = useState(1);
+  useEffect(() => { setDevPage(1); }, [tab, cvcBreakdown, svuBreakdown, vmBreakdown]);
 
   const data = { cvc: cvcBreakdown, svu: svuBreakdown, vm: vmBreakdown };
   const labels = { cvc: "CVC", svu: "SVD", vm: "VM" };
   const totals = { cvc: cvcBreakdown.reduce((s, r) => s + r.days, 0), svu: svuBreakdown.reduce((s, r) => s + r.days, 0), vm: vmBreakdown.reduce((s, r) => s + r.days, 0) };
   const rows = data[tab].slice().sort((a, b) => b.days - a.days);
+  const devTotalPages = Math.max(1, Math.ceil(rows.length / DEV_PAGE_SIZE));
+  const devPageSafe = Math.min(devPage, devTotalPages);
+  const pagedRows = rows.slice((devPageSafe - 1) * DEV_PAGE_SIZE, devPageSafe * DEV_PAGE_SIZE);
 
   return (
     <Card className="border-muted">
@@ -1033,7 +1040,7 @@ function DeviceBreakdownCard({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(r => (
+                  {pagedRows.map(r => (
                     <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="py-1.5 px-2 truncate max-w-xs">{r.name}</td>
                       <td className="py-1.5 px-2 text-right font-semibold">{r.days}</td>
@@ -1045,6 +1052,16 @@ function DeviceBreakdownCard({
                   </tr>
                 </tbody>
               </table>
+              {rows.length > DEV_PAGE_SIZE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2">
+                  <p className="text-xs text-muted-foreground">Mostrando {(devPageSafe - 1) * DEV_PAGE_SIZE + 1}–{Math.min(devPageSafe * DEV_PAGE_SIZE, rows.length)} de {rows.length}</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-8" disabled={devPageSafe <= 1} onClick={() => setDevPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                    <span className="text-xs text-muted-foreground px-1">Página {devPageSafe} de {devTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-8" disabled={devPageSafe >= devTotalPages} onClick={() => setDevPage(p => Math.min(devTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

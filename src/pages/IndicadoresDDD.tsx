@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import {
 import { toast } from "sonner";
 import {
   Save, Calculator, Trash2, History, RotateCcw, Pencil, FileText,
-  Filter, X, Loader2,
+  Filter, X, Loader2, ChevronLeft,
 } from "lucide-react";
 import { antimicrobianosBase } from "@/data/antimicrobianos-ddd";
 import { exportPdf } from "@/lib/pdf-export";
@@ -84,12 +85,14 @@ export default function IndicadoresDDD() {
   const fetchHistory = useCallback(async () => {
     if (!hospitalId) return;
     setLoadingHistory(true);
+    // Sem teto de 100: é uma tabela de agregado mensal (poucos registros por
+    // hospital) e o filtro de setor é sobre JSONB (avaliado no cliente), então
+    // trazemos todos os registros do hospital e paginamos client-side.
     const { data, error } = await supabase
       .from("ddd_records")
       .select("*, ddd_record_lines(*)")
       .eq("hospital_id", hospitalId)
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .order("created_at", { ascending: false });
     setLoadingHistory(false);
     if (error) { console.error(error); return; }
     setRegistrosSalvos((data as any) || []);
@@ -115,6 +118,13 @@ export default function IndicadoresDDD() {
       return true;
     });
   }, [registrosSalvos, filtroMes, filtroAno, filtroSetor]);
+
+  const REG_PAGE_SIZE = LIST_PAGE_SIZE;
+  const [regPage, setRegPage] = useState(1);
+  const regTotalPages = Math.max(1, Math.ceil(filteredRegistros.length / REG_PAGE_SIZE));
+  const regPageSafe = Math.min(regPage, regTotalPages);
+  const pagedRegistros = filteredRegistros.slice((regPageSafe - 1) * REG_PAGE_SIZE, regPageSafe * REG_PAGE_SIZE);
+  useEffect(() => { setRegPage(1); }, [filtroMes, filtroAno, filtroSetor]);
 
   const uniqueAnos = useMemo(() => [...new Set(registrosSalvos.map(r => String(r.ano_vigilancia)))].sort(), [registrosSalvos]);
 
@@ -483,7 +493,7 @@ export default function IndicadoresDDD() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredRegistros.map(reg => (
+                      {pagedRegistros.map(reg => (
                         <TableRow key={reg.id}>
                           <TableCell className="font-medium">{reg.profissional}</TableCell>
                           <TableCell><Badge variant="secondary">{reg.mes_vigilancia}/{reg.ano_vigilancia}</Badge></TableCell>
@@ -510,7 +520,7 @@ export default function IndicadoresDDD() {
                 </div>
                 {/* Mobile history cards */}
                 <div className="md:hidden space-y-3">
-                  {filteredRegistros.map(reg => (
+                  {pagedRegistros.map(reg => (
                     <div key={reg.id} className="border border-border rounded-lg p-3 space-y-2">
                       <div className="flex items-start justify-between">
                         <div>
@@ -534,6 +544,16 @@ export default function IndicadoresDDD() {
                   ))}
                 </div>
               </>
+            )}
+            {filteredRegistros.length > REG_PAGE_SIZE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2">
+                <p className="text-xs text-muted-foreground">Mostrando {(regPageSafe - 1) * REG_PAGE_SIZE + 1}–{Math.min(regPageSafe * REG_PAGE_SIZE, filteredRegistros.length)} de {filteredRegistros.length}</p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8" disabled={regPageSafe <= 1} onClick={() => setRegPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                  <span className="text-xs text-muted-foreground px-1">Página {regPageSafe} de {regTotalPages}</span>
+                  <Button variant="outline" size="sm" className="h-8" disabled={regPageSafe >= regTotalPages} onClick={() => setRegPage(p => Math.min(regTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+                </div>
+              </div>
             )}
           </div>
         </DialogContent>
