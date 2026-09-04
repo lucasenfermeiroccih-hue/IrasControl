@@ -12,6 +12,8 @@ import { sendToAgent } from "@/lib/agent-service";
 import ChartActions from "@/components/ChartActions";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 
 const ORGANISMOS = [
   { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",              precaucao: "Contato"   },
@@ -846,6 +848,13 @@ export default function MapeamentoPrecaucao() {
       p.prontuario.includes(search) ||
       p.setor.toLowerCase().includes(search.toLowerCase()))
   ));
+
+  const MAP_PAGE_SIZE = 20;
+  const [mapPage, setMapPage] = useState(1);
+  const mapTotalPages = Math.max(1, Math.ceil(displayed.length / MAP_PAGE_SIZE));
+  const mapPageSafe = Math.min(mapPage, mapTotalPages);
+  const pagedDisplayed = displayed.slice((mapPageSafe - 1) * MAP_PAGE_SIZE, mapPageSafe * MAP_PAGE_SIZE);
+  useEffect(() => { setMapPage(1); }, [fStatus, fSetor, fLeito, fDataColeta, fMes, fAno, fOrganismo, fPrecaucao, fMaterial, search]);
 
   const internadosSorted = applySort(internados);
 
@@ -2048,7 +2057,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               <tbody>
                 {displayed.length === 0 ? (
                   <tr><td colSpan={9} style={{ padding:28, textAlign:"center", color:"var(--color-text-tertiary)" }}>Nenhum paciente encontrado</td></tr>
-                ) : displayed.map((p, i) => {
+                ) : pagedDisplayed.map((p, i) => {
                   const org = ORGANISMOS.find(o => o.value === p.organismo);
                   const pre = PMETA[p.precaucao] || PMETA.Contato;
                   const sta = SMETA[p.status]    || SMETA.Internado;
@@ -2097,6 +2106,16 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
               </tbody>
             </table>
           </div>
+          {displayed.length > MAP_PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2">
+              <p className="text-xs text-muted-foreground">Mostrando {(mapPageSafe - 1) * MAP_PAGE_SIZE + 1}–{Math.min(mapPageSafe * MAP_PAGE_SIZE, displayed.length)} de {displayed.length}</p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8" disabled={mapPageSafe <= 1} onClick={() => setMapPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                <span className="text-xs text-muted-foreground px-1">Página {mapPageSafe} de {mapTotalPages}</span>
+                <Button variant="outline" size="sm" className="h-8" disabled={mapPageSafe >= mapTotalPages} onClick={() => setMapPage(p => Math.min(mapTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+              </div>
+            </div>
+          )}
 
           {/* print view */}
           <div className="po" style={{ padding:20 }}>

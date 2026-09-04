@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import {
   KanbanSquare, Plus, CheckCircle2, Clock, RotateCcw, Trash2,
   Pencil, Loader2, Calendar, CalendarDays, CalendarRange,
-  ListTodo, Users, ChevronRight, AlertCircle, User,
+  ListTodo, Users, ChevronRight, ChevronLeft, AlertCircle, User,
   ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -511,6 +511,14 @@ export default function KanbanCCIH() {
     return list;
   })();
 
+  // ── Manage-tab pagination ─────────────────────────────────────────────────
+  const MANAGE_PAGE_SIZE = 20;
+  const [managePage, setManagePage] = useState(1);
+  const manageTotalPages = Math.max(1, Math.ceil(manageTarefas.length / MANAGE_PAGE_SIZE));
+  const managePageSafe = Math.min(managePage, manageTotalPages);
+  const pagedManage = manageTarefas.slice((managePageSafe - 1) * MANAGE_PAGE_SIZE, managePageSafe * MANAGE_PAGE_SIZE);
+  useEffect(() => { setManagePage(1); }, [manageMes, manageAno, manageUser, manageStatus, sortKey, sortDir]);
+
   // ── Derived data ──────────────────────────────────────────────────────────
 
   const myTarefas = isAdmin
@@ -846,7 +854,7 @@ export default function KanbanCCIH() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {manageTarefas.map((t) => (
+                  {pagedManage.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>
                         <p className="font-medium text-sm">{t.title}</p>
@@ -907,6 +915,16 @@ export default function KanbanCCIH() {
                   ))}
                 </TableBody>
               </Table>
+              {manageTarefas.length > MANAGE_PAGE_SIZE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2 px-4">
+                  <p className="text-xs text-muted-foreground">Mostrando {(managePageSafe - 1) * MANAGE_PAGE_SIZE + 1}–{Math.min(managePageSafe * MANAGE_PAGE_SIZE, manageTarefas.length)} de {manageTarefas.length}</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-8" disabled={managePageSafe <= 1} onClick={() => setManagePage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                    <span className="text-xs text-muted-foreground px-1">Página {managePageSafe} de {manageTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-8" disabled={managePageSafe >= manageTotalPages} onClick={() => setManagePage(p => Math.min(manageTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

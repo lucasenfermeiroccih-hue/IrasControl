@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { History, Pencil, Trash2, FileDown, Filter, FilterX, Loader2 } from "lucide-react";
+import { History, Pencil, Trash2, FileDown, Filter, FilterX, Loader2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -80,6 +80,13 @@ export default function ISCHistory({ onEdit }: Props) {
       return true;
     });
   }, [records, filterMes, filterAno]);
+
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = filteredRecords.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [filterMes, filterAno, records]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -223,7 +230,7 @@ export default function ISCHistory({ onEdit }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRecords.map((rec) => {
+                  {paged.map((rec) => {
                     const mesNome = rec.mes ? meses[Number(rec.mes) - 1] || rec.mes : "—";
                     return (
                       <TableRow key={rec.id}>
@@ -244,6 +251,16 @@ export default function ISCHistory({ onEdit }: Props) {
               </Table>
             )}
           </ScrollArea>
+          {filteredRecords.length > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2">
+              <p className="text-xs text-muted-foreground">Mostrando {(pageSafe - 1) * PAGE_SIZE + 1}–{Math.min(pageSafe * PAGE_SIZE, filteredRecords.length)} de {filteredRecords.length}</p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
