@@ -13,7 +13,7 @@ import {
 import {
   HandMetal, CheckCircle2, AlertTriangle, ClipboardCheck, Loader2, Download,
   XCircle, AlertCircle, Target, TrendingUp, ArrowRight, Brain, ClipboardList,
-  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck, RefreshCw,
+  GitBranch, Droplets, Users, Activity, Info, Flame, ShieldCheck, RefreshCw, Gem,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
@@ -288,6 +288,13 @@ export default function DashboardHygiene() {
     const hygieneTotal   = hygieneItems.length;
     const adhesionRate   = hygieneTotal > 0 ? Math.round((sim / hygieneTotal) * 100) : avgCompliance;
 
+    // Adornos — indicador à parte (não entra na taxa de adesão)
+    const adornoItems    = filteredItems.filter(i => i.category === "Adornos" || i.category?.toLowerCase().includes("adorno"));
+    const adornoTotal    = adornoItems.length;
+    const adornoCom      = adornoItems.filter(i => i.status === "non_compliant").length; // usa adornos = não conforme
+    const adornoSem      = adornoItems.filter(i => i.status === "compliant").length;     // sem adornos = conforme
+    const adornoConform  = adornoTotal > 0 ? Math.round((adornoSem / adornoTotal) * 100) : 0;
+
     // By sector
     const bySector: Record<string, { sum: number; count: number; nc: number }> = {};
     filteredAudits.forEach(a => {
@@ -382,7 +389,7 @@ export default function DashboardHygiene() {
       return { name: f.item.length > 26 ? f.item.substring(0, 25) + "…" : f.item, count: f.count, acumulado: paretoTotal > 0 ? Math.round((acc / paretoTotal) * 100) : 0 };
     });
 
-    return { totalAudits, avgCompliance, nonCompliant, sim, nao, hygieneTotal, adhesionRate, sectorData, criticalSectors, warningSectors, goodSectors, worstSector, topFailures, categoryData, monthlyTrend, improvement, professionalData, paretoData };
+    return { totalAudits, avgCompliance, nonCompliant, sim, nao, hygieneTotal, adhesionRate, adornoTotal, adornoCom, adornoSem, adornoConform, sectorData, criticalSectors, warningSectors, goodSectors, worstSector, topFailures, categoryData, monthlyTrend, improvement, professionalData, paretoData };
   }, [filteredAudits, filteredItems]);
 
   // Year comparison
@@ -441,6 +448,7 @@ export default function DashboardHygiene() {
       { label: "Setores em Atenção", value: String(fStats.warningSectors), sub: "70–79% de adesão", status: fStats.warningSectors > 0 ? "warning" : "ok" },
       { label: "Setores Críticos", value: String(fStats.criticalSectors), sub: "< 70% de adesão", status: fStats.criticalSectors === 0 ? "ok" : "critical" },
       { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", status: fStats.improvement >= 0 ? "ok" : "warning" },
+      { label: "Conformidade de Adornos", value: fStats.adornoTotal > 0 ? `${fStats.adornoConform}%` : "—", sub: `${fStats.adornoCom} com adornos (não conforme)`, status: fStats.adornoTotal === 0 ? undefined : fStats.adornoConform >= META_OMS ? "ok" : fStats.adornoConform >= 70 ? "warning" : "critical" },
     ],
     sectorData: fStats.sectorData.map(s => ({ name: s.name, compliance: s.compliance, audits: s.audits, nc: s.nc })),
     monthlyTrend: (fStats.monthlyTrend ?? []).map(m => ({ month: m.label, value: m.compliance })),
@@ -503,6 +511,7 @@ export default function DashboardHygiene() {
     { label: "Setores em Atenção", value: String(fStats.warningSectors), sub: "70–79% de adesão", icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200", status: null, statusColor: "" },
     { label: "Setores Críticos", value: String(fStats.criticalSectors), sub: "< 70% de adesão", icon: Flame, color: "text-red-600", bg: "bg-red-50", border: "border-red-200", status: fStats.criticalSectors === 0 ? "OK" : "Alerta", statusColor: fStats.criticalSectors === 0 ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800" },
     { label: "Tendência do Período", value: `${fStats.improvement >= 0 ? "+" : ""}${fStats.improvement}%`, sub: "vs período anterior", icon: TrendingUp, color: fStats.improvement >= 0 ? "text-emerald-600" : "text-red-600", bg: fStats.improvement >= 0 ? "bg-emerald-50" : "bg-red-50", border: fStats.improvement >= 0 ? "border-emerald-200" : "border-red-200", status: null, statusColor: "" },
+    { label: "Conformidade de Adornos", value: fStats.adornoTotal > 0 ? `${fStats.adornoConform}%` : "—", sub: `${fStats.adornoCom} com adornos · ${fStats.adornoSem} sem`, icon: Gem, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200", status: fStats.adornoTotal === 0 ? null : fStats.adornoConform >= META_OMS ? "Adequado" : fStats.adornoConform >= 70 ? "Atenção" : "Crítico", statusColor: fStats.adornoConform >= META_OMS ? "bg-emerald-100 text-emerald-800" : fStats.adornoConform >= 70 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800" },
   ];
 
   return (

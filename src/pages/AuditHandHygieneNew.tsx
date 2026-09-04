@@ -57,6 +57,8 @@ export default function AuditHandHygieneNew() {
       observations: `Funcionário: ${form.employeeName} | Profissional: ${form.professionalCategory}`,
       items,
       photos,
+      // Adornos é um indicador à parte — não entra na taxa de adesão à higienização
+      rateExcludeCategories: ["Adornos"],
     });
     setSaving(false);
     if (ok) {

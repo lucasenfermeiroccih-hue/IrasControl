@@ -22,14 +22,23 @@ export function useAuditSave() {
     observations?: string;
     items: AuditItem[];
     photos?: { file: File; caption: string }[];
+    /**
+     * Categorias que NÃO devem entrar no cálculo da taxa de conformidade
+     * (ex.: "Adornos" na higiene das mãos, que é um indicador à parte).
+     * Os itens continuam sendo salvos normalmente em audit_items — apenas
+     * ficam de fora de compliance_rate / compliant_items / total_items.
+     */
+    rateExcludeCategories?: string[];
   }) => {
     if (!hospitalId || !userId) {
       toast.error("Contexto de hospital não encontrado. Faça login novamente.");
       return false;
     }
 
-    const compliantItems = opts.items.filter(i => i.status === "compliant").length;
-    const applicableItems = opts.items.filter(i => i.status !== "not_applicable" && i.status !== "not_evaluated").length;
+    const excluded = new Set(opts.rateExcludeCategories || []);
+    const rateItems = opts.items.filter(i => !excluded.has(i.category || ""));
+    const compliantItems = rateItems.filter(i => i.status === "compliant").length;
+    const applicableItems = rateItems.filter(i => i.status !== "not_applicable" && i.status !== "not_evaluated").length;
     const complianceRate = applicableItems > 0 ? (compliantItems / applicableItems) * 100 : 0;
 
     const { data: audit, error: auditError } = await supabase
@@ -42,7 +51,7 @@ export function useAuditSave() {
         auditor_id: userId,
         observations: opts.observations || null,
         compliant_items: compliantItems,
-        total_items: opts.items.length,
+        total_items: rateItems.length,
         compliance_rate: Math.round(complianceRate * 10) / 10,
       })
       .select("id")

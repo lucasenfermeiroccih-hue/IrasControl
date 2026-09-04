@@ -19,6 +19,21 @@ import {
 import { toast } from "sonner";
 import { openGuardiaoWithSSO } from "@/lib/guardiaoSSO";
 
+const AUDIT_TYPE_LABELS: Record<string, string> = {
+  bundles: "Bundles",
+  hand_hygiene: "Higiene das Mãos",
+  infection_control: "Controle de Infecção",
+  dispenser: "Dispenser",
+  cti_infrastructure: "Infraestrutura CTI",
+  antibiogram: "Antibiograma",
+  construction_renovation: "Obras/Reformas",
+};
+const prettyAuditType = (t?: string | null) =>
+  (t && AUDIT_TYPE_LABELS[t]) ||
+  (t ? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Outros");
+
+const NC_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#dc2626", "#ea580c"];
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
@@ -37,6 +52,7 @@ export default function Dashboard() {
   const [patients, setPatients] = useState<any[]>([]);
   const [cases, setCases] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
+  const [auditItems, setAuditItems] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
   const [precautions, setPrecautions] = useState<any[]>([]);
@@ -58,6 +74,32 @@ export default function Dashboard() {
       setAudits(aRes.data || []);
       setAlerts(alRes.data || []);
       setLabResults(lRes.data || []);
+
+      // Itens de auditoria (para inconformidade por tipo de item auditado)
+      const auditIds = (aRes.data || []).map((a: any) => a.id);
+      if (auditIds.length > 0) {
+        const chunkSize = 200, pageSize = 1000;
+        const allItems: any[] = [];
+        for (let i = 0; i < auditIds.length; i += chunkSize) {
+          const chunk = auditIds.slice(i, i + chunkSize);
+          let from = 0;
+          while (true) {
+            const { data: itemData, error } = await supabase
+              .from("audit_items")
+              .select("audit_id, status, category")
+              .in("audit_id", chunk)
+              .range(from, from + pageSize - 1);
+            if (error || !itemData || itemData.length === 0) break;
+            allItems.push(...itemData);
+            if (itemData.length < pageSize) break;
+            from += pageSize;
+          }
+        }
+        setAuditItems(allItems);
+      } else {
+        setAuditItems([]);
+      }
+
       const pIds = (pRes.data || []).map((p: any) => p.id);
       if (pIds.length > 0) {
         const { data: precData } = await supabase.from("precautions").select("*").in("patient_id", pIds);
@@ -251,6 +293,42 @@ export default function Dashboard() {
       { name: "Não Conforme", value: nonConforme, color: "hsl(0, 72%, 51%)" },
     ];
   }, [complianceRate]);
+
+  // Inconformidade por tipo de auditoria ("tipo de prevenção")
+  const nonComplianceByType = useMemo(() => {
+    const map: Record<string, { nc: number; total: number; count: number }> = {};
+    fAudits.forEach(a => {
+      const total = a.total_items || 0;
+      const compliant = a.compliant_items || 0;
+      if (total <= 0) return;
+      const label = prettyAuditType(a.audit_type);
+      if (!map[label]) map[label] = { nc: 0, total: 0, count: 0 };
+      map[label].nc += Math.max(0, total - compliant);
+      map[label].total += total;
+      map[label].count++;
+    });
+    return Object.entries(map)
+      .map(([name, v]) => ({ name, taxa: v.total > 0 ? Number(((v.nc / v.total) * 100).toFixed(1)) : 0, audits: v.count }))
+      .sort((a, b) => b.taxa - a.taxa);
+  }, [fAudits]);
+
+  // Inconformidade por tipo de item auditado (categoria dos itens)
+  const nonComplianceByCategory = useMemo(() => {
+    const idSet = new Set(fAudits.map(a => a.id));
+    const map: Record<string, { nc: number; applicable: number }> = {};
+    auditItems.forEach(it => {
+      if (!idSet.has(it.audit_id)) return;
+      if (it.status === "not_applicable" || it.status === "not_evaluated") return;
+      const cat = it.category || "Geral";
+      if (!map[cat]) map[cat] = { nc: 0, applicable: 0 };
+      map[cat].applicable++;
+      if (it.status === "non_compliant") map[cat].nc++;
+    });
+    return Object.entries(map)
+      .map(([name, v]) => ({ name, taxa: v.applicable > 0 ? Number(((v.nc / v.applicable) * 100).toFixed(1)) : 0, total: v.applicable }))
+      .sort((a, b) => b.taxa - a.taxa)
+      .slice(0, 10);
+  }, [auditItems, fAudits]);
 
   const handleExportPDF = async () => {
     toast.info("Gerando PDF do dashboard...");
@@ -518,6 +596,57 @@ export default function Dashboard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-10">Nenhuma auditoria registrada ainda.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Inconformidade por tipo de prevenção (auditoria) e por item auditado */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Inconformidade por Tipo de Prevenção</CardTitle>
+            <p className="text-xs text-muted-foreground">% de itens não conformes por tipo de auditoria</p>
+          </CardHeader>
+          <CardContent>
+            {nonComplianceByType.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={nonComplianceByType} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={55} interval={0} />
+                  <YAxis tick={{ fontSize: 11 }} unit="%" domain={[0, 100]} />
+                  <Tooltip formatter={(v: number) => `${v}%`} />
+                  <Bar dataKey="taxa" name="Inconformidade" radius={[4, 4, 0, 0]}>
+                    {nonComplianceByType.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-10">Nenhuma auditoria com itens registrados no período.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Inconformidade por Tipo de Item Auditado</CardTitle>
+            <p className="text-xs text-muted-foreground">% de não conformidade por categoria de item</p>
+          </CardHeader>
+          <CardContent>
+            {nonComplianceByCategory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={Math.max(280, nonComplianceByCategory.length * 34)}>
+                <BarChart data={nonComplianceByCategory} layout="vertical" margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
+                  <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v}%`} />
+                  <Bar dataKey="taxa" name="Inconformidade" radius={[0, 4, 4, 0]}>
+                    {nonComplianceByCategory.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-10">Nenhum item de auditoria registrado no período.</p>
             )}
           </CardContent>
         </Card>
