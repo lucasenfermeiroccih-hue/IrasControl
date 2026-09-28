@@ -199,6 +199,18 @@ function markdownToHtml(md: string): string {
 
 
 
+// ── Remove a seção do plano de ação 5W2H e renumera as seções seguintes ─────────
+function stripActionPlanSection(md: string): string {
+  // Remove do cabeçalho "## N. PLANO ... 5W2H" até o divisor de traços/underscores seguinte.
+  const withoutSection = md.replace(
+    /\n?## \d+\.\s+PLANO[^\n]*5W2H[\s\S]*?_{20,}\n+/,
+    "\n"
+  );
+  // Renumera sequencialmente todos os cabeçalhos "## N." para não deixar buracos.
+  let n = 0;
+  return withoutSection.replace(/^## \d+\.\s+/gm, () => `## ${++n}. `);
+}
+
 // ── Email via mailto ───────────────────────────────────────────────────────────
 function buildMailtoLink(params: {
   to: string;
@@ -348,6 +360,9 @@ export function AuditManagerReportModal({
       // Replace any remaining unfilled placeholders
       md = md.replace(/\{\{[^}]+\}\}/g, "—");
 
+      // Remove o plano de ação 5W2H quando o gestor optar por não incluí-lo
+      if (!includeActionPlan) md = stripActionPlanSection(md);
+
       setLoadingMsg("Carregando logos...");
       const logos = await fetchHospitalLogos(hospitalId);
       const hospLogo = logos.find(l => l.logo_type === "hospital" || l.logo_type === "main");
@@ -373,7 +388,7 @@ export function AuditManagerReportModal({
       setLoading(false);
       setLoadingMsg("");
     }
-  }, [hospitalId, hospitalName, selectedSectors, mode, auditType, periodStart, periodEnd, periodStartDate, periodEndDate, managerName, managerEmail, technicalResponsible]);
+  }, [hospitalId, hospitalName, selectedSectors, mode, auditType, periodStart, periodEnd, periodStartDate, periodEndDate, managerName, managerEmail, technicalResponsible, includeActionPlan]);
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleCopy = () => {
@@ -709,13 +724,6 @@ export function AuditManagerReportModal({
               >
                 <Edit2 className="h-3 w-3" />
                 Editar Markdown
-              </button>
-              <button
-                onClick={() => setPreviewTab("rendered")}
-                style={{ marginLeft: "auto" }}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
-                title="Visualizar gráficos"
-              >
               </button>
             </div>
 
