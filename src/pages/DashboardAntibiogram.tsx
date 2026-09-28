@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 import ChartActions from "@/components/ChartActions";
+import { ExpandToggle } from "@/components/ExpandToggle";
+import { useTopN } from "@/hooks/useTopN";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -249,6 +251,11 @@ export default function DashboardAntibiogram() {
     filtered.forEach(d => { map[d.site] = (map[d.site] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
+
+  // ── Limite top 20 + expandir para os gráficos/tabelas que crescem sem limite ──
+  const materialTopN = useTopN(culturasPorMaterial, 20);
+  const sectorTopN = useTopN(sectorData, 20);
+  const sirTopN = useTopN(sirByAntibiotic, 20);
 
   const bacteriasAlvoData = useMemo((): BacteriaVigilanciaData[] => {
     return BACTERIAS_ALVO.map(({ label, short, pattern }) => {
@@ -992,20 +999,23 @@ export default function DashboardAntibiogram() {
             <Card>
               <CardHeader className="p-3 md:p-6 pb-0 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm md:text-base">Distribuição por Setor</CardTitle>
-                <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
+                <div className="flex items-center gap-1">
+                  <ExpandToggle {...sectorTopN} />
+                  <ChartActions chartRef={chartRefs.setor} chartTitle="Distribuição por Setor" metaValue={metas.setor} onMetaChange={(v) => setMeta("setor", v)} metaUnit="exames" />
+                </div>
               </CardHeader>
               <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.setor}>
                 {sectorData.length === 0 ? (
                   <p className="text-center text-muted-foreground py-10 text-sm">Sem dados de setor</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={Math.max(240, sectorData.length * 36 + 40)}>
-                    <BarChart data={sectorData} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
+                  <ResponsiveContainer width="100%" height={Math.max(240, sectorTopN.items.length * 36 + 40)}>
+                    <BarChart data={sectorTopN.items} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={Math.min(220, Math.max(110, sectorData.reduce((m, s) => Math.max(m, String(s.name).length), 0) * 7))}
+                        width={Math.min(220, Math.max(110, sectorTopN.items.reduce((m, s) => Math.max(m, String(s.name).length), 0) * 7))}
                         tick={{ fontSize: 11 }}
                         interval={0}
                       />
@@ -1069,15 +1079,23 @@ export default function DashboardAntibiogram() {
           {culturasPorMaterial.length > 0 ? (
             <Card>
               <CardHeader className="p-3 md:p-6 pb-0">
-                <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4 text-info" /> Culturas por Material Biológico
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Distribuição dos {totalExams} exames por tipo de amostra</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-info" /> Culturas por Material Biológico
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Distribuição dos {totalExams} exames por tipo de amostra
+                      {!materialTopN.expanded && materialTopN.hiddenCount > 0 && ` · exibindo top ${materialTopN.limit} de ${materialTopN.total}`}
+                    </p>
+                  </div>
+                  <ExpandToggle {...materialTopN} />
+                </div>
               </CardHeader>
               <CardContent className="p-2 md:p-6 pt-2">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <ResponsiveContainer width="100%" height={Math.max(180, culturasPorMaterial.length * 34 + 40)}>
-                <BarChart data={culturasPorMaterial} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+                  <ResponsiveContainer width="100%" height={Math.max(180, materialTopN.items.length * 34 + 40)}>
+                <BarChart data={materialTopN.items} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
                   <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11 }} interval={0} />
@@ -1097,7 +1115,7 @@ export default function DashboardAntibiogram() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {culturasPorMaterial.map(m => (
+                    {materialTopN.items.map(m => (
                       <TableRow key={m.name}>
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="text-center font-bold">{m.value}</TableCell>
@@ -1123,13 +1141,17 @@ export default function DashboardAntibiogram() {
             <CardTitle className="text-sm md:text-base">Perfil de Sensibilidade por Antibiótico</CardTitle>
             <CardDescription className="text-xs mt-0.5">
               {sirByAntibiotic.length} antimicrobianos · barras empilhadas S/I/R (número absoluto de testes)
+              {!sirTopN.expanded && sirTopN.hiddenCount > 0 && ` · exibindo top ${sirTopN.limit}`}
             </CardDescription>
           </div>
-          <ChartActions chartRef={chartRefs.sirAntibiotico} chartTitle="Perfil de Sensibilidade por Antibiótico" metaValue={metas.sirAntibiotico} onMetaChange={(v) => setMeta("sirAntibiotico", v)} metaUnit="testes" />
+          <div className="flex items-center gap-1">
+            <ExpandToggle {...sirTopN} />
+            <ChartActions chartRef={chartRefs.sirAntibiotico} chartTitle="Perfil de Sensibilidade por Antibiótico" metaValue={metas.sirAntibiotico} onMetaChange={(v) => setMeta("sirAntibiotico", v)} metaUnit="testes" />
+          </div>
         </CardHeader>
         <CardContent className="p-2 md:p-6 pt-2" ref={chartRefs.sirAntibiotico}>
-          <ResponsiveContainer width="100%" height={Math.max(360, sirByAntibiotic.length * 34)}>
-            <BarChart data={sirByAntibiotic} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+          <ResponsiveContainer width="100%" height={Math.max(360, sirTopN.items.length * 34)}>
+            <BarChart data={sirTopN.items} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={150} interval={0} />
@@ -1162,7 +1184,7 @@ export default function DashboardAntibiogram() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sirByAntibiotic.map(r => (
+                {sirTopN.items.map(r => (
                   <TableRow key={r.name}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell className="text-center font-semibold" style={{ color: SIR_COLORS.S }}>{r.S}</TableCell>
