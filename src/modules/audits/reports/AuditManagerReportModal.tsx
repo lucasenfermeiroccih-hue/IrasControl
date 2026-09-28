@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Copy, Download, FileText, ArrowLeft, Mail, Eye, Edit2, Printer } from "lucide-react";
+import { Loader2, Copy, Download, FileText, ArrowLeft, Mail, Eye, Edit2, Printer, Check, Circle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import irasControlLogo from "@/assets/iras-control-logo.png";
@@ -285,6 +286,15 @@ function buildHighlightCards(
   }
   return cards;
 }
+
+// Etapas da geração (devem casar com as mensagens de setLoadingMsg em handleGenerate)
+const GENERATION_STEPS = [
+  "Buscando auditorias...",
+  "Calculando métricas...",
+  "Gerando análise inteligente...",
+  "Montando relatório...",
+  "Carregando logos...",
+];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export function AuditManagerReportModal({
@@ -633,6 +643,10 @@ export function AuditManagerReportModal({
   const handleClose = () => { if (!loading) { setStep("form"); setMarkdownContent(""); onClose(); } };
   const handleBack = () => { setStep("form"); setMarkdownContent(""); };
 
+  // Progresso da geração
+  const currentStepIdx = Math.max(0, GENERATION_STEPS.indexOf(loadingMsg));
+  const progressPct = Math.round(((currentStepIdx + 1) / GENERATION_STEPS.length) * 100);
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -649,9 +663,38 @@ export function AuditManagerReportModal({
           </DialogDescription>
         </DialogHeader>
 
+        {/* ── PROGRESSO DA GERAÇÃO ── */}
+        {step === "form" && loading && (
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 gap-6">
+            <div className="w-full max-w-sm space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Gerando relatório...
+              </div>
+              <Progress value={progressPct} className="h-2" />
+              <ul className="space-y-2">
+                {GENERATION_STEPS.map((s, i) => {
+                  const done = i < currentStepIdx;
+                  const active = i === currentStepIdx;
+                  return (
+                    <li key={s} className={`flex items-center gap-2 text-xs ${done ? "text-emerald-600" : active ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                      {done ? <Check className="h-3.5 w-3.5" /> : active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Circle className="h-3.5 w-3.5 opacity-40" />}
+                      {s.replace(/\.\.\.$/, "")}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* ── FORM ── */}
-        {step === "form" && (
+        {step === "form" && !loading && (
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+
+            {/* ── Configuração do relatório ── */}
+            <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configuração do relatório</Label>
 
             {/* Tipo de relatório */}
             <div className="space-y-2">
@@ -715,6 +758,7 @@ export function AuditManagerReportModal({
                 </Select>
               </div>
             )}
+            </div>
 
             {/* Setores */}
             <div className="space-y-2">
