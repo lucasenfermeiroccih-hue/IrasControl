@@ -286,12 +286,40 @@ export function AuditManagerReportModal({
   const selectAll = () => setSelectedSectors([...availableSectors]);
   const clearAll = () => setSelectedSectors([]);
 
+  // Period presets
+  const ym = (d: Date) => d.toISOString().slice(0, 7);
+  const applyPeriodPreset = (preset: "thisMonth" | "last3" | "last6" | "year") => {
+    const now = new Date();
+    if (preset === "thisMonth") {
+      const m = ym(now); setPeriodStart(m); setPeriodEnd(m);
+    } else if (preset === "year") {
+      setPeriodStart(`${now.getFullYear()}-01`); setPeriodEnd(ym(now));
+    } else {
+      const months = preset === "last3" ? 2 : 5;
+      const s = new Date(now); s.setMonth(s.getMonth() - months);
+      setPeriodStart(ym(s)); setPeriodEnd(ym(now));
+    }
+  };
+  const PERIOD_PRESETS = [
+    { key: "thisMonth", label: "Mês atual" },
+    { key: "last3", label: "Últimos 3 meses" },
+    { key: "last6", label: "Últimos 6 meses" },
+    { key: "year", label: "Ano atual" },
+  ] as const;
+
   // Period dates
   const periodStartDate = `${periodStart}-01`;
   const periodEndDate = (() => {
     const [y, m] = periodEnd.split("-").map(Number);
     return `${periodEnd}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
   })();
+
+  // Validação inline — o que falta para gerar
+  const missing: string[] = [];
+  if (selectedSectors.length === 0) missing.push("selecione ao menos um setor");
+  if (mode === "single_audit_type" && !auditType) missing.push("escolha o tipo de auditoria");
+  if (periodStart > periodEnd) missing.push("o período inicial não pode ser depois do final");
+  const canGenerate = missing.length === 0;
 
   // ── Generate report ──────────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
@@ -569,15 +597,34 @@ export function AuditManagerReportModal({
             </div>
 
             {/* Período */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">Período inicial</Label>
-                <Input type="month" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="h-9 text-sm" />
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {PERIOD_PRESETS.map(p => (
+                  <Button
+                    key={p.key}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => applyPeriodPreset(p.key)}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
               </div>
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">Período final</Label>
-                <Input type="month" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="h-9 text-sm" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Período inicial</Label>
+                  <Input type="month" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Período final</Label>
+                  <Input type="month" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="h-9 text-sm" />
+                </div>
               </div>
+              {periodStart > periodEnd && (
+                <p className="text-xs text-destructive">O período inicial não pode ser depois do período final.</p>
+              )}
             </div>
 
             {/* Tipo de auditoria */}
@@ -686,6 +733,21 @@ export function AuditManagerReportModal({
               <Checkbox id="action-plan" checked={includeActionPlan} onCheckedChange={v => setIncludeActionPlan(Boolean(v))} />
               <Label htmlFor="action-plan" className="text-sm cursor-pointer">Incluir plano de ação 5W2H sugerido</Label>
             </div>
+
+            {/* Resumo / validação */}
+            {canGenerate ? (
+              <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                Serão buscadas auditorias de <strong>{selectedSectors.length}</strong> setor(es)
+                {" · "}
+                <strong>{mode === "single_audit_type" ? (AUDIT_TYPE_OPTIONS.find(o => o.value === auditType)?.label ?? auditType) : "Compilado mensal"}</strong>
+                {" · "}
+                <strong>{periodStart} a {periodEnd}</strong>.
+              </div>
+            ) : (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Para gerar o relatório: {missing.join("; ")}.
+              </div>
+            )}
           </div>
         )}
 
@@ -779,7 +841,8 @@ export function AuditManagerReportModal({
               <Button
                 size="sm"
                 onClick={handleGenerate}
-                disabled={loading || selectedSectors.length === 0}
+                disabled={loading || !canGenerate}
+                title={!canGenerate ? missing.join("; ") : undefined}
                 className="gap-1.5"
               >
                 {loading ? (
