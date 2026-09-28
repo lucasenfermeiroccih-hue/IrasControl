@@ -11,9 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 import { toast } from "sonner";
-import { ArrowLeft, Save, BarChart3, Loader2, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Save, BarChart3, Loader2, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuditSave } from "@/hooks/useAuditSave";
 import { AuditPhotoUpload, type PhotoItem } from "@/components/AuditPhotoUpload";
 import AuditHistory from "@/components/AuditHistory";
@@ -29,10 +33,10 @@ interface AuditItem {
    *  First option is treated as "compliant"; "Não se aplica" as N/A; rest as non-compliant. */
   customOptions?: string[];
 }
-interface CategoryDef { key: string; title: string; description: string; items: AuditItem[]; }
+interface CategoryDef { key: string; title: string; short: string; description: string; items: AuditItem[]; }
 
 const categories: CategoryDef[] = [
-  { key: "ventilacao", title: "Ventilação Mecânica", description: "Prevenção de PAV", items: [
+  { key: "ventilacao", title: "Ventilação Mecânica", short: "PAV", description: "Prevenção de PAV", items: [
     { id: "vm1", description: "Cabeceira elevada 30°–45°" },
     { id: "vm2", description: "Higiene oral com clorexidina 0,12%" },
     { id: "vm4", description: "Aspiração subglótica realizada" },
@@ -43,7 +47,7 @@ const categories: CategoryDef[] = [
     { id: "vm10", description: "Filtro bacteriológico (HME) datado conforme protocolo?" },
     { id: "vm11", description: "Higiene oral satisfatória?" },
   ]},
-  { key: "cvd", title: "Cateter Vesical de Demora", description: "Prevenção de ITU", items: [
+  { key: "cvd", title: "Cateter Vesical de Demora", short: "ITU", description: "Prevenção de ITU", items: [
     { id: "cvd2", description: "Sistema de drenagem fechado e íntegro" },
     { id: "cvd3", description: "Bolsa coletora abaixo do nível da bexiga" },
     { id: "cvd4", description: "Fixação adequada" },
@@ -53,7 +57,7 @@ const categories: CategoryDef[] = [
     { id: "cvd9", description: "Bolsa com data de instalação visível?" },
     { id: "cvd10", description: "Bolsa abaixo do nível do paciente e sem tocar ao chão? Com volume máximo de 2/3 respeitado?" },
   ]},
-  { key: "cvc", title: "Cateter Venoso Central/Periférico", description: "Prevenção de IPCS", items: [
+  { key: "cvc", title: "Cateter Venoso Central/Periférico", short: "IPCS", description: "Prevenção de IPCS", items: [
     { id: "cvc1", description: "Curativo oclusivo limpo, seco e com data" },
     { id: "cvc2", description: "Necessidade avaliada diariamente" },
     { id: "cvc3", description: "Conexões desinfectadas antes do manuseio" },
@@ -62,7 +66,7 @@ const categories: CategoryDef[] = [
     { id: "cvc8", description: "Os equipos e extensores datados, na validade e sem resíduo?" },
     { id: "cvc9", description: "Conexões tampadas e sem resíduo de sangue?" },
   ]},
-  { key: "precaucao", title: "Precaução e Isolamento", description: "Precaução padrão e por contato", items: [
+  { key: "precaucao", title: "Precaução e Isolamento", short: "Precaução", description: "Precaução padrão e por contato", items: [
     { id: "pc2", description: "EPI disponível e utilizado corretamente" },
     { id: "pc3", description: "Artigos de uso exclusivo ou higienizados" },
     { id: "pc4", description: "Limpeza concorrente diária realizada" },
@@ -112,6 +116,7 @@ export default function AuditInfectionControlNew() {
   const [customAnswers, setCustomAnswers] = useState<Record<string, string[]>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [activeTab, setActiveTab] = useState(categories[0].key);
 
   const setResponse = (id: string, value: ResponseValue) => setResponses(p => ({ ...p, [id]: value }));
   const toggleCustomAnswer = (id: string, label: string) => {
@@ -150,6 +155,20 @@ export default function AuditInfectionControlNew() {
     const conformes = answered.filter(i => responses[i.id] === "conforme");
     return { answered: answered.length, total: cat.items.length, rate: applicable.length > 0 ? (conformes.length / applicable.length) * 100 : 0 };
   };
+
+  // ── Dados dos gráficos ao vivo (mesma leitura do dashboard, para a auditoria atual) ──
+  const chartData = useMemo(() => {
+    const pie = [
+      { name: "Conforme", value: stats.conformes, color: "#10b981" },
+      { name: "Não Conforme", value: stats.naoConformes, color: "#ef4444" },
+      { name: "N/A", value: stats.na, color: "#9ca3af" },
+    ].filter(d => d.value > 0);
+    const byCategory = categories.map(c => {
+      const cs = categoryStats(c);
+      return { name: c.short, rate: Math.round(cs.rate * 10) / 10, answered: cs.answered, total: cs.total };
+    });
+    return { pie, byCategory };
+  }, [responses]);
 
   const handleFinish = async () => {
     if (!auditDate || !sector || !shift || !auditor) {
@@ -222,21 +241,34 @@ export default function AuditInfectionControlNew() {
         </CardContent>
       </Card>
 
-      <Accordion type="multiple" defaultValue={categories.map(c => c.key)} className="space-y-3">
-        {categories.map(cat => {
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 bg-muted p-1">
+          {categories.map(cat => {
+            const cs = categoryStats(cat);
+            return (
+              <TabsTrigger key={cat.key} value={cat.key} className="flex flex-col items-center gap-0.5 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <span className="font-semibold text-sm">{cat.short}</span>
+                <span className={`text-[10px] ${cs.answered === cs.total ? "opacity-90" : "opacity-70"}`}>{cs.answered}/{cs.total}</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+
+        {categories.map((cat, idx) => {
           const cs = categoryStats(cat);
           return (
-            <AccordionItem key={cat.key} value={cat.key} className="border rounded-lg overflow-hidden">
-              <AccordionTrigger className="px-6 hover:no-underline">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="text-left"><p className="font-semibold">{cat.title}</p><p className="text-sm text-muted-foreground">{cat.description}</p></div>
-                  <div className="ml-auto flex items-center gap-2 mr-2">
-                    <Badge variant="outline" className="text-xs">{cs.answered}/{cs.total}</Badge>
-                    {cs.answered > 0 && <Badge className={cs.rate >= 80 ? "bg-success text-success-foreground" : cs.rate >= 50 ? "bg-warning text-warning-foreground" : "bg-destructive text-destructive-foreground"}>{cs.rate.toFixed(0)}%</Badge>}
+            <TabsContent key={cat.key} value={cat.key} className="mt-0">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><CardTitle className="text-base">{cat.title}</CardTitle><p className="text-sm text-muted-foreground">{cat.description}</p></div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">{cs.answered}/{cs.total}</Badge>
+                      {cs.answered > 0 && <Badge className={cs.rate >= 80 ? "bg-success text-success-foreground" : cs.rate >= 50 ? "bg-warning text-warning-foreground" : "bg-destructive text-destructive-foreground"}>{cs.rate.toFixed(0)}%</Badge>}
+                    </div>
                   </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-4">
+                </CardHeader>
+                <CardContent>
                 <div className="space-y-3">
                   {cat.items.map(item => (
                     <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border p-3">
@@ -285,21 +317,63 @@ export default function AuditInfectionControlNew() {
                     <Label className="text-xs text-muted-foreground">Observações — {cat.title}</Label>
                     <Textarea placeholder="Observações..." className="mt-1 min-h-[60px]" value={observations[cat.key] || ""} onChange={e => setObs(cat.key, e.target.value)} />
                   </div>
+                  <div className="flex items-center justify-between pt-3">
+                    <Button variant="ghost" size="sm" className="gap-1" disabled={idx === 0} onClick={() => setActiveTab(categories[idx - 1].key)}>
+                      <ChevronLeft className="h-4 w-4" />{idx > 0 ? categories[idx - 1].short : "Anterior"}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="gap-1" disabled={idx === categories.length - 1} onClick={() => setActiveTab(categories[idx + 1].key)}>
+                      {idx < categories.length - 1 ? categories[idx + 1].short : "Próximo"}<ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
+                </CardContent>
+              </Card>
+            </TabsContent>
           );
         })}
-      </Accordion>
+      </Tabs>
 
       <Card className="border-primary/30 bg-primary/5">
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" />Resumo</CardTitle></CardHeader>
-        <CardContent>
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" />Resumo e Indicadores</CardTitle></CardHeader>
+        <CardContent className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div className="rounded-lg border bg-card p-3"><p className="text-2xl font-bold text-primary">{stats.rate.toFixed(1)}%</p><p className="text-xs text-muted-foreground">Conformidade</p></div>
             <div className="rounded-lg border bg-card p-3"><p className="text-2xl font-bold text-success">{stats.conformes}</p><p className="text-xs text-muted-foreground">Conformes</p></div>
             <div className="rounded-lg border bg-card p-3"><p className="text-2xl font-bold text-destructive">{stats.naoConformes}</p><p className="text-xs text-muted-foreground">Não Conformes</p></div>
             <div className="rounded-lg border bg-card p-3"><p className="text-2xl font-bold text-muted-foreground">{stats.na}</p><p className="text-xs text-muted-foreground">N/A</p></div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border bg-card p-4">
+              <p className="text-sm font-medium mb-2">Distribuição das Respostas</p>
+              {chartData.pie.length === 0 ? (
+                <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground">Responda os itens para ver o gráfico</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={chartData.pie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={(e: any) => `${e.name}: ${e.value}`}>
+                      {chartData.pie.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <p className="text-sm font-medium mb-2">Conformidade por Categoria</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData.byCategory} margin={{ left: -12, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
+                  <Tooltip formatter={(v: number, _n, p: any) => [`${v}% (${p?.payload?.answered}/${p?.payload?.total})`, "Conformidade"]} />
+                  <Bar dataKey="rate" name="Conformidade" radius={[3, 3, 0, 0]}>
+                    {chartData.byCategory.map((d, i) => <Cell key={i} fill={d.rate >= 80 ? "#10b981" : d.rate >= 50 ? "#f59e0b" : "#ef4444"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </CardContent>
       </Card>

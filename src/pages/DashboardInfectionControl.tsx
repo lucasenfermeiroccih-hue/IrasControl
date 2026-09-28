@@ -369,7 +369,35 @@ export default function DashboardInfectionControl() {
     const kr4Progress = bundleCat ? Math.min(100, Math.round((bundleCat.compliance / 80) * 100)) : kr1Progress;
     const kr5Progress = Math.min(100, goodSectors > 0 ? Math.round((goodSectors / Math.max(1, stats.sectorData.length)) * 100) : 0);
 
-    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
+    // ── Inconformidade por tipo de prevenção (categoria: PAV, ITU, IPCS, Precaução) ──
+    const ncByCategory: Record<string, { nc: number; applicable: number }> = {};
+    items.forEach((it) => {
+      if (it.status === "not_applicable" || it.status === "not_evaluated") return;
+      const cat = it.category || "Geral";
+      if (!ncByCategory[cat]) ncByCategory[cat] = { nc: 0, applicable: 0 };
+      ncByCategory[cat].applicable++;
+      if (it.status === "non_compliant") ncByCategory[cat].nc++;
+    });
+    const nonComplianceByPrevention = Object.entries(ncByCategory)
+      .map(([name, v]) => ({ name, taxa: v.applicable > 0 ? Math.round((v.nc / v.applicable) * 1000) / 10 : 0, nc: v.nc, total: v.applicable }))
+      .sort((a, b) => b.taxa - a.taxa);
+
+    // ── Inconformidade por tipo de item auditado (pergunta) ──
+    const ncByItem: Record<string, { nc: number; applicable: number; category: string }> = {};
+    items.forEach((it) => {
+      if (it.status === "not_applicable" || it.status === "not_evaluated") return;
+      const key = it.question;
+      if (!ncByItem[key]) ncByItem[key] = { nc: 0, applicable: 0, category: it.category || "" };
+      ncByItem[key].applicable++;
+      if (it.status === "non_compliant") ncByItem[key].nc++;
+    });
+    const nonComplianceByItem = Object.entries(ncByItem)
+      .map(([name, v]) => ({ name, taxa: v.applicable > 0 ? Math.round((v.nc / v.applicable) * 1000) / 10 : 0, nc: v.nc, total: v.applicable, category: v.category }))
+      .filter((x) => x.nc > 0)
+      .sort((a, b) => b.taxa - a.taxa)
+      .slice(0, 12);
+
+    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress, nonComplianceByPrevention, nonComplianceByItem };
   }, [stats, items]);
 
   // ── Report Data ──
@@ -468,6 +496,7 @@ export default function DashboardInfectionControl() {
   ];
 
   const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#ef4444"];
+  const NC_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#dc2626", "#ea580c"];
 
   return (
     <div className="space-y-5 md:space-y-6">
@@ -689,6 +718,57 @@ export default function DashboardInfectionControl() {
                   <Tooltip />
                   <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
                 </RadarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Inconformidade por Tipo de Prevenção + por Item Auditado ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Inconformidade por Tipo de Prevenção</CardTitle>
+            <CardDescription className="text-xs">% de não conformidade por bundle/protocolo (PAV, ITU, IPCS, Precaução)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {derived.nonComplianceByPrevention.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem itens auditados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(240, derived.nonComplianceByPrevention.length * 44)}>
+                <BarChart data={derived.nonComplianceByPrevention} layout="vertical" margin={{ left: 0, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
+                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number, _n, p: any) => [`${v}% (${p?.payload?.nc}/${p?.payload?.total})`, "Inconformidade"]} />
+                  <Bar dataKey="taxa" name="Inconformidade" radius={[0, 3, 3, 0]}>
+                    {derived.nonComplianceByPrevention.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Inconformidade por Item Auditado</CardTitle>
+            <CardDescription className="text-xs">Top 12 itens com maior % de não conformidade</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {derived.nonComplianceByItem.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Nenhuma não conformidade registrada no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(240, derived.nonComplianceByItem.length * 30)}>
+                <BarChart data={derived.nonComplianceByItem.map(d => ({ ...d, short: d.name.length > 34 ? d.name.substring(0, 33) + "…" : d.name }))} layout="vertical" margin={{ left: 0, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
+                  <YAxis dataKey="short" type="category" width={190} tick={{ fontSize: 9 }} />
+                  <Tooltip formatter={(v: number, _n, p: any) => [`${v}% (${p?.payload?.nc}/${p?.payload?.total})`, "Inconformidade"]} labelFormatter={(_l, p: any) => p?.[0]?.payload?.name || ""} />
+                  <Bar dataKey="taxa" name="Inconformidade" radius={[0, 3, 3, 0]}>
+                    {derived.nonComplianceByItem.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
