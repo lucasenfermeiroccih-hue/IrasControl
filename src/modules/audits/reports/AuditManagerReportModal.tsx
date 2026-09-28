@@ -234,6 +234,58 @@ function buildMailtoLink(params: {
   return `mailto:${params.to}?subject=${subject}&body=${body}`;
 }
 
+// ── Cards de destaque do preview ─────────────────────────────────────────────────
+type HighlightTone = "primary" | "success" | "danger" | "warning" | "muted";
+interface HighlightCard { label: string; value: string; sub?: string; tone: HighlightTone; }
+
+const HIGHLIGHT_TONE_CLASSES: Record<HighlightTone, string> = {
+  primary: "border-primary/30 bg-primary/5 text-primary",
+  success: "border-emerald-300 bg-emerald-50 text-emerald-700",
+  danger: "border-red-300 bg-red-50 text-red-700",
+  warning: "border-amber-300 bg-amber-50 text-amber-700",
+  muted: "border-border bg-muted/40 text-foreground",
+};
+
+const complianceTone = (rate: number): HighlightTone =>
+  rate >= 85 ? "success" : rate >= 70 ? "warning" : "danger";
+
+function buildHighlightCards(
+  metrics: AuditManagerReportMetrics | MonthlySectorCompiledAuditMetrics,
+  mode: AuditReportMode,
+): HighlightCard[] {
+  const rate = metrics.generalComplianceRate;
+  const cards: HighlightCard[] = [
+    { label: "Conformidade geral", value: `${rate}%`, tone: complianceTone(rate) },
+  ];
+  if (mode === "single_audit_type") {
+    const m = metrics as AuditManagerReportMetrics;
+    cards.push({
+      label: "Classificação",
+      value: m.performanceClassification,
+      tone: m.statusColor === "verde" ? "success" : m.statusColor === "amarelo" ? "warning" : "danger",
+    });
+    cards.push({ label: "Não conformes", value: `${m.nonCompliantItems}`, sub: `de ${m.totalItems} itens`, tone: "danger" });
+    if (typeof m.previousComplianceRate === "number") {
+      const delta = m.complianceDelta ?? Math.round((rate - m.previousComplianceRate) * 10) / 10;
+      cards.push({
+        label: "vs. período anterior",
+        value: `${delta > 0 ? "+" : ""}${delta}%`,
+        sub: `antes: ${m.previousComplianceRate}% · ${m.trend}`,
+        tone: delta > 0 ? "success" : delta < 0 ? "danger" : "muted",
+      });
+    } else {
+      cards.push({ label: "Auditorias", value: `${m.totalAudits}`, sub: `${m.totalItems} itens`, tone: "muted" });
+    }
+  } else {
+    const m = metrics as MonthlySectorCompiledAuditMetrics;
+    cards.push({ label: "Tipos auditados", value: `${m.totalAuditTypes}`, sub: `${m.totalAudits} auditorias`, tone: "primary" });
+    cards.push({ label: "Não conformes", value: `${m.nonCompliantItems}`, sub: `de ${m.totalItems} itens`, tone: "danger" });
+    const worst = m.worstAuditTypes?.[0];
+    if (worst) cards.push({ label: "Tipo mais crítico", value: getAuditTypeName(worst.auditType), sub: `${worst.complianceRate}% conformidade`, tone: "danger" });
+  }
+  return cards;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 export function AuditManagerReportModal({
   open, onClose, hospitalId, hospitalName, availableSectors, defaultAuditType, defaultMode,
@@ -510,6 +562,26 @@ export function AuditManagerReportModal({
         </div>
       </div>`;
 
+    // Cards de destaque (mesmos indicadores do preview) para o topo do PDF
+    const toneHex: Record<HighlightTone, { border: string; bg: string; color: string }> = {
+      primary: { border: "#93c5fd", bg: "#eff6ff", color: "#1d4ed8" },
+      success: { border: "#6ee7b7", bg: "#ecfdf5", color: "#047857" },
+      danger: { border: "#fca5a5", bg: "#fef2f2", color: "#b91c1c" },
+      warning: { border: "#fcd34d", bg: "#fffbeb", color: "#b45309" },
+      muted: { border: "#e2e8f0", bg: "#f8fafc", color: "#334155" },
+    };
+    const cards = generatedMetrics ? buildHighlightCards(generatedMetrics, generatedMode) : [];
+    const cardsHtml = cards.length
+      ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px;">${cards.map(c => {
+          const t = toneHex[c.tone];
+          return `<div style="flex:1;min-width:120px;border:1px solid ${t.border};background:${t.bg};border-radius:6px;padding:8px 10px;">`
+            + `<div style="font-size:8pt;color:${t.color};opacity:.85;">${c.label}</div>`
+            + `<div style="font-size:14pt;font-weight:700;color:${t.color};">${c.value}</div>`
+            + (c.sub ? `<div style="font-size:7pt;color:${t.color};opacity:.7;">${c.sub}</div>` : "")
+            + `</div>`;
+        }).join("")}</div>`
+      : "";
+
     printWindow.document.write(`
       <!DOCTYPE html><html lang="pt-BR">
       <head><meta charset="UTF-8"><title>Relatório IRAS Control</title>
@@ -525,7 +597,7 @@ export function AuditManagerReportModal({
         img { max-height: 60px; object-fit: contain; }
         @media print { body { margin: 1.5cm; } .no-print { display: none; } }
       </style>
-      </head><body>${headerLogos}${renderedHtml}${chartsHtml}</body></html>
+      </head><body>${headerLogos}${cardsHtml}${renderedHtml}${chartsHtml}</body></html>
     `);
     printWindow.document.close();
     printWindow.focus();
@@ -792,6 +864,16 @@ export function AuditManagerReportModal({
             {/* Rendered view */}
             {previewTab === "rendered" && (
               <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* Cards de destaque */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {buildHighlightCards(generatedMetrics, generatedMode).map((c, i) => (
+                    <div key={i} className={`rounded-lg border p-3 ${HIGHLIGHT_TONE_CLASSES[c.tone]}`}>
+                      <p className="text-[11px] font-medium opacity-80">{c.label}</p>
+                      <p className="text-xl font-bold leading-tight mt-0.5">{c.value}</p>
+                      {c.sub && <p className="text-[10px] opacity-70 mt-0.5">{c.sub}</p>}
+                    </div>
+                  ))}
+                </div>
                 <div
                   className="prose prose-sm max-w-none"
                   style={{ fontFamily: "Arial, sans-serif", fontSize: "11pt", color: "#222", lineHeight: "1.7" }}
