@@ -26,6 +26,8 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -428,6 +430,13 @@ export default function DashboardStructure() {
     };
   }, [filteredAudits, filteredItems]);
 
+  // sectorData vem ordenado crescente (pior → melhor); ordena decrescente para "top 20" = 20 maiores
+  const sectorDataDesc = useMemo(
+    () => [...fStats.sectorData].sort((a, b) => b.compliance - a.compliance),
+    [fStats.sectorData]
+  );
+  const sectorTopN = useTopN(sectorDataDesc, 20);
+
   // ── OKR Key Results ──
   const kr1 = Math.min(100, Math.round((fStats.avgCompliance / META) * 100));
   const kr2 = Math.min(100, fStats.totalAudits > 0 ? Math.round(Math.min(fStats.totalAudits / 4, 1) * 100) : 0);
@@ -743,16 +752,19 @@ export default function DashboardStructure() {
                 <CardTitle className="text-sm">Conformidade por Setor Hospitalar</CardTitle>
                 <CardDescription className="text-xs">Verde ≥{metas.sector ?? META}% · Amarelo 75–{(metas.sector ?? META) - 1}% · Vermelho &lt;75%</CardDescription>
               </div>
-              <ChartActions chartRef={chartRefs.sector} chartTitle="Conformidade por Setor"
-                metaValue={metas.sector} onMetaChange={(v) => setMeta("sector", v)} metaUnit="%" />
+              <div className="flex items-center gap-1 shrink-0">
+                <ExpandToggle {...sectorTopN} />
+                <ChartActions chartRef={chartRefs.sector} chartTitle="Conformidade por Setor"
+                  metaValue={metas.sector} onMetaChange={(v) => setMeta("sector", v)} metaUnit="%" />
+              </div>
             </div>
           </CardHeader>
           <CardContent ref={chartRefs.sector}>
-            {fStats.sectorData.length === 0 ? (
+            {sectorTopN.items.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por setor</div>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(200, fStats.sectorData.length * 34)}>
-                <ComposedChart data={fStats.sectorData} layout="vertical" margin={{ left: 0, right: 24 }}>
+              <ResponsiveContainer width="100%" height={Math.max(200, sectorTopN.items.length * 34)}>
+                <ComposedChart data={sectorTopN.items} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
@@ -761,7 +773,7 @@ export default function DashboardStructure() {
                     <ReferenceLine x={metas.sector} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
                   )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.sectorData.map((e, i) => (
+                    {sectorTopN.items.map((e, i) => (
                       <Cell key={i} fill={e.compliance >= (metas.sector ?? META) ? "#10b981" : e.compliance >= 75 ? "#f59e0b" : "#ef4444"} />
                     ))}
                   </Bar>

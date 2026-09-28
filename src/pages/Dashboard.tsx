@@ -18,6 +18,8 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { openGuardiaoWithSSO } from "@/lib/guardiaoSSO";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 
 const AUDIT_TYPE_LABELS: Record<string, string> = {
   bundles: "Bundles",
@@ -326,9 +328,10 @@ export default function Dashboard() {
     });
     return Object.entries(map)
       .map(([name, v]) => ({ name, taxa: v.applicable > 0 ? Number(((v.nc / v.applicable) * 100).toFixed(1)) : 0, total: v.applicable }))
-      .sort((a, b) => b.taxa - a.taxa)
-      .slice(0, 10);
+      .sort((a, b) => b.taxa - a.taxa);
   }, [auditItems, fAudits]);
+
+  const ncTopN = useTopN(nonComplianceByCategory, 20);
 
   const handleExportPDF = async () => {
     toast.info("Gerando PDF do dashboard...");
@@ -629,19 +632,24 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Inconformidade por Tipo de Item Auditado</CardTitle>
-            <p className="text-xs text-muted-foreground">% de não conformidade por categoria de item</p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">Inconformidade por Tipo de Item Auditado</CardTitle>
+                <p className="text-xs text-muted-foreground">% de não conformidade por categoria de item</p>
+              </div>
+              <ExpandToggle {...ncTopN} />
+            </div>
           </CardHeader>
           <CardContent>
-            {nonComplianceByCategory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(280, nonComplianceByCategory.length * 34)}>
-                <BarChart data={nonComplianceByCategory} layout="vertical" margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+            {ncTopN.items.length > 0 ? (
+              <ResponsiveContainer width="100%" height={Math.max(280, ncTopN.items.length * 34)}>
+                <BarChart data={ncTopN.items} layout="vertical" margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v: number) => `${v}%`} />
                   <Bar dataKey="taxa" name="Inconformidade" radius={[0, 4, 4, 0]}>
-                    {nonComplianceByCategory.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
+                    {ncTopN.items.map((_, i) => <Cell key={i} fill={NC_COLORS[i % NC_COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

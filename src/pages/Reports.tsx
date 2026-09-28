@@ -28,6 +28,8 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useSectors } from "@/hooks/useSectors";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 
 const TIPOS_EXAME = [
   "Hemocultura", "Urinocultura", "Swab", "Secreção Traqueal",
@@ -225,11 +227,11 @@ const Reports = () => {
       .map(([mes, v]) => ({ mes, total: v.total, mdr: v.mdr, pct: v.total > 0 ? Math.round((v.mdr / v.total) * 100) : 0 }));
   }, [filtered]);
 
-  // Distribution by exam type (top 10)
+  // Distribution by exam type (ordenado desc; limitado a top 20 via useTopN)
   const examTypeData = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach(r => { if (r.sample_type) map[r.sample_type] = (map[r.sample_type] || 0) + 1; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name, value }));
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
   // Resistant organisms (MDR only)
@@ -240,6 +242,10 @@ const Reports = () => {
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
+
+  // Limita os gráficos grandes aos 20 maiores (já ordenados desc), com expandir
+  const examTypeTopN = useTopN(examTypeData, 20);
+  const resistantTopN = useTopN(resistantOrganisms, 20);
 
   // Top 10 organisms
   const top10Organisms = useMemo(() => {
@@ -915,17 +921,20 @@ const Reports = () => {
                 <FlaskConical className="h-4 w-4 text-primary" />
                 Distribuição por Tipo de Exame
               </CardTitle>
-              <ChartActions chartRef={chartRefs.examType} chartTitle="Distribuição por Tipo de Exame" />
+              <div className="flex items-center gap-1">
+                <ExpandToggle {...examTypeTopN} />
+                <ChartActions chartRef={chartRefs.examType} chartTitle="Distribuição por Tipo de Exame" />
+              </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={Math.max(300, examTypeData.length * 38 + 60)}>
-                <BarChart data={examTypeData} layout="vertical" margin={{ top: 10, right: 80, left: 10, bottom: 10 }}>
+              <ResponsiveContainer width="100%" height={Math.max(300, examTypeTopN.items.length * 38 + 60)}>
+                <BarChart data={examTypeTopN.items} layout="vertical" margin={{ top: 10, right: 80, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={155} interval={0} />
                   <Tooltip formatter={(value: number) => [value, "Exames"]} />
                   <Bar dataKey="value" name="Total de Exames" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))" }}>
-                    {examTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    {examTypeTopN.items.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -944,11 +953,14 @@ const Reports = () => {
                 </CardTitle>
                 <CardDescription className="text-xs">Isolados identificados como multirresistentes</CardDescription>
               </div>
-              <ChartActions chartRef={chartRefs.resistant} chartTitle="Microorganismos Resistentes" metaValue={metas.resistant} onMetaChange={v => setMeta("resistant", v)} />
+              <div className="flex items-center gap-1">
+                <ExpandToggle {...resistantTopN} />
+                <ChartActions chartRef={chartRefs.resistant} chartTitle="Microorganismos Resistentes" metaValue={metas.resistant} onMetaChange={v => setMeta("resistant", v)} />
+              </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={Math.max(340, resistantOrganisms.length * 38 + 60)}>
-                <BarChart data={resistantOrganisms} layout="vertical" margin={{ top: 10, right: 70, left: 0, bottom: 10 }}>
+              <ResponsiveContainer width="100%" height={Math.max(340, resistantTopN.items.length * 38 + 60)}>
+                <BarChart data={resistantTopN.items} layout="vertical" margin={{ top: 10, right: 70, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={180} interval={0} />

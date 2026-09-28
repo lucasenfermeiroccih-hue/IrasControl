@@ -25,6 +25,8 @@ import { exportPdf } from "@/lib/pdf-export";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { toast } from "sonner";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 
 // ─── Ishikawa Diagram ─────────────────────────────────────────────────────────
 
@@ -400,6 +402,14 @@ export default function DashboardInfectionControl() {
     return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress, nonComplianceByPrevention, nonComplianceByItem };
   }, [stats, items]);
 
+  // sectorBarData vem do hook sem ordenação (Object.entries em ordem de inserção);
+  // ordenamos decrescente por conformidade para que "top 20" sejam os 20 maiores.
+  const sectorBarSorted = useMemo(
+    () => [...derived.sectorBarData].sort((a, b) => b.conformidade - a.conformidade),
+    [derived.sectorBarData]
+  );
+  const sectorTopN = useTopN(sectorBarSorted, 20);
+
   // ── Report Data ──
   const reportData: DashboardReportData = {
     title: "Dashboard — Controle de Infecção",
@@ -672,21 +682,24 @@ export default function DashboardInfectionControl() {
               <CardTitle className="text-sm">Conformidade por Setor</CardTitle>
               <CardDescription className="text-xs">Cores por faixa · linha vermelha = meta</CardDescription>
             </div>
-            <ChartActions chartRef={refs.setor} chartTitle="Conformidade por Setor" metaValue={metas.setor} onMetaChange={v => setMeta("setor", v)} metaUnit="%" />
+            <div className="flex items-center gap-2 shrink-0">
+              <ExpandToggle {...sectorTopN} />
+              <ChartActions chartRef={refs.setor} chartTitle="Conformidade por Setor" metaValue={metas.setor} onMetaChange={v => setMeta("setor", v)} metaUnit="%" />
+            </div>
           </CardHeader>
           <CardContent>
-            {derived.sectorBarData.length === 0 ? (
+            {sectorTopN.items.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por setor</div>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(280, derived.sectorBarData.length * 32)}>
-                <ComposedChart data={derived.sectorBarData} layout="vertical" margin={{ left: 0, right: 24 }}>
+              <ResponsiveContainer width="100%" height={Math.max(280, sectorTopN.items.length * 32)}>
+                <ComposedChart data={sectorTopN.items} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
                   {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: `${metas.setor}%`, position: "top", fontSize: 10, fill: "#ef4444" }} />}
                   <Bar dataKey="conformidade" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {derived.sectorBarData.map((entry, index) => (
+                    {sectorTopN.items.map((entry, index) => (
                       <Cell key={index} fill={entry.conformidade >= (metas.setor ?? META) ? "#10b981" : entry.conformidade >= 75 ? "#f59e0b" : "#ef4444"} />
                     ))}
                   </Bar>

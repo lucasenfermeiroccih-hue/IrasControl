@@ -21,6 +21,8 @@ import DashboardFilters from "@/components/DashboardFilters";
 import ChartActions from "@/components/ChartActions";
 import { useAuditDashboard } from "@/hooks/useAuditDashboard";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "@/hooks/use-toast";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
@@ -398,6 +400,13 @@ export default function DashboardDispenser() {
     };
   }, [filteredAudits, filteredItems]);
 
+  // ── Top 20 setores (por conformidade, maior → menor) com expandir ──
+  const sectorSortedDesc = useMemo(
+    () => [...fStats.sectorData].sort((a, b) => b.compliance - a.compliance),
+    [fStats.sectorData]
+  );
+  const sectorTopN = useTopN(sectorSortedDesc, 20);
+
   // ── OKR Key Results ──
   const kr1 = Math.min(100, Math.round((fStats.avgCompliance / META) * 100));
   const kr2 = Math.min(100, fStats.totalAudits > 0 ? Math.round(Math.min(fStats.totalAudits / 4, 1) * 100) : 0);
@@ -708,14 +717,17 @@ export default function DashboardDispenser() {
               <CardTitle className="text-sm">Conformidade por Setor</CardTitle>
               <CardDescription className="text-xs">Verde ≥{metaSetor ?? META}% · Amarelo intermediário · Vermelho abaixo · linha = meta</CardDescription>
             </div>
-            <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
+            <div className="flex items-center gap-1 shrink-0">
+              <ExpandToggle {...sectorTopN} />
+              <ChartActions chartRef={refSetor} chartTitle="Conformidade por Setor" metaValue={metaSetor} onMetaChange={setMetaSetor} metaUnit="%" />
+            </div>
           </CardHeader>
           <CardContent>
-            {fStats.sectorData.length === 0 ? (
+            {sectorTopN.items.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por setor</div>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(240, fStats.sectorData.length * 32)}>
-                <ComposedChart data={fStats.sectorData} layout="vertical" margin={{ left: 0, right: 24 }}>
+              <ResponsiveContainer width="100%" height={Math.max(240, sectorTopN.items.length * 32)}>
+                <ComposedChart data={sectorTopN.items} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
@@ -724,7 +736,7 @@ export default function DashboardDispenser() {
                     <ReferenceLine x={metaSetor} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} />
                   )}
                   <Bar dataKey="compliance" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {fStats.sectorData.map((entry, i) => {
+                    {sectorTopN.items.map((entry, i) => {
                       const goal = metaSetor ?? META;
                       return (
                         <Cell key={i} fill={entry.compliance >= goal ? "#10b981" : entry.compliance >= goal * 0.83 ? "#f59e0b" : "#ef4444"} />

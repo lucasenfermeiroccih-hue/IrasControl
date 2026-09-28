@@ -24,6 +24,8 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { exportPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
 import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerReportButton";
+import { useTopN } from "@/hooks/useTopN";
+import { ExpandToggle } from "@/components/ExpandToggle";
 
 // ─── Ishikawa Diagram ─────────────────────────────────────────────────────────
 
@@ -336,6 +338,8 @@ export default function DashboardConstruction() {
       meta: 85,
       auditorias: s.audits,
     }));
+    // Ordena decrescente por conformidade para que "top 20" sejam os 20 maiores
+    const sectorBarDataSorted = [...sectorBarData].sort((a, b) => b.conformidade - a.conformidade);
 
     // Pareto data for failures (with demo fallback when there are no audits yet)
     const DEMO_TOP_FAILURES = [
@@ -363,8 +367,11 @@ export default function DashboardConstruction() {
     const kr4Progress = barreirasCat ? Math.min(100, Math.round((barreirasCat.compliance / 85) * 100)) : kr1Progress;
     const kr5Progress = Math.min(100, goodSectors > 0 ? Math.round((goodSectors / Math.max(1, stats.sectorData.length)) * 100) : 0);
 
-    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
+    return { criticalSectors, warningSectors, goodSectors, worstSector, bestSector, pieData, trendData, sectorBarData, sectorBarDataSorted, paretoData, effectiveTopFailures, kr1Progress, kr2Progress, kr3Progress, kr4Progress, kr5Progress };
   }, [stats, items]);
+
+  // Limita o gráfico de setor aos 20 maiores, com botão de expandir
+  const sectorTopN = useTopN(derived.sectorBarDataSorted, 20);
 
   // ── Export PDF ──
   const handleExportPdf = () => {
@@ -595,21 +602,24 @@ export default function DashboardConstruction() {
               <CardTitle className="text-sm">Conformidade por Local</CardTitle>
               <CardDescription className="text-xs">Cores por faixa · linha vermelha = meta</CardDescription>
             </div>
-            <ChartActions chartRef={refs.setor} chartTitle="Conformidade por Local" metaValue={metas.setor} onMetaChange={v => setMeta("setor", v)} metaUnit="%" />
+            <div className="flex items-center gap-1 shrink-0">
+              <ExpandToggle {...sectorTopN} />
+              <ChartActions chartRef={refs.setor} chartTitle="Conformidade por Local" metaValue={metas.setor} onMetaChange={v => setMeta("setor", v)} metaUnit="%" />
+            </div>
           </CardHeader>
           <CardContent>
-            {derived.sectorBarData.length === 0 ? (
+            {sectorTopN.items.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">Sem dados por local</div>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(280, derived.sectorBarData.length * 32)}>
-                <ComposedChart data={derived.sectorBarData} layout="vertical" margin={{ left: 0, right: 24 }}>
+              <ResponsiveContainer width="100%" height={Math.max(280, sectorTopN.items.length * 32)}>
+                <ComposedChart data={sectorTopN.items} layout="vertical" margin={{ left: 0, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
                   {metas.setor !== undefined && <ReferenceLine x={metas.setor} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: `${metas.setor}%`, position: "top", fontSize: 10, fill: "#ef4444" }} />}
                   <Bar dataKey="conformidade" name="Conformidade" radius={[0, 3, 3, 0]}>
-                    {derived.sectorBarData.map((entry, index) => (
+                    {sectorTopN.items.map((entry, index) => (
                       <Cell key={index} fill={entry.conformidade >= (metas.setor ?? META) ? "#10b981" : entry.conformidade >= 75 ? "#f59e0b" : "#ef4444"} />
                     ))}
                   </Bar>
