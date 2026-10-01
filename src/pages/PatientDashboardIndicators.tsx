@@ -21,6 +21,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { computeCtiIndicators } from "@/lib/ctiIndicators";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
@@ -68,68 +69,6 @@ function parseLocalDate(s?: string | null): Date | null {
     return isNaN(d.getTime()) ? null : d;
   }
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-}
-
-function startOfCivilDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-}
-
-function endOfCivilDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-}
-
-function dayKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function collectDaysInPeriods(
-  startDate: string | null | undefined,
-  endDate: string | null | undefined,
-  periods: Array<{ start: Date; end: Date }>,
-  bucket: Set<string>,
-) {
-  if (!startDate || !periods || periods.length === 0) return;
-  const start = parseLocalDate(startDate);
-  const end = endDate ? parseLocalDate(endDate) : new Date();
-  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return;
-
-  periods.forEach(({ start: periodStart, end: periodEnd }) => {
-    const from = startOfCivilDay(start > periodStart ? start : periodStart);
-    const to = endOfCivilDay(end < periodEnd ? end : periodEnd);
-    if (from > to) return;
-
-    const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-    const lastDay = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-
-    while (cursor <= lastDay) {
-      bucket.add(dayKey(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  });
-}
-
-function countDistinctCivilDaysInPeriods(startDate?: string | null, endDate?: string | null, periods?: Array<{ start: Date; end: Date }>) {
-  if (!periods) return 0;
-  const occupiedDays = new Set<string>();
-  collectDaysInPeriods(startDate, endDate, periods, occupiedDays);
-  return occupiedDays.size;
-}
-
-function intersectDaySets(...sets: Array<Set<string> | null | undefined>) {
-  const validSets = sets.filter((set): set is Set<string> => !!set);
-  if (validSets.length === 0) return new Set<string>();
-
-  const [first, ...rest] = validSets;
-  const result = new Set<string>();
-
-  first.forEach((day) => {
-    if (rest.every(set => set.has(day))) result.add(day);
-  });
-
-  return result;
 }
 
 
@@ -222,42 +161,24 @@ const PatientDashboardIndicators = () => {
     const filteredDevices = devices.filter(d => patientIdSet.has(d.patient_id));
     const filteredPrescriptions = prescriptions.filter(rx => patientIdSet.has(rx.patient_id));
 
-    // Períodos = exatamente os meses/anos selecionados (cada combinação vira um intervalo)
-    const periods: Array<{ start: Date; end: Date }> = [];
-    selectedYears.forEach(y => {
-      selectedMonths.forEach(m => {
-        periods.push({
-          start: new Date(y, m, 1, 0, 0, 0, 0),
-          end: new Date(y, m + 1, 0, 23, 59, 59, 999),
-        });
-      });
+    // === Núcleo CTI: cálculo centralizado (src/lib/ctiIndicators.ts) ===
+    // Baseado em icu_admission_date (entrada no CTI), com recorte mensal por dia
+    // civil, censo inclusivo nas duas pontas e dedupe diário de dispositivos.
+    // filteredPatients já está filtrado pela unidade selecionada → sectors: [].
+    const cti = computeCtiIndicators(filteredPatients, {
+      months: selectedMonths,
+      years: selectedYears,
+      sectors: [],
+      today: new Date(),
     });
+    const presentPerPatient = cti.perPatient.filter(b => b.ctiPatientDays > 0);
+    const newAdmissions = cti.totals.newAdmissions;
 
-    // Paciente conta em CADA mês em que esteve internado (intersecção de período)
-    // Se internou em janeiro e teve alta em março, conta em jan, fev e mar — separados.
-    const patientPresentInPeriods = (p: PatientRow) => {
-      const start = parseLocalDate(getPatientPeriodStart(p));
-      if (!start) return false;
-      const end = parseLocalDate(p.discharge_date) || new Date();
-      return periods.some(({ start: ps, end: pe }) => start <= pe && end >= ps);
-    };
-
-    const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
-
-    // Novas admissões: paciente cuja ENTRADA (hospitalar OU UTI) ocorreu dentro
-    // do período filtrado. Diferente de admittedInMonth (que conta quem apenas
-    // esteve presente/internado no mês, incluindo arrastados de meses anteriores).
-    const admittedNewInPeriod = (p: PatientRow) => {
-      const adm = parseLocalDate(p.admission_date);
-      const icu = parseLocalDate(p.icu_admission_date);
-      return (!!adm && matchPeriod(adm)) || (!!icu && matchPeriod(icu));
-    };
-    const newAdmissions = filteredPatients.filter(admittedNewInPeriod).length;
-
+    // Internações por especialidade — coorte presente no CTI no mês filtrado.
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
-    admittedInMonth.forEach(p => {
-      const spec = p.specialty || "Outros";
+    presentPerPatient.forEach(b => {
+      const spec = b.specialty || "Outros";
       if (bySpecialty[spec] !== undefined) bySpecialty[spec]++;
     });
 
@@ -267,129 +188,25 @@ const PatientDashboardIndicators = () => {
       internacoes: bySpecialty[s] || 0,
     }));
 
-    const deaths = filteredPatients.filter(p => {
-      if (p.status !== "deceased" && p.discharge_type !== "Óbito") return false;
-      const d = parseLocalDate(p.discharge_date);
-      return !!d && matchPeriod(d);
-    }).length;
+    // Desfechos e paciente-dia vêm do módulo CTI (recorte mensal correto).
+    const deaths = cti.totals.deaths;
+    const discharges = cti.totals.discharges;
+    const totalPatientDays = cti.totals.ctiPatientDays;
 
-    const discharges = filteredPatients.filter(p => {
-      if (p.discharge_type === "Óbito" || p.status === "deceased") return false;
-      if (p.status !== "discharged" && p.discharge_type !== "Alta") return false;
-      const d = parseLocalDate(p.discharge_date);
-      return !!d && matchPeriod(d);
-    }).length;
+    // Dispositivo-dia (VM/SVD/CVC) — já recortado por CTI, mês e dedupe diário.
+    const cvcDays = cti.totals.deviceDays.cvc;
+    const svuDays = cti.totals.deviceDays.svu;
+    const vmDays  = cti.totals.deviceDays.vm;
 
-    // (periods já calculados acima)
-
-    // Totaliza paciente-dia usando admission_date (internação hospitalar, não apenas UTI)
-    const totalPatientDays = filteredPatients.reduce(
-      (total, patient) => total + countDistinctCivilDaysInPeriods(patient.admission_date, patient.discharge_date, periods),
-      0,
-    );
-
-    // Pré-computa todos os dias do período selecionado (evita recalcular por paciente)
-    const allPeriodDays: Date[] = [];
-    periods.forEach(({ start, end }) => {
-      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const last   = new Date(end.getFullYear(),   end.getMonth(),   end.getDate());
-      while (cursor <= last) { allPeriodDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
-    });
-
-    // Conta dispositivo-dias por paciente×dia dentro do período.
-    // Usa admission_date (não icu_admission_date) para não perder dias de dispositivo
-    // inseridos antes da entrada na UTI.
-    // Suporta: patient_devices table, formato legado (NovaInsercao/NovaRetirada), formato atual (Trocas[]).
-    const calcDeviceDays = (
-      type: string,
-      insKey: string, remKey: string,
-      novaInsKey: string, novaRemKey: string,
-    ): { total: number; perPatient: Array<{ id: string; name: string; days: number }> } => {
-      const trocasKey = insKey.replace("Insercao", "Trocas");
-      let total = 0;
-      const perPatient: Array<{ id: string; name: string; days: number }> = [];
-
-      filteredPatients.forEach(p => {
-        const patStart = parseLocalDate(p.admission_date);
-        if (!patStart) return;
-        const patEnd = p.discharge_date ? parseLocalDate(p.discharge_date) : new Date();
-        if (!patEnd) return;
-
-        // Monta lista de intervalos em que o dispositivo estava ativo.
-        // Datas com ano < 2000 indicam erro de digitação (ex: "0206-03-19", "1990-07-14"):
-        //   - Inserção com ano inválido → usa data de admissão como início
-        //   - Retirada com ano inválido ou retirada anterior à inserção → trata como ativo (sem retirada)
-        // closed = true quando há data de retirada VÁLIDA registrada; false quando
-        // o dispositivo ficou "aberto" (sem retirada) e é projetado como ativo.
-        const ranges: Array<{ s: Date; e: Date; closed: boolean }> = [];
-        const addRange = (ins: string | null | undefined, rem: string | null | undefined) => {
-          if (!ins) return;
-          const rawS = parseLocalDate(ins);
-          if (!rawS) return;
-          const s = rawS.getFullYear() >= 2000 ? rawS : patStart;
-
-          let e: Date;
-          let closed = false;
-          if (rem && rem !== "") {
-            const rawE = parseLocalDate(rem);
-            if (!rawE || rawE.getFullYear() < 2000 || rawE < s) {
-              e = new Date(); // data inválida ou intervalo invertido → considera ativo
-            } else {
-              e = rawE;
-              closed = true; // retirada válida registrada
-            }
-          } else {
-            e = new Date();
-          }
-          ranges.push({ s, e, closed });
-        };
-
-        // Tabela patient_devices
-        filteredDevices
-          .filter(d => d.patient_id === p.id && d.device_type === type)
-          .forEach(dev => addRange(dev.insertion_date, dev.removal_date));
-
-        // clinical_data.dispInvasivos
-        const di = p.clinical_data?.dispInvasivos;
-        if (di) {
-          addRange(di[insKey],      di[remKey]);
-          addRange(di[novaInsKey],  di[novaRemKey]);
-          const trocas: Array<{ insercao: string; retirada: string }> =
-            Array.isArray(di[trocasKey]) ? di[trocasKey] : [];
-          trocas.forEach(t => addRange(t.insercao, t.retirada));
-        }
-
-        if (ranges.length === 0) return;
-
-        // Conflito entre fontes (tabela nova × cadastro antigo): se existe ao menos
-        // um registro COM retirada, ele é autoritativo para este tipo de dispositivo.
-        // Descarta os registros "abertos" (sem retirada) que estenderiam a contagem
-        // muito além da retirada real e inflariam os dias-dispositivo.
-        const closedRanges = ranges.filter(r => r.closed);
-        const effectiveRanges = closedRanges.length > 0 ? closedRanges : ranges;
-
-        // Conta cada dia do período em que o paciente estava internado E com o dispositivo
-        let pDays = 0;
-        allPeriodDays.forEach(day => {
-          if (day < patStart || day > patEnd) return;
-          if (effectiveRanges.some(r => day >= r.s && day <= r.e)) pDays++;
-        });
-
-        if (pDays > 0) {
-          total += pDays;
-          perPatient.push({ id: p.id, name: p.full_name, days: pDays });
-        }
-      });
-
-      return { total, perPatient };
-    };
-
-    const cvcResult = calcDeviceDays("cvc", "cvcInsercao", "cvcRetirada", "cvcNovaInsercao", "cvcNovaRetirada");
-    const svuResult = calcDeviceDays("svu", "svuInsercao", "svuRetirada", "svuNovaInsercao", "svuNovaRetirada");
-    const vmResult  = calcDeviceDays("vm",  "vmInsercao",  "vmRetirada",  "vmNovaInsercao",  "vmNovaRetirada");
-    const cvcDays = cvcResult.total;
-    const svuDays = svuResult.total;
-    const vmDays  = vmResult.total;
+    // Conferência por paciente de cada dispositivo (apenas dias > 0).
+    const deviceBreakdown = (type: "cvc" | "svu" | "vm") =>
+      cti.perPatient
+        .filter(b => b.deviceDays[type] > 0)
+        .map(b => ({ id: b.id, name: b.name, days: b.deviceDays[type] }))
+        .sort((a, b) => b.days - a.days);
+    const cvcResult = { perPatient: deviceBreakdown("cvc") };
+    const svuResult = { perPatient: deviceBreakdown("svu") };
+    const vmResult  = { perPatient: deviceBreakdown("vm") };
 
 
     // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
@@ -429,7 +246,7 @@ const PatientDashboardIndicators = () => {
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
       { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
-      { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
+      { name: "Internados", value: cti.totals.activeInCti, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
     // Top 15 antibióticos mais utilizados (tabela + clinical_data)
@@ -502,9 +319,34 @@ const PatientDashboardIndicators = () => {
       cvcBreakdown: cvcResult.perPatient,
       svuBreakdown: svuResult.perPatient,
       vmBreakdown:  vmResult.perPatient,
-      abCount, extubations, totalAdmitted: admittedInMonth.length, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
+      abCount, extubations, totalAdmitted: cti.totals.presentInMonth, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
+      transfers: cti.totals.transfers,
+      activeInCti: cti.totals.activeInCti,
+      dataQualitySummary: cti.dataQualitySummary,
+      dataQualityCount: cti.dataQuality.length,
+      conference: cti.perPatient,
     };
-  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear]);
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear, currentMonth]);
+
+  // Conferência por paciente (CSV): admissão, alta, óbito, paciente-dia, VM/SVD/CVC-dia.
+  const handleDownloadConference = () => {
+    const header = ["Paciente", "Setor", "Especialidade", "Entrada CTI", "Saída", "Paciente-Dia", "Nova Admissão", "Alta", "Óbito", "Transferência", "VM-dia", "SVD-dia", "CVC-dia", "Inconsistências"];
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = indicators.conference
+      .filter(b => b.ctiPatientDays > 0 || b.isNewAdmission || b.isDischarge || b.isDeath || b.isTransfer)
+      .map(b => [b.name, b.sector || "", b.specialty || "", b.icuAdmission || "", b.discharge || "",
+        b.ctiPatientDays, b.isNewAdmission ? "Sim" : "", b.isDischarge ? "Sim" : "", b.isDeath ? "Sim" : "",
+        b.isTransfer ? "Sim" : "", b.deviceDays.vm, b.deviceDays.svu, b.deviceDays.cvc,
+        Array.from(new Set(b.flags)).join("; ")].map(esc).join(","));
+    const csv = "﻿" + [header.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conferencia-cti-${(unit[0] || "todos")}-${(month.map(m => MONTHS[Number(m)]).join("_") || "mes")}-${year.join("_") || "ano"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -666,11 +508,23 @@ const PatientDashboardIndicators = () => {
             <KpiCard icon={Syringe} label="Antibióticos" value={indicators.abCount} color="text-orange-600" />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-green-600" />
               Alta / Extubação: <span className="font-bold">{indicators.extubations}</span>
             </Badge>
+            <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
+              <ArrowUpFromLine className="h-4 w-4 text-sky-600 rotate-90" />
+              Transferências: <span className="font-bold">{indicators.transfers}</span>
+            </Badge>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadConference}>
+              <FileText className="h-4 w-4" /> Conferência (CSV)
+            </Button>
+            {indicators.dataQualityCount > 0 && (
+              <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5 border-amber-400 text-amber-700 bg-amber-50">
+                ⚠ {indicators.dataQualityCount} registro(s) com dados incompletos/inconsistentes
+              </Badge>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
