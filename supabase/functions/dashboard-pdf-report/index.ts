@@ -67,12 +67,12 @@ ${p.topOrganisms.map((m, i) => `${i + 1}. ${m.name}: ${m.value}`).join("\n") || 
 Estruture o relatório com as seguintes seções (use ## para títulos):
 ## Resumo Executivo
 ## Análise de Internações e Desfechos
-## Análise de Dispositivos Invasivos (densidade por 1000 pac-dia quando aplicável)
+## Análise de Dispositivos Invasivos (taxa de utilização = dispositivo-dia ÷ paciente-dia × 100)
 ## Análise Microbiológica e Uso de Antimicrobianos
 ## Recomendações Clínicas e de Vigilância
 ## Conclusão
 
-Use linguagem técnica, cite números, calcule taxas (mortalidade, densidades de uso de dispositivos por 1000 pac-dia) e dê recomendações práticas. NÃO invente dados além dos fornecidos. Não use markdown além de ## para títulos e listas com hífen.`;
+Use linguagem técnica, cite números, calcule taxas (mortalidade = óbitos ÷ internações × 100; taxa de utilização de dispositivos = dispositivo-dia ÷ paciente-dia × 100, em %) e dê recomendações práticas. NÃO invente dados além dos fornecidos. Não use markdown além de ## para títulos e listas com hífen.`;
 }
 
 function renderMarkdownToPdf(doc: jsPDF, markdown: string) {

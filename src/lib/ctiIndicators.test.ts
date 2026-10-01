@@ -24,6 +24,7 @@ function mkPatient(o: Partial<CtiPatientRow> = {}): CtiPatientRow {
     status: o.status ?? "active",
     discharge_type: o.discharge_type ?? null,
     clinical_data: o.clinical_data ?? { dispInvasivos: {} },
+    updated_at: o.updated_at ?? null,
   };
 }
 
@@ -63,7 +64,7 @@ describe("CTI indicators — casos obrigatórios", () => {
       status: "discharged", discharge_type: "Alta",
     });
     const r = computeCtiIndicators([p], filter());
-    expect(r.totals.ctiPatientDays).toBe(6); // 5..10 inclusive
+    expect(r.totals.ctiPatientDays).toBe(5); // 5..9 (dia da alta não conta)
     expect(r.totals.newAdmissions).toBe(1);
     expect(r.totals.discharges).toBe(1);
     expect(r.totals.deaths).toBe(0);
@@ -82,7 +83,7 @@ describe("CTI indicators — casos obrigatórios", () => {
     const sep = computeCtiIndicators([p], filter({ months: SEP }));
     expect(sep.totals.newAdmissions).toBe(0);
     expect(sep.totals.deaths).toBe(1);
-    expect(sep.totals.ctiPatientDays).toBe(3); // 1..3 set
+    expect(sep.totals.ctiPatientDays).toBe(2); // 1..2 set (dia do óbito não conta)
   });
 
   it("4. internação em andamento — limita a hoje, sem dias futuros", () => {
@@ -104,33 +105,33 @@ describe("CTI indicators — casos obrigatórios", () => {
       }),
     });
     const r = computeCtiIndicators([p], filter());
-    expect(r.totals.deviceDays.vm).toBe(3);  // 1,2,3 set
-    expect(r.totals.deviceDays.svu).toBe(3);
-    expect(r.totals.deviceDays.cvc).toBe(3);
+    expect(r.totals.deviceDays.vm).toBe(2);  // 1,2 set (dia da retirada não conta)
+    expect(r.totals.deviceDays.svu).toBe(2);
+    expect(r.totals.deviceDays.cvc).toBe(2);
   });
 
   it("6. retirada + reinstalação com intervalo sem uso", () => {
     const p = mkPatient({
       icu_admission_date: "2026-09-01",
       clinical_data: disp({
-        cvcInsercao: "2026-09-01", cvcRetirada: "2026-09-05",      // 1..5 = 5
-        cvcTrocas: [{ insercao: "2026-09-10", retirada: "2026-09-12" }], // 10..12 = 3
+        cvcInsercao: "2026-09-01", cvcRetirada: "2026-09-05",      // 1..4 = 4
+        cvcTrocas: [{ insercao: "2026-09-10", retirada: "2026-09-12" }], // 10..11 = 2
       }),
     });
     const r = computeCtiIndicators([p], filter());
-    expect(r.totals.deviceDays.cvc).toBe(8); // 5 + 3, gap 6..9 fora
+    expect(r.totals.deviceDays.cvc).toBe(6); // 4 + 2, gap 5..9 fora
   });
 
   it("7. dois CVC sobrepostos na mesma data contam 1 CVC-dia", () => {
     const p = mkPatient({
       icu_admission_date: "2026-09-01",
       clinical_data: disp({
-        cvcInsercao: "2026-09-05", cvcRetirada: "2026-09-08",      // 5..8
-        cvcTrocas: [{ insercao: "2026-09-07", retirada: "2026-09-10" }], // 7..10 (sobrepõe)
+        cvcInsercao: "2026-09-05", cvcRetirada: "2026-09-08",      // 5..7
+        cvcTrocas: [{ insercao: "2026-09-07", retirada: "2026-09-10" }], // 7..9 (sobrepõe)
       }),
     });
     const r = computeCtiIndicators([p], filter());
-    expect(r.totals.deviceDays.cvc).toBe(6); // união 5..10, dia 7 contado 1x
+    expect(r.totals.deviceDays.cvc).toBe(5); // união 5..9, dia 7 contado 1x
   });
 
   it("8. transferência entre CTIs — atribuído ao setor atual (limitação)", () => {
@@ -170,7 +171,7 @@ describe("CTI indicators — casos obrigatórios", () => {
 
     const cross = mkPatient({ icu_admission_date: "2025-12-28", discharge_date: "2026-01-03", status: "discharged", discharge_type: "Alta" });
     const rCross = computeCtiIndicators([cross], filter({ months: [11, 0], years: [2025, 2026], today: new Date(2026, 1, 1) }));
-    expect(rCross.totals.ctiPatientDays).toBe(7); // 28..31 dez + 1..3 jan
+    expect(rCross.totals.ctiPatientDays).toBe(6); // 28..31 dez + 1..2 jan
   });
 });
 
@@ -222,7 +223,7 @@ describe("CTI indicators — qualidade de dado", () => {
       }),
     });
     const r = computeCtiIndicators([p], filter({ months: [7, 8], today: new Date(2026, 9, 1) }));
-    expect(r.totals.deviceDays.cvc).toBe(10); // só 1..10 set (ago fora da permanência)
+    expect(r.totals.deviceDays.cvc).toBe(9); // só 1..9 set (ago fora da permanência)
     expect(r.dataQualitySummary.DEVICE_OUTSIDE_CTI_STAY).toBe(1);
   });
 });
@@ -230,6 +231,29 @@ describe("CTI indicators — qualidade de dado", () => {
 // ---------------------------------------------------------------------------
 // Normalização de episódios (unidade)
 // ---------------------------------------------------------------------------
+
+describe("CTI indicators — censo (dia da saída não conta)", () => {
+  it("entrada e saída no mesmo dia contam 1 dia; troca no mesmo dia não perde dia", () => {
+    const same = mkPatient({ icu_admission_date: "2026-09-10", discharge_date: "2026-09-10", status: "discharged", discharge_type: "Alta" });
+    expect(computeCtiIndicators([same], filter()).totals.ctiPatientDays).toBe(1);
+
+    const swap = mkPatient({
+      icu_admission_date: "2026-09-01", discharge_date: "2026-09-11", status: "discharged", discharge_type: "Alta",
+      clinical_data: disp({ cvcInsercao: "2026-09-01", cvcRetirada: "2026-09-05", cvcTrocas: [{ insercao: "2026-09-05", retirada: "2026-09-11" }] }),
+    });
+    const r = computeCtiIndicators([swap], filter());
+    expect(r.totals.ctiPatientDays).toBe(10); // 1..10
+    expect(r.totals.deviceDays.cvc).toBe(10); // 1..4 + 5..10
+  });
+
+  it("ativo sem atualização há mais de 30 dias continua contando, mas é sinalizado", () => {
+    const stale = mkPatient({ icu_admission_date: "2026-06-10", status: "active", updated_at: "2026-06-30T12:00:00Z" });
+    const fresh = mkPatient({ icu_admission_date: "2026-06-10", status: "active", updated_at: "2026-09-29T12:00:00Z" });
+    const r = computeCtiIndicators([stale, fresh], filter());
+    expect(r.totals.ctiPatientDays).toBe(60);
+    expect(r.dataQualitySummary.STALE_ACTIVE).toBe(1);
+  });
+});
 
 describe("normalizeDeviceEpisodes", () => {
   it("une episódio base + trocas sobrepostos", () => {
@@ -243,10 +267,20 @@ describe("normalizeDeviceEpisodes", () => {
 
   it("episódio com retirada é autoritativo (descarta em-andamento conflitante)", () => {
     const eps = normalizeDeviceEpisodes(
+      disp({ cvcInsercao: "2026-09-01", cvcRetirada: "2026-09-05", cvcNovaInsercao: "2026-09-01", cvcNovaRetirada: "" }),
+      "cvc", new Date(2026, 8, 1),
+    );
+    // o em-andamento iniciado antes da última retirada é cópia do mesmo dispositivo
+    expect(eps).toHaveLength(1);
+    expect(eps.every((e) => e.closed)).toBe(true);
+  });
+
+  it("novo dispositivo em uso, inserido após a última retirada, continua contando", () => {
+    const eps = normalizeDeviceEpisodes(
       disp({ cvcInsercao: "2026-09-01", cvcRetirada: "2026-09-05", cvcTrocas: [{ insercao: "2026-09-20", retirada: "" }] }),
       "cvc", new Date(2026, 8, 1),
     );
-    // mantém o fechado; o em-andamento (sem retirada) é descartado
-    expect(eps.every((e) => e.closed)).toBe(true);
+    expect(eps).toHaveLength(2);
+    expect(eps[1]).toMatchObject({ start: new Date(2026, 8, 20), end: null, closed: false });
   });
 });

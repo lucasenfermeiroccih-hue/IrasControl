@@ -2,7 +2,8 @@
  * Validação com DADOS REAIS (amostra): 6 pacientes da UTI 1 com episódios de
  * troca/reinserção, exportados do banco (Supabase) em Ago/2026. Os valores
  * esperados (exp_*) foram calculados por um censo diário SQL independente
- * (generate_series por dia), com política "episódio com retirada é autoritativo".
+ * (generate_series por dia), com política "episódio com retirada é autoritativo" e
+ * censo que conta o dia de entrada/inserção e não conta o dia de saída/retirada.
  * Este teste garante que o módulo TS reproduz exatamente o censo do banco.
  */
 import { describe, it, expect } from "vitest";
@@ -14,17 +15,17 @@ const ROWS: Array<{ id: string; icu: string; disc: string | null; status: string
     di: { cvcInsercao: "2026-06-18", cvcRetirada: "2026-06-26", cvcTrocas: [{ insercao: "2026-06-26", retirada: "2026-07-05" }, { insercao: "2026-07-05", retirada: "2026-07-21" }, { insercao: "2026-07-21", retirada: "2026-08-12" }],
       svuInsercao: "2026-06-18", svuRetirada: "2026-07-03", svuTrocas: [{ insercao: "2026-07-13", retirada: "2026-08-02" }, { insercao: "2026-08-02", retirada: "2026-08-12" }],
       vmInsercao: "2026-06-18", vmRetirada: "2026-07-09", vmTrocas: [] },
-    exp_pac_dia: 12, exp_cvc: 12, exp_svu: 12, exp_vm: 0 },
+    exp_pac_dia: 11, exp_cvc: 11, exp_svu: 11, exp_vm: 0 },
   { id: "26570821", icu: "2026-08-14", disc: "2026-08-26", status: "discharged", dt: "Alta",
     di: { cvcInsercao: "2026-08-14", cvcRetirada: "2026-08-22", cvcTrocas: [{ insercao: "2026-08-22", retirada: "2026-08-26" }],
       svuInsercao: "2026-08-13", svuRetirada: "2026-08-26", svuTrocas: [],
       vmInsercao: "2026-08-14", vmRetirada: "2026-08-22", vmTrocas: [] },
-    exp_pac_dia: 13, exp_cvc: 13, exp_svu: 13, exp_vm: 9 },
+    exp_pac_dia: 12, exp_cvc: 12, exp_svu: 12, exp_vm: 8 },
   { id: "527c34d3", icu: "2026-08-05", disc: "2026-08-31", status: "discharged", dt: "Alta",
     di: { cvcInsercao: "2026-08-05", cvcRetirada: "2026-08-13", cvcTrocas: [{ insercao: "2026-08-13", retirada: "2026-08-31" }],
       svuInsercao: "2026-08-05", svuRetirada: "2026-08-11", svuTrocas: [{ insercao: "2026-08-11", retirada: "2026-08-20" }],
       vmInsercao: "2026-08-05", vmRetirada: "2026-08-17", vmTrocas: [] },
-    exp_pac_dia: 27, exp_cvc: 27, exp_svu: 16, exp_vm: 13 },
+    exp_pac_dia: 26, exp_cvc: 26, exp_svu: 15, exp_vm: 12 },
   { id: "53209bcf", icu: "2026-08-19", disc: "2026-09-07", status: "discharged", dt: "Alta",
     di: { cvcInsercao: "2026-08-19", cvcRetirada: "", cvcTrocas: [{ insercao: "2026-08-30", retirada: "" }],
       svuInsercao: "2026-08-19", svuRetirada: "", svuTrocas: [],
@@ -39,7 +40,7 @@ const ROWS: Array<{ id: string; icu: string; disc: string | null; status: string
     di: { cvcInsercao: "2026-07-02", cvcRetirada: "2026-07-16", cvcTrocas: [{ insercao: "2026-07-17", retirada: "2026-08-07" }],
       svuInsercao: "2026-07-02", svuRetirada: "2026-08-03", svuTrocas: [],
       vmInsercao: "2026-07-02", vmRetirada: "2026-07-15", vmTrocas: [{ insercao: "2026-07-17", retirada: "2026-08-07" }] },
-    exp_pac_dia: 7, exp_cvc: 7, exp_svu: 3, exp_vm: 7 },
+    exp_pac_dia: 6, exp_cvc: 6, exp_svu: 2, exp_vm: 6 },
 ];
 
 function toRow(r: typeof ROWS[number]): CtiPatientRow {

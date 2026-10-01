@@ -22,8 +22,31 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { computeCtiIndicators } from "@/lib/ctiIndicators";
+import {
+  buildSpecialtyData,
+  computeTreatmentIndicators,
+  type ClinicalData,
+  type IndicatorDevice,
+  type IndicatorLabResult,
+  type IndicatorPrescription,
+} from "@/lib/patient-indicators";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+
+/** Lê todas as páginas de uma consulta (o Supabase limita cada resposta a 1.000 linhas). */
+async function fetchAllRows<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...(data as T[]));
+    // Avança pelo número real de linhas: o servidor pode limitar abaixo de pageSize
+    from += data.length;
+  }
+  return rows;
+}
 
 const SPECIALTIES_DEFAULT = [
   "Clínica médica", "Cirurgia Geral", "Cirurgia Cardíaca",
@@ -56,24 +79,8 @@ interface PatientRow {
   discharge_date: string | null;
   status: string;
   discharge_type: string | null;
-  clinical_data: any;
-}
-
-// Parse "YYYY-MM-DD" (ou ISO) como data LOCAL, evitando deslocamento de fuso (UTC)
-function parseLocalDate(s?: string | null): Date | null {
-  if (!s) return null;
-  const datePart = String(s).slice(0, 10);
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
-  if (!m) {
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-}
-
-
-function getPatientPeriodStart(patient: PatientRow) {
-  return patient.icu_admission_date || patient.admission_date;
+  clinical_data: ClinicalData | null;
+  updated_at: string | null;
 }
 
 const PatientDashboardIndicators = () => {
@@ -87,9 +94,9 @@ const PatientDashboardIndicators = () => {
   const [month, setMonth] = useState<string[]>([String(currentMonth)]);
   const [unit, setUnit] = useState<string[]>([]);
   const [patients, setPatients] = useState<PatientRow[]>([]);
-  const [devices, setDevices] = useState<any[]>([]);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [labResults, setLabResults] = useState<any[]>([]);
+  const [devices, setDevices] = useState<IndicatorDevice[]>([]);
+  const [prescriptions, setPrescriptions] = useState<IndicatorPrescription[]>([]);
+  const [labResults, setLabResults] = useState<IndicatorLabResult[]>([]);
   const [loading, setLoading] = useState(true);
   type SpecSortKey = "internacoes" | "percent";
   const [specSortKey, setSpecSortKey] = useState<SpecSortKey | null>(null);
@@ -112,31 +119,55 @@ const PatientDashboardIndicators = () => {
 
   useEffect(() => {
     if (!hospitalId || ctxLoading) { setLoading(false); return; }
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      const pRes = await supabase
-        .from("patients")
-        .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
-        .eq("hospital_id", hospitalId)
-        .neq("source", "precaution_map");
-      const pts = (pRes.data || []) as PatientRow[];
-      setPatients(pts);
+      try {
+        // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta.
+        const pts = await fetchAllRows<PatientRow>(() => supabase
+          .from("patients")
+          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data, updated_at")
+          .eq("hospital_id", hospitalId)
+          .neq("source", "precaution_map")
+          .order("id"));
 
-      // Manter compat: ainda lê devices/prescriptions das tabelas (caso existam)
-      if (pts.length > 0) {
-        const patIds = pts.map((p: any) => p.id);
-        const [devRes, rxRes, labRes] = await Promise.all([
-          supabase.from("patient_devices").select("*").in("patient_id", patIds),
-          supabase.from("antimicrobial_prescriptions").select("id, start_date, patient_id, drug_name").eq("hospital_id", hospitalId),
-          supabase.from("lab_results").select("id, patient_id, organism, collection_date, result_date").eq("hospital_id", hospitalId),
+        // patient_devices não tem hospital_id: busca em lotes de pacientes
+        // para não estourar o tamanho da URL do filtro "in".
+        const patIds = pts.map(p => p.id);
+        const idChunks: string[][] = [];
+        for (let i = 0; i < patIds.length; i += 150) idChunks.push(patIds.slice(i, i + 150));
+
+        const [devChunks, rx, labs] = await Promise.all([
+          Promise.all(idChunks.map(ids => fetchAllRows<IndicatorDevice>(() => supabase
+            .from("patient_devices")
+            .select("id, patient_id, device_type, insertion_date, removal_date")
+            .in("patient_id", ids)
+            .order("id")))),
+          fetchAllRows<IndicatorPrescription>(() => supabase
+            .from("antimicrobial_prescriptions")
+            .select("id, start_date, patient_id, drug_name")
+            .eq("hospital_id", hospitalId)
+            .order("id")),
+          fetchAllRows<IndicatorLabResult>(() => supabase
+            .from("lab_results")
+            .select("id, patient_id, organism, collection_date, result_date")
+            .eq("hospital_id", hospitalId)
+            .order("id")),
         ]);
-        setDevices(devRes.data || []);
-        setPrescriptions(rxRes.data || []);
-        setLabResults(labRes.data || []);
-      }
 
-      setLoading(false);
+        if (cancelled) return;
+        setPatients(pts);
+        setDevices(devChunks.flat());
+        setPrescriptions(rx);
+        setLabResults(labs);
+      } catch (err: any) {
+        console.error("Erro ao carregar indicadores:", err);
+        if (!cancelled) toast.error("Erro ao carregar os dados dos indicadores: " + (err?.message || "tente novamente"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => { cancelled = true; };
   }, [hospitalId, ctxLoading]);
 
   const units = useMemo(() => {
@@ -154,13 +185,6 @@ const PatientDashboardIndicators = () => {
     // Se nada selecionado, default = mês/ano atual (evita somar tudo indevidamente)
     const selectedMonths = month.length === 0 ? [currentMonth] : Array.from(new Set(month.map(Number))).sort((a, b) => a - b);
     const selectedYears = year.length === 0 ? [currentYear] : Array.from(new Set(year.map(Number))).sort((a, b) => a - b);
-    const matchPeriod = (d: Date) =>
-      selectedMonths.includes(d.getMonth()) &&
-      selectedYears.includes(d.getFullYear());
-    const patientIdSet = new Set(filteredPatients.map(p => p.id));
-    const filteredDevices = devices.filter(d => patientIdSet.has(d.patient_id));
-    const filteredPrescriptions = prescriptions.filter(rx => patientIdSet.has(rx.patient_id));
-
     // === Núcleo CTI: cálculo centralizado (src/lib/ctiIndicators.ts) ===
     // Baseado em icu_admission_date (entrada no CTI), com recorte mensal por dia
     // civil, censo inclusivo nas duas pontas e dedupe diário de dispositivos.
@@ -171,22 +195,14 @@ const PatientDashboardIndicators = () => {
       sectors: [],
       today: new Date(),
     });
-    const presentPerPatient = cti.perPatient.filter(b => b.ctiPatientDays > 0);
+    // Internações = entradas no CTI no mês filtrado. Quem entrou em meses anteriores
+    // não soma aqui (aparece à parte em carriedOver), mas seus dias no mês contam
+    // no paciente-dia.
     const newAdmissions = cti.totals.newAdmissions;
-
-    // Internações por especialidade — coorte presente no CTI no mês filtrado.
-    const bySpecialty: Record<string, number> = {};
-    SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
-    presentPerPatient.forEach(b => {
-      const spec = b.specialty || "Outros";
-      if (bySpecialty[spec] !== undefined) bySpecialty[spec]++;
-    });
-
-    const specialtyData = SPECIALTIES.map(s => ({
-      name: s.length > 15 ? s.replace("Cirurgia ", "C. ") : s,
-      fullName: s,
-      internacoes: bySpecialty[s] || 0,
-    }));
+    const specialtyData = buildSpecialtyData(
+      cti.perPatient.filter(b => b.isNewAdmission).map(b => b.specialty),
+      SPECIALTIES,
+    );
 
     // Desfechos e paciente-dia vêm do módulo CTI (recorte mensal correto).
     const deaths = cti.totals.deaths;
@@ -209,124 +225,52 @@ const PatientDashboardIndicators = () => {
     const vmResult  = { perPatient: deviceBreakdown("vm") };
 
 
-    // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
-    const abFromTable = filteredPrescriptions.filter(rx => {
-      const d = parseLocalDate(rx.start_date);
-      return !!d && matchPeriod(d);
-    }).length;
-
-    let abFromClinical = 0;
-    filteredPatients.forEach(p => {
-      const atbs = p.clinical_data?.antibioticos;
-      if (!Array.isArray(atbs)) return;
-      atbs.forEach((a: any) => {
-        const d = parseLocalDate(a?.dataInicio);
-        if (d && matchPeriod(d)) abFromClinical++;
-      });
+    // Antimicrobianos, extubações e microrganismos — eventos do mês filtrado,
+    // sem duplicar registros sincronizados entre a tabela e o cadastro.
+    const { abCount, topAntibiotics, extubations, topOrganisms } = computeTreatmentIndicators({
+      patients: filteredPatients,
+      devices,
+      prescriptions,
+      labResults,
+      months: selectedMonths,
+      years: selectedYears,
     });
-    const abCount = abFromTable + abFromClinical;
-
-    const extubationsTable = filteredDevices.filter(d => {
-      if (d.device_type !== "vm") return false;
-      const rd = parseLocalDate(d.removal_date);
-      return !!rd && matchPeriod(rd);
-    }).length;
-
-    let extubationsClinical = 0;
-    filteredPatients.forEach(p => {
-      const di = p.clinical_data?.dispInvasivos;
-      if (!di) return;
-      [di.vmRetirada, di.vmNovaRetirada].forEach((dt: string) => {
-        const rd = parseLocalDate(dt);
-        if (rd && matchPeriod(rd)) extubationsClinical++;
-      });
-    });
-    const extubations = extubationsTable + extubationsClinical;
 
     const outcomeData = [
       { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
       { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
-      { name: "Internados", value: cti.totals.activeInCti, color: "hsl(210, 60%, 50%)" },
+      { name: "Transferências", value: cti.totals.transfers, color: "hsl(45, 80%, 50%)" },
+      { name: "Internados ao fim do período", value: cti.totals.stillAdmittedAtEnd, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
-
-    // Top 15 antibióticos mais utilizados (tabela + clinical_data)
-    const abCounter: Record<string, number> = {};
-    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
-    filteredPrescriptions.forEach(rx => {
-      const d = parseLocalDate(rx.start_date);
-      if (!d || !matchPeriod(d)) return;
-      const name = rx.drug_name ? normalize(String(rx.drug_name)) : null;
-      if (!name) return;
-      abCounter[name] = (abCounter[name] || 0) + 1;
-    });
-    filteredPatients.forEach(p => {
-      const atbs = p.clinical_data?.antibioticos;
-      if (!Array.isArray(atbs)) return;
-      atbs.forEach((a: any) => {
-        const d = parseLocalDate(a?.dataInicio);
-        if (!d || !matchPeriod(d)) return;
-        const name = a?.nome || a?.antibiotico || a?.droga;
-        if (!name) return;
-        const key = normalize(String(name));
-        abCounter[key] = (abCounter[key] || 0) + 1;
-      });
-    });
-    const topAntibiotics = Object.entries(abCounter)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 15);
-
-    // Top 15 microrganismos do painel laboratorial
-    // Fonte 1: tabela lab_results (caso exista)
-    // Fonte 2: clinical_data.labPanel (preenchido na página /patients/monitoring)
-    const filteredLabs = labResults.filter(l => patientIdSet.has(l.patient_id));
-    const orgCounter: Record<string, number> = {};
-    filteredLabs.forEach(l => {
-      const ref = parseLocalDate(l.result_date) || parseLocalDate(l.collection_date);
-      if (!ref || !matchPeriod(ref)) return;
-      const org = l.organism ? normalize(String(l.organism)) : null;
-      if (!org) return;
-      orgCounter[org] = (orgCounter[org] || 0) + 1;
-    });
-    // Parse date in formats: dd/mm/yyyy, yyyy-mm-dd, ISO
-    const parseFlexibleDate = (s?: string | null): Date | null => {
-      if (!s) return null;
-      const str = String(s).trim();
-      const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
-      if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
-      return parseLocalDate(str);
-    };
-    filteredPatients.forEach(p => {
-      const labs = p.clinical_data?.labPanel;
-      if (!Array.isArray(labs)) return;
-      labs.forEach((lab: any) => {
-        const ref = parseFlexibleDate(lab?.data);
-        // Se não tiver data, considera o paciente: usa admissão como referência
-        const refDate = ref || parseLocalDate(getPatientPeriodStart(p));
-        if (!refDate || !matchPeriod(refDate)) return;
-        const org = lab?.microrganismo ? normalize(String(lab.microrganismo)) : null;
-        if (!org) return;
-        orgCounter[org] = (orgCounter[org] || 0) + 1;
-      });
-    });
-    const topOrganisms = Object.entries(orgCounter)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 15);
 
     return {
       specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays,
       cvcBreakdown: cvcResult.perPatient,
       svuBreakdown: svuResult.perPatient,
       vmBreakdown:  vmResult.perPatient,
-      abCount, extubations, totalAdmitted: cti.totals.presentInMonth, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
+      abCount, extubations, totalAdmitted: newAdmissions, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
+      carriedOver: cti.totals.carriedOver,
       transfers: cti.totals.transfers,
       activeInCti: cti.totals.activeInCti,
       dataQualitySummary: cti.dataQualitySummary,
       dataQualityCount: cti.dataQuality.length,
+      // Ativos sem atualização há mais de 30 dias que somam dias neste período
+      // (provável alta não lançada no Monitoramento).
+      staleActive: cti.dataQuality
+        .filter(f => f.code === "STALE_ACTIVE")
+        .map(f => ({ flag: f, row: cti.perPatient.find(b => b.id === f.patientId) }))
+        .filter(({ row }) => !!row && row.ctiPatientDays > 0)
+        .map(({ flag, row }) => ({
+          id: flag.patientId,
+          name: flag.patientName,
+          sector: row!.sector,
+          icuAdmission: row!.icuAdmission,
+          lastUpdate: (flag.detail || "").replace("Ativo sem atualização desde ", ""),
+          patientDays: row!.ctiPatientDays,
+        })),
       conference: cti.perPatient,
     };
-  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear, currentMonth]);
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear, currentMonth, SPECIALTIES]);
 
   // Conferência por paciente (CSV): admissão, alta, óbito, paciente-dia, VM/SVD/CVC-dia.
   const handleDownloadConference = () => {
@@ -388,9 +332,9 @@ const PatientDashboardIndicators = () => {
             context:
               "Este relatório apresenta os indicadores operacionais assistenciais do período selecionado: admissões hospitalares por especialidade, desfechos (altas e óbitos), paciente-dia total, dias de utilização de dispositivos invasivos (CVC, SVD/SVU, Ventilação Mecânica) e uso de antimicrobianos. Estes indicadores são essenciais para o monitoramento da qualidade assistencial e cálculo das taxas de IRAS associadas a dispositivos.",
             methodology:
-              "Dados coletados do sistema de monitoramento de pacientes. Cálculos de paciente-dia baseados em dias civis de internação no período selecionado. Dias de dispositivo computados a partir de inserção e retirada registrados no sistema.",
+              "Dados coletados do sistema de monitoramento de pacientes. Internações = entradas no CTI no período selecionado. Paciente-dia = censo diário no CTI dentro do período: conta o dia da entrada e não conta o dia da saída (entrada e saída no mesmo dia = 1). Dispositivo-dia segue a mesma regra: conta o dia da inserção e não conta o dia da retirada, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
             kpis: [
-              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "no período" },
+              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "entradas no CTI no período" },
               { label: "Pacientes-Dia Total", value: String(indicators.totalPatientDays), sub: "dias acumulados" },
               { label: "Óbitos", value: String(indicators.deaths), sub: "no período", status: indicators.deaths === 0 ? "ok" : "warning" },
               { label: "Altas", value: String(indicators.discharges), sub: "altas registradas" },
@@ -491,6 +435,11 @@ const PatientDashboardIndicators = () => {
                     {year.length === 0 ? "Todos os anos" : year.join(", ")}
                     {unit.length > 0 ? ` · ${unit.length === 1 ? unit[0] : `${unit.length} unidades`}` : ""}
                   </p>
+                  {indicators.carriedOver > 0 && (
+                    <p className="text-xs text-muted-foreground/80 mt-0.5">
+                      + {indicators.carriedOver} paciente(s) já no CTI desde meses anteriores — não somam nas internações, mas os dias deles neste período contam no paciente-dia.
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-3xl font-bold text-primary font-heading">{indicators.newAdmissions}</p>
@@ -511,7 +460,7 @@ const PatientDashboardIndicators = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-green-600" />
-              Alta / Extubação: <span className="font-bold">{indicators.extubations}</span>
+              Extubações (retirada de VM): <span className="font-bold">{indicators.extubations}</span>
             </Badge>
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-sky-600 rotate-90" />
@@ -526,6 +475,50 @@ const PatientDashboardIndicators = () => {
               </Badge>
             )}
           </div>
+
+          {indicators.staleActive.length > 0 && (
+            <Card className="border-amber-400 bg-amber-50/60 dark:bg-amber-950/20">
+              <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-sm text-amber-800 dark:text-amber-300">
+                    ⚠ {indicators.staleActive.length} paciente(s) ainda internado(s) no sistema, sem atualização há mais de 30 dias
+                  </CardTitle>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">
+                    Eles somam {indicators.staleActive.reduce((s, r) => s + r.patientDays, 0)} paciente-dia neste período. Se já saíram, lance a alta no Monitoramento de Pacientes para corrigir os indicadores.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate("/patients/monitoring")}>
+                  Abrir Monitoramento
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-amber-300 text-left">
+                        <th className="py-1.5 px-2 font-medium">Paciente</th>
+                        <th className="py-1.5 px-2 font-medium">Setor</th>
+                        <th className="py-1.5 px-2 font-medium">Entrada CTI</th>
+                        <th className="py-1.5 px-2 font-medium">Última atualização</th>
+                        <th className="py-1.5 px-2 font-medium text-right">Pac-dia no período</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indicators.staleActive.map(r => (
+                        <tr key={r.id} className="border-b border-amber-200 last:border-0">
+                          <td className="py-1.5 px-2">{r.name}</td>
+                          <td className="py-1.5 px-2">{r.sector || "—"}</td>
+                          <td className="py-1.5 px-2">{r.icuAdmission ? r.icuAdmission.split("-").reverse().join("/") : "—"}</td>
+                          <td className="py-1.5 px-2">{r.lastUpdate ? r.lastUpdate.split("-").reverse().join("/") : "—"}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums">{r.patientDays}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card ref={chartRefs.specialty} className="lg:col-span-2">
@@ -641,9 +634,9 @@ const PatientDashboardIndicators = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <DensityCard title="Densidade CVC" deviceDays={indicators.cvcDays} patientDays={indicators.totalPatientDays} icon={Cable} color="text-amber-600" />
-            <DensityCard title="Densidade SVD" deviceDays={indicators.svuDays} patientDays={indicators.totalPatientDays} icon={Droplets} color="text-purple-600" />
-            <DensityCard title="Densidade VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
+            <UtilizationRateCard title="Taxa de Utilização de CVC" deviceDays={indicators.cvcDays} patientDays={indicators.totalPatientDays} icon={Cable} color="text-amber-600" />
+            <UtilizationRateCard title="Taxa de Utilização de SVD" deviceDays={indicators.svuDays} patientDays={indicators.totalPatientDays} icon={Droplets} color="text-purple-600" />
+            <UtilizationRateCard title="Taxa de Utilização de VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
           </div>
 
           <DeviceBreakdownCard
@@ -957,10 +950,11 @@ function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string
   );
 }
 
-function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
+function UtilizationRateCard({ title, deviceDays, patientDays, icon: Icon, color }: {
   title: string; deviceDays: number; patientDays: number; icon: any; color: string;
 }) {
-  const density = patientDays > 0 ? ((deviceDays / patientDays) * 1000).toFixed(1) : "0.0";
+  // Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100
+  const rate = patientDays > 0 ? ((deviceDays / patientDays) * 100).toFixed(1) : "0.0";
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -970,8 +964,8 @@ function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl md:text-3xl font-bold">{density}</p>
-        <p className="text-xs text-muted-foreground">por 1.000 paciente-dia</p>
+        <p className="text-2xl md:text-3xl font-bold">{rate}%</p>
+        <p className="text-xs text-muted-foreground">dispositivo-dia ÷ paciente-dia</p>
         <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t">
           <span>Dispositivo-dia: {deviceDays}</span>
           <span>Paciente-dia: {patientDays}</span>
