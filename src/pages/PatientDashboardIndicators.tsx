@@ -80,6 +80,7 @@ interface PatientRow {
   status: string;
   discharge_type: string | null;
   clinical_data: ClinicalData | null;
+  updated_at: string | null;
 }
 
 const PatientDashboardIndicators = () => {
@@ -125,7 +126,7 @@ const PatientDashboardIndicators = () => {
         // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta.
         const pts = await fetchAllRows<PatientRow>(() => supabase
           .from("patients")
-          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
+          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data, updated_at")
           .eq("hospital_id", hospitalId)
           .neq("source", "precaution_map")
           .order("id"));
@@ -253,6 +254,20 @@ const PatientDashboardIndicators = () => {
       activeInCti: cti.totals.activeInCti,
       dataQualitySummary: cti.dataQualitySummary,
       dataQualityCount: cti.dataQuality.length,
+      // Ativos sem atualização há mais de 30 dias que somam dias neste período
+      // (provável alta não lançada no Monitoramento).
+      staleActive: cti.dataQuality
+        .filter(f => f.code === "STALE_ACTIVE")
+        .map(f => ({ flag: f, row: cti.perPatient.find(b => b.id === f.patientId) }))
+        .filter(({ row }) => !!row && row.ctiPatientDays > 0)
+        .map(({ flag, row }) => ({
+          id: flag.patientId,
+          name: flag.patientName,
+          sector: row!.sector,
+          icuAdmission: row!.icuAdmission,
+          lastUpdate: (flag.detail || "").replace("Ativo sem atualização desde ", ""),
+          patientDays: row!.ctiPatientDays,
+        })),
       conference: cti.perPatient,
     };
   }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear, currentMonth, SPECIALTIES]);
@@ -317,7 +332,7 @@ const PatientDashboardIndicators = () => {
             context:
               "Este relatório apresenta os indicadores operacionais assistenciais do período selecionado: admissões hospitalares por especialidade, desfechos (altas e óbitos), paciente-dia total, dias de utilização de dispositivos invasivos (CVC, SVD/SVU, Ventilação Mecânica) e uso de antimicrobianos. Estes indicadores são essenciais para o monitoramento da qualidade assistencial e cálculo das taxas de IRAS associadas a dispositivos.",
             methodology:
-              "Dados coletados do sistema de monitoramento de pacientes. Internações = entradas no CTI no período selecionado. Paciente-dia = soma dos dias civis no CTI dentro do período, incluindo o dia da entrada e o dia da alta. Dispositivo-dia computado a partir de inserção e retirada registrados no sistema, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
+              "Dados coletados do sistema de monitoramento de pacientes. Internações = entradas no CTI no período selecionado. Paciente-dia = censo diário no CTI dentro do período: conta o dia da entrada e não conta o dia da saída (entrada e saída no mesmo dia = 1). Dispositivo-dia segue a mesma regra: conta o dia da inserção e não conta o dia da retirada, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
             kpis: [
               { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "entradas no CTI no período" },
               { label: "Pacientes-Dia Total", value: String(indicators.totalPatientDays), sub: "dias acumulados" },
@@ -460,6 +475,50 @@ const PatientDashboardIndicators = () => {
               </Badge>
             )}
           </div>
+
+          {indicators.staleActive.length > 0 && (
+            <Card className="border-amber-400 bg-amber-50/60 dark:bg-amber-950/20">
+              <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-sm text-amber-800 dark:text-amber-300">
+                    ⚠ {indicators.staleActive.length} paciente(s) ainda internado(s) no sistema, sem atualização há mais de 30 dias
+                  </CardTitle>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">
+                    Eles somam {indicators.staleActive.reduce((s, r) => s + r.patientDays, 0)} paciente-dia neste período. Se já saíram, lance a alta no Monitoramento de Pacientes para corrigir os indicadores.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate("/patients/monitoring")}>
+                  Abrir Monitoramento
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-amber-300 text-left">
+                        <th className="py-1.5 px-2 font-medium">Paciente</th>
+                        <th className="py-1.5 px-2 font-medium">Setor</th>
+                        <th className="py-1.5 px-2 font-medium">Entrada CTI</th>
+                        <th className="py-1.5 px-2 font-medium">Última atualização</th>
+                        <th className="py-1.5 px-2 font-medium text-right">Pac-dia no período</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indicators.staleActive.map(r => (
+                        <tr key={r.id} className="border-b border-amber-200 last:border-0">
+                          <td className="py-1.5 px-2">{r.name}</td>
+                          <td className="py-1.5 px-2">{r.sector || "—"}</td>
+                          <td className="py-1.5 px-2">{r.icuAdmission ? r.icuAdmission.split("-").reverse().join("/") : "—"}</td>
+                          <td className="py-1.5 px-2">{r.lastUpdate ? r.lastUpdate.split("-").reverse().join("/") : "—"}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums">{r.patientDays}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card ref={chartRefs.specialty} className="lg:col-span-2">

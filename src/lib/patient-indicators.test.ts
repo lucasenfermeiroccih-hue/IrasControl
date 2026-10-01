@@ -44,8 +44,8 @@ describe("recorte do mês (CTI)", () => {
     const r = cti([fromFebruary, inMarch]);
     expect(r.totals.newAdmissions).toBe(1);
     expect(r.totals.carriedOver).toBe(1);
-    // 01..05/03 (inclui o dia da alta) + 30 e 31/03
-    expect(r.totals.ctiPatientDays).toBe(7);
+    // 01..04/03 (dia da alta não conta) + 30 e 31/03
+    expect(r.totals.ctiPatientDays).toBe(6);
   });
 
   it("'internados' considera o último dia do período filtrado, não hoje", () => {

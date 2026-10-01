@@ -6,9 +6,10 @@
  * é injetável via `filter.today` para testes.
  *
  * CONVENÇÕES (confirmadas com a instituição):
- *  - Censo diário INCLUSIVO nas duas pontas: o dia de entrada no CTI E o dia de
- *    saída/alta/óbito/transferência contam. Presente de 01→10/set = 10 dias;
- *    entra e sai no mesmo dia = 1 dia.
+ *  - Censo diário (padrão ANVISA): conta o dia de entrada no CTI e NÃO conta o dia
+ *    de saída/alta/óbito/transferência. Entrada 01/09 e saída 03/09 = 2 dias;
+ *    entra e sai no mesmo dia = 1 dia. Mesma regra para dispositivos: conta o dia
+ *    da inserção e não conta o dia da retirada (inserção e retirada no mesmo dia = 1).
  *  - Internações em andamento são limitadas a `today` (sem dias futuros).
  *  - Mês = intervalo semiaberto [1º dia 00:00, 1º dia do mês seguinte), expresso
  *    aqui como iteração de dias civis do dia 1 até o último dia (inclusive).
@@ -22,6 +23,8 @@
  *    por setor; transferências entre CTIs não são reconstruíveis.)
  *  - Pacientes em setor de CTI SEM `icu_admission_date` contribuem 0 paciente-dia
  *    e recebem a flag MISSING_ICU_ADMISSION (não são zerados em silêncio).
+ *  - Pacientes "ativos" sem atualização há mais de 30 dias continuam contando, mas
+ *    recebem a flag STALE_ACTIVE (provável alta não lançada no Monitoramento).
  */
 
 // ---------------------------------------------------------------------------
@@ -39,6 +42,7 @@ export interface CtiPatientRow {
   status: string;                    // 'active' | 'discharged' | 'deceased' | 'transferred'
   discharge_type: string | null;     // 'Alta' | 'Óbito' | 'Transferência' | ...
   clinical_data: any;                // dispInvasivos, antibioticos, labPanel
+  updated_at?: string | null;        // última atualização do cadastro
 }
 
 export interface CtiFilter {
@@ -59,7 +63,11 @@ export type DataQualityCode =
   | "DEVICE_OUTSIDE_CTI_STAY"        // uso de dispositivo fora da permanência no CTI
   | "DUPLICATE_EPISODE"              // registro duplicado do mesmo episódio
   | "INVALID_DATE"                   // data ausente/ano<2000/não-parseável
-  | "MISSING_DISCHARGE_FOR_CLOSED_STATUS"; // status fechado sem data de saída
+  | "MISSING_DISCHARGE_FOR_CLOSED_STATUS" // status fechado sem data de saída
+  | "STALE_ACTIVE";                  // ativo sem atualização há mais de 30 dias
+
+/** Dias sem atualização a partir dos quais um paciente ativo é sinalizado. */
+export const STALE_ACTIVE_DAYS = 30;
 
 export interface DataQualityFlag {
   code: DataQualityCode;
@@ -196,6 +204,17 @@ function daysInIntervals(start: Date | null, end: Date | null, intervals: MonthI
   return set;
 }
 
+/**
+ * Último dia que entra no censo de uma permanência/uso que começa em `start` e
+ * termina em `exit`: o dia da saída não conta (exit − 1), exceto quando entrada e
+ * saída são no mesmo dia (conta 1). `exit` nulo = em andamento (null).
+ */
+export function lastCensusDay(start: Date, exit: Date | null): Date | null {
+  if (!exit) return null;
+  if (exit <= start) return start;
+  return new Date(exit.getFullYear(), exit.getMonth(), exit.getDate() - 1);
+}
+
 // ---------------------------------------------------------------------------
 // Episódios de dispositivo
 // ---------------------------------------------------------------------------
@@ -289,8 +308,9 @@ function mergeEpisodes(episodes: DeviceEpisode[]): DeviceEpisode[] {
     const last = merged[merged.length - 1];
     if (!last) { merged.push({ ...ep }); continue; }
     const lastEnd = last.end; // null = aberto (vai até o futuro)
-    // encosta/sobrepõe se o início do próximo <= (fim do anterior + 1 dia)
-    const touches = lastEnd === null || ep.start.getTime() <= lastEnd.getTime() + 86400000;
+    // sobrepõe/encosta se o próximo é inserido até o dia da retirada do anterior
+    // (o dia da retirada não conta; reinserção no mesmo dia mantém a continuidade)
+    const touches = lastEnd === null || ep.start.getTime() <= lastEnd.getTime();
     if (touches) {
       if (lastEnd === null || ep.end === null) {
         last.end = null; last.closed = last.closed && ep.closed && false;
@@ -376,7 +396,7 @@ export function computeCtiIndicators(patients: CtiPatientRow[], filter: CtiFilte
         flag("DISCHARGE_BEFORE_ADMISSION", `Saída "${p.discharge_date}" < entrada CTI "${p.icu_admission_date}"`);
         stayEnd = icuStart; // clampa: episódio de 1 dia
       }
-      ctiDays = daysInIntervals(icuStart, stayEnd, intervals, today);
+      ctiDays = daysInIntervals(icuStart, lastCensusDay(icuStart, stayEnd), intervals, today);
     }
 
     // Desfechos — pela data efetiva (discharge_date) dentro do mês.
@@ -385,6 +405,11 @@ export function computeCtiIndicators(patients: CtiPatientRow[], filter: CtiFilte
       || p.discharge_type === "Alta" || p.discharge_type === "Óbito" || p.discharge_type === "Transferência";
     if (isClosedStatus && !dischargeDate) {
       flag("MISSING_DISCHARGE_FOR_CLOSED_STATUS", "Status fechado sem data de saída");
+    }
+    const lastUpdate = parseCivilDate(p.updated_at);
+    if (p.status === "active" && !dischargeDate && lastUpdate
+      && today.getTime() - lastUpdate.getTime() > STALE_ACTIVE_DAYS * 86400000) {
+      flag("STALE_ACTIVE", `Ativo sem atualização desde ${dayKey(lastUpdate)}`);
     }
     const dischargeInMonth = isInSelectedMonths(dischargeDate, months, years);
     const isDeath = dischargeInMonth && (p.status === "deceased" || p.discharge_type === "Óbito");
@@ -403,7 +428,7 @@ export function computeCtiIndicators(patients: CtiPatientRow[], filter: CtiFilte
         const episodes = normalizeDeviceEpisodes(p.clinical_data, type, icuStart, flag);
         const epDays = new Set<string>();
         for (const ep of episodes) {
-          for (const d of daysInIntervals(ep.start, ep.end, intervals, today)) epDays.add(d);
+          for (const d of daysInIntervals(ep.start, lastCensusDay(ep.start, ep.end), intervals, today)) epDays.add(d);
         }
         // interseção com a permanência no CTI
         let count = 0;
