@@ -23,6 +23,28 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import {
+  computePatientIndicators,
+  type IndicatorDevice,
+  type IndicatorLabResult,
+  type IndicatorPatient,
+  type IndicatorPrescription,
+} from "@/lib/patient-indicators";
+
+/** Lê todas as páginas de uma consulta (o Supabase limita cada resposta a 1.000 linhas). */
+async function fetchAllRows<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...(data as T[]));
+    // Avança pelo número real de linhas: o servidor pode limitar abaixo de pageSize
+    from += data.length;
+  }
+  return rows;
+}
 
 const SPECIALTIES_DEFAULT = [
   "Clínica médica", "Cirurgia Geral", "Cirurgia Cardíaca",
@@ -45,98 +67,6 @@ const COLORS = [
   "hsl(20, 70%, 50%)",
 ];
 
-interface PatientRow {
-  id: string;
-  full_name: string;
-  sector: string | null;
-  specialty: string | null;
-  admission_date: string;
-  icu_admission_date: string | null;
-  discharge_date: string | null;
-  status: string;
-  discharge_type: string | null;
-  clinical_data: any;
-}
-
-// Parse "YYYY-MM-DD" (ou ISO) como data LOCAL, evitando deslocamento de fuso (UTC)
-function parseLocalDate(s?: string | null): Date | null {
-  if (!s) return null;
-  const datePart = String(s).slice(0, 10);
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
-  if (!m) {
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-}
-
-function startOfCivilDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-}
-
-function endOfCivilDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-}
-
-function dayKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function collectDaysInPeriods(
-  startDate: string | null | undefined,
-  endDate: string | null | undefined,
-  periods: Array<{ start: Date; end: Date }>,
-  bucket: Set<string>,
-) {
-  if (!startDate || !periods || periods.length === 0) return;
-  const start = parseLocalDate(startDate);
-  const end = endDate ? parseLocalDate(endDate) : new Date();
-  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return;
-
-  periods.forEach(({ start: periodStart, end: periodEnd }) => {
-    const from = startOfCivilDay(start > periodStart ? start : periodStart);
-    const to = endOfCivilDay(end < periodEnd ? end : periodEnd);
-    if (from > to) return;
-
-    const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-    const lastDay = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-
-    while (cursor <= lastDay) {
-      bucket.add(dayKey(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  });
-}
-
-function countDistinctCivilDaysInPeriods(startDate?: string | null, endDate?: string | null, periods?: Array<{ start: Date; end: Date }>) {
-  if (!periods) return 0;
-  const occupiedDays = new Set<string>();
-  collectDaysInPeriods(startDate, endDate, periods, occupiedDays);
-  return occupiedDays.size;
-}
-
-function intersectDaySets(...sets: Array<Set<string> | null | undefined>) {
-  const validSets = sets.filter((set): set is Set<string> => !!set);
-  if (validSets.length === 0) return new Set<string>();
-
-  const [first, ...rest] = validSets;
-  const result = new Set<string>();
-
-  first.forEach((day) => {
-    if (rest.every(set => set.has(day))) result.add(day);
-  });
-
-  return result;
-}
-
-
-function getPatientPeriodStart(patient: PatientRow) {
-  return patient.icu_admission_date || patient.admission_date;
-}
-
 const PatientDashboardIndicators = () => {
   const navigate = useNavigate();
   const { hospitalId, hospitalName, loading: ctxLoading } = useHospitalContext();
@@ -147,10 +77,10 @@ const PatientDashboardIndicators = () => {
   const [year, setYear] = useState<string[]>([String(currentYear)]);
   const [month, setMonth] = useState<string[]>([String(currentMonth)]);
   const [unit, setUnit] = useState<string[]>([]);
-  const [patients, setPatients] = useState<PatientRow[]>([]);
-  const [devices, setDevices] = useState<any[]>([]);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [labResults, setLabResults] = useState<any[]>([]);
+  const [patients, setPatients] = useState<IndicatorPatient[]>([]);
+  const [devices, setDevices] = useState<IndicatorDevice[]>([]);
+  const [prescriptions, setPrescriptions] = useState<IndicatorPrescription[]>([]);
+  const [labResults, setLabResults] = useState<IndicatorLabResult[]>([]);
   const [loading, setLoading] = useState(true);
   type SpecSortKey = "internacoes" | "percent";
   const [specSortKey, setSpecSortKey] = useState<SpecSortKey | null>(null);
@@ -173,31 +103,55 @@ const PatientDashboardIndicators = () => {
 
   useEffect(() => {
     if (!hospitalId || ctxLoading) { setLoading(false); return; }
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      const pRes = await supabase
-        .from("patients")
-        .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
-        .eq("hospital_id", hospitalId)
-        .neq("source", "precaution_map");
-      const pts = (pRes.data || []) as PatientRow[];
-      setPatients(pts);
+      try {
+        // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta.
+        const pts = await fetchAllRows<IndicatorPatient>(() => supabase
+          .from("patients")
+          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
+          .eq("hospital_id", hospitalId)
+          .neq("source", "precaution_map")
+          .order("id"));
 
-      // Manter compat: ainda lê devices/prescriptions das tabelas (caso existam)
-      if (pts.length > 0) {
-        const patIds = pts.map((p: any) => p.id);
-        const [devRes, rxRes, labRes] = await Promise.all([
-          supabase.from("patient_devices").select("*").in("patient_id", patIds),
-          supabase.from("antimicrobial_prescriptions").select("id, start_date, patient_id, drug_name").eq("hospital_id", hospitalId),
-          supabase.from("lab_results").select("id, patient_id, organism, collection_date, result_date").eq("hospital_id", hospitalId),
+        // patient_devices não tem hospital_id: busca em lotes de pacientes
+        // para não estourar o tamanho da URL do filtro "in".
+        const patIds = pts.map(p => p.id);
+        const idChunks: string[][] = [];
+        for (let i = 0; i < patIds.length; i += 150) idChunks.push(patIds.slice(i, i + 150));
+
+        const [devChunks, rx, labs] = await Promise.all([
+          Promise.all(idChunks.map(ids => fetchAllRows<IndicatorDevice>(() => supabase
+            .from("patient_devices")
+            .select("id, patient_id, device_type, insertion_date, removal_date")
+            .in("patient_id", ids)
+            .order("id")))),
+          fetchAllRows<IndicatorPrescription>(() => supabase
+            .from("antimicrobial_prescriptions")
+            .select("id, start_date, patient_id, drug_name")
+            .eq("hospital_id", hospitalId)
+            .order("id")),
+          fetchAllRows<IndicatorLabResult>(() => supabase
+            .from("lab_results")
+            .select("id, patient_id, organism, collection_date, result_date")
+            .eq("hospital_id", hospitalId)
+            .order("id")),
         ]);
-        setDevices(devRes.data || []);
-        setPrescriptions(rxRes.data || []);
-        setLabResults(labRes.data || []);
-      }
 
-      setLoading(false);
+        if (cancelled) return;
+        setPatients(pts);
+        setDevices(devChunks.flat());
+        setPrescriptions(rx);
+        setLabResults(labs);
+      } catch (err: any) {
+        console.error("Erro ao carregar indicadores:", err);
+        if (!cancelled) toast.error("Erro ao carregar os dados dos indicadores: " + (err?.message || "tente novamente"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => { cancelled = true; };
   }, [hospitalId, ctxLoading]);
 
   const units = useMemo(() => {
@@ -213,298 +167,18 @@ const PatientDashboardIndicators = () => {
 
   const indicators = useMemo(() => {
     // Se nada selecionado, default = mês/ano atual (evita somar tudo indevidamente)
-    const selectedMonths = month.length === 0 ? [currentMonth] : Array.from(new Set(month.map(Number))).sort((a, b) => a - b);
-    const selectedYears = year.length === 0 ? [currentYear] : Array.from(new Set(year.map(Number))).sort((a, b) => a - b);
-    const matchPeriod = (d: Date) =>
-      selectedMonths.includes(d.getMonth()) &&
-      selectedYears.includes(d.getFullYear());
-    const patientIdSet = new Set(filteredPatients.map(p => p.id));
-    const filteredDevices = devices.filter(d => patientIdSet.has(d.patient_id));
-    const filteredPrescriptions = prescriptions.filter(rx => patientIdSet.has(rx.patient_id));
-
-    // Períodos = exatamente os meses/anos selecionados (cada combinação vira um intervalo)
-    const periods: Array<{ start: Date; end: Date }> = [];
-    selectedYears.forEach(y => {
-      selectedMonths.forEach(m => {
-        periods.push({
-          start: new Date(y, m, 1, 0, 0, 0, 0),
-          end: new Date(y, m + 1, 0, 23, 59, 59, 999),
-        });
-      });
+    const months = month.length === 0 ? [currentMonth] : Array.from(new Set(month.map(Number)));
+    const years = year.length === 0 ? [currentYear] : Array.from(new Set(year.map(Number)));
+    return computePatientIndicators({
+      patients: filteredPatients,
+      devices,
+      prescriptions,
+      labResults,
+      months,
+      years,
+      specialties: SPECIALTIES,
     });
-
-    // Paciente conta em CADA mês em que esteve internado (intersecção de período)
-    // Se internou em janeiro e teve alta em março, conta em jan, fev e mar — separados.
-    const patientPresentInPeriods = (p: PatientRow) => {
-      const start = parseLocalDate(getPatientPeriodStart(p));
-      if (!start) return false;
-      const end = parseLocalDate(p.discharge_date) || new Date();
-      return periods.some(({ start: ps, end: pe }) => start <= pe && end >= ps);
-    };
-
-    const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
-
-    // Novas admissões: paciente cuja ENTRADA (hospitalar OU UTI) ocorreu dentro
-    // do período filtrado. Diferente de admittedInMonth (que conta quem apenas
-    // esteve presente/internado no mês, incluindo arrastados de meses anteriores).
-    const admittedNewInPeriod = (p: PatientRow) => {
-      const adm = parseLocalDate(p.admission_date);
-      const icu = parseLocalDate(p.icu_admission_date);
-      return (!!adm && matchPeriod(adm)) || (!!icu && matchPeriod(icu));
-    };
-    const newAdmissions = filteredPatients.filter(admittedNewInPeriod).length;
-
-    const bySpecialty: Record<string, number> = {};
-    SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
-    admittedInMonth.forEach(p => {
-      const spec = p.specialty || "Outros";
-      if (bySpecialty[spec] !== undefined) bySpecialty[spec]++;
-    });
-
-    const specialtyData = SPECIALTIES.map(s => ({
-      name: s.length > 15 ? s.replace("Cirurgia ", "C. ") : s,
-      fullName: s,
-      internacoes: bySpecialty[s] || 0,
-    }));
-
-    const deaths = filteredPatients.filter(p => {
-      if (p.status !== "deceased" && p.discharge_type !== "Óbito") return false;
-      const d = parseLocalDate(p.discharge_date);
-      return !!d && matchPeriod(d);
-    }).length;
-
-    const discharges = filteredPatients.filter(p => {
-      if (p.discharge_type === "Óbito" || p.status === "deceased") return false;
-      if (p.status !== "discharged" && p.discharge_type !== "Alta") return false;
-      const d = parseLocalDate(p.discharge_date);
-      return !!d && matchPeriod(d);
-    }).length;
-
-    // (periods já calculados acima)
-
-    // Totaliza paciente-dia usando admission_date (internação hospitalar, não apenas UTI)
-    const totalPatientDays = filteredPatients.reduce(
-      (total, patient) => total + countDistinctCivilDaysInPeriods(patient.admission_date, patient.discharge_date, periods),
-      0,
-    );
-
-    // Pré-computa todos os dias do período selecionado (evita recalcular por paciente)
-    const allPeriodDays: Date[] = [];
-    periods.forEach(({ start, end }) => {
-      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const last   = new Date(end.getFullYear(),   end.getMonth(),   end.getDate());
-      while (cursor <= last) { allPeriodDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
-    });
-
-    // Conta dispositivo-dias por paciente×dia dentro do período.
-    // Usa admission_date (não icu_admission_date) para não perder dias de dispositivo
-    // inseridos antes da entrada na UTI.
-    // Suporta: patient_devices table, formato legado (NovaInsercao/NovaRetirada), formato atual (Trocas[]).
-    const calcDeviceDays = (
-      type: string,
-      insKey: string, remKey: string,
-      novaInsKey: string, novaRemKey: string,
-    ): { total: number; perPatient: Array<{ id: string; name: string; days: number }> } => {
-      const trocasKey = insKey.replace("Insercao", "Trocas");
-      let total = 0;
-      const perPatient: Array<{ id: string; name: string; days: number }> = [];
-
-      filteredPatients.forEach(p => {
-        const patStart = parseLocalDate(p.admission_date);
-        if (!patStart) return;
-        const patEnd = p.discharge_date ? parseLocalDate(p.discharge_date) : new Date();
-        if (!patEnd) return;
-
-        // Monta lista de intervalos em que o dispositivo estava ativo.
-        // Datas com ano < 2000 indicam erro de digitação (ex: "0206-03-19", "1990-07-14"):
-        //   - Inserção com ano inválido → usa data de admissão como início
-        //   - Retirada com ano inválido ou retirada anterior à inserção → trata como ativo (sem retirada)
-        // closed = true quando há data de retirada VÁLIDA registrada; false quando
-        // o dispositivo ficou "aberto" (sem retirada) e é projetado como ativo.
-        const ranges: Array<{ s: Date; e: Date; closed: boolean }> = [];
-        const addRange = (ins: string | null | undefined, rem: string | null | undefined) => {
-          if (!ins) return;
-          const rawS = parseLocalDate(ins);
-          if (!rawS) return;
-          const s = rawS.getFullYear() >= 2000 ? rawS : patStart;
-
-          let e: Date;
-          let closed = false;
-          if (rem && rem !== "") {
-            const rawE = parseLocalDate(rem);
-            if (!rawE || rawE.getFullYear() < 2000 || rawE < s) {
-              e = new Date(); // data inválida ou intervalo invertido → considera ativo
-            } else {
-              e = rawE;
-              closed = true; // retirada válida registrada
-            }
-          } else {
-            e = new Date();
-          }
-          ranges.push({ s, e, closed });
-        };
-
-        // Tabela patient_devices
-        filteredDevices
-          .filter(d => d.patient_id === p.id && d.device_type === type)
-          .forEach(dev => addRange(dev.insertion_date, dev.removal_date));
-
-        // clinical_data.dispInvasivos
-        const di = p.clinical_data?.dispInvasivos;
-        if (di) {
-          addRange(di[insKey],      di[remKey]);
-          addRange(di[novaInsKey],  di[novaRemKey]);
-          const trocas: Array<{ insercao: string; retirada: string }> =
-            Array.isArray(di[trocasKey]) ? di[trocasKey] : [];
-          trocas.forEach(t => addRange(t.insercao, t.retirada));
-        }
-
-        if (ranges.length === 0) return;
-
-        // Conflito entre fontes (tabela nova × cadastro antigo): se existe ao menos
-        // um registro COM retirada, ele é autoritativo para este tipo de dispositivo.
-        // Descarta os registros "abertos" (sem retirada) que estenderiam a contagem
-        // muito além da retirada real e inflariam os dias-dispositivo.
-        const closedRanges = ranges.filter(r => r.closed);
-        const effectiveRanges = closedRanges.length > 0 ? closedRanges : ranges;
-
-        // Conta cada dia do período em que o paciente estava internado E com o dispositivo
-        let pDays = 0;
-        allPeriodDays.forEach(day => {
-          if (day < patStart || day > patEnd) return;
-          if (effectiveRanges.some(r => day >= r.s && day <= r.e)) pDays++;
-        });
-
-        if (pDays > 0) {
-          total += pDays;
-          perPatient.push({ id: p.id, name: p.full_name, days: pDays });
-        }
-      });
-
-      return { total, perPatient };
-    };
-
-    const cvcResult = calcDeviceDays("cvc", "cvcInsercao", "cvcRetirada", "cvcNovaInsercao", "cvcNovaRetirada");
-    const svuResult = calcDeviceDays("svu", "svuInsercao", "svuRetirada", "svuNovaInsercao", "svuNovaRetirada");
-    const vmResult  = calcDeviceDays("vm",  "vmInsercao",  "vmRetirada",  "vmNovaInsercao",  "vmNovaRetirada");
-    const cvcDays = cvcResult.total;
-    const svuDays = svuResult.total;
-    const vmDays  = vmResult.total;
-
-
-    // Antibióticos: tabela antimicrobial_prescriptions + clinical_data.antibioticos[]
-    const abFromTable = filteredPrescriptions.filter(rx => {
-      const d = parseLocalDate(rx.start_date);
-      return !!d && matchPeriod(d);
-    }).length;
-
-    let abFromClinical = 0;
-    filteredPatients.forEach(p => {
-      const atbs = p.clinical_data?.antibioticos;
-      if (!Array.isArray(atbs)) return;
-      atbs.forEach((a: any) => {
-        const d = parseLocalDate(a?.dataInicio);
-        if (d && matchPeriod(d)) abFromClinical++;
-      });
-    });
-    const abCount = abFromTable + abFromClinical;
-
-    const extubationsTable = filteredDevices.filter(d => {
-      if (d.device_type !== "vm") return false;
-      const rd = parseLocalDate(d.removal_date);
-      return !!rd && matchPeriod(rd);
-    }).length;
-
-    let extubationsClinical = 0;
-    filteredPatients.forEach(p => {
-      const di = p.clinical_data?.dispInvasivos;
-      if (!di) return;
-      [di.vmRetirada, di.vmNovaRetirada].forEach((dt: string) => {
-        const rd = parseLocalDate(dt);
-        if (rd && matchPeriod(rd)) extubationsClinical++;
-      });
-    });
-    const extubations = extubationsTable + extubationsClinical;
-
-    const outcomeData = [
-      { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
-      { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
-      { name: "Internados", value: filteredPatients.filter(p => p.status === "active").length, color: "hsl(210, 60%, 50%)" },
-    ].filter(d => d.value > 0);
-
-    // Top 15 antibióticos mais utilizados (tabela + clinical_data)
-    const abCounter: Record<string, number> = {};
-    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
-    filteredPrescriptions.forEach(rx => {
-      const d = parseLocalDate(rx.start_date);
-      if (!d || !matchPeriod(d)) return;
-      const name = rx.drug_name ? normalize(String(rx.drug_name)) : null;
-      if (!name) return;
-      abCounter[name] = (abCounter[name] || 0) + 1;
-    });
-    filteredPatients.forEach(p => {
-      const atbs = p.clinical_data?.antibioticos;
-      if (!Array.isArray(atbs)) return;
-      atbs.forEach((a: any) => {
-        const d = parseLocalDate(a?.dataInicio);
-        if (!d || !matchPeriod(d)) return;
-        const name = a?.nome || a?.antibiotico || a?.droga;
-        if (!name) return;
-        const key = normalize(String(name));
-        abCounter[key] = (abCounter[key] || 0) + 1;
-      });
-    });
-    const topAntibiotics = Object.entries(abCounter)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 15);
-
-    // Top 15 microrganismos do painel laboratorial
-    // Fonte 1: tabela lab_results (caso exista)
-    // Fonte 2: clinical_data.labPanel (preenchido na página /patients/monitoring)
-    const filteredLabs = labResults.filter(l => patientIdSet.has(l.patient_id));
-    const orgCounter: Record<string, number> = {};
-    filteredLabs.forEach(l => {
-      const ref = parseLocalDate(l.result_date) || parseLocalDate(l.collection_date);
-      if (!ref || !matchPeriod(ref)) return;
-      const org = l.organism ? normalize(String(l.organism)) : null;
-      if (!org) return;
-      orgCounter[org] = (orgCounter[org] || 0) + 1;
-    });
-    // Parse date in formats: dd/mm/yyyy, yyyy-mm-dd, ISO
-    const parseFlexibleDate = (s?: string | null): Date | null => {
-      if (!s) return null;
-      const str = String(s).trim();
-      const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
-      if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
-      return parseLocalDate(str);
-    };
-    filteredPatients.forEach(p => {
-      const labs = p.clinical_data?.labPanel;
-      if (!Array.isArray(labs)) return;
-      labs.forEach((lab: any) => {
-        const ref = parseFlexibleDate(lab?.data);
-        // Se não tiver data, considera o paciente: usa admissão como referência
-        const refDate = ref || parseLocalDate(getPatientPeriodStart(p));
-        if (!refDate || !matchPeriod(refDate)) return;
-        const org = lab?.microrganismo ? normalize(String(lab.microrganismo)) : null;
-        if (!org) return;
-        orgCounter[org] = (orgCounter[org] || 0) + 1;
-      });
-    });
-    const topOrganisms = Object.entries(orgCounter)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 15);
-
-    return {
-      specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays,
-      cvcBreakdown: cvcResult.perPatient,
-      svuBreakdown: svuResult.perPatient,
-      vmBreakdown:  vmResult.perPatient,
-      abCount, extubations, totalAdmitted: admittedInMonth.length, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
-    };
-  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear]);
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentMonth, currentYear, SPECIALTIES]);
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -546,9 +220,9 @@ const PatientDashboardIndicators = () => {
             context:
               "Este relatório apresenta os indicadores operacionais assistenciais do período selecionado: admissões hospitalares por especialidade, desfechos (altas e óbitos), paciente-dia total, dias de utilização de dispositivos invasivos (CVC, SVD/SVU, Ventilação Mecânica) e uso de antimicrobianos. Estes indicadores são essenciais para o monitoramento da qualidade assistencial e cálculo das taxas de IRAS associadas a dispositivos.",
             methodology:
-              "Dados coletados do sistema de monitoramento de pacientes. Cálculos de paciente-dia baseados em dias civis de internação no período selecionado. Dias de dispositivo computados a partir de inserção e retirada registrados no sistema.",
+              "Dados coletados do sistema de monitoramento de pacientes. Internações = pacientes admitidos no período selecionado. Paciente-dia = soma dos dias civis de internação dentro do período, incluindo o dia da admissão e o dia da alta. Dispositivo-dia computado a partir de inserção e retirada registrados no sistema, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
             kpis: [
-              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "no período" },
+              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "admitidos no período" },
               { label: "Pacientes-Dia Total", value: String(indicators.totalPatientDays), sub: "dias acumulados" },
               { label: "Óbitos", value: String(indicators.deaths), sub: "no período", status: indicators.deaths === 0 ? "ok" : "warning" },
               { label: "Altas", value: String(indicators.discharges), sub: "altas registradas" },
@@ -649,6 +323,11 @@ const PatientDashboardIndicators = () => {
                     {year.length === 0 ? "Todos os anos" : year.join(", ")}
                     {unit.length > 0 ? ` · ${unit.length === 1 ? unit[0] : `${unit.length} unidades`}` : ""}
                   </p>
+                  {indicators.carriedOver > 0 && (
+                    <p className="text-xs text-muted-foreground/80 mt-0.5">
+                      + {indicators.carriedOver} paciente(s) já internado(s) desde meses anteriores — não somam nas internações, mas os dias deles neste período contam no paciente-dia.
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-3xl font-bold text-primary font-heading">{indicators.newAdmissions}</p>
@@ -669,7 +348,7 @@ const PatientDashboardIndicators = () => {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-green-600" />
-              Alta / Extubação: <span className="font-bold">{indicators.extubations}</span>
+              Extubações (retirada de VM): <span className="font-bold">{indicators.extubations}</span>
             </Badge>
           </div>
 
@@ -787,9 +466,9 @@ const PatientDashboardIndicators = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <DensityCard title="Densidade CVC" deviceDays={indicators.cvcDays} patientDays={indicators.totalPatientDays} icon={Cable} color="text-amber-600" />
-            <DensityCard title="Densidade SVD" deviceDays={indicators.svuDays} patientDays={indicators.totalPatientDays} icon={Droplets} color="text-purple-600" />
-            <DensityCard title="Densidade VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
+            <UtilizationRateCard title="Taxa de Utilização de CVC" deviceDays={indicators.cvcDays} patientDays={indicators.totalPatientDays} icon={Cable} color="text-amber-600" />
+            <UtilizationRateCard title="Taxa de Utilização de SVD" deviceDays={indicators.svuDays} patientDays={indicators.totalPatientDays} icon={Droplets} color="text-purple-600" />
+            <UtilizationRateCard title="Taxa de Utilização de VM" deviceDays={indicators.vmDays} patientDays={indicators.totalPatientDays} icon={Wind} color="text-blue-600" />
           </div>
 
           <DeviceBreakdownCard
@@ -1103,10 +782,11 @@ function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string
   );
 }
 
-function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
+function UtilizationRateCard({ title, deviceDays, patientDays, icon: Icon, color }: {
   title: string; deviceDays: number; patientDays: number; icon: any; color: string;
 }) {
-  const density = patientDays > 0 ? ((deviceDays / patientDays) * 1000).toFixed(1) : "0.0";
+  // Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100
+  const rate = patientDays > 0 ? ((deviceDays / patientDays) * 100).toFixed(1) : "0.0";
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -1116,8 +796,8 @@ function DensityCard({ title, deviceDays, patientDays, icon: Icon, color }: {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl md:text-3xl font-bold">{density}</p>
-        <p className="text-xs text-muted-foreground">por 1.000 paciente-dia</p>
+        <p className="text-2xl md:text-3xl font-bold">{rate}%</p>
+        <p className="text-xs text-muted-foreground">dispositivo-dia ÷ paciente-dia</p>
         <div className="flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t">
           <span>Dispositivo-dia: {deviceDays}</span>
           <span>Paciente-dia: {patientDays}</span>
