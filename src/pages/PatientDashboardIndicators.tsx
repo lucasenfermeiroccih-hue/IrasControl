@@ -244,6 +244,16 @@ const PatientDashboardIndicators = () => {
 
     const admittedInMonth = filteredPatients.filter(patientPresentInPeriods);
 
+    // Novas admissões: paciente cuja ENTRADA (hospitalar OU UTI) ocorreu dentro
+    // do período filtrado. Diferente de admittedInMonth (que conta quem apenas
+    // esteve presente/internado no mês, incluindo arrastados de meses anteriores).
+    const admittedNewInPeriod = (p: PatientRow) => {
+      const adm = parseLocalDate(p.admission_date);
+      const icu = parseLocalDate(p.icu_admission_date);
+      return (!!adm && matchPeriod(adm)) || (!!icu && matchPeriod(icu));
+    };
+    const newAdmissions = filteredPatients.filter(admittedNewInPeriod).length;
+
     const bySpecialty: Record<string, number> = {};
     SPECIALTIES.forEach(s => { bySpecialty[s] = 0; });
     admittedInMonth.forEach(p => {
@@ -309,7 +319,9 @@ const PatientDashboardIndicators = () => {
         // Datas com ano < 2000 indicam erro de digitação (ex: "0206-03-19", "1990-07-14"):
         //   - Inserção com ano inválido → usa data de admissão como início
         //   - Retirada com ano inválido ou retirada anterior à inserção → trata como ativo (sem retirada)
-        const ranges: Array<{ s: Date; e: Date }> = [];
+        // closed = true quando há data de retirada VÁLIDA registrada; false quando
+        // o dispositivo ficou "aberto" (sem retirada) e é projetado como ativo.
+        const ranges: Array<{ s: Date; e: Date; closed: boolean }> = [];
         const addRange = (ins: string | null | undefined, rem: string | null | undefined) => {
           if (!ins) return;
           const rawS = parseLocalDate(ins);
@@ -317,17 +329,19 @@ const PatientDashboardIndicators = () => {
           const s = rawS.getFullYear() >= 2000 ? rawS : patStart;
 
           let e: Date;
+          let closed = false;
           if (rem && rem !== "") {
             const rawE = parseLocalDate(rem);
             if (!rawE || rawE.getFullYear() < 2000 || rawE < s) {
               e = new Date(); // data inválida ou intervalo invertido → considera ativo
             } else {
               e = rawE;
+              closed = true; // retirada válida registrada
             }
           } else {
             e = new Date();
           }
-          ranges.push({ s, e });
+          ranges.push({ s, e, closed });
         };
 
         // Tabela patient_devices
@@ -347,11 +361,18 @@ const PatientDashboardIndicators = () => {
 
         if (ranges.length === 0) return;
 
+        // Conflito entre fontes (tabela nova × cadastro antigo): se existe ao menos
+        // um registro COM retirada, ele é autoritativo para este tipo de dispositivo.
+        // Descarta os registros "abertos" (sem retirada) que estenderiam a contagem
+        // muito além da retirada real e inflariam os dias-dispositivo.
+        const closedRanges = ranges.filter(r => r.closed);
+        const effectiveRanges = closedRanges.length > 0 ? closedRanges : ranges;
+
         // Conta cada dia do período em que o paciente estava internado E com o dispositivo
         let pDays = 0;
         allPeriodDays.forEach(day => {
           if (day < patStart || day > patEnd) return;
-          if (ranges.some(r => day >= r.s && day <= r.e)) pDays++;
+          if (effectiveRanges.some(r => day >= r.s && day <= r.e)) pDays++;
         });
 
         if (pDays > 0) {
@@ -481,7 +502,7 @@ const PatientDashboardIndicators = () => {
       cvcBreakdown: cvcResult.perPatient,
       svuBreakdown: svuResult.perPatient,
       vmBreakdown:  vmResult.perPatient,
-      abCount, extubations, totalAdmitted: admittedInMonth.length, outcomeData, topAntibiotics, topOrganisms,
+      abCount, extubations, totalAdmitted: admittedInMonth.length, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
     };
   }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear]);
 
@@ -630,7 +651,7 @@ const PatientDashboardIndicators = () => {
                   </p>
                 </div>
               </div>
-              <p className="text-3xl font-bold text-primary font-heading">{indicators.totalAdmitted}</p>
+              <p className="text-3xl font-bold text-primary font-heading">{indicators.newAdmissions}</p>
             </CardContent>
           </Card>
 
