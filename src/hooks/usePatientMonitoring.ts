@@ -105,6 +105,12 @@ function patientToDb(p: Partial<PatientRecord>, hospitalId: string) {
   };
 }
 
+/** Data de hoje no fuso local (YYYY-MM-DD). toISOString() usaria UTC e, à noite, gravaria o dia seguinte. */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function usePatientMonitoring() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
   const [patients, setPatients] = useState<PatientRecord[]>([]);
@@ -223,14 +229,21 @@ export function usePatientMonitoring() {
     return true;
   };
 
-  const dischargePatient = async (id: string, dischargeType: string) => {
+  /**
+   * Registra a saída do paciente na data REAL informada (YYYY-MM-DD). Sem data,
+   * usa o dia de hoje (data local, não UTC). Antibióticos e dispositivos ainda
+   * abertos são encerrados nessa mesma data.
+   */
+  const dischargePatient = async (id: string, dischargeType: string, dischargeDate?: string) => {
     const statusMap: Record<string, string> = {
       "Óbito": "deceased",
       "Alta": "discharged",
       "Transferência": "transferred",
     };
     const newStatus = statusMap[dischargeType] || "discharged";
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dischargeDate || localToday();
+    // Nunca encerra antes do início (registro iniciado depois da data da alta)
+    const closeAt = (start?: string | null) => (start && start > today ? start : today);
 
     // Fetch current clinical_data to auto-close open antibiotics and devices
     const { data: patRow } = await supabase
@@ -245,7 +258,7 @@ export function usePatientMonitoring() {
     const antibioticos: Array<{ id: string; nome: string; dataInicio: string; dataFim: string }> =
       cd.antibioticos || [];
     const closedAntibioticos = antibioticos.map((atb) =>
-      atb.dataFim ? atb : { ...atb, dataFim: today }
+      atb.dataFim ? atb : { ...atb, dataFim: closeAt(atb.dataInicio) }
     );
 
     // Close devices without retirada (including open trocas)
@@ -253,12 +266,12 @@ export function usePatientMonitoring() {
     const dispInvasivos = { ...(cd.dispInvasivos || {}) };
     for (const k of deviceKeys) {
       if (dispInvasivos[`${k}Insercao`] && !dispInvasivos[`${k}Retirada`]) {
-        dispInvasivos[`${k}Retirada`] = today;
+        dispInvasivos[`${k}Retirada`] = closeAt(dispInvasivos[`${k}Insercao`]);
       }
       if (Array.isArray(dispInvasivos[`${k}Trocas`])) {
         dispInvasivos[`${k}Trocas`] = dispInvasivos[`${k}Trocas`].map(
           (t: { insercao: string; retirada: string }) =>
-            t.insercao && !t.retirada ? { ...t, retirada: today } : t
+            t.insercao && !t.retirada ? { ...t, retirada: closeAt(t.insercao) } : t
         );
       }
     }
@@ -323,10 +336,10 @@ export function usePatientMonitoring() {
     return true;
   };
 
-  const changePatientStatus = async (id: string, newStatus: PatientRecord["status"], dischargeType?: string) => {
+  const changePatientStatus = async (id: string, newStatus: PatientRecord["status"], dischargeType?: string, dischargeDate?: string) => {
     const updates: any = { status: newStatus };
     if (newStatus !== "active") {
-      updates.discharge_date = new Date().toISOString().slice(0, 10);
+      updates.discharge_date = dischargeDate || localToday();
       if (dischargeType) updates.discharge_type = dischargeType;
     } else {
       updates.discharge_date = null;

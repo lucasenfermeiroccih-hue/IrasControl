@@ -22,7 +22,7 @@ import {
   ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { toast } from "sonner";
-import { usePatientMonitoring, PatientRecord } from "@/hooks/usePatientMonitoring";
+import { usePatientMonitoring, PatientRecord, localToday } from "@/hooks/usePatientMonitoring";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSectors } from "@/hooks/useSectors";
@@ -171,6 +171,8 @@ export default function PatientsMonitoring() {
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [dischargeConfirmOpen, setDischargeConfirmOpen] = useState(false);
   const [dischargePatientId, setDischargePatientId] = useState<string | null>(null);
+  // Data REAL da saída (alta/óbito/transferência) — padrão hoje, editável.
+  const [dischargeDate, setDischargeDate] = useState<string>(localToday());
   const [dischargeType, setDischargeType] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
   const [currentStep, setCurrentStep] = useState(0);
@@ -406,12 +408,25 @@ export default function PatientsMonitoring() {
     }
   };
 
+  /** Valida a data de saída: obrigatória, não futura e não anterior à entrada no setor. */
+  const validateDischargeDate = (pat: PatientRecord | undefined, date: string): string | null => {
+    if (!date) return "Informe a data da saída";
+    if (date > localToday()) return "A data da saída não pode ser no futuro";
+    const entrada = pat?.dataInternacaoCTI || pat?.dataAdmissao || pat?.dataInternacaoHospitalar;
+    if (entrada && date < entrada.slice(0, 10)) {
+      return `A data da saída não pode ser anterior à entrada (${entrada.slice(0, 10).split("-").reverse().join("/")})`;
+    }
+    return null;
+  };
+
   const handleDischarge = async () => {
     if (!dischargeType) { toast.error("Selecione o tipo de alta"); return; }
     const dpId = dischargePatientId;
     if (!dpId) return;
     const pat = patients.find(p => p.id === dpId);
-    const ok = await dischargePatientFn(dpId, dischargeType);
+    const dateError = validateDischargeDate(pat, dischargeDate);
+    if (dateError) { toast.error(dateError); return; }
+    const ok = await dischargePatientFn(dpId, dischargeType, dischargeDate);
     if (ok) {
       setDischargeOpen(false);
       setDischargePatientId(null);
@@ -421,6 +436,7 @@ export default function PatientsMonitoring() {
 
   const openDischargeConfirm = (patientId: string) => {
     setDischargePatientId(patientId);
+    setDischargeDate(localToday());
     setDischargeConfirmOpen(true);
   };
 
@@ -1519,6 +1535,11 @@ export default function PatientsMonitoring() {
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>{tiposAlta.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
             </Select>
+            <div className="space-y-1">
+              <Label className="text-xs">Data da saída</Label>
+              <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
+              <p className="text-[11px] text-muted-foreground">Informe a data em que o paciente realmente saiu. Ela define o paciente-dia e os dispositivo-dia.</p>
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
               <Button variant="destructive" onClick={handleDischarge}>Confirmar Alta</Button>
@@ -1885,7 +1906,7 @@ export default function PatientsMonitoring() {
                           )}
                           {isAdmin && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); }} title="Alterar status (admin)">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); }} title="Alterar status (admin)">
                                 <RefreshCw className="h-3.5 w-3.5 text-warning" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(p.id)} title="Excluir paciente (admin)">
@@ -1943,7 +1964,7 @@ export default function PatientsMonitoring() {
                     )}
                     {isAdmin && (
                       <>
-                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); }}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); }}>
                           <RefreshCw className="h-3 w-3" /> Status
                         </Button>
                         <Button variant="outline" size="sm" className="h-8 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteConfirmId(p.id)}>
@@ -2026,14 +2047,25 @@ export default function PatientsMonitoring() {
                 <SelectItem value="deceased">Óbito</SelectItem>
               </SelectContent>
             </Select>
+            {newStatus !== "active" && (
+              <div className="space-y-1 mt-3">
+                <Label className="text-xs">Data da saída</Label>
+                <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
+              </div>
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
+              onClick={async (e) => {
                 if (statusChangeId) {
                   const dischargeMap: Record<string, string> = { discharged: "Alta", transferred: "Transferência", deceased: "Óbito" };
-                  const ok = await changePatientStatus(statusChangeId, newStatus, dischargeMap[newStatus]);
+                  if (newStatus !== "active") {
+                    const dateError = validateDischargeDate(patients.find(p => p.id === statusChangeId), dischargeDate);
+                    // preventDefault mantém o diálogo aberto para corrigir a data
+                    if (dateError) { e.preventDefault(); toast.error(dateError); return; }
+                  }
+                  const ok = await changePatientStatus(statusChangeId, newStatus, dischargeMap[newStatus], newStatus !== "active" ? dischargeDate : undefined);
                   if (ok) setStatusChangeId(null);
                 }
               }}
@@ -2352,6 +2384,11 @@ export default function PatientsMonitoring() {
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>{tiposAlta.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
+          <div className="space-y-1">
+            <Label className="text-xs">Data da saída</Label>
+            <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
+            <p className="text-[11px] text-muted-foreground">Informe a data em que o paciente realmente saiu. Ela define o paciente-dia e os dispositivo-dia.</p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleDischarge}>Confirmar Alta</Button>
