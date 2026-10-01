@@ -28,6 +28,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSectors } from "@/hooks/useSectors";
 import { ComboboxSearch } from "@/components/ComboboxSearch";
 import { MICROORGANISMS } from "@/data/microorganisms";
+import { parseCivilDate } from "@/lib/ctiIndicators";
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
 
@@ -328,13 +329,12 @@ export default function PatientsMonitoring() {
     if (search && !p.nome.toLowerCase().includes(search.toLowerCase()) && !p.prontuario.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterSetor.length > 0 && !filterSetor.includes(p.unidade)) return false;
     const admDate = p.dataAdmissao || p.dataInternacaoHospitalar;
-    if (admDate) {
-      const d = new Date(admDate);
-      // Use UTC methods: dates from the DB are ISO strings (YYYY-MM-DD) parsed as UTC,
-      // so getUTCMonth/getUTCFullYear avoid a timezone-shift that would misplace patients
-      // admitted on the 1st of the month into the previous month.
-      if (filterMes.length > 0 && !filterMes.includes(meses[d.getUTCMonth()])) return false;
-      if (filterAno.length > 0 && !filterAno.includes(String(d.getUTCFullYear()))) return false;
+    // Data civil (YYYY-MM-DD) sem conversão UTC — mesma lógica do Dashboard de
+    // Indicadores (src/lib/ctiIndicators.ts), garantindo que as duas telas concordem.
+    const d = parseCivilDate(admDate);
+    if (d) {
+      if (filterMes.length > 0 && !filterMes.includes(meses[d.getMonth()])) return false;
+      if (filterAno.length > 0 && !filterAno.includes(String(d.getFullYear()))) return false;
     } else {
       if (filterMes.length > 0 || filterAno.length > 0) return false;
     }

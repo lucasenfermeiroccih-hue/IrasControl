@@ -21,15 +21,17 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
-import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { computeCtiIndicators } from "@/lib/ctiIndicators";
 import {
-  computePatientIndicators,
+  buildSpecialtyData,
+  computeTreatmentIndicators,
+  type ClinicalData,
   type IndicatorDevice,
   type IndicatorLabResult,
-  type IndicatorPatient,
   type IndicatorPrescription,
 } from "@/lib/patient-indicators";
+import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
+import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 /** Lê todas as páginas de uma consulta (o Supabase limita cada resposta a 1.000 linhas). */
 async function fetchAllRows<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
@@ -67,6 +69,19 @@ const COLORS = [
   "hsl(20, 70%, 50%)",
 ];
 
+interface PatientRow {
+  id: string;
+  full_name: string;
+  sector: string | null;
+  specialty: string | null;
+  admission_date: string;
+  icu_admission_date: string | null;
+  discharge_date: string | null;
+  status: string;
+  discharge_type: string | null;
+  clinical_data: ClinicalData | null;
+}
+
 const PatientDashboardIndicators = () => {
   const navigate = useNavigate();
   const { hospitalId, hospitalName, loading: ctxLoading } = useHospitalContext();
@@ -77,7 +92,7 @@ const PatientDashboardIndicators = () => {
   const [year, setYear] = useState<string[]>([String(currentYear)]);
   const [month, setMonth] = useState<string[]>([String(currentMonth)]);
   const [unit, setUnit] = useState<string[]>([]);
-  const [patients, setPatients] = useState<IndicatorPatient[]>([]);
+  const [patients, setPatients] = useState<PatientRow[]>([]);
   const [devices, setDevices] = useState<IndicatorDevice[]>([]);
   const [prescriptions, setPrescriptions] = useState<IndicatorPrescription[]>([]);
   const [labResults, setLabResults] = useState<IndicatorLabResult[]>([]);
@@ -108,7 +123,7 @@ const PatientDashboardIndicators = () => {
       setLoading(true);
       try {
         // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta.
-        const pts = await fetchAllRows<IndicatorPatient>(() => supabase
+        const pts = await fetchAllRows<PatientRow>(() => supabase
           .from("patients")
           .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data")
           .eq("hospital_id", hospitalId)
@@ -167,18 +182,100 @@ const PatientDashboardIndicators = () => {
 
   const indicators = useMemo(() => {
     // Se nada selecionado, default = mês/ano atual (evita somar tudo indevidamente)
-    const months = month.length === 0 ? [currentMonth] : Array.from(new Set(month.map(Number)));
-    const years = year.length === 0 ? [currentYear] : Array.from(new Set(year.map(Number)));
-    return computePatientIndicators({
+    const selectedMonths = month.length === 0 ? [currentMonth] : Array.from(new Set(month.map(Number))).sort((a, b) => a - b);
+    const selectedYears = year.length === 0 ? [currentYear] : Array.from(new Set(year.map(Number))).sort((a, b) => a - b);
+    // === Núcleo CTI: cálculo centralizado (src/lib/ctiIndicators.ts) ===
+    // Baseado em icu_admission_date (entrada no CTI), com recorte mensal por dia
+    // civil, censo inclusivo nas duas pontas e dedupe diário de dispositivos.
+    // filteredPatients já está filtrado pela unidade selecionada → sectors: [].
+    const cti = computeCtiIndicators(filteredPatients, {
+      months: selectedMonths,
+      years: selectedYears,
+      sectors: [],
+      today: new Date(),
+    });
+    // Internações = entradas no CTI no mês filtrado. Quem entrou em meses anteriores
+    // não soma aqui (aparece à parte em carriedOver), mas seus dias no mês contam
+    // no paciente-dia.
+    const newAdmissions = cti.totals.newAdmissions;
+    const specialtyData = buildSpecialtyData(
+      cti.perPatient.filter(b => b.isNewAdmission).map(b => b.specialty),
+      SPECIALTIES,
+    );
+
+    // Desfechos e paciente-dia vêm do módulo CTI (recorte mensal correto).
+    const deaths = cti.totals.deaths;
+    const discharges = cti.totals.discharges;
+    const totalPatientDays = cti.totals.ctiPatientDays;
+
+    // Dispositivo-dia (VM/SVD/CVC) — já recortado por CTI, mês e dedupe diário.
+    const cvcDays = cti.totals.deviceDays.cvc;
+    const svuDays = cti.totals.deviceDays.svu;
+    const vmDays  = cti.totals.deviceDays.vm;
+
+    // Conferência por paciente de cada dispositivo (apenas dias > 0).
+    const deviceBreakdown = (type: "cvc" | "svu" | "vm") =>
+      cti.perPatient
+        .filter(b => b.deviceDays[type] > 0)
+        .map(b => ({ id: b.id, name: b.name, days: b.deviceDays[type] }))
+        .sort((a, b) => b.days - a.days);
+    const cvcResult = { perPatient: deviceBreakdown("cvc") };
+    const svuResult = { perPatient: deviceBreakdown("svu") };
+    const vmResult  = { perPatient: deviceBreakdown("vm") };
+
+
+    // Antimicrobianos, extubações e microrganismos — eventos do mês filtrado,
+    // sem duplicar registros sincronizados entre a tabela e o cadastro.
+    const { abCount, topAntibiotics, extubations, topOrganisms } = computeTreatmentIndicators({
       patients: filteredPatients,
       devices,
       prescriptions,
       labResults,
-      months,
-      years,
-      specialties: SPECIALTIES,
+      months: selectedMonths,
+      years: selectedYears,
     });
-  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentMonth, currentYear, SPECIALTIES]);
+
+    const outcomeData = [
+      { name: "Altas", value: discharges, color: "hsl(168, 66%, 34%)" },
+      { name: "Óbitos", value: deaths, color: "hsl(0, 70%, 50%)" },
+      { name: "Transferências", value: cti.totals.transfers, color: "hsl(45, 80%, 50%)" },
+      { name: "Internados ao fim do período", value: cti.totals.stillAdmittedAtEnd, color: "hsl(210, 60%, 50%)" },
+    ].filter(d => d.value > 0);
+
+    return {
+      specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays,
+      cvcBreakdown: cvcResult.perPatient,
+      svuBreakdown: svuResult.perPatient,
+      vmBreakdown:  vmResult.perPatient,
+      abCount, extubations, totalAdmitted: newAdmissions, newAdmissions, outcomeData, topAntibiotics, topOrganisms,
+      carriedOver: cti.totals.carriedOver,
+      transfers: cti.totals.transfers,
+      activeInCti: cti.totals.activeInCti,
+      dataQualitySummary: cti.dataQualitySummary,
+      dataQualityCount: cti.dataQuality.length,
+      conference: cti.perPatient,
+    };
+  }, [filteredPatients, devices, prescriptions, labResults, month, year, currentYear, currentMonth, SPECIALTIES]);
+
+  // Conferência por paciente (CSV): admissão, alta, óbito, paciente-dia, VM/SVD/CVC-dia.
+  const handleDownloadConference = () => {
+    const header = ["Paciente", "Setor", "Especialidade", "Entrada CTI", "Saída", "Paciente-Dia", "Nova Admissão", "Alta", "Óbito", "Transferência", "VM-dia", "SVD-dia", "CVC-dia", "Inconsistências"];
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = indicators.conference
+      .filter(b => b.ctiPatientDays > 0 || b.isNewAdmission || b.isDischarge || b.isDeath || b.isTransfer)
+      .map(b => [b.name, b.sector || "", b.specialty || "", b.icuAdmission || "", b.discharge || "",
+        b.ctiPatientDays, b.isNewAdmission ? "Sim" : "", b.isDischarge ? "Sim" : "", b.isDeath ? "Sim" : "",
+        b.isTransfer ? "Sim" : "", b.deviceDays.vm, b.deviceDays.svu, b.deviceDays.cvc,
+        Array.from(new Set(b.flags)).join("; ")].map(esc).join(","));
+    const csv = "﻿" + [header.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conferencia-cti-${(unit[0] || "todos")}-${(month.map(m => MONTHS[Number(m)]).join("_") || "mes")}-${year.join("_") || "ano"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading || ctxLoading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -220,9 +317,9 @@ const PatientDashboardIndicators = () => {
             context:
               "Este relatório apresenta os indicadores operacionais assistenciais do período selecionado: admissões hospitalares por especialidade, desfechos (altas e óbitos), paciente-dia total, dias de utilização de dispositivos invasivos (CVC, SVD/SVU, Ventilação Mecânica) e uso de antimicrobianos. Estes indicadores são essenciais para o monitoramento da qualidade assistencial e cálculo das taxas de IRAS associadas a dispositivos.",
             methodology:
-              "Dados coletados do sistema de monitoramento de pacientes. Internações = pacientes admitidos no período selecionado. Paciente-dia = soma dos dias civis de internação dentro do período, incluindo o dia da admissão e o dia da alta. Dispositivo-dia computado a partir de inserção e retirada registrados no sistema, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
+              "Dados coletados do sistema de monitoramento de pacientes. Internações = entradas no CTI no período selecionado. Paciente-dia = soma dos dias civis no CTI dentro do período, incluindo o dia da entrada e o dia da alta. Dispositivo-dia computado a partir de inserção e retirada registrados no sistema, apenas nos dias do período. Taxa de utilização = dispositivo-dia ÷ paciente-dia × 100.",
             kpis: [
-              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "admitidos no período" },
+              { label: "Total de Internações", value: String(indicators.totalAdmitted), sub: "entradas no CTI no período" },
               { label: "Pacientes-Dia Total", value: String(indicators.totalPatientDays), sub: "dias acumulados" },
               { label: "Óbitos", value: String(indicators.deaths), sub: "no período", status: indicators.deaths === 0 ? "ok" : "warning" },
               { label: "Altas", value: String(indicators.discharges), sub: "altas registradas" },
@@ -325,7 +422,7 @@ const PatientDashboardIndicators = () => {
                   </p>
                   {indicators.carriedOver > 0 && (
                     <p className="text-xs text-muted-foreground/80 mt-0.5">
-                      + {indicators.carriedOver} paciente(s) já internado(s) desde meses anteriores — não somam nas internações, mas os dias deles neste período contam no paciente-dia.
+                      + {indicators.carriedOver} paciente(s) já no CTI desde meses anteriores — não somam nas internações, mas os dias deles neste período contam no paciente-dia.
                     </p>
                   )}
                 </div>
@@ -345,11 +442,23 @@ const PatientDashboardIndicators = () => {
             <KpiCard icon={Syringe} label="Antibióticos" value={indicators.abCount} color="text-orange-600" />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
               <ArrowUpFromLine className="h-4 w-4 text-green-600" />
               Extubações (retirada de VM): <span className="font-bold">{indicators.extubations}</span>
             </Badge>
+            <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5">
+              <ArrowUpFromLine className="h-4 w-4 text-sky-600 rotate-90" />
+              Transferências: <span className="font-bold">{indicators.transfers}</span>
+            </Badge>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadConference}>
+              <FileText className="h-4 w-4" /> Conferência (CSV)
+            </Button>
+            {indicators.dataQualityCount > 0 && (
+              <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5 border-amber-400 text-amber-700 bg-amber-50">
+                ⚠ {indicators.dataQualityCount} registro(s) com dados incompletos/inconsistentes
+              </Badge>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
