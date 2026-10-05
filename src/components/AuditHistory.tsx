@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   History, Pencil, Trash2, FileDown, Filter, X, Loader2, ChevronDown, ChevronUp, Mail,
-  Image as ImageIcon, ChevronLeft, ChevronRight, Files,
+  Image as ImageIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,10 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
-import { LIST_PAGE_SIZE } from "@/lib/pagination";
+import { HistoryPagination, HistoryRowCheckbox, HistorySelectionBar } from "@/components/history/HistoryListControls";
+import {
+  HISTORY_BODY_CLASS, HISTORY_DIALOG_CLASS, HISTORY_SCROLL_LIST_CLASS, toggleInSet, useHistoryPagination,
+} from "@/hooks/useHistoryList";
 import { buildAuditsBatchPdf, sortAuditsForReport } from "@/lib/auditBatchPdf";
 
 const meses = [
@@ -100,10 +103,6 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [includePhotos, setIncludePhotos] = useState(true);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
-
-  // Paginação da lista (mesmo tamanho de página das demais listas do sistema)
-  const [page, setPage] = useState(1);
-  const listRef = useRef<HTMLDivElement | null>(null);
 
   // Email-to-manager state
   const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
@@ -421,13 +420,6 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     }
   };
 
-  const toggleSelected = (id: string, checked: boolean) =>
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (checked) next.add(id); else next.delete(id);
-      return next;
-    });
-
   /** Gera um único PDF com todas as auditorias selecionadas. */
   const handleExportSelectedPdf = async () => {
     const selected = sortAuditsForReport(records.filter(r => selectedIds.has(r.id)));
@@ -513,15 +505,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     });
   }, [records, mesFiltro, anoFiltro, setorFiltro]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const pageRecords = filtered.slice((pageSafe - 1) * LIST_PAGE_SIZE, pageSafe * LIST_PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [mesFiltro, anoFiltro, setorFiltro]);
-  const goToPage = (p: number) => {
-    setPage(p);
-    setExpandedId(null);
-    listRef.current?.scrollTo({ top: 0 });
-  };
+  const pager = useHistoryPagination(filtered, `${mesFiltro}|${anoFiltro}|${setorFiltro}`);
 
   const clearFilters = () => {
     setMesFiltro([]);
@@ -538,14 +522,14 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
 
       <Dialog open={open} onOpenChange={(o) => { if (!o && batchProgress) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
         {/* Uma única barra de rolagem: só a lista rola; filtros e seleção ficam fixos */}
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className={HISTORY_DIALOG_CLASS}>
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
               Histórico de Auditorias
             </DialogTitle>
           </DialogHeader>
-        <div className="flex flex-col gap-3 min-h-0 flex-1">
+        <div className={HISTORY_BODY_CLASS}>
           {/* Filters */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
@@ -592,57 +576,20 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
           ) : (
             <>
             {/* Seleção múltipla → um único PDF */}
-            {(() => {
-              const visibleSelected = filtered.filter(r => selectedIds.has(r.id)).length;
-              const allVisible = visibleSelected === filtered.length;
-              const hiddenSelected = selectedIds.size - visibleSelected;
-              return (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border bg-muted/40 px-3 py-2">
-                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                    <Checkbox
-                      checked={allVisible ? true : visibleSelected > 0 ? "indeterminate" : false}
-                      onCheckedChange={(c) => setSelectedIds(prev => {
-                        const next = new Set(prev);
-                        filtered.forEach(r => (c === true ? next.add(r.id) : next.delete(r.id)));
-                        return next;
-                      })}
-                      disabled={!!batchProgress}
-                      aria-label="Selecionar todas as auditorias listadas"
-                    />
-                    Selecionar todas ({filtered.length})
-                  </label>
-                  <span className="text-xs text-muted-foreground">
-                    {selectedIds.size} selecionada(s)
-                    {hiddenSelected > 0 ? ` · ${hiddenSelected} fora do filtro atual` : ""}
-                  </span>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <Checkbox checked={includePhotos} onCheckedChange={(c) => setIncludePhotos(c === true)} disabled={!!batchProgress} />
-                    Incluir fotos
-                  </label>
-                  <div className="ml-auto flex items-center gap-2">
-                    {selectedIds.size > 0 && !batchProgress && (
-                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setSelectedIds(new Set())}>
-                        Limpar seleção
-                      </Button>
-                    )}
-                    <Button
-                      size="sm" className="h-8 gap-1.5 text-xs"
-                      disabled={selectedIds.size === 0 || !!batchProgress}
-                      onClick={handleExportSelectedPdf}
-                    >
-                      {batchProgress
-                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Gerando PDF… {batchProgress.done}/{batchProgress.total}</>
-                        : <><Files className="h-3.5 w-3.5" /> Baixar PDF das selecionadas ({selectedIds.size})</>}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
-            <div
-              ref={listRef}
-              className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+            <HistorySelectionBar
+              visibleIds={filtered.map(r => r.id)}
+              selectedIds={selectedIds}
+              onChange={setSelectedIds}
+              onExport={handleExportSelectedPdf}
+              progress={batchProgress}
             >
-              {pageRecords.map(record => (
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox checked={includePhotos} onCheckedChange={(c) => setIncludePhotos(c === true)} disabled={!!batchProgress} />
+                Incluir fotos
+              </label>
+            </HistorySelectionBar>
+            <div ref={pager.listRef} className={HISTORY_SCROLL_LIST_CLASS}>
+              {pager.pageItems.map(record => (
                 <div
                   key={record.id}
                   ref={el => { cardRefs.current[record.id] = el; }}
@@ -651,12 +598,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                   {/* Header row */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Checkbox
-                        data-html2canvas-ignore="true"
+                      <HistoryRowCheckbox
                         checked={selectedIds.has(record.id)}
-                        onCheckedChange={(c) => toggleSelected(record.id, c === true)}
+                        onChange={(c) => setSelectedIds(prev => toggleInSet(prev, record.id, c))}
                         disabled={!!batchProgress}
-                        aria-label="Selecionar auditoria para o PDF"
+                        label="Selecionar auditoria para o PDF"
                       />
                       <span className="text-sm font-medium">
                         {new Date(record.audit_date + "T00:00:00").toLocaleDateString("pt-BR")}
@@ -778,22 +724,10 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                 </div>
               ))}
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between gap-2 border-t pt-2">
-                <span className="text-xs text-muted-foreground">
-                  {(pageSafe - 1) * LIST_PAGE_SIZE + 1}–{Math.min(pageSafe * LIST_PAGE_SIZE, filtered.length)} de {filtered.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => goToPage(pageSafe - 1)}>
-                    <ChevronLeft className="h-4 w-4" /> Anterior
-                  </Button>
-                  <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
-                  <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => goToPage(pageSafe + 1)}>
-                    Próxima <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
+            <HistoryPagination
+              page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize}
+              onPage={(p) => { setExpandedId(null); pager.goTo(p); }}
+            />
             </>
           )}
           </div>
