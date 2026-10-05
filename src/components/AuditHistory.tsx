@@ -22,6 +22,7 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
+import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { buildAuditsBatchPdf, sortAuditsForReport } from "@/lib/auditBatchPdf";
 
 const meses = [
@@ -99,6 +100,10 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [includePhotos, setIncludePhotos] = useState(true);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Paginação da lista (mesmo tamanho de página das demais listas do sistema)
+  const [page, setPage] = useState(1);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   // Email-to-manager state
   const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
@@ -508,6 +513,16 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     });
   }, [records, mesFiltro, anoFiltro, setorFiltro]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / LIST_PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const pageRecords = filtered.slice((pageSafe - 1) * LIST_PAGE_SIZE, pageSafe * LIST_PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [mesFiltro, anoFiltro, setorFiltro]);
+  const goToPage = (p: number) => {
+    setPage(p);
+    setExpandedId(null);
+    listRef.current?.scrollTo({ top: 0 });
+  };
+
   const clearFilters = () => {
     setMesFiltro([]);
     setAnoFiltro([]);
@@ -522,14 +537,15 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o && batchProgress) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Uma única barra de rolagem: só a lista rola; filtros e seleção ficam fixos */}
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
               Histórico de Auditorias
             </DialogTitle>
           </DialogHeader>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-3 min-h-0 flex-1">
           {/* Filters */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
@@ -622,8 +638,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                 </div>
               );
             })()}
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {filtered.map(record => (
+            <div
+              ref={listRef}
+              className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+            >
+              {pageRecords.map(record => (
                 <div
                   key={record.id}
                   ref={el => { cardRefs.current[record.id] = el; }}
@@ -759,6 +778,22 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                 </div>
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between gap-2 border-t pt-2">
+                <span className="text-xs text-muted-foreground">
+                  {(pageSafe - 1) * LIST_PAGE_SIZE + 1}–{Math.min(pageSafe * LIST_PAGE_SIZE, filtered.length)} de {filtered.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" className="h-8" disabled={pageSafe <= 1} onClick={() => goToPage(pageSafe - 1)}>
+                    <ChevronLeft className="h-4 w-4" /> Anterior
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-1">Página {pageSafe} de {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-8" disabled={pageSafe >= totalPages} onClick={() => goToPage(pageSafe + 1)}>
+                    Próxima <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
             </>
           )}
           </div>
