@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   History, Pencil, Trash2, FileDown, Filter, X, Loader2, ChevronDown, ChevronUp, Mail,
-  Image as ImageIcon, ChevronLeft, ChevronRight,
+  Image as ImageIcon, ChevronLeft, ChevronRight, Files,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -21,6 +22,7 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
+import { buildAuditsBatchPdf, sortAuditsForReport } from "@/lib/auditBatchPdf";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -60,13 +62,25 @@ interface AuditItem {
   item_order: number;
 }
 
+/** Baixa uma foto do bucket audit-photos como data URL (evita CORS no PDF). */
+async function downloadPhotoDataUrl(path: string): Promise<string | null> {
+  const { data: blob } = await supabase.storage.from("audit-photos").download(path);
+  if (!blob) return null;
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result as string);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
 interface AuditHistoryProps {
   auditType: string;
   onEdit?: (record: AuditRecord) => void;
 }
 
 export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
-  const { hospitalId } = useHospitalContext();
+  const { hospitalId, hospitalName } = useHospitalContext();
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +94,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [signedPhotos, setSignedPhotos] = useState<Record<string, string[]>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Seleção múltipla para exportar várias auditorias em um único PDF
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [includePhotos, setIncludePhotos] = useState(true);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Email-to-manager state
   const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
@@ -278,6 +297,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     } else {
       toast.success("Registro excluído com sucesso.");
       setRecords(prev => prev.filter(r => r.id !== deleteId));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(deleteId); return next; });
     }
     setDeleting(false);
     setDeleteId(null);
@@ -367,14 +387,8 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
         y += 8;
         for (let i = 0; i < record.photo_urls.length; i++) {
           try {
-            const { data: blob } = await supabase.storage.from("audit-photos").download(record.photo_urls[i]);
-            if (!blob) continue;
-            const dataUrl: string = await new Promise((res, rej) => {
-              const fr = new FileReader();
-              fr.onload = () => res(fr.result as string);
-              fr.onerror = rej;
-              fr.readAsDataURL(blob);
-            });
+            const dataUrl = await downloadPhotoDataUrl(record.photo_urls[i]);
+            if (!dataUrl) continue;
             const props = pdf.getImageProperties(dataUrl);
             const fmt = (props.fileType || "JPEG").toUpperCase();
             let w = usableW;
@@ -399,6 +413,74 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     } finally {
       if (!wasExpanded) setExpandedId(null);
       setExportingId(null);
+    }
+  };
+
+  const toggleSelected = (id: string, checked: boolean) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+
+  /** Gera um único PDF com todas as auditorias selecionadas. */
+  const handleExportSelectedPdf = async () => {
+    const selected = sortAuditsForReport(records.filter(r => selectedIds.has(r.id)));
+    if (selected.length === 0) return;
+    setBatchProgress({ done: 0, total: selected.length });
+    try {
+      // Itens de todas as auditorias selecionadas (em lotes, com paginação)
+      const itemsByAudit: Record<string, AuditItem[]> = {};
+      const ids = selected.map(r => r.id);
+      for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        let from = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("audit_items")
+            .select("*")
+            .in("audit_id", chunk)
+            .order("audit_id")
+            .order("item_order")
+            .range(from, from + 999);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          for (const it of data as (AuditItem & { audit_id: string })[]) {
+            (itemsByAudit[it.audit_id] ||= []).push(it);
+          }
+          from += data.length;
+        }
+      }
+
+      const audits = [];
+      for (const rec of selected) {
+        const photos: { dataUrl: string; caption?: string | null }[] = [];
+        if (includePhotos && rec.photo_urls?.length) {
+          for (let i = 0; i < rec.photo_urls.length; i++) {
+            try {
+              const dataUrl = await downloadPhotoDataUrl(rec.photo_urls[i]);
+              if (dataUrl) photos.push({ dataUrl, caption: rec.photo_captions?.[i] });
+            } catch {
+              // pula foto que não pôde ser baixada
+            }
+          }
+        }
+        audits.push({ ...rec, items: itemsByAudit[rec.id] || [], photos });
+        setBatchProgress(p => (p ? { ...p, done: p.done + 1 } : p));
+      }
+
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const typeLabel = AUDIT_TYPE_LABEL[auditType] || auditType;
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      buildAuditsBatchPdf(pdf, audits, { typeLabel, hospitalName, logos });
+      const today = new Date();
+      const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      pdf.save(`auditorias-${typeLabel}-${selected.length}-selecionadas-${stamp}.pdf`);
+      toast.success(`PDF com ${selected.length} auditoria(s) exportado!`);
+    } catch (e) {
+      toast.error("Erro ao gerar o PDF das auditorias selecionadas: " + ((e as Error)?.message || "tente novamente."));
+    } finally {
+      setBatchProgress(null);
     }
   };
 
@@ -439,7 +521,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
         Histórico
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o && batchProgress) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
@@ -492,6 +574,54 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhum registro encontrado.</p>
           ) : (
+            <>
+            {/* Seleção múltipla → um único PDF */}
+            {(() => {
+              const visibleSelected = filtered.filter(r => selectedIds.has(r.id)).length;
+              const allVisible = visibleSelected === filtered.length;
+              const hiddenSelected = selectedIds.size - visibleSelected;
+              return (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border bg-muted/40 px-3 py-2">
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                    <Checkbox
+                      checked={allVisible ? true : visibleSelected > 0 ? "indeterminate" : false}
+                      onCheckedChange={(c) => setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        filtered.forEach(r => (c === true ? next.add(r.id) : next.delete(r.id)));
+                        return next;
+                      })}
+                      disabled={!!batchProgress}
+                      aria-label="Selecionar todas as auditorias listadas"
+                    />
+                    Selecionar todas ({filtered.length})
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedIds.size} selecionada(s)
+                    {hiddenSelected > 0 ? ` · ${hiddenSelected} fora do filtro atual` : ""}
+                  </span>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <Checkbox checked={includePhotos} onCheckedChange={(c) => setIncludePhotos(c === true)} disabled={!!batchProgress} />
+                    Incluir fotos
+                  </label>
+                  <div className="ml-auto flex items-center gap-2">
+                    {selectedIds.size > 0 && !batchProgress && (
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setSelectedIds(new Set())}>
+                        Limpar seleção
+                      </Button>
+                    )}
+                    <Button
+                      size="sm" className="h-8 gap-1.5 text-xs"
+                      disabled={selectedIds.size === 0 || !!batchProgress}
+                      onClick={handleExportSelectedPdf}
+                    >
+                      {batchProgress
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Gerando PDF… {batchProgress.done}/{batchProgress.total}</>
+                        : <><Files className="h-3.5 w-3.5" /> Baixar PDF das selecionadas ({selectedIds.size})</>}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
               {filtered.map(record => (
                 <div
@@ -502,6 +632,13 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                   {/* Header row */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Checkbox
+                        data-html2canvas-ignore="true"
+                        checked={selectedIds.has(record.id)}
+                        onCheckedChange={(c) => toggleSelected(record.id, c === true)}
+                        disabled={!!batchProgress}
+                        aria-label="Selecionar auditoria para o PDF"
+                      />
                       <span className="text-sm font-medium">
                         {new Date(record.audit_date + "T00:00:00").toLocaleDateString("pt-BR")}
                       </span>
@@ -622,6 +759,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                 </div>
               ))}
             </div>
+            </>
           )}
           </div>
         </DialogContent>
