@@ -32,21 +32,8 @@ import {
 } from "@/lib/patient-indicators";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
-/** Lê todas as páginas de uma consulta (o Supabase limita cada resposta a 1.000 linhas). */
-async function fetchAllRows<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
-  const rows: T[] = [];
-  let from = 0;
-  while (true) {
-    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    rows.push(...(data as T[]));
-    // Avança pelo número real de linhas: o servidor pode limitar abaixo de pageSize
-    from += data.length;
-  }
-  return rows;
-}
 
 const SPECIALTIES_DEFAULT = [
   "Clínica médica", "Cirurgia Geral", "Cirurgia Cardíaca",
