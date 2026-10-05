@@ -7,6 +7,8 @@ import DashboardAIInsights from "@/components/DashboardAIInsights";
 import DashboardFilters from "@/components/DashboardFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import { fetchAllRows } from "@/lib/fetchAllRows";
+import { parseCivilDate } from "@/lib/ctiIndicators";
 import {
   Users, AlertTriangle, ShieldAlert, CheckCircle, Activity,
   TrendingUp, TrendingDown, Bot, ArrowRight, Loader2, Download,
@@ -30,6 +32,49 @@ const AUDIT_TYPE_LABELS: Record<string, string> = {
   antibiogram: "Antibiograma",
   construction_renovation: "Obras/Reformas",
 };
+/** Auditorias somadas no banco por tipo, setor e mês (função dashboard_audit_summary). */
+interface AuditSummaryRow {
+  audit_type: string;
+  sector: string | null;
+  ym: string; // "YYYY-MM"
+  audits: number;
+  compliant_items: number;
+  total_items: number;
+}
+interface AuditItemSummaryRow {
+  audit_type: string;
+  sector: string | null;
+  ym: string;
+  category: string;
+  nc: number;
+  applicable: number;
+}
+interface RecentAudit {
+  id: string;
+  audit_type: string;
+  sector: string | null;
+  audit_date: string;
+  compliance_rate: number | null;
+}
+
+const MESES_NOMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+/** Intervalos [início, fim) de cada combinação de mês/ano filtrada, para consultar no banco. */
+function dateRangesFor(mes: string[], ano: string[]): Array<[string, string]> | null {
+  if (mes.length === 0 && ano.length === 0) return null;
+  const years = ano.length > 0 ? ano.map(Number) : Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+  const iso = (y: number, m: number) => `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const ranges: Array<[string, string]> = [];
+  years.forEach(y => {
+    if (mes.length === 0) ranges.push([iso(y, 0), iso(y + 1, 0)]);
+    else mes.forEach(name => {
+      const m = MESES_NOMES.indexOf(name);
+      if (m >= 0) ranges.push([iso(y, m), m === 11 ? iso(y + 1, 0) : iso(y, m + 1)]);
+    });
+  });
+  return ranges;
+}
+
 const prettyAuditType = (t?: string | null) =>
   (t && AUDIT_TYPE_LABELS[t]) ||
   (t ? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Outros");
@@ -53,66 +98,83 @@ export default function Dashboard() {
   // Real data states
   const [patients, setPatients] = useState<any[]>([]);
   const [cases, setCases] = useState<any[]>([]);
-  const [audits, setAudits] = useState<any[]>([]);
-  const [auditItems, setAuditItems] = useState<any[]>([]);
+  const [audits, setAudits] = useState<AuditSummaryRow[]>([]);
+  const [auditItems, setAuditItems] = useState<AuditItemSummaryRow[]>([]);
+  const [recentAudits, setRecentAudits] = useState<RecentAudit[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [labResults, setLabResults] = useState<any[]>([]);
   const [precautions, setPrecautions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      // Sem hospital selecionado não há o que carregar (antes o spinner ficava infinito)
+      if (!ctxLoading) setLoading(false);
+      return;
+    }
+    let cancelled = false;
     const fetchAll = async () => {
       setLoading(true);
-      const [pRes, cRes, aRes, alRes, lRes] = await Promise.all([
-        supabase.from("patients").select("*").eq("hospital_id", hospitalId).neq("source", "precaution_map"),
-        supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId),
-        supabase.from("audits").select("*").eq("hospital_id", hospitalId),
-        supabase.from("alerts").select("*").eq("hospital_id", hospitalId).eq("status", "active"),
-        supabase.from("lab_results").select("*, antibiogram_results(*)").eq("hospital_id", hospitalId),
-      ]);
-      setPatients(pRes.data || []);
-      setCases(cRes.data || []);
-      setAudits(aRes.data || []);
-      setAlerts(alRes.data || []);
-      setLabResults(lRes.data || []);
-
-      // Itens de auditoria (para inconformidade por tipo de item auditado)
-      const auditIds = (aRes.data || []).map((a: any) => a.id);
-      if (auditIds.length > 0) {
-        const chunkSize = 200, pageSize = 1000;
-        const allItems: any[] = [];
-        for (let i = 0; i < auditIds.length; i += chunkSize) {
-          const chunk = auditIds.slice(i, i + chunkSize);
-          let from = 0;
-          while (true) {
-            const { data: itemData, error } = await supabase
-              .from("audit_items")
-              .select("audit_id, status, category")
-              .in("audit_id", chunk)
-              .range(from, from + pageSize - 1);
-            if (error || !itemData || itemData.length === 0) break;
-            allItems.push(...itemData);
-            if (itemData.length < pageSize) break;
-            from += pageSize;
-          }
-        }
-        setAuditItems(allItems);
-      } else {
-        setAuditItems([]);
+      try {
+        // Tudo em paralelo, só com as colunas usadas pelo Dashboard e paginado
+        // (o Supabase devolve no máximo 1.000 linhas por consulta).
+        const [pts, cs, als, labs, precs, summary] = await Promise.all([
+          fetchAllRows<any>(() => supabase.from("patients")
+            .select("id, sector, bed, status, admission_date")
+            .eq("hospital_id", hospitalId).neq("source", "precaution_map").order("id")),
+          fetchAllRows<any>(() => supabase.from("infection_cases")
+            .select("*").eq("hospital_id", hospitalId).order("id")),
+          fetchAllRows<any>(() => supabase.from("alerts")
+            .select("*").eq("hospital_id", hospitalId).eq("status", "active").order("id")),
+          // Sem antibiogram_results: o Dashboard não usa os antimicrobianos e esse
+          // join (≈100 mil linhas) era a consulta mais lenta da página.
+          fetchAllRows<any>(() => supabase.from("lab_results")
+            .select("id, patient_id, organism, sample_material, collection_date")
+            .eq("hospital_id", hospitalId).order("id")),
+          // Filtra pelo hospital via join, em vez de um "in" com milhares de ids na URL
+          fetchAllRows<any>(() => supabase.from("precautions")
+            .select("id, patient_id, precaution_type, is_active, patients!inner(hospital_id)")
+            .eq("patients.hospital_id", hospitalId).order("id")),
+          // Auditorias e itens já somados no banco (antes: >150 mil linhas no navegador)
+          supabase.rpc("dashboard_audit_summary" as never, { p_hospital_id: hospitalId } as never),
+        ]);
+        if (cancelled) return;
+        if (summary.error) throw summary.error;
+        const sum = (summary.data || {}) as { audits?: AuditSummaryRow[]; items?: AuditItemSummaryRow[] };
+        setPatients(pts);
+        setCases(cs);
+        setAlerts(als);
+        setLabResults(labs);
+        setPrecautions(precs);
+        setAudits(sum.audits || []);
+        setAuditItems(sum.items || []);
+      } catch (err) {
+        console.error("Erro ao carregar o Dashboard:", err);
+        if (!cancelled) toast.error("Erro ao carregar alguns dados do Dashboard. Tente recarregar a página.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const pIds = (pRes.data || []).map((p: any) => p.id);
-      if (pIds.length > 0) {
-        const { data: precData } = await supabase.from("precautions").select("*").in("patient_id", pIds);
-        setPrecautions(precData || []);
-      } else {
-        setPrecautions([]);
-      }
-      setLoading(false);
     };
     fetchAll();
-  }, [hospitalId]);
+    return () => { cancelled = true; };
+  }, [hospitalId, ctxLoading]);
+
+  // Últimas auditorias (card "Resumo de Auditorias"), já com os filtros aplicados no banco
+  useEffect(() => {
+    if (!hospitalId) return;
+    let cancelled = false;
+    (async () => {
+      let q = supabase.from("audits")
+        .select("id, audit_type, sector, audit_date, compliance_rate")
+        .eq("hospital_id", hospitalId);
+      if (setor.length > 0) q = q.in("sector", setor);
+      const ranges = dateRangesFor(mes, ano);
+      if (ranges) q = q.or(ranges.map(([a, b]) => `and(audit_date.gte.${a},audit_date.lt.${b})`).join(","));
+      const { data } = await q.order("audit_date", { ascending: false }).limit(5);
+      if (!cancelled) setRecentAudits((data || []) as RecentAudit[]);
+    })();
+    return () => { cancelled = true; };
+  }, [hospitalId, mes, ano, setor]);
 
   // Map paciente -> sector para casos/labs que não têm sector próprio
   const patientSectorMap = useMemo(() => {
@@ -159,12 +221,11 @@ export default function Dashboard() {
   const yearOptions = useMemo(() => {
     const ys = new Set<string>();
     const add = (d?: string | null) => {
-      if (!d) return;
-      const y = new Date(d).getFullYear();
-      if (!isNaN(y)) ys.add(String(y));
+      const y = parseCivilDate(d)?.getFullYear();
+      if (y && !isNaN(y)) ys.add(String(y));
     };
     patients.forEach(p => add(p.admission_date));
-    audits.forEach(a => add(a.audit_date));
+    audits.forEach(a => add(`${a.ym}-01`));
     cases.forEach(c => add(c.detection_date));
     labResults.forEach(r => add(r.collection_date));
     return Array.from(ys).sort().reverse();
@@ -174,9 +235,9 @@ export default function Dashboard() {
 
   const matchDate = (dateStr?: string | null) => {
     if (mes.length === 0 && ano.length === 0) return true;
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return false;
+    // Data civil: new Date("AAAA-MM-DD") é UTC e, no Brasil, jogava o dia 1º para o mês anterior
+    const d = parseCivilDate(dateStr);
+    if (!d || isNaN(d.getTime())) return false;
     if (mes.length > 0 && !mes.includes(meses[d.getMonth()])) return false;
     if (ano.length > 0 && !ano.includes(String(d.getFullYear()))) return false;
     return true;
@@ -227,8 +288,9 @@ export default function Dashboard() {
     ),
     [cases, mes, ano, setor, fLeito, fPrecaucao, fOrganismo, fMaterial, fDataColeta, patientSectorMap, patientBedMap, patientPrecaucaoMap, labResults]);
   const fAudits = useMemo(() =>
-    audits.filter(a => matchDate(a.audit_date) && matchSector(a.sector)),
+    audits.filter(a => matchDate(`${a.ym}-01`) && matchSector(a.sector)),
     [audits, mes, ano, setor]);
+  const auditCount = useMemo(() => fAudits.reduce((s, a) => s + a.audits, 0), [fAudits]);
   const fAlerts = useMemo(() =>
     alerts.filter(a => matchDate(a.created_at)),
     [alerts, mes, ano]);
@@ -249,11 +311,11 @@ export default function Dashboard() {
   const suspectCases = fCases.filter(c => ["open", "investigating"].includes(c.status));
   const confirmedCases = fCases.filter(c => c.status === "confirmed");
   const complianceRate = useMemo(() => {
-    if (fAudits.length === 0) return 0;
+    if (auditCount === 0) return 0;
     const totalCompliant = fAudits.reduce((sum, a) => sum + (a.compliant_items || 0), 0);
     const totalItems = fAudits.reduce((sum, a) => sum + (a.total_items || 0), 0);
     return totalItems > 0 ? ((totalCompliant / totalItems) * 100).toFixed(1) : "0";
-  }, [fAudits]);
+  }, [fAudits, auditCount]);
 
   // IRAS by sector
   const irasBySector = useMemo(() => {
@@ -307,7 +369,7 @@ export default function Dashboard() {
       if (!map[label]) map[label] = { nc: 0, total: 0, count: 0 };
       map[label].nc += Math.max(0, total - compliant);
       map[label].total += total;
-      map[label].count++;
+      map[label].count += a.audits;
     });
     return Object.entries(map)
       .map(([name, v]) => ({ name, taxa: v.total > 0 ? Number(((v.nc / v.total) * 100).toFixed(1)) : 0, audits: v.count }))
@@ -316,20 +378,18 @@ export default function Dashboard() {
 
   // Inconformidade por tipo de item auditado (categoria dos itens)
   const nonComplianceByCategory = useMemo(() => {
-    const idSet = new Set(fAudits.map(a => a.id));
     const map: Record<string, { nc: number; applicable: number }> = {};
     auditItems.forEach(it => {
-      if (!idSet.has(it.audit_id)) return;
-      if (it.status === "not_applicable" || it.status === "not_evaluated") return;
+      if (!matchDate(`${it.ym}-01`) || !matchSector(it.sector)) return;
       const cat = it.category || "Geral";
       if (!map[cat]) map[cat] = { nc: 0, applicable: 0 };
-      map[cat].applicable++;
-      if (it.status === "non_compliant") map[cat].nc++;
+      map[cat].applicable += it.applicable;
+      map[cat].nc += it.nc;
     });
     return Object.entries(map)
       .map(([name, v]) => ({ name, taxa: v.applicable > 0 ? Number(((v.nc / v.applicable) * 100).toFixed(1)) : 0, total: v.applicable }))
       .sort((a, b) => b.taxa - a.taxa);
-  }, [auditItems, fAudits]);
+  }, [auditItems, mes, ano, setor]);
 
   const ncTopN = useTopN(nonComplianceByCategory, 20);
 
@@ -562,7 +622,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader><CardTitle className="text-base">Conformidade Geral</CardTitle></CardHeader>
           <CardContent>
-            {fAudits.length > 0 ? (
+            {auditCount > 0 ? (
               <div className="relative">
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
@@ -704,12 +764,12 @@ export default function Dashboard() {
         <Card>
           <CardHeader><CardTitle className="text-base">Resumo de Auditorias</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {fAudits.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma auditoria registrada</p>}
-            {fAudits.slice(0, 5).map((a) => (
+            {recentAudits.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma auditoria registrada</p>}
+            {recentAudits.map((a) => (
               <div key={a.id} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <p className="text-sm font-medium capitalize">{a.audit_type?.replace("_", " ")}</p>
-                  <p className="text-xs text-muted-foreground">{a.sector || "Geral"} · {a.audit_date}</p>
+                  <p className="text-xs text-muted-foreground">{a.sector || "Geral"} · {parseCivilDate(a.audit_date)?.toLocaleDateString("pt-BR") ?? a.audit_date}</p>
                 </div>
                 <Badge variant={Number(a.compliance_rate) >= 80 ? "secondary" : "destructive"}>
                   {a.compliance_rate ? `${a.compliance_rate}%` : "N/A"}
