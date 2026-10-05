@@ -10,6 +10,7 @@ import MultiSelectFilter from "@/components/MultiSelectFilter";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -21,6 +22,11 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { loadHospitalLogos, renderPdfLogos } from "@/lib/pdfLogoUtils";
+import { HistoryPagination, HistoryRowCheckbox, HistorySelectionBar } from "@/components/history/HistoryListControls";
+import {
+  HISTORY_BODY_CLASS, HISTORY_DIALOG_CLASS, HISTORY_SCROLL_LIST_CLASS, toggleInSet, useHistoryPagination,
+} from "@/hooks/useHistoryList";
+import { buildAuditsBatchPdf, sortAuditsForReport } from "@/lib/auditBatchPdf";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -60,13 +66,25 @@ interface AuditItem {
   item_order: number;
 }
 
+/** Baixa uma foto do bucket audit-photos como data URL (evita CORS no PDF). */
+async function downloadPhotoDataUrl(path: string): Promise<string | null> {
+  const { data: blob } = await supabase.storage.from("audit-photos").download(path);
+  if (!blob) return null;
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result as string);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
 interface AuditHistoryProps {
   auditType: string;
   onEdit?: (record: AuditRecord) => void;
 }
 
 export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
-  const { hospitalId } = useHospitalContext();
+  const { hospitalId, hospitalName } = useHospitalContext();
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +98,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
   const [signedPhotos, setSignedPhotos] = useState<Record<string, string[]>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Seleção múltipla para exportar várias auditorias em um único PDF
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [includePhotos, setIncludePhotos] = useState(true);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Email-to-manager state
   const [emailRecord, setEmailRecord] = useState<AuditRecord | null>(null);
@@ -278,6 +301,7 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     } else {
       toast.success("Registro excluído com sucesso.");
       setRecords(prev => prev.filter(r => r.id !== deleteId));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(deleteId); return next; });
     }
     setDeleting(false);
     setDeleteId(null);
@@ -367,14 +391,8 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
         y += 8;
         for (let i = 0; i < record.photo_urls.length; i++) {
           try {
-            const { data: blob } = await supabase.storage.from("audit-photos").download(record.photo_urls[i]);
-            if (!blob) continue;
-            const dataUrl: string = await new Promise((res, rej) => {
-              const fr = new FileReader();
-              fr.onload = () => res(fr.result as string);
-              fr.onerror = rej;
-              fr.readAsDataURL(blob);
-            });
+            const dataUrl = await downloadPhotoDataUrl(record.photo_urls[i]);
+            if (!dataUrl) continue;
             const props = pdf.getImageProperties(dataUrl);
             const fmt = (props.fileType || "JPEG").toUpperCase();
             let w = usableW;
@@ -402,6 +420,67 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     }
   };
 
+  /** Gera um único PDF com todas as auditorias selecionadas. */
+  const handleExportSelectedPdf = async () => {
+    const selected = sortAuditsForReport(records.filter(r => selectedIds.has(r.id)));
+    if (selected.length === 0) return;
+    setBatchProgress({ done: 0, total: selected.length });
+    try {
+      // Itens de todas as auditorias selecionadas (em lotes, com paginação)
+      const itemsByAudit: Record<string, AuditItem[]> = {};
+      const ids = selected.map(r => r.id);
+      for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        let from = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("audit_items")
+            .select("*")
+            .in("audit_id", chunk)
+            .order("audit_id")
+            .order("item_order")
+            .range(from, from + 999);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          for (const it of data as (AuditItem & { audit_id: string })[]) {
+            (itemsByAudit[it.audit_id] ||= []).push(it);
+          }
+          from += data.length;
+        }
+      }
+
+      const audits = [];
+      for (const rec of selected) {
+        const photos: { dataUrl: string; caption?: string | null }[] = [];
+        if (includePhotos && rec.photo_urls?.length) {
+          for (let i = 0; i < rec.photo_urls.length; i++) {
+            try {
+              const dataUrl = await downloadPhotoDataUrl(rec.photo_urls[i]);
+              if (dataUrl) photos.push({ dataUrl, caption: rec.photo_captions?.[i] });
+            } catch {
+              // pula foto que não pôde ser baixada
+            }
+          }
+        }
+        audits.push({ ...rec, items: itemsByAudit[rec.id] || [], photos });
+        setBatchProgress(p => (p ? { ...p, done: p.done + 1 } : p));
+      }
+
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const typeLabel = AUDIT_TYPE_LABEL[auditType] || auditType;
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      buildAuditsBatchPdf(pdf, audits, { typeLabel, hospitalName, logos });
+      const today = new Date();
+      const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      pdf.save(`auditorias-${typeLabel}-${selected.length}-selecionadas-${stamp}.pdf`);
+      toast.success(`PDF com ${selected.length} auditoria(s) exportado!`);
+    } catch (e) {
+      toast.error("Erro ao gerar o PDF das auditorias selecionadas: " + ((e as Error)?.message || "tente novamente."));
+    } finally {
+      setBatchProgress(null);
+    }
+  };
+
   // Filters
   const anosDisponiveis = useMemo(() => {
     const s = new Set(records.map(r => r.audit_date?.substring(0, 4)).filter(Boolean));
@@ -426,6 +505,8 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
     });
   }, [records, mesFiltro, anoFiltro, setorFiltro]);
 
+  const pager = useHistoryPagination(filtered, `${mesFiltro}|${anoFiltro}|${setorFiltro}`);
+
   const clearFilters = () => {
     setMesFiltro([]);
     setAnoFiltro([]);
@@ -439,15 +520,16 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
         Histórico
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={(o) => { if (!o && batchProgress) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
+        {/* Uma única barra de rolagem: só a lista rola; filtros e seleção ficam fixos */}
+        <DialogContent className={HISTORY_DIALOG_CLASS}>
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
               Histórico de Auditorias
             </DialogTitle>
           </DialogHeader>
-        <div className="space-y-4">
+        <div className={HISTORY_BODY_CLASS}>
           {/* Filters */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
@@ -492,8 +574,22 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhum registro encontrado.</p>
           ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {filtered.map(record => (
+            <>
+            {/* Seleção múltipla → um único PDF */}
+            <HistorySelectionBar
+              visibleIds={filtered.map(r => r.id)}
+              selectedIds={selectedIds}
+              onChange={setSelectedIds}
+              onExport={handleExportSelectedPdf}
+              progress={batchProgress}
+            >
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox checked={includePhotos} onCheckedChange={(c) => setIncludePhotos(c === true)} disabled={!!batchProgress} />
+                Incluir fotos
+              </label>
+            </HistorySelectionBar>
+            <div ref={pager.listRef} className={HISTORY_SCROLL_LIST_CLASS}>
+              {pager.pageItems.map(record => (
                 <div
                   key={record.id}
                   ref={el => { cardRefs.current[record.id] = el; }}
@@ -502,6 +598,12 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                   {/* Header row */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <HistoryRowCheckbox
+                        checked={selectedIds.has(record.id)}
+                        onChange={(c) => setSelectedIds(prev => toggleInSet(prev, record.id, c))}
+                        disabled={!!batchProgress}
+                        label="Selecionar auditoria para o PDF"
+                      />
                       <span className="text-sm font-medium">
                         {new Date(record.audit_date + "T00:00:00").toLocaleDateString("pt-BR")}
                       </span>
@@ -622,6 +724,11 @@ export default function AuditHistory({ auditType, onEdit }: AuditHistoryProps) {
                 </div>
               ))}
             </div>
+            <HistoryPagination
+              page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize}
+              onPage={(p) => { setExpandedId(null); pager.goTo(p); }}
+            />
+            </>
           )}
           </div>
         </DialogContent>

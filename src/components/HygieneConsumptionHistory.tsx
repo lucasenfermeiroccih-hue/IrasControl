@@ -11,6 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import jsPDF from "jspdf";
+import { loadHospitalLogos } from "@/lib/pdfLogoUtils";
+import { todayStamp } from "@/lib/pdfReportKit";
+import { buildHygieneConsumptionBatchPdf, sortConsumptionRecords } from "@/lib/historyBatchReports";
+import { HistoryPagination, HistoryRowCheckbox, HistorySelectionBar } from "@/components/history/HistoryListControls";
+import {
+  HISTORY_BODY_CLASS, HISTORY_DIALOG_CLASS, HISTORY_SCROLL_LIST_CLASS, toggleInSet, useHistoryPagination,
+} from "@/hooks/useHistoryList";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -33,7 +41,7 @@ interface Record {
 }
 
 export default function HygieneConsumptionHistory() {
-  const { hospitalId } = useHospitalContext();
+  const { hospitalId, hospitalName } = useHospitalContext();
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +50,9 @@ export default function HygieneConsumptionHistory() {
   const [setorFiltro, setSetorFiltro] = useState<string[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Seleção múltipla para exportar vários registros em um único PDF
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
 
   const fetchRecords = useCallback(async () => {
     if (!hospitalId) return;
@@ -65,6 +76,7 @@ export default function HygieneConsumptionHistory() {
     else {
       toast.success("Registro excluído.");
       setRecords(prev => prev.filter(r => r.id !== deleteId));
+      setSelectedIds(prev => toggleInSet(prev, deleteId, false));
     }
     setDeleting(false);
     setDeleteId(null);
@@ -86,6 +98,26 @@ export default function HygieneConsumptionHistory() {
     return true;
   }), [records, mesFiltro, anoFiltro, setorFiltro]);
 
+  const pager = useHistoryPagination(filtered, `${mesFiltro}|${anoFiltro}|${setorFiltro}`);
+
+  /** Gera um único PDF com todos os registros selecionados. */
+  const handleExportSelectedPdf = async () => {
+    const selected = sortConsumptionRecords(records.filter(r => selectedIds.has(r.id)));
+    if (selected.length === 0) return;
+    setExporting(true);
+    try {
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      buildHygieneConsumptionBatchPdf(pdf, selected, { hospitalName, logos });
+      pdf.save(`consumo-higiene-maos-${selected.length}-selecionados-${todayStamp()}.pdf`);
+      toast.success(`PDF com ${selected.length} registro(s) exportado!`);
+    } catch (e) {
+      toast.error("Erro ao gerar o PDF dos registros selecionados: " + ((e as Error)?.message || "tente novamente."));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const clear = () => { setMesFiltro([]); setAnoFiltro([]); setSetorFiltro([]); };
 
   return (
@@ -94,8 +126,8 @@ export default function HygieneConsumptionHistory() {
         <History className="h-4 w-4" /> Histórico
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={(o) => { if (!o && exporting) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
+        <DialogContent className={HISTORY_DIALOG_CLASS}>
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
@@ -103,7 +135,7 @@ export default function HygieneConsumptionHistory() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className={HISTORY_BODY_CLASS}>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Mês</label>
@@ -133,8 +165,16 @@ export default function HygieneConsumptionHistory() {
             ) : filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhum registro encontrado.</p>
             ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {filtered.map(r => {
+              <>
+              <HistorySelectionBar
+                visibleIds={filtered.map(r => r.id)}
+                selectedIds={selectedIds}
+                onChange={setSelectedIds}
+                onExport={handleExportSelectedPdf}
+                progress={exporting ? { done: 0, total: selectedIds.size } : null}
+              />
+              <div ref={pager.listRef} className={HISTORY_SCROLL_LIST_CLASS}>
+                {pager.pageItems.map(r => {
                   const total = r.instancias_com_higienizacao + r.instancias_sem_higienizacao;
                   const adesao = total > 0 ? (r.instancias_com_higienizacao / total) * 100 : null;
                   const consumoPD = r.paciente_dia > 0 ? (r.consumo_alcool_ml + r.consumo_sabonete_ml) / r.paciente_dia : null;
@@ -142,6 +182,12 @@ export default function HygieneConsumptionHistory() {
                     <div key={r.id} className="border rounded-lg p-3 space-y-2 bg-background">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 flex-wrap">
+                          <HistoryRowCheckbox
+                            checked={selectedIds.has(r.id)}
+                            onChange={(c) => setSelectedIds(prev => toggleInSet(prev, r.id, c))}
+                            disabled={exporting}
+                            label="Selecionar registro para o PDF"
+                          />
                           <span className="text-sm font-medium">{r.mes}/{r.ano}</span>
                           <Badge variant="outline" className="text-[10px]">{r.setor}</Badge>
                           {adesao !== null && (
@@ -177,6 +223,11 @@ export default function HygieneConsumptionHistory() {
                   );
                 })}
               </div>
+              <HistoryPagination
+                page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize}
+                onPage={pager.goTo}
+              />
+              </>
             )}
           </div>
         </DialogContent>

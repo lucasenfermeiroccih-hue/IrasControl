@@ -13,6 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
+import jsPDF from "jspdf";
+import { loadHospitalLogos } from "@/lib/pdfLogoUtils";
+import { todayStamp } from "@/lib/pdfReportKit";
+import { buildAntibiogramBatchPdf } from "@/lib/historyBatchReports";
+import { HistoryPagination, HistoryRowCheckbox, HistorySelectionBar } from "@/components/history/HistoryListControls";
+import {
+  HISTORY_BODY_CLASS, HISTORY_DIALOG_CLASS, HISTORY_SCROLL_LIST_CLASS, toggleInSet, useHistoryPagination,
+} from "@/hooks/useHistoryList";
 
 const meses = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -50,7 +58,7 @@ interface Props {
 }
 
 export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
-  const { hospitalId } = useHospitalContext();
+  const { hospitalId, hospitalName } = useHospitalContext();
   const [open, setOpen] = useState(false);
   const [records, setRecords] = useState<AntibiogramRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,18 +68,29 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Seleção múltipla para exportar vários exames em um único PDF
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   const fetchRecords = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("lab_results")
-      .select("*")
-      .eq("hospital_id", hospitalId)
-      .order("collection_date", { ascending: false });
-    if (!error && data) {
-      setRecords(data as AntibiogramRecord[]);
+    // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta
+    const all: AntibiogramRecord[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("lab_results")
+        .select("*")
+        .eq("hospital_id", hospitalId)
+        .order("collection_date", { ascending: false })
+        .order("id")
+        .range(from, from + 999);
+      if (error || !data || data.length === 0) break;
+      all.push(...(data as AntibiogramRecord[]));
+      from += data.length;
     }
+    setRecords(all);
     setLoading(false);
   }, [hospitalId]);
 
@@ -107,6 +126,7 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
     } else {
       toast.success("Registro excluído.");
       setRecords(prev => prev.filter(r => r.id !== deleteId));
+      setSelectedIds(prev => toggleInSet(prev, deleteId, false));
     }
     setDeleting(false);
     setDeleteId(null);
@@ -150,6 +170,53 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
     });
   }, [records, mesFiltro, anoFiltro, organismoFiltro]);
 
+  const pager = useHistoryPagination(filtered, `${mesFiltro}|${anoFiltro}|${organismoFiltro}`);
+
+  /** Gera um único PDF com todos os exames selecionados. */
+  const handleExportSelectedPdf = async () => {
+    const selected = records
+      .filter(r => selectedIds.has(r.id))
+      .sort((a, b) => a.collection_date.localeCompare(b.collection_date));
+    if (selected.length === 0) return;
+    setBatchProgress({ done: 0, total: selected.length });
+    try {
+      const resultsByExam: Record<string, AntibiogramResultRow[]> = {};
+      const ids = selected.map(r => r.id);
+      for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        let from = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("antibiogram_results")
+            .select("*")
+            .in("lab_result_id", chunk)
+            .order("id")
+            .range(from, from + 999);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          for (const row of data as (AntibiogramResultRow & { lab_result_id: string })[]) {
+            (resultsByExam[row.lab_result_id] ||= []).push(row);
+          }
+          from += data.length;
+        }
+        setBatchProgress({ done: Math.min(i + chunk.length, ids.length), total: ids.length });
+      }
+      const logos = hospitalId ? await loadHospitalLogos(hospitalId) : { hospitalLogo: null, scihLogos: [] };
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      buildAntibiogramBatchPdf(
+        pdf,
+        selected.map(r => ({ ...r, results: resultsByExam[r.id] || [] })),
+        { hospitalName, logos },
+      );
+      pdf.save(`exames-culturas-${selected.length}-selecionados-${todayStamp()}.pdf`);
+      toast.success(`PDF com ${selected.length} exame(s) exportado!`);
+    } catch (e) {
+      toast.error("Erro ao gerar o PDF dos exames selecionados: " + ((e as Error)?.message || "tente novamente."));
+    } finally {
+      setBatchProgress(null);
+    }
+  };
+
   const clearFilters = () => {
     setMesFiltro([]);
     setAnoFiltro([]);
@@ -163,15 +230,15 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
         Histórico
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={(o) => { if (!o && batchProgress) return; setOpen(o); if (!o) setSelectedIds(new Set()); }}>
+        <DialogContent className={HISTORY_DIALOG_CLASS}>
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
               <History className="h-4 w-4 text-primary" />
               Histórico de Exames/Culturas
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className={HISTORY_BODY_CLASS}>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Mês</label>
@@ -215,11 +282,25 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhum registro encontrado.</p>
           ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {filtered.map(record => (
+            <>
+            <HistorySelectionBar
+              visibleIds={filtered.map(r => r.id)}
+              selectedIds={selectedIds}
+              onChange={setSelectedIds}
+              onExport={handleExportSelectedPdf}
+              progress={batchProgress}
+            />
+            <div ref={pager.listRef} className={HISTORY_SCROLL_LIST_CLASS}>
+              {pager.pageItems.map(record => (
                 <div key={record.id} className="border rounded-lg p-3 space-y-2 bg-background">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <HistoryRowCheckbox
+                        checked={selectedIds.has(record.id)}
+                        onChange={(c) => setSelectedIds(prev => toggleInSet(prev, record.id, c))}
+                        disabled={!!batchProgress}
+                        label="Selecionar exame para o PDF"
+                      />
                       <span className="text-sm font-medium">
                         {new Date(record.collection_date + "T00:00:00").toLocaleDateString("pt-BR")}
                       </span>
@@ -295,6 +376,11 @@ export default function AntibiogramHistory({ onEdit, refreshKey }: Props) {
                 </div>
               ))}
             </div>
+            <HistoryPagination
+              page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize}
+              onPage={(p) => { setExpandedId(null); pager.goTo(p); }}
+            />
+            </>
           )}
           </div>
         </DialogContent>
