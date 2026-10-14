@@ -27,6 +27,8 @@
 --   * gatilhos de pacientes, auditorias (cria plano de ação) e laboratório OK
 --   * visitante: funções negadas; tabelas protegidas retornam vazio sem erro;
 --     marketplace (7) e avatares continuam acessíveis
+-- Aplicada e verificada em produção (14/10): 0 diferenças nas 304 medições;
+-- alertas "anon pode executar" do Supabase: 16 -> 1 (user_has_hospital, mantida).
 --
 -- Para desfazer:
 --   DO $$ DECLARE r record; BEGIN
