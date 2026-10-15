@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, AlertTriangle, CheckCircle, Clock, Eye, Pencil, Loader2, Download, Info,
   FileText, Syringe, ShieldAlert, ClipboardList, User, Save, CheckCircle2, XCircle, Trash2,
-  ChevronLeft, ChevronRight, Stethoscope, Activity, Printer
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Stethoscope, Activity, Printer, ScrollText
 } from "lucide-react";
 import DashboardAIInsights from "@/components/DashboardAIInsights";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,6 +126,7 @@ const checklistItems = [
 const contaminacaoPotenciais = ["Limpa", "Potencialmente contaminada", "Contaminada", "Infectada"];
 
 const DETAIL_STEPS = [
+  { key: "resumo", label: "Resumo", icon: ScrollText },
   { key: "identificacao", label: "Identificação", icon: FileText },
   { key: "classificacao", label: "Classificação", icon: ClipboardList },
   { key: "ocorrencia", label: "Ocorrência", icon: Activity },
@@ -136,6 +137,54 @@ const DETAIL_STEPS = [
   { key: "checklist", label: "Checklist", icon: CheckCircle2 },
   { key: "conclusao", label: "Conclusão", icon: CheckCircle },
 ];
+
+// Índice de cada aba pela chave (evita números fixos ao incluir/reordenar abas)
+const STEP = Object.fromEntries(DETAIL_STEPS.map((s, i) => [s.key, i])) as Record<string, number>;
+
+// Resumo do Monitoramento (dados do paciente vinculado ao caso); null quando não há o que mostrar
+function getMonitorSummary(c: InfectionCase | null) {
+  const p = c?.patient;
+  const cd: any = (p?.clinical_data as any) || {};
+  const ev: Record<string, string> = cd.evolucao || {};
+  const abx: any[] = Array.isArray(cd.antibioticos) ? cd.antibioticos : [];
+  const evFields: { key: string; label: string }[] = [
+    { key: "evolucaoInternacao", label: "Evolução durante internação" },
+    { key: "colonizacoes", label: "Colonizações" },
+    { key: "antibioticoPrevio", label: "Antibióticos prévios" },
+    { key: "antibioticosCTI", label: "Antibióticos no CTI" },
+    { key: "dispositivosInvasivos", label: "Dispositivos invasivos (texto)" },
+    { key: "condutasDiarias", label: "Condutas diárias" },
+    { key: "resultadoCulturasCTI", label: "Resultado de culturas" },
+    { key: "examesImagem", label: "Exames de imagem" },
+  ];
+  const filled = evFields.filter(f => (ev[f.key] || "").toString().trim());
+  const di: any = cd.dispInvasivos || {};
+  const deviceLabels: { key: string; label: string }[] = [
+    { key: "cvc", label: "CVC (Cateter Venoso Central)" },
+    { key: "cvp", label: "CVP (Cateter Venoso Periférico)" },
+    { key: "svu", label: "SVD (Sonda Vesical de Demora)" },
+    { key: "vm", label: "VM (Ventilação Mecânica)" },
+    { key: "tqt", label: "TQT (Traqueostomia)" },
+    { key: "hemo", label: "Hemodiálise" },
+    { key: "picc", label: "PICC" },
+    { key: "cuv", label: "CUV (Cateter Umbilical Venoso)" },
+    { key: "cva", label: "CVA (Cateter Umbilical Arterial)" },
+  ];
+  const devices = deviceLabels
+    .map(d => ({ ...d, insercao: di[`${d.key}Insercao`] || "", retirada: di[`${d.key}Retirada`] || "" }))
+    .filter(d => !!d.insercao);
+  const calcDias = (insercao: string, retirada?: string): string => {
+    if (!insercao) return "—";
+    const start = new Date(insercao);
+    const end = retirada ? new Date(retirada) : new Date();
+    const dias = Math.round((end.getTime() - start.getTime()) / 86400000);
+    return retirada ? `${dias} dias` : `Em uso (${dias}d)`;
+  };
+  const labPanel: any[] = Array.isArray(cd.labPanel) ? cd.labPanel : [];
+  const hasContent = filled.length > 0 || abx.length > 0 || devices.length > 0 || labPanel.length > 0 || p?.base_diseases || p?.admission_reason;
+  if (!c?.patient_id || !p || !hasContent) return null;
+  return { p, ev, abx, filled, devices, calcDias, labPanel };
+}
 
 // ─── Helper ───────────────────────────────────────────────────
 function daysFromDate(d: string) {
@@ -184,6 +233,7 @@ const CasesInvestigation = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStep, setDetailStep] = useState(0);
   const [printMode, setPrintMode] = useState(false);
+  const [resumoMinimizado, setResumoMinimizado] = useState(false);
   const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
 
   // 1. Identificação
@@ -580,7 +630,7 @@ const CasesInvestigation = () => {
     setResponsavel(d.responsavel || "");
     setChecklistDone(d.checklistDone || []);
     setConclusao(d.conclusao || { classificacaoFinal: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
-    setDetailStep(0);
+    setDetailStep(getMonitorSummary(c) ? STEP.resumo : STEP.identificacao);
     setDetailOpen(true);
     setDetailCase(null);
   };
@@ -611,7 +661,7 @@ const CasesInvestigation = () => {
     setResponsavel("");
     setChecklistDone([]);
     setConclusao({ classificacaoFinal: "", conclusaoEpidemiologica: "", condutas: "", desfecho: "", vinculoSurto: "" });
-    setDetailStep(0);
+    setDetailStep(STEP.identificacao);
     setDetailOpen(true);
   };
 
@@ -689,17 +739,17 @@ const CasesInvestigation = () => {
 
   // Finalize investigation
   const handleFinalize = async () => {
-    if (!conclusao.classificacaoFinal) { toast.error("Classificação final é obrigatória"); setDetailStep(8); return; }
-    if (!conclusao.conclusaoEpidemiologica) { toast.error("Conclusão epidemiológica é obrigatória"); setDetailStep(8); return; }
-    if (!conclusao.condutas) { toast.error("Condutas são obrigatórias"); setDetailStep(8); return; }
-    if (!conclusao.desfecho) { toast.error("Desfecho é obrigatório"); setDetailStep(8); return; }
-    if (!justificativaClinica.trim()) { toast.error("Justificativa clínica é obrigatória"); setDetailStep(3); return; }
+    if (!conclusao.classificacaoFinal) { toast.error("Classificação final é obrigatória"); setDetailStep(STEP.conclusao); return; }
+    if (!conclusao.conclusaoEpidemiologica) { toast.error("Conclusão epidemiológica é obrigatória"); setDetailStep(STEP.conclusao); return; }
+    if (!conclusao.condutas) { toast.error("Condutas são obrigatórias"); setDetailStep(STEP.conclusao); return; }
+    if (!conclusao.desfecho) { toast.error("Desfecho é obrigatório"); setDetailStep(STEP.conclusao); return; }
+    if (!justificativaClinica.trim()) { toast.error("Justificativa clínica é obrigatória"); setDetailStep(STEP.criterios); return; }
     if (!responsavel.trim()) { toast.error("Defina o responsável pela investigação"); return; }
 
     const incompleteChecklist = checklistItems.filter(item => !checklistDone.includes(item));
     if (incompleteChecklist.length > 0) {
       toast.error(`Complete o checklist (${incompleteChecklist.length} itens pendentes)`);
-      setDetailStep(7);
+      setDetailStep(STEP.checklist);
       return;
     }
 
@@ -807,61 +857,46 @@ const CasesInvestigation = () => {
         </div>
 
         <div className="mt-6 space-y-4 max-w-5xl">
-            {(() => {
-              const p = monitorCase?.patient;
-              const cd: any = (p?.clinical_data as any) || {};
-              const ev: Record<string, string> = cd.evolucao || {};
-              const abx: any[] = Array.isArray(cd.antibioticos) ? cd.antibioticos : [];
-              const evFields: { key: string; label: string }[] = [
-                { key: "evolucaoInternacao", label: "Evolução durante internação" },
-                { key: "colonizacoes", label: "Colonizações" },
-                { key: "antibioticoPrevio", label: "Antibióticos prévios" },
-                { key: "antibioticosCTI", label: "Antibióticos no CTI" },
-                { key: "dispositivosInvasivos", label: "Dispositivos invasivos (texto)" },
-                { key: "condutasDiarias", label: "Condutas diárias" },
-                { key: "resultadoCulturasCTI", label: "Resultado de culturas" },
-                { key: "examesImagem", label: "Exames de imagem" },
-              ];
-              const filled = evFields.filter(f => (ev[f.key] || "").toString().trim());
-              const di: any = cd.dispInvasivos || {};
-              const deviceLabels: { key: string; label: string }[] = [
-                { key: "cvc", label: "CVC (Cateter Venoso Central)" },
-                { key: "cvp", label: "CVP (Cateter Venoso Periférico)" },
-                { key: "svu", label: "SVD (Sonda Vesical de Demora)" },
-                { key: "vm", label: "VM (Ventilação Mecânica)" },
-                { key: "tqt", label: "TQT (Traqueostomia)" },
-                { key: "hemo", label: "Hemodiálise" },
-                { key: "picc", label: "PICC" },
-                { key: "cuv", label: "CUV (Cateter Umbilical Venoso)" },
-                { key: "cva", label: "CVA (Cateter Umbilical Arterial)" },
-              ];
-              const devices = deviceLabels
-                .map(d => ({ ...d, insercao: di[`${d.key}Insercao`] || "", retirada: di[`${d.key}Retirada`] || "" }))
-                .filter(d => !!d.insercao);
-              const calcDias = (insercao: string, retirada?: string): string => {
-                if (!insercao) return "—";
-                const start = new Date(insercao);
-                const end = retirada ? new Date(retirada) : new Date();
-                const dias = Math.round((end.getTime() - start.getTime()) / 86400000);
-                return retirada ? `${dias} dias` : `Em uso (${dias}d)`;
-              };
-              const labPanel: any[] = Array.isArray(cd.labPanel) ? cd.labPanel : [];
-              const hasContent = filled.length > 0 || abx.length > 0 || devices.length > 0 || labPanel.length > 0 || p?.base_diseases || p?.admission_reason;
-              if (!monitorCase?.patient_id || !p || !hasContent) return null;
+            {(detailStep === STEP.resumo || printMode) && (() => {
+              const resumo = getMonitorSummary(monitorCase);
+              if (!resumo) {
+                if (printMode) return null;
+                return (
+                  <Card>
+                    <CardContent className="py-8 text-center text-sm text-muted-foreground space-y-3">
+                      <p>Este caso não tem Resumo do Monitoramento: o paciente não está vinculado ao Monitoramento ou ainda não há evolução registrada.</p>
+                      <Button variant="outline" size="sm" onClick={() => setDetailStep(STEP.identificacao)}>Ir para Identificação</Button>
+                    </CardContent>
+                  </Card>
+                );
+              }
+              const { p, ev, abx, filled, devices, calcDias, labPanel } = resumo;
 
               return (
                 <Card className="border-blue-200 bg-blue-50/40 dark:bg-blue-950/20">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
                       <span className="flex items-center gap-2"><ClipboardList className="h-4 w-4 text-blue-600" />Resumo do Monitoramento</span>
-                      <span className="flex flex-wrap gap-1.5">
+                      <span className="flex flex-wrap items-center gap-1.5">
                         {p.bed && <Badge variant="outline" className="text-[10px]">Leito: {p.bed}</Badge>}
                         {p.sector && <Badge variant="outline" className="text-[10px]">Unidade: {p.sector}</Badge>}
                         {p.gender && <Badge variant="outline" className="text-[10px]">Sexo: {p.gender}</Badge>}
                         {p.admission_date && <Badge variant="outline" className="text-[10px]">Internação: {p.admission_date}</Badge>}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 print:hidden"
+                          onClick={() => setResumoMinimizado(m => !m)}
+                          title={resumoMinimizado ? "Expandir resumo" : "Minimizar resumo"}
+                          aria-label={resumoMinimizado ? "Expandir resumo" : "Minimizar resumo"}
+                          aria-expanded={!resumoMinimizado}
+                        >
+                          {resumoMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </Button>
                       </span>
                     </CardTitle>
                   </CardHeader>
+                  {(!resumoMinimizado || printMode) && (
                   <CardContent className="space-y-3 text-sm">
                     {filled.length > 0 && (
                       <div className="space-y-2">
@@ -935,10 +970,11 @@ const CasesInvestigation = () => {
                       </div>
                     )}
                   </CardContent>
+                  )}
                 </Card>
               );
             })()}
-            {(detailStep === 0 || printMode) && (
+            {(detailStep === STEP.identificacao || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Identificação do Paciente</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -966,7 +1002,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 1: Classificação do Evento ── */}
-            {(detailStep === 1 || printMode) && (
+            {(detailStep === STEP.classificacao || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4 text-primary" />Classificação do Evento</CardTitle></CardHeader>
@@ -1045,7 +1081,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 2: Dados da Ocorrência ── */}
-            {(detailStep === 2 || printMode) && (
+            {(detailStep === STEP.ocorrencia || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Dados da Ocorrência</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1066,7 +1102,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 3: Critérios Diagnósticos ── */}
-            {(detailStep === 3 || printMode) && (
+            {(detailStep === STEP.criterios || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Stethoscope className="h-4 w-4 text-primary" />Critérios Diagnósticos Padronizados</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -1092,7 +1128,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 4: Lab ── */}
-            {(detailStep === 4 || printMode) && (
+            {(detailStep === STEP.laboratorio || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -1151,7 +1187,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 5: Dispositivos & Fatores de Risco ── */}
-            {(detailStep === 5 || printMode) && (
+            {(detailStep === STEP.dispositivos || printMode) && (
               <>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" />Dispositivos Invasivos</CardTitle></CardHeader>
@@ -1206,7 +1242,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 6: Cirurgias ── */}
-            {(detailStep === 6 || printMode) && (
+            {(detailStep === STEP.cirurgia || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Procedimentos Cirúrgicos e Exposições</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1233,7 +1269,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 7: Checklist ── */}
-            {(detailStep === 7 || printMode) && (
+            {(detailStep === STEP.checklist || printMode) && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -1264,7 +1300,7 @@ const CasesInvestigation = () => {
             )}
 
             {/* ── Step 8: Conclusão ── */}
-            {(detailStep === 8 || printMode) && (
+            {(detailStep === STEP.conclusao || printMode) && (
               <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" />Conclusão e Encerramento</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
