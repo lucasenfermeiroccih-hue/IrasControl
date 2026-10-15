@@ -668,12 +668,9 @@ const CasesInvestigation = () => {
   // Status change with history
   const changeInvestigationStatus = async (newStatus: string) => {
     if (newStatus === investigationStatus) return;
-    if (!statusJustificativa.trim()) {
-      toast.error("Informe a justificativa da alteração de status");
-      return;
-    }
+    // Justificativa opcional
     const newHistory = [...statusHistory, {
-      status: newStatus, user: responsavel || "Usuário atual", date: new Date().toLocaleString("pt-BR"), justificativa: statusJustificativa,
+      status: newStatus, user: responsavel || "Usuário atual", date: new Date().toLocaleString("pt-BR"), justificativa: statusJustificativa.trim(),
     }];
     setStatusHistory(newHistory);
     setInvestigationStatus(newStatus);
@@ -1041,8 +1038,12 @@ const CasesInvestigation = () => {
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Status e Fase da Investigação</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1">
+                        <Label className="text-xs">Justificativa da Alteração <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                        <Input value={statusJustificativa} onChange={e => setStatusJustificativa(e.target.value)} placeholder="Motivo da mudança de status" />
+                      </div>
+                      <div className="space-y-1 sm:max-w-sm">
                         <Label className="text-xs">Novo Status</Label>
                         <Select value={investigationStatus} onValueChange={v => changeInvestigationStatus(v)}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1054,10 +1055,6 @@ const CasesInvestigation = () => {
                             <SelectItem value="closed">Encerrado</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Justificativa da Alteração</Label>
-                        <Input value={statusJustificativa} onChange={e => setStatusJustificativa(e.target.value)} placeholder="Motivo da mudança de status" />
                       </div>
                     </div>
                     {statusHistory.length > 0 && (
