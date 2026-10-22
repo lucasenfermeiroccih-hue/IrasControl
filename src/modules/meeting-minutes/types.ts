@@ -23,6 +23,8 @@ export interface Meeting {
   theme?: string | null;
   location?: string | null;
   online_link?: string | null;
+  /** Link da gravação (Google Drive) */
+  recording_url?: string | null;
   scheduled_date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
