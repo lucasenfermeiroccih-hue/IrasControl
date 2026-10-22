@@ -224,7 +224,36 @@ describe("CTI indicators — qualidade de dado", () => {
     });
     const r = computeCtiIndicators([p], filter({ months: [7, 8], today: new Date(2026, 9, 1) }));
     expect(r.totals.deviceDays.cvc).toBe(9); // só 1..9 set (ago fora da permanência)
+    // antes da entrada no CTI: só informativo
+    expect(r.dataQualitySummary.DEVICE_BEFORE_CTI_ENTRY).toBe(1);
+    expect(r.dataQualitySummary.DEVICE_OUTSIDE_CTI_STAY).toBeUndefined();
+  });
+
+  it("dispositivo sem retirada depois da saída do CTI → flag de retirada não lançada", () => {
+    const p = mkPatient({
+      icu_admission_date: "2026-09-01", discharge_date: "2026-09-11", status: "discharged", discharge_type: "Alta",
+      clinical_data: disp({ vmInsercao: "2026-09-02", vmRetirada: "" }),
+    });
+    const r = computeCtiIndicators([p], filter({ today: new Date(2026, 8, 20) }));
+    expect(r.totals.deviceDays.vm).toBe(9); // 2..10 (dia da saída não conta)
     expect(r.dataQualitySummary.DEVICE_OUTSIDE_CTI_STAY).toBe(1);
+    expect(r.dataQualitySummary.DEVICE_BEFORE_CTI_ENTRY).toBeUndefined();
+  });
+
+  it("marca se a pendência afeta o período filtrado (setembro)", () => {
+    const today = new Date(2026, 8, 20);
+    // Alta sem data de saída desde abril: conta como internado em todos os meses → afeta setembro
+    const semSaida = mkPatient({ icu_admission_date: "2026-04-08", status: "discharged", discharge_type: "Alta" });
+    // Sem entrada no CTI, admitido em agosto e ainda internado → afeta setembro
+    const semEntrada = mkPatient({ admission_date: "2026-08-01", status: "active" });
+    // Saída antes da entrada, tudo em junho → não afeta setembro
+    const junho = mkPatient({ icu_admission_date: "2026-06-10", discharge_date: "2026-06-01", status: "discharged" });
+
+    const r = computeCtiIndicators([semSaida, semEntrada, junho], filter({ today }));
+    const inPeriod = (id: string) => r.dataQuality.find(f => f.patientId === id)?.inPeriod;
+    expect(inPeriod(semSaida.id)).toBe(true);
+    expect(inPeriod(semEntrada.id)).toBe(true);
+    expect(inPeriod(junho.id)).toBe(false);
   });
 });
 

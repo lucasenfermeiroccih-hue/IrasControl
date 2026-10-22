@@ -60,7 +60,8 @@ export type DataQualityCode =
   | "MISSING_ICU_ADMISSION"          // em setor de CTI mas sem data de entrada no CTI
   | "DISCHARGE_BEFORE_ADMISSION"     // alta/saída anterior à entrada no CTI
   | "DEVICE_REMOVAL_BEFORE_INSERTION"// retirada anterior à inserção
-  | "DEVICE_OUTSIDE_CTI_STAY"        // uso de dispositivo fora da permanência no CTI
+  | "DEVICE_OUTSIDE_CTI_STAY"        // dispositivo em uso depois da saída do CTI (retirada não lançada)
+  | "DEVICE_BEFORE_CTI_ENTRY"        // dispositivo inserido antes da entrada no CTI (informativo)
   | "DUPLICATE_EPISODE"              // registro duplicado do mesmo episódio
   | "INVALID_DATE"                   // data ausente/ano<2000/não-parseável
   | "MISSING_DISCHARGE_FOR_CLOSED_STATUS" // status fechado sem data de saída
@@ -74,7 +75,25 @@ export interface DataQualityFlag {
   patientId: string;
   patientName: string;
   detail?: string;
+  /** Afeta o período filtrado: paciente com dias no CTI no período ou cuja internação o sobrepõe. */
+  inPeriod: boolean;
 }
+
+/** Apenas informativos: não alteram nenhum indicador (não entram no aviso de pendências). */
+export const INFORMATIONAL_CODES: DataQualityCode[] = ["DEVICE_BEFORE_CTI_ENTRY"];
+
+/** Rótulo e orientação de correção de cada pendência, para a tela. */
+export const DATA_QUALITY_INFO: Record<DataQualityCode, { label: string; action: string }> = {
+  MISSING_ICU_ADMISSION: { label: "Sem data de entrada no CTI/setor", action: "Lançar a data de entrada (conta zero paciente-dia sem ela)" },
+  DISCHARGE_BEFORE_ADMISSION: { label: "Saída antes da entrada no CTI", action: "Corrigir a data de entrada ou a de saída" },
+  DEVICE_REMOVAL_BEFORE_INSERTION: { label: "Retirada de dispositivo antes da inserção", action: "Corrigir a data de inserção ou de retirada" },
+  DEVICE_OUTSIDE_CTI_STAY: { label: "Dispositivo sem retirada após a saída", action: "Lançar a data real de retirada do dispositivo" },
+  DEVICE_BEFORE_CTI_ENTRY: { label: "Dispositivo inserido antes da entrada no CTI", action: "Só conferir a data de entrada (os dias anteriores não contam)" },
+  DUPLICATE_EPISODE: { label: "Cadastro duplicado", action: "Excluir a ficha duplicada (a cópia já é ignorada nos indicadores)" },
+  INVALID_DATE: { label: "Data inválida", action: "Corrigir a data" },
+  MISSING_DISCHARGE_FOR_CLOSED_STATUS: { label: "Alta/óbito/transferência sem data de saída", action: "Lançar a data real da saída (hoje conta como internado)" },
+  STALE_ACTIVE: { label: "Ativo sem atualização há mais de 30 dias", action: "Verificar se ainda está internado; se não, lançar a saída" },
+};
 
 export interface CtiPatientBreakdown {
   id: string;
@@ -356,8 +375,15 @@ export function computeCtiIndicators(patients: CtiPatientRow[], filter: CtiFilte
   const periodEndKey = lastIntervalEnd ? dayKey(minDate(lastIntervalEnd, today)) : null;
 
   const dataQuality: DataQualityFlag[] = [];
-  const addFlag = (p: CtiPatientRow, code: DataQualityCode, detail?: string) =>
-    dataQuality.push({ code, patientId: p.id, patientName: p.full_name, detail });
+  // Internação (entrada no CTI ou, sem ela, admissão até a saída/hoje) sobrepõe o período?
+  const overlapsPeriod = (p: CtiPatientRow): boolean => {
+    const start = parseCivilDate(p.icu_admission_date) || parseCivilDate(p.admission_date);
+    if (!start) return false;
+    const end = parseCivilDate(p.discharge_date) || today;
+    return intervals.some((iv) => start <= iv.endIncl && end >= iv.start);
+  };
+  const addFlag = (p: CtiPatientRow, code: DataQualityCode, detail?: string, inPeriod?: boolean) =>
+    dataQuality.push({ code, patientId: p.id, patientName: p.full_name, detail, inPeriod: inPeriod ?? overlapsPeriod(p) });
 
   // Elegíveis = no CTI selecionado (setor atual). Dedupe de episódios duplicados.
   const sectorSet = new Set(sectors);
@@ -431,13 +457,18 @@ export function computeCtiIndicators(patients: CtiPatientRow[], filter: CtiFilte
           for (const d of daysInIntervals(ep.start, lastCensusDay(ep.start, ep.end), intervals, today)) epDays.add(d);
         }
         // interseção com a permanência no CTI
+        const entryKey = dayKey(icuStart);
         let count = 0;
-        let outside = 0;
+        let before = 0;
+        let after = 0;
         for (const d of epDays) {
           if (ctiDays.has(d)) count++;
-          else outside++;
+          else if (d < entryKey) before++;
+          else after++;
         }
-        if (outside > 0) flag("DEVICE_OUTSIDE_CTI_STAY", `${type.toUpperCase()}: ${outside} dia(s) fora da permanência no CTI`);
+        const label = type === "svu" ? "SVD" : type.toUpperCase();
+        if (after > 0) flag("DEVICE_OUTSIDE_CTI_STAY", `${label}: ${after} dia(s) depois da saída do CTI — retirada não lançada?`);
+        if (before > 0) flag("DEVICE_BEFORE_CTI_ENTRY", `${label}: ${before} dia(s) antes da entrada no CTI`);
         deviceDays[type] = count;
       }
     }

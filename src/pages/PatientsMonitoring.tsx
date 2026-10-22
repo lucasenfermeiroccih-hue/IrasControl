@@ -29,6 +29,8 @@ import { useSectors } from "@/hooks/useSectors";
 import { ComboboxSearch } from "@/components/ComboboxSearch";
 import { MICROORGANISMS } from "@/data/microorganisms";
 import { parseCivilDate } from "@/lib/ctiIndicators";
+import { listOpenDevices, validateRemovals } from "@/lib/deviceClosure";
+import { DeviceRemovalFields } from "@/components/monitoring/DeviceRemovalFields";
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
 
@@ -174,6 +176,8 @@ export default function PatientsMonitoring() {
   // Data REAL da saída (alta/óbito/transferência) — padrão hoje, editável.
   const [dischargeDate, setDischargeDate] = useState<string>(localToday());
   const [dischargeType, setDischargeType] = useState("");
+  // Datas de retirada dos dispositivos abertos, por slot (ver listOpenDevices)
+  const [deviceRemovals, setDeviceRemovals] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
   const [currentStep, setCurrentStep] = useState(0);
   const [editIdOpen, setEditIdOpen] = useState(false);
@@ -426,7 +430,9 @@ export default function PatientsMonitoring() {
     const pat = patients.find(p => p.id === dpId);
     const dateError = validateDischargeDate(pat, dischargeDate);
     if (dateError) { toast.error(dateError); return; }
-    const ok = await dischargePatientFn(dpId, dischargeType, dischargeDate);
+    const removalError = validateRemovals(openDevicesOf(dpId), deviceRemovals, dischargeDate);
+    if (removalError) { toast.error(removalError); return; }
+    const ok = await dischargePatientFn(dpId, dischargeType, dischargeDate, deviceRemovals);
     if (ok) {
       setDischargeOpen(false);
       setDischargePatientId(null);
@@ -434,9 +440,16 @@ export default function PatientsMonitoring() {
     }
   };
 
+  /** Dispositivos ainda abertos do paciente (pede a data de retirada na saída). */
+  const openDevicesOf = (patientId: string | null) => {
+    const pat = patients.find(p => p.id === patientId) as (PatientRecord & { _clinicalData?: { dispInvasivos?: unknown } }) | undefined;
+    return listOpenDevices(pat?._clinicalData?.dispInvasivos);
+  };
+
   const openDischargeConfirm = (patientId: string) => {
     setDischargePatientId(patientId);
     setDischargeDate(localToday());
+    setDeviceRemovals({});
     setDischargeConfirmOpen(true);
   };
 
@@ -1529,7 +1542,7 @@ export default function PatientsMonitoring() {
 
         {/* ─── DISCHARGE TYPE MODAL ─────────────────────────── */}
         <Dialog open={dischargeOpen} onOpenChange={setDischargeOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
             <Select value={dischargeType} onValueChange={setDischargeType}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1540,6 +1553,7 @@ export default function PatientsMonitoring() {
               <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
               <p className="text-[11px] text-muted-foreground">Informe a data em que o paciente realmente saiu. Ela define o paciente-dia e os dispositivo-dia.</p>
             </div>
+            <DeviceRemovalFields devices={openDevicesOf(dischargePatientId)} removals={deviceRemovals} onChange={setDeviceRemovals} dischargeDate={dischargeDate} />
             <DialogFooter>
               <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
               <Button variant="destructive" onClick={handleDischarge}>Confirmar Alta</Button>
@@ -1906,7 +1920,7 @@ export default function PatientsMonitoring() {
                           )}
                           {isAdmin && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); }} title="Alterar status (admin)">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); setDeviceRemovals({}); }} title="Alterar status (admin)">
                                 <RefreshCw className="h-3.5 w-3.5 text-warning" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(p.id)} title="Excluir paciente (admin)">
@@ -1964,7 +1978,7 @@ export default function PatientsMonitoring() {
                     )}
                     {isAdmin && (
                       <>
-                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); }}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => { setStatusChangeId(p.id); setNewStatus(p.status); setDischargeDate(p.dataAlta?.slice(0, 10) || localToday()); setDeviceRemovals({}); }}>
                           <RefreshCw className="h-3 w-3" /> Status
                         </Button>
                         <Button variant="outline" size="sm" className="h-8 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteConfirmId(p.id)}>
@@ -2029,7 +2043,7 @@ export default function PatientsMonitoring() {
 
       {/* ─── CHANGE STATUS (admin) ───────────────────────── */}
       <AlertDialog open={!!statusChangeId} onOpenChange={(o) => !o && setStatusChangeId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Alterar status do paciente</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2053,6 +2067,11 @@ export default function PatientsMonitoring() {
                 <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
               </div>
             )}
+            {newStatus !== "active" && (
+              <div className="mt-3">
+                <DeviceRemovalFields devices={openDevicesOf(statusChangeId)} removals={deviceRemovals} onChange={setDeviceRemovals} dischargeDate={dischargeDate} />
+              </div>
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -2064,8 +2083,10 @@ export default function PatientsMonitoring() {
                     const dateError = validateDischargeDate(patients.find(p => p.id === statusChangeId), dischargeDate);
                     // preventDefault mantém o diálogo aberto para corrigir a data
                     if (dateError) { e.preventDefault(); toast.error(dateError); return; }
+                    const removalError = validateRemovals(openDevicesOf(statusChangeId), deviceRemovals, dischargeDate);
+                    if (removalError) { e.preventDefault(); toast.error(removalError); return; }
                   }
-                  const ok = await changePatientStatus(statusChangeId, newStatus, dischargeMap[newStatus], newStatus !== "active" ? dischargeDate : undefined);
+                  const ok = await changePatientStatus(statusChangeId, newStatus, dischargeMap[newStatus], newStatus !== "active" ? dischargeDate : undefined, deviceRemovals);
                   if (ok) setStatusChangeId(null);
                 }
               }}
@@ -2378,7 +2399,7 @@ export default function PatientsMonitoring() {
       </Dialog>
 
       <Dialog open={dischargeOpen} onOpenChange={setDischargeOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
           <Select value={dischargeType} onValueChange={setDischargeType}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -2389,6 +2410,7 @@ export default function PatientsMonitoring() {
             <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
             <p className="text-[11px] text-muted-foreground">Informe a data em que o paciente realmente saiu. Ela define o paciente-dia e os dispositivo-dia.</p>
           </div>
+          <DeviceRemovalFields devices={openDevicesOf(dischargePatientId)} removals={deviceRemovals} onChange={setDeviceRemovals} dischargeDate={dischargeDate} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDischargeOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleDischarge}>Confirmar Alta</Button>
