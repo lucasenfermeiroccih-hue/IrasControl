@@ -4661,6 +4661,7 @@ export type Database = {
           next_meeting_location: string | null
           next_meeting_time: string | null
           online_link: string | null
+          recording_url: string | null
           president_name: string | null
           previous_pending_items: string | null
           raw_text_input: string | null
@@ -4697,6 +4698,7 @@ export type Database = {
           next_meeting_location?: string | null
           next_meeting_time?: string | null
           online_link?: string | null
+          recording_url?: string | null
           president_name?: string | null
           previous_pending_items?: string | null
           raw_text_input?: string | null
@@ -4733,6 +4735,7 @@ export type Database = {
           next_meeting_location?: string | null
           next_meeting_time?: string | null
           online_link?: string | null
+          recording_url?: string | null
           president_name?: string | null
           previous_pending_items?: string | null
           raw_text_input?: string | null

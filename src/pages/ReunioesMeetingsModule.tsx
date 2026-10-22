@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ClipboardList, Plus, Loader2, Trash2, CheckCircle2, Clock,
   FileText, Download, Users, Calendar, BarChart3, AlertTriangle,
-  ChevronLeft, Save, Sparkles, User, MapPin, Hash, Edit3,
+  ChevronLeft, ChevronRight, Save, Sparkles, User, MapPin, Hash, Edit3, Video, PlayCircle, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,10 @@ import type {
   Meeting, MeetingParticipant, MeetingActionItem, MeetingDecision,
   ActionStatus, ActionPriority, MeetingStatus,
 } from "@/modules/meeting-minutes/types";
+import {
+  LOCATION_OPTIONS, ONLINE_LOCATION, OTHER_LOCATION, locationOption, isOnlineMeeting,
+  isMeetLink, isDriveLink, normalizeUrl, meetingsByDay, monthGrid, civilDate,
+} from "@/modules/meeting-minutes/meetingSchedule";
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -78,6 +82,22 @@ const CSS = `
 .rm-flex-wrap{display:flex;flex-wrap:wrap;gap:8px;}
 .rm-mt{margin-top:12px;}
 .rm-empty{text-align:center;padding:40px 20px;color:var(--tx2);font-size:13px;}
+.rm-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.rm-cal-h{font-size:10px;color:var(--tx3);text-align:center;padding:4px 0;font-weight:600;text-transform:uppercase;}
+.rm-cal-d{min-height:64px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:2px;cursor:default;}
+.rm-cal-d.has{cursor:pointer;border-color:rgba(26,158,117,.5);}
+.rm-cal-d.sel{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal);}
+.rm-cal-d.today .rm-cal-n{background:var(--teal);color:#fff;border-radius:10px;padding:0 6px;}
+.rm-cal-d.empty{background:transparent;border-color:transparent;}
+.rm-cal-n{font-size:11px;color:var(--tx2);align-self:flex-start;}
+.rm-cal-ev{font-size:10px;line-height:1.25;background:var(--teal-g);color:var(--tx);border-radius:4px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;}
+.rm-link-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-decoration:none;border:1px solid transparent;}
+.rm-link-meet{background:#1a73e8;color:#fff;}
+.rm-link-rec{background:transparent;border-color:var(--bd);color:var(--tx2);}
+.rm-link-rec:hover{color:var(--tx);border-color:var(--tx3);}
+.rm-hint{font-size:11px;color:var(--tx2);margin-top:4px;}
+.rm-hint.err{color:var(--red);}
+@media(max-width:768px){.rm-cal-d{min-height:44px;}.rm-cal-ev span{display:none;}}
 `;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -135,6 +155,101 @@ function emptyMeeting(hospitalId: string): Meeting {
   };
 }
 
+/** Botões "Entrar na sala" (Google Meet) e "Ver gravação" (Google Drive). */
+function MeetingLinks({ meeting, size = 'md' }: { meeting: Meeting; size?: 'sm' | 'md' }) {
+  const meet = meeting.online_link ? normalizeUrl(meeting.online_link) : '';
+  const rec = meeting.recording_url ? normalizeUrl(meeting.recording_url) : '';
+  if (!meet && !rec) return null;
+  const pad = size === 'sm' ? { padding: '3px 8px', fontSize: 10 } : undefined;
+  return (
+    <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+      {meet && (
+        <a className="rm-link-btn rm-link-meet" style={pad} href={meet} target="_blank" rel="noopener noreferrer" title="Entrar na sala do Google Meet">
+          <Video size={12} />Entrar na sala
+        </a>
+      )}
+      {rec && (
+        <a className="rm-link-btn rm-link-rec" style={pad} href={rec} target="_blank" rel="noopener noreferrer" title="Abrir a gravação no Google Drive">
+          <PlayCircle size={12} />Ver gravação
+        </a>
+      )}
+    </span>
+  );
+}
+
+const WEEKDAY_HEADERS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+/** Calendário mensal com as reuniões agendadas; clique no dia lista as reuniões. */
+function MeetingCalendar({ meetings, onOpen }: { meetings: Meeting[]; onOpen: (m: Meeting) => void }) {
+  const today = civilDate(new Date());
+  const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [selected, setSelected] = useState<string>(today);
+  const byDay = meetingsByDay(meetings);
+  const weeks = monthGrid(cursor.y, cursor.m);
+  const move = (delta: number) => setCursor(c => {
+    const d = new Date(c.y, c.m + delta, 1);
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  const dayList = byDay[selected] || [];
+
+  return (
+    <div className="rm-card">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
+        <div className="rm-section" style={{ marginBottom: 0, paddingBottom: 0, borderBottom: 'none' }}>Calendário de reuniões</div>
+        <div className="rm-flex">
+          <button className="rm-btn rm-btn-outline" style={{ padding: '4px 8px' }} onClick={() => move(-1)} aria-label="Mês anterior"><ChevronLeft size={13} /></button>
+          <span style={{ fontSize: 13, fontWeight: 600, minWidth: 120, textAlign: 'center' }}>{MONTH_NAMES[cursor.m]} {cursor.y}</span>
+          <button className="rm-btn rm-btn-outline" style={{ padding: '4px 8px' }} onClick={() => move(1)} aria-label="Próximo mês"><ChevronRight size={13} /></button>
+        </div>
+      </div>
+      <div className="rm-cal">
+        {WEEKDAY_HEADERS.map(h => <div key={h} className="rm-cal-h">{h}</div>)}
+        {weeks.flat().map((day, i) => {
+          if (!day) return <div key={`e${i}`} className="rm-cal-d empty" />;
+          const list = byDay[day] || [];
+          const cls = ['rm-cal-d', list.length ? 'has' : '', day === selected ? 'sel' : '', day === today ? 'today' : ''].join(' ');
+          return (
+            <div key={day} className={cls} onClick={() => setSelected(day)}>
+              <span className="rm-cal-n">{Number(day.slice(8))}</span>
+              {list.slice(0, 2).map(m => (
+                <div key={m.id} className="rm-cal-ev" title={`${m.start_time || ''} ${m.title}`}>
+                  {isOnlineMeeting(m) ? <Video size={9} /> : <Calendar size={9} />}
+                  <span>{m.start_time ? `${m.start_time} ` : ''}{m.title}</span>
+                </div>
+              ))}
+              {list.length > 2 && <div className="rm-cal-ev">+{list.length - 2}</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Reuniões em {fmt(selected)}</div>
+        {dayList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--tx2)' }}>Nenhuma reunião agendada neste dia.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {dayList.map(m => (
+              <div key={m.id} className="rm-meeting-card" style={{ padding: 10 }} onClick={() => onOpen(m)}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{m.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--tx2)', display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                      {m.start_time && <span><Clock size={10} /> {m.start_time}{m.end_time ? `–${m.end_time}` : ''}</span>}
+                      {m.location && <span><MapPin size={10} /> {m.location}</span>}
+                    </div>
+                  </div>
+                  <MeetingLinks meeting={m} size="sm" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Tab = 'dashboard' | 'agenda' | 'editor' | 'atas' | 'planos';
@@ -153,6 +268,9 @@ export default function ReunioesMeetingsModule() {
   const [decisions, setDecisions] = useState<MeetingDecision[]>([]);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // "Outro" escolhido com o texto ainda vazio; nos demais casos a opção vem do próprio local
+  const [otherLocation, setOtherLocation] = useState(false);
+  const localChoice = otherLocation ? OTHER_LOCATION : locationOption(editingMeeting?.location);
 
   const loadData = useCallback(async () => {
     if (!hospitalId) return;
@@ -177,6 +295,7 @@ export default function ReunioesMeetingsModule() {
     const m = meeting ?? (hospitalId ? emptyMeeting(hospitalId) : null);
     if (!m) return;
     setEditingMeeting(m);
+    setOtherLocation(false);
     setParticipants([]);
     setActionItems([]);
     setDecisions([]);
@@ -213,14 +332,27 @@ export default function ReunioesMeetingsModule() {
     setParticipants(prev => prev.filter((_, idx) => idx !== i));
   }
 
+  /** Valida e normaliza os links (Meet e gravação). Retorna null se houver erro. */
+  function withValidLinks(m: Meeting): Meeting | null {
+    const online = m.location === ONLINE_LOCATION;
+    const meet = normalizeUrl(m.online_link);
+    const rec = normalizeUrl(m.recording_url);
+    if (online && !meet) { toast.error('Reunião online: informe o link da sala do Google Meet.'); return null; }
+    if (meet && !isMeetLink(meet)) { toast.error('O link da sala deve ser do Google Meet (meet.google.com/...).'); return null; }
+    if (rec && !isDriveLink(rec)) { toast.error('O link da gravação deve ser do Google Drive (drive.google.com/...).'); return null; }
+    return { ...m, online_link: meet || null, recording_url: rec || null };
+  }
+
   async function handleSaveMeeting() {
     if (!editingMeeting) return;
     if (!editingMeeting.title.trim()) { toast.error('Informe o título da reunião.'); return; }
+    const toSave = withValidLinks(editingMeeting);
+    if (!toSave) return;
     setSaving(true);
     try {
-      const saved = editingMeeting.id
-        ? await updateMeeting(editingMeeting.id, editingMeeting)
-        : await createMeeting(editingMeeting);
+      const saved = toSave.id
+        ? await updateMeeting(toSave.id, toSave)
+        : await createMeeting(toSave);
       setEditingMeeting(saved);
       await saveParticipants(saved.id!, participants);
       await loadData();
@@ -235,14 +367,16 @@ export default function ReunioesMeetingsModule() {
   async function handleGenerateMinutes() {
     if (!editingMeeting) return;
     if (!editingMeeting.title.trim()) { toast.error('Informe o título da reunião antes de gerar a ata.'); return; }
+    const toSave = withValidLinks(editingMeeting);
+    if (!toSave) return;
     setGenerating(true);
     try {
-      let saved = editingMeeting;
+      let saved = toSave;
       if (!saved.id) {
-        saved = await createMeeting(editingMeeting);
+        saved = await createMeeting(toSave);
         setEditingMeeting(saved);
       } else {
-        saved = await updateMeeting(saved.id, editingMeeting);
+        saved = await updateMeeting(saved.id, toSave);
       }
       await saveParticipants(saved.id!, participants);
 
@@ -416,7 +550,7 @@ export default function ReunioesMeetingsModule() {
             className={`rm-tab${tab === id ? ' active' : ''}`}
             onClick={() => {
               if (id === 'editor' && !editingMeeting && hospitalId) {
-                setEditingMeeting(emptyMeeting(hospitalId));
+                setEditingMeeting(emptyMeeting(hospitalId)); setOtherLocation(false);
                 setParticipants([]);
                 setActionItems([]);
                 setDecisions([]);
@@ -439,10 +573,12 @@ export default function ReunioesMeetingsModule() {
                 <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--tx)' }}>Reuniões e Atas Inteligentes</h1>
                 <p style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 2 }}>Gestão completa de reuniões, atas e planos de ação</p>
               </div>
-              <button className="rm-btn rm-btn-teal" onClick={() => { if (hospitalId) { setEditingMeeting(emptyMeeting(hospitalId)); setParticipants([]); setActionItems([]); setDecisions([]); } setTab('editor'); }}>
+              <button className="rm-btn rm-btn-teal" onClick={() => { if (hospitalId) { setEditingMeeting(emptyMeeting(hospitalId)); setOtherLocation(false); setParticipants([]); setActionItems([]); setDecisions([]); } setTab('editor'); }}>
                 <Plus size={13} />Nova Reunião
               </button>
             </div>
+
+            <MeetingCalendar meetings={meetings} onOpen={openEditor} />
 
             <div className="rm-grid4">
               {[
@@ -486,9 +622,12 @@ export default function ReunioesMeetingsModule() {
                         <td>{m.committee || m.department || '—'}</td>
                         <td><span className={`rm-badge ${STATUS_CLASS[m.status]}`}>{STATUS_LABELS[m.status]}</span></td>
                         <td>
-                          <button className="rm-btn rm-btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => openEditor(m)}>
-                            <Edit3 size={11} />Abrir
-                          </button>
+                          <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button className="rm-btn rm-btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => openEditor(m)}>
+                              <Edit3 size={11} />Abrir
+                            </button>
+                            <MeetingLinks meeting={m} size="sm" />
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -504,7 +643,7 @@ export default function ReunioesMeetingsModule() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: 16, fontWeight: 700 }}>Agenda de Reuniões</h2>
-              <button className="rm-btn rm-btn-teal" onClick={() => { if (hospitalId) { setEditingMeeting(emptyMeeting(hospitalId)); setParticipants([]); setActionItems([]); setDecisions([]); } setTab('editor'); }}>
+              <button className="rm-btn rm-btn-teal" onClick={() => { if (hospitalId) { setEditingMeeting(emptyMeeting(hospitalId)); setOtherLocation(false); setParticipants([]); setActionItems([]); setDecisions([]); } setTab('editor'); }}>
                 <Plus size={13} />Nova Reunião
               </button>
             </div>
@@ -531,6 +670,7 @@ export default function ReunioesMeetingsModule() {
                           {m.reporter_name && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><User size={11} />Relator: {m.reporter_name}</span>}
                         </div>
                         {m.theme && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 4 }}>Tema: {m.theme}</div>}
+                        <div style={{ marginTop: 8 }}><MeetingLinks meeting={m} /></div>
                       </div>
                       <button
                         className="rm-btn rm-btn-red"
@@ -597,7 +737,22 @@ export default function ReunioesMeetingsModule() {
                 </div>
                 <div className="rm-field">
                   <label className="rm-label">Local</label>
-                  <input className="rm-input" value={editingMeeting.location || ''} onChange={e => setMeetingField('location', e.target.value)} placeholder="Sala, endereço ou link" />
+                  <select
+                    className="rm-select"
+                    value={localChoice}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setOtherLocation(v === OTHER_LOCATION);
+                      // "Outro": mantém o texto livre já digitado (ou vazio) até o usuário preencher
+                      setMeetingField('location', v === OTHER_LOCATION ? (LOCATION_OPTIONS.includes(editingMeeting.location || '') ? '' : editingMeeting.location || '') : v);
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {LOCATION_OPTIONS.map(o => <option key={o} value={o}>{o === ONLINE_LOCATION ? 'Online — link do Google Meet' : o}</option>)}
+                  </select>
+                  {localChoice === OTHER_LOCATION && (
+                    <input className="rm-input" style={{ marginTop: 6 }} value={editingMeeting.location || ''} onChange={e => setMeetingField('location', e.target.value)} placeholder="Digite o local" />
+                  )}
                 </div>
                 <div className="rm-field">
                   <label className="rm-label">Relator da Ata</label>
@@ -613,6 +768,48 @@ export default function ReunioesMeetingsModule() {
                     {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {editingMeeting.location === ONLINE_LOCATION && (
+                <div style={{ marginTop: 14, padding: 12, border: '1px solid #1a73e8', borderRadius: 'var(--r)', background: 'rgba(26,115,232,.08)' }}>
+                  <div className="rm-flex" style={{ marginBottom: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Video size={14} color="#1a73e8" />Sala online (Google Meet)</span>
+                    <a className="rm-link-btn rm-link-rec" href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink size={12} />Criar sala no Google Meet
+                    </a>
+                  </div>
+                  <label className="rm-label">Link da sala *</label>
+                  <input
+                    className="rm-input"
+                    value={editingMeeting.online_link || ''}
+                    onChange={e => setMeetingField('online_link', e.target.value)}
+                    placeholder="https://meet.google.com/abc-defg-hij"
+                  />
+                  {editingMeeting.online_link && !isMeetLink(editingMeeting.online_link) ? (
+                    <div className="rm-hint err">Use um link do Google Meet (meet.google.com/...).</div>
+                  ) : (
+                    <div className="rm-hint">Crie a sala no Google Meet, copie o link e cole aqui. Todos verão o botão "Entrar na sala".</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Gravação */}
+            <div className="rm-card">
+              <div className="rm-section">Gravação da Reunião</div>
+              <div className="rm-field">
+                <label className="rm-label">Link da gravação no Google Drive</label>
+                <input
+                  className="rm-input"
+                  value={editingMeeting.recording_url || ''}
+                  onChange={e => setMeetingField('recording_url', e.target.value)}
+                  placeholder="https://drive.google.com/file/d/..."
+                />
+                {editingMeeting.recording_url && !isDriveLink(editingMeeting.recording_url) ? (
+                  <div className="rm-hint err">Use um link do Google Drive (drive.google.com/...).</div>
+                ) : (
+                  <div className="rm-hint">Depois da reunião, cole o link da gravação (compartilhada com a equipe). Fica disponível no botão "Ver gravação".</div>
+                )}
               </div>
             </div>
 
