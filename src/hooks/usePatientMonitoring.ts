@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "./useHospitalContext";
 import { toast } from "sonner";
+import { closeOpenDevices, listOpenDevices } from "@/lib/deviceClosure";
 
 export interface PatientRecord {
   id: string;
@@ -230,11 +231,70 @@ export function usePatientMonitoring() {
   };
 
   /**
+   * Encerra, na saída do paciente, os antibióticos e dispositivos ainda abertos.
+   * Dispositivos usam a data de retirada informada (`deviceRemovals[slot]`, ver
+   * listOpenDevices); sem ela, a data da saída. Devolve o clinical_data atualizado
+   * e `closeTables`, que encerra as tabelas separadas — chamar só depois de salvar
+   * o paciente com sucesso.
+   */
+  const closeOpenRecords = async (id: string, exitDate: string, deviceRemovals: Record<string, string>) => {
+    // Nunca encerra antes do início (registro iniciado depois da data da alta)
+    const closeAt = (start?: string | null) => (start && start > exitDate ? start : exitDate);
+
+    // clinical_data atual do banco (não do estado local, que pode estar desatualizado)
+    const { data: patRow } = await supabase
+      .from("patients")
+      .select("clinical_data")
+      .eq("id", id)
+      .single();
+    const cd: any = (patRow?.clinical_data as any) || {};
+
+    const antibioticos: Array<{ id: string; nome: string; dataInicio: string; dataFim: string }> =
+      cd.antibioticos || [];
+    const closedAntibioticos = antibioticos.map((atb) =>
+      atb.dataFim ? atb : { ...atb, dataFim: closeAt(atb.dataInicio) }
+    );
+    const openDevices = listOpenDevices(cd.dispInvasivos);
+    const dispInvasivos = closeOpenDevices(cd.dispInvasivos, exitDate, deviceRemovals);
+    const updatedCd = { ...cd, antibioticos: closedAntibioticos, dispInvasivos };
+
+    // Tabelas separadas (best-effort). patient_devices: mesma data do dispositivo
+    // equivalente (tipo + inserção); sem correspondência, a data da saída.
+    const closeTables = async () => {
+      const { data: openRows } = await supabase
+        .from("patient_devices")
+        .select("id, device_type, insertion_date")
+        .eq("patient_id", id)
+        .is("removal_date", null);
+      await Promise.allSettled([
+        supabase
+          .from("antimicrobial_prescriptions")
+          .update({ end_date: exitDate, is_active: false })
+          .eq("patient_id", id)
+          .is("end_date", null),
+        ...(openRows || []).map((row) => {
+          const insertion = (row.insertion_date || "").slice(0, 10);
+          const match = openDevices.find((d) => d.type === row.device_type && d.insercao === insertion);
+          const when = (match && deviceRemovals[match.slot]) || closeAt(insertion);
+          return supabase.from("patient_devices").update({ removal_date: when }).eq("id", row.id);
+        }),
+      ]);
+    };
+
+    return { updatedCd, closeTables };
+  };
+
+  /**
    * Registra a saída do paciente na data REAL informada (YYYY-MM-DD). Sem data,
    * usa o dia de hoje (data local, não UTC). Antibióticos e dispositivos ainda
-   * abertos são encerrados nessa mesma data.
+   * abertos são encerrados (dispositivos na data de retirada informada).
    */
-  const dischargePatient = async (id: string, dischargeType: string, dischargeDate?: string) => {
+  const dischargePatient = async (
+    id: string,
+    dischargeType: string,
+    dischargeDate?: string,
+    deviceRemovals: Record<string, string> = {},
+  ) => {
     const statusMap: Record<string, string> = {
       "Óbito": "deceased",
       "Alta": "discharged",
@@ -242,41 +302,7 @@ export function usePatientMonitoring() {
     };
     const newStatus = statusMap[dischargeType] || "discharged";
     const today = dischargeDate || localToday();
-    // Nunca encerra antes do início (registro iniciado depois da data da alta)
-    const closeAt = (start?: string | null) => (start && start > today ? start : today);
-
-    // Fetch current clinical_data to auto-close open antibiotics and devices
-    const { data: patRow } = await supabase
-      .from("patients")
-      .select("clinical_data")
-      .eq("id", id)
-      .single();
-
-    const cd: any = (patRow?.clinical_data as any) || {};
-
-    // Close antibiotics without dataFim
-    const antibioticos: Array<{ id: string; nome: string; dataInicio: string; dataFim: string }> =
-      cd.antibioticos || [];
-    const closedAntibioticos = antibioticos.map((atb) =>
-      atb.dataFim ? atb : { ...atb, dataFim: closeAt(atb.dataInicio) }
-    );
-
-    // Close devices without retirada (including open trocas)
-    const deviceKeys = ["cvc", "cvp", "svu", "vm", "tqt", "hemo", "picc", "cuv", "cva"];
-    const dispInvasivos = { ...(cd.dispInvasivos || {}) };
-    for (const k of deviceKeys) {
-      if (dispInvasivos[`${k}Insercao`] && !dispInvasivos[`${k}Retirada`]) {
-        dispInvasivos[`${k}Retirada`] = closeAt(dispInvasivos[`${k}Insercao`]);
-      }
-      if (Array.isArray(dispInvasivos[`${k}Trocas`])) {
-        dispInvasivos[`${k}Trocas`] = dispInvasivos[`${k}Trocas`].map(
-          (t: { insercao: string; retirada: string }) =>
-            t.insercao && !t.retirada ? { ...t, retirada: closeAt(t.insercao) } : t
-        );
-      }
-    }
-
-    const updatedCd = { ...cd, antibioticos: closedAntibioticos, dispInvasivos };
+    const { updatedCd, closeTables } = await closeOpenRecords(id, today, deviceRemovals);
 
     const { error } = await supabase
       .from("patients")
@@ -292,20 +318,7 @@ export function usePatientMonitoring() {
       toast.error("Erro ao dar alta: " + error.message);
       return false;
     }
-
-    // Also close records in separate tables (best-effort)
-    await Promise.allSettled([
-      (supabase as any)
-        .from("antimicrobial_prescriptions")
-        .update({ end_date: today, is_active: false })
-        .eq("patient_id", id)
-        .is("end_date", null),
-      (supabase as any)
-        .from("patient_devices")
-        .update({ removal_date: today })
-        .eq("patient_id", id)
-        .is("removal_date", null),
-    ]);
+    await closeTables();
 
     setPatients((prev) =>
       prev.map((p) =>
@@ -336,11 +349,22 @@ export function usePatientMonitoring() {
     return true;
   };
 
-  const changePatientStatus = async (id: string, newStatus: PatientRecord["status"], dischargeType?: string, dischargeDate?: string) => {
+  const changePatientStatus = async (
+    id: string,
+    newStatus: PatientRecord["status"],
+    dischargeType?: string,
+    dischargeDate?: string,
+    deviceRemovals: Record<string, string> = {},
+  ) => {
     const updates: any = { status: newStatus };
+    let closeTables: (() => Promise<void>) | null = null;
     if (newStatus !== "active") {
       updates.discharge_date = dischargeDate || localToday();
       if (dischargeType) updates.discharge_type = dischargeType;
+      // Saída: encerra antibióticos e dispositivos abertos, como na alta
+      const closed = await closeOpenRecords(id, updates.discharge_date, deviceRemovals);
+      updates.clinical_data = closed.updatedCd;
+      closeTables = closed.closeTables;
     } else {
       updates.discharge_date = null;
       updates.discharge_type = null;
@@ -350,8 +374,12 @@ export function usePatientMonitoring() {
       toast.error("Erro ao alterar status: " + error.message);
       return false;
     }
+    if (closeTables) await closeTables();
     setPatients(prev => prev.map(p => p.id === id
-      ? { ...p, status: newStatus, dataAlta: updates.discharge_date || "", tipoAlta: updates.discharge_type || "" }
+      ? {
+        ...p, status: newStatus, dataAlta: updates.discharge_date || "", tipoAlta: updates.discharge_type || "",
+        ...(updates.clinical_data ? { _clinicalData: updates.clinical_data } : {}),
+      }
       : p));
     toast.success("Status atualizado!");
     return true;

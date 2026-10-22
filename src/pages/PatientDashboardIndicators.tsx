@@ -21,7 +21,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { computeCtiIndicators } from "@/lib/ctiIndicators";
+import { computeCtiIndicators, DATA_QUALITY_INFO, INFORMATIONAL_CODES, type DataQualityCode } from "@/lib/ctiIndicators";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   buildSpecialtyData,
   computeTreatmentIndicators,
@@ -68,6 +69,15 @@ interface PatientRow {
   discharge_type: string | null;
   clinical_data: ClinicalData | null;
   updated_at: string | null;
+  medical_record: string | null;
+}
+
+interface PendingPatient {
+  id: string;
+  name: string;
+  record: string;
+  sector: string;
+  items: { code: DataQualityCode; detail?: string }[];
 }
 
 const PatientDashboardIndicators = () => {
@@ -85,6 +95,7 @@ const PatientDashboardIndicators = () => {
   const [prescriptions, setPrescriptions] = useState<IndicatorPrescription[]>([]);
   const [labResults, setLabResults] = useState<IndicatorLabResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendenciasOpen, setPendenciasOpen] = useState(false);
   type SpecSortKey = "internacoes" | "percent";
   const [specSortKey, setSpecSortKey] = useState<SpecSortKey | null>(null);
   const [specSortDir, setSpecSortDir] = useState<"asc" | "desc">("desc");
@@ -113,7 +124,7 @@ const PatientDashboardIndicators = () => {
         // Paginado: o Supabase devolve no máximo 1.000 linhas por consulta.
         const pts = await fetchAllRows<PatientRow>(() => supabase
           .from("patients")
-          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data, updated_at")
+          .select("id, full_name, sector, specialty, admission_date, icu_admission_date, discharge_date, status, discharge_type, clinical_data, updated_at, medical_record")
           .eq("hospital_id", hospitalId)
           .neq("source", "precaution_map")
           .order("id"));
@@ -230,7 +241,30 @@ const PatientDashboardIndicators = () => {
       { name: "Internados ao fim do período", value: cti.totals.stillAdmittedAtEnd, color: "hsl(210, 60%, 50%)" },
     ].filter(d => d.value > 0);
 
+    // Pendências de cadastro que afetam o período filtrado, agrupadas por paciente.
+    // Informativas (ex.: dispositivo inserido antes da entrada no CTI) não entram.
+    const rowById = new Map(filteredPatients.map(p => [p.id, p]));
+    const pendingById = new Map<string, PendingPatient>();
+    const otherPeriodIds = new Set<string>();
+    for (const f of cti.dataQuality) {
+      if (INFORMATIONAL_CODES.includes(f.code)) continue;
+      if (!f.inPeriod) { otherPeriodIds.add(f.patientId); continue; }
+      const row = rowById.get(f.patientId);
+      const g = pendingById.get(f.patientId) ?? {
+        id: f.patientId, name: f.patientName, record: row?.medical_record || "", sector: row?.sector || "", items: [],
+      };
+      g.items.push({ code: f.code, detail: f.detail });
+      pendingById.set(f.patientId, g);
+    }
+    const pendingPatients = Array.from(pendingById.values())
+      .sort((a, b) => a.sector.localeCompare(b.sector) || a.name.localeCompare(b.name));
+    const pendingOtherPeriods = Array.from(otherPeriodIds).filter(id => !pendingById.has(id)).length;
+    const periodLabel = selectedYears
+      .flatMap(y => selectedMonths.map(m => `${MONTHS[m]}/${y}`))
+      .join(", ");
+
     return {
+      pendingPatients, pendingOtherPeriods, periodLabel,
       specialtyData, deaths, discharges, totalPatientDays, cvcDays, svuDays, vmDays,
       cvcBreakdown: cvcResult.perPatient,
       svuBreakdown: svuResult.perPatient,
@@ -240,7 +274,6 @@ const PatientDashboardIndicators = () => {
       transfers: cti.totals.transfers,
       activeInCti: cti.totals.activeInCti,
       dataQualitySummary: cti.dataQualitySummary,
-      dataQualityCount: cti.dataQuality.length,
       // Ativos sem atualização há mais de 30 dias que somam dias neste período
       // (provável alta não lançada no Monitoramento).
       staleActive: cti.dataQuality
@@ -456,12 +489,75 @@ const PatientDashboardIndicators = () => {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadConference}>
               <FileText className="h-4 w-4" /> Conferência (CSV)
             </Button>
-            {indicators.dataQualityCount > 0 && (
-              <Badge variant="outline" className="gap-1 text-sm px-3 py-1.5 border-amber-400 text-amber-700 bg-amber-50">
-                ⚠ {indicators.dataQualityCount} registro(s) com dados incompletos/inconsistentes
-              </Badge>
+            {indicators.pendingPatients.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800"
+                onClick={() => setPendenciasOpen(true)}
+                title="Ver quais pacientes têm dados a corrigir"
+              >
+                ⚠ {indicators.pendingPatients.length} paciente(s) com dados a corrigir neste período
+              </Button>
             )}
           </div>
+
+          <Dialog open={pendenciasOpen} onOpenChange={setPendenciasOpen}>
+            <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Dados a corrigir — {indicators.periodLabel}</DialogTitle>
+                <DialogDescription>
+                  {indicators.pendingPatients.length} paciente(s) com cadastro incompleto ou inconsistente que afeta os indicadores deste período.
+                  Corrija no Monitoramento de Pacientes; os números se atualizam ao recarregar esta página.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-background">
+                    <tr className="text-left text-xs text-muted-foreground border-b">
+                      <th className="py-2 pr-3 font-medium">Paciente</th>
+                      <th className="py-2 pr-3 font-medium">Setor</th>
+                      <th className="py-2 pr-3 font-medium">O que está errado</th>
+                      <th className="py-2 font-medium">O que fazer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {indicators.pendingPatients.map(pp => (
+                      <tr key={pp.id} className="border-b align-top">
+                        <td className="py-2 pr-3">
+                          <div className="font-medium">{pp.name}</div>
+                          {pp.record && <div className="text-xs text-muted-foreground">Pront. {pp.record}</div>}
+                        </td>
+                        <td className="py-2 pr-3 whitespace-nowrap">{pp.sector || "—"}</td>
+                        <td className="py-2 pr-3">
+                          <ul className="space-y-1">
+                            {pp.items.map((it, i) => (
+                              <li key={i}>
+                                <span className="font-medium">{DATA_QUALITY_INFO[it.code].label}</span>
+                                {it.detail && <span className="block text-xs text-muted-foreground">{it.detail}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        <td className="py-2 text-xs">
+                          <ul className="space-y-1">
+                            {Array.from(new Set(pp.items.map(it => it.code))).map(code => (
+                              <li key={code}>{DATA_QUALITY_INFO[code].action}</li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {indicators.pendingOtherPeriods > 0 && (
+                <p className="text-xs text-muted-foreground pt-2 border-t">
+                  Outros {indicators.pendingOtherPeriods} paciente(s) têm pendências só em outros meses — filtre esses meses para vê-los.
+                </p>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {indicators.staleActive.length > 0 && (
             <Card className="border-amber-400 bg-amber-50/60 dark:bg-amber-950/20">
