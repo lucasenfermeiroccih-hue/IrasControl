@@ -22,6 +22,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { describeDays, isOffDay, WEEKDAYS, type Escala } from "@/lib/kanbanEscala";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,9 @@ export default function KanbanCCIH() {
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Escala da equipe (dias fixos da semana): tarefas diárias só aparecem nos dias da pessoa
+  const [escala, setEscala] = useState<Escala>({});
+  const [showFolga, setShowFolga] = useState(false);
 
   // Manage tab filters & sort
   const [manageMes, setManageMes] = useState<string>("all");
@@ -288,6 +292,35 @@ export default function KanbanCCIH() {
       );
     }
   }, [hospitalId]);
+
+  // ── Load team schedule ────────────────────────────────────────────────────
+
+  const loadEscala = useCallback(async () => {
+    if (!hospitalId) return;
+    const { data } = await supabase
+      .from("kanban_ccih_escala")
+      .select("user_id, dias_semana")
+      .eq("hospital_id", hospitalId);
+    const map: Escala = {};
+    (data || []).forEach((r) => { map[r.user_id] = r.dias_semana || []; });
+    setEscala(map);
+  }, [hospitalId]);
+
+  /** Liga/desliga um dia na escala de um funcionário (sem escala = todos os dias). */
+  const toggleEscalaDay = async (uid: string, day: number) => {
+    const current = escala[uid] ?? WEEKDAYS.map((w) => w.value);
+    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
+    setEscala((prev) => ({ ...prev, [uid]: next }));
+    if (!hospitalId) return;
+    const { error } = await supabase.from("kanban_ccih_escala").upsert(
+      { hospital_id: hospitalId, user_id: uid, dias_semana: next, updated_at: new Date().toISOString(), updated_by: userId },
+      { onConflict: "hospital_id,user_id" },
+    );
+    if (error) {
+      toast.error("Erro ao salvar a escala.");
+      await loadEscala();
+    }
+  };
 
   // ── Load tasks ────────────────────────────────────────────────────────────
 
@@ -363,7 +396,7 @@ export default function KanbanCCIH() {
       setLoading(true);
       // Always load hospital users so admin names show up; cheap query.
       await loadHospitalUsers();
-      await loadTarefas();
+      await Promise.all([loadTarefas(), loadEscala()]);
       setLoading(false);
     };
     init();
@@ -522,11 +555,19 @@ export default function KanbanCCIH() {
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
+  // Hoje (dia da semana local). Tarefas diárias de quem está de folga não aparecem:
+  // no quadro de quem executa, pelo próprio dia; na visão do admin, quando nenhum
+  // responsável trabalha hoje (pode exibir com "Mostrar quem está de folga").
+  const today = new Date().getDay();
+  const assignedToMe = tarefas.filter((t) =>
+    t.assigned_to_ids?.includes(userId!) || t.assigned_to === userId
+  );
+  const folgaHoje = isAdmin
+    ? tarefas.filter((t) => isOffDay(t, escala, today))
+    : assignedToMe.filter((t) => isOffDay(t, escala, today, userId));
   const myTarefas = isAdmin
-    ? tarefas
-    : tarefas.filter((t) =>
-        t.assigned_to_ids?.includes(userId!) || t.assigned_to === userId
-      );
+    ? (showFolga ? tarefas : tarefas.filter((t) => !isOffDay(t, escala, today)))
+    : assignedToMe.filter((t) => !isOffDay(t, escala, today, userId));
 
   const filtered = myTarefas.filter((t) => {
     // Aplica filtro de recorrência selecionado
@@ -632,6 +673,19 @@ export default function KanbanCCIH() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          {folgaHoje.length > 0 && (
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+              <span>
+                {folgaHoje.length} tarefa(s) diária(s) {isAdmin ? "de quem está de folga hoje" : "fora da sua escala hoje"} não aparece(m) no quadro.
+              </span>
+              {isAdmin && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowFolga((v) => !v)}>
+                  {showFolga ? "Ocultar" : "Mostrar"}
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Checklist */}
           <Card className="border border-violet-200 bg-violet-50/40">
@@ -763,6 +817,51 @@ export default function KanbanCCIH() {
               Nova Tarefa
             </Button>
           </div>
+
+          {/* Escala da equipe */}
+          <Card>
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" /> Escala da equipe
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Dias em que cada pessoa trabalha: as tarefas diárias dela só aparecem no quadro nesses dias. Quem nunca teve a escala ajustada aparece todos os dias. Clique no dia para incluir ou remover; salva na hora.
+              </p>
+            </CardHeader>
+            <CardContent className="px-4 pb-3 space-y-1.5">
+              {hospitalUsers.length === 0 && <p className="text-xs text-muted-foreground">Nenhum funcionário encontrado.</p>}
+              {[...hospitalUsers].sort((a, b) => a.full_name.localeCompare(b.full_name)).map((u) => {
+                const dias = escala[u.user_id];
+                return (
+                  <div key={u.user_id} className="flex items-center justify-between gap-3 flex-wrap border-b last:border-b-0 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{u.full_name}</p>
+                      <p className="text-[11px] text-muted-foreground">{describeDays(dias)}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {WEEKDAYS.map((w) => {
+                        const on = !dias || dias.includes(w.value);
+                        return (
+                          <button
+                            key={w.value}
+                            type="button"
+                            onClick={() => toggleEscalaDay(u.user_id, w.value)}
+                            aria-pressed={on}
+                            title={`${on ? "Remover" : "Incluir"} ${w.label}`}
+                            className={`h-7 w-9 rounded text-[11px] font-medium border transition-colors ${
+                              on ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {w.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
 
           {/* Filtros */}
           <Card>

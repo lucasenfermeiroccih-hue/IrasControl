@@ -3482,6 +3482,48 @@ export type Database = {
           },
         ]
       }
+      kanban_ccih_escala: {
+        Row: {
+          dias_semana: number[]
+          hospital_id: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          dias_semana?: number[]
+          hospital_id: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          dias_semana?: number[]
+          hospital_id?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_ccih_escala_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_ccih_escala_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_ccih_tarefas: {
         Row: {
           assigned_by: string | null
