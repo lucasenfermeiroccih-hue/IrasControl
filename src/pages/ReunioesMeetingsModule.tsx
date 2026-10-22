@@ -749,6 +749,7 @@ export default function ReunioesMeetingsModule() {
                   >
                     <option value="">Selecione</option>
                     {LOCATION_OPTIONS.map(o => <option key={o} value={o}>{o === ONLINE_LOCATION ? 'Online — link do Google Meet' : o}</option>)}
+                    {localChoice === OTHER_LOCATION && <option value={OTHER_LOCATION}>Outro</option>}
                   </select>
                   {localChoice === OTHER_LOCATION && (
                     <input className="rm-input" style={{ marginTop: 6 }} value={editingMeeting.location || ''} onChange={e => setMeetingField('location', e.target.value)} placeholder="Digite o local" />
