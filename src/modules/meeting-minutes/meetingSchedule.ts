@@ -6,16 +6,15 @@ import type { Meeting } from "./types";
 
 /** Valor gravado em `location` quando a reunião é online (sala no Google Meet). */
 export const ONLINE_LOCATION = "Online (Google Meet)";
-/** Opção da lista que libera a digitação de outro local. */
+/** Local gravado que não está na lista (ex.: lista alterada depois); exibido como texto livre. */
 export const OTHER_LOCATION = "Outro";
 
+/** Locais do hospital (lista suspensa). Local gravado fora da lista é tratado como "Outro". */
 export const LOCATION_OPTIONS = [
   "Sala da CCIH",
   "Auditório",
-  "NEP (Núcleo de Educação Permanente)",
-  "Sala de Reuniões da Direção",
+  "NEP",
   ONLINE_LOCATION,
-  OTHER_LOCATION,
 ];
 
 /** Opção da lista correspondente a um local salvo (local livre → "Outro"). */
