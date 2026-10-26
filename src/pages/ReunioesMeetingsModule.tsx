@@ -10,13 +10,14 @@ import { useHospitalContext } from "@/hooks/useHospitalContext";
 import {
   createMeeting, updateMeeting, listMeetings, deleteMeeting,
   saveParticipants, listParticipants,
-  upsertActionItem, deleteActionItem, listActionItems, listAllActionItems,
+  upsertActionItem, updateActionItemStatus, deleteActionItem, listActionItems, listAllActionItems,
   saveDecisions, listDecisions,
 } from "@/modules/meeting-minutes/meetingService";
 import { generateMeetingMinutesPdf } from "@/modules/meeting-minutes/generateMeetingMinutesPdf";
+import { markdownToPlain } from "@/modules/meeting-minutes/ataFormPdf";
 import type {
   Meeting, MeetingParticipant, MeetingActionItem, MeetingDecision,
-  ActionStatus, ActionPriority, MeetingStatus,
+  ActionStatus, ActionPriority, MeetingStatus, FollowupAction, MeetingEntryType, PreviousPendingStatus,
 } from "@/modules/meeting-minutes/types";
 import {
   LOCATION_OPTIONS, ONLINE_LOCATION, OTHER_LOCATION, locationOption, isOnlineMeeting,
@@ -96,6 +97,16 @@ const CSS = `
 .rm-link-rec{background:transparent;border-color:var(--bd);color:var(--tx2);}
 .rm-link-rec:hover{color:var(--tx);border-color:var(--tx3);}
 .rm-hint{font-size:11px;color:var(--tx2);margin-top:4px;}
+.rm-form{border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;}
+.rm-form-row{display:grid;border-bottom:1px solid var(--bd);}
+.rm-form-row:last-child{border-bottom:none;}
+.rm-form-cell{padding:8px 10px;border-right:1px solid var(--bd);display:flex;flex-direction:column;gap:4px;min-width:0;}
+.rm-form-cell:last-child{border-right:none;}
+.rm-radios{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12px;color:var(--tx);}
+.rm-radios label{display:flex;align-items:center;gap:5px;cursor:pointer;}
+.rm-form-table td{padding:6px;}
+.rm-form-table th{white-space:nowrap;}
+@media(max-width:768px){.rm-form-row{grid-template-columns:1fr !important;}.rm-form-cell{border-right:none;border-bottom:1px solid var(--bd);}}
 .rm-hint.err{color:var(--red);}
 @media(max-width:768px){.rm-cal-d{min-height:44px;}.rm-cal-ev span{display:none;}}
 `;
@@ -117,6 +128,16 @@ const STATUS_CLASS: Record<MeetingStatus, string> = {
 const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
   open: 'Aberto', in_progress: 'Em andamento', done: 'Concluído', cancelled: 'Cancelado', overdue: 'Vencido',
 };
+
+const ENTRY_OPTIONS: [MeetingEntryType, string][] = [
+  ['indicator', 'Indicador'], ['planning', 'Planejamento'], ['improvement', 'Melhoria'], ['other', 'Outro'],
+];
+
+const PENDING_OPTIONS: [PreviousPendingStatus, string][] = [
+  ['previous', 'Pendências Anteriores'], ['first', 'Primeira Reunião'], ['none', 'Não houve pendências da reunião anterior'],
+];
+
+const EMPTY_FOLLOWUP: FollowupAction = { what: '', who: '', when: '', status: '', evidence_location: '' };
 
 const ACTION_PRIORITY_LABELS: Record<ActionPriority, string> = {
   low: 'Baixa', medium: 'Média', high: 'Alta', critical: 'Crítica',
@@ -152,6 +173,11 @@ function emptyMeeting(hospitalId: string): Meeting {
     next_meeting_time: '',
     next_meeting_location: '',
     next_meeting_agenda: '',
+    entry_type: 'other',
+    entry_other: 'Reunião mensal',
+    previous_pending_status: 'previous',
+    followup_actions: [],
+    minutes_report: '',
   };
 }
 
@@ -332,6 +358,54 @@ export default function ReunioesMeetingsModule() {
     setParticipants(prev => prev.filter((_, idx) => idx !== i));
   }
 
+  // ─── Quadro de ações (acompanhamento) ─────────────────
+  const followups: FollowupAction[] = Array.isArray(editingMeeting?.followup_actions) ? editingMeeting!.followup_actions! : [];
+
+  function setFollowups(next: FollowupAction[]) {
+    setMeetingField('followup_actions', next);
+  }
+
+  function addFollowup() {
+    setFollowups([...followups, { ...EMPTY_FOLLOWUP }]);
+  }
+
+  function updateFollowup(i: number, field: keyof FollowupAction, value: string) {
+    setFollowups(followups.map((f, idx) => idx === i ? { ...f, [field]: value } : f));
+  }
+
+  function removeFollowup(i: number) {
+    setFollowups(followups.filter((_, idx) => idx !== i));
+  }
+
+  /** Traz as pendências da reunião anterior (mesmo hospital) para o quadro de ações. */
+  async function importPreviousPending() {
+    if (!editingMeeting) return;
+    const ref = editingMeeting.scheduled_date || editingMeeting.created_at?.slice(0, 10) || '9999-12-31';
+    const previous = meetings
+      .filter(m => m.id && m.id !== editingMeeting.id && m.status !== 'cancelled' && (m.scheduled_date || '') <= ref && m.scheduled_date)
+      .sort((a, b) => (b.scheduled_date || '').localeCompare(a.scheduled_date || ''))[0];
+    if (!previous?.id) { toast.error('Nenhuma reunião anterior com data encontrada.'); return; }
+    try {
+      const acts = await listActionItems(previous.id);
+      const rows: FollowupAction[] = acts
+        .filter(a => a.status !== 'cancelled')
+        .map(a => ({
+          what: a.title,
+          who: a.responsible_name,
+          when: [a.when_text, a.due_date ? fmt(a.due_date) : ''].filter(Boolean).join(' — '),
+          status: ACTION_STATUS_LABELS[a.status],
+          evidence_location: a.evidence_required || '',
+        }));
+      if (!rows.length) { toast.error('A reunião anterior não tem pendências cadastradas.'); return; }
+      const known = new Set(followups.map(f => f.what.trim()));
+      setFollowups([...followups, ...rows.filter(r => !known.has(r.what.trim()))]);
+      setMeetingField('previous_pending_status', 'previous');
+      toast.success(`${rows.length} pendência(s) importada(s) de ${previous.title}.`);
+    } catch {
+      toast.error('Erro ao importar pendências.');
+    }
+  }
+
   /** Valida e normaliza os links (Meet e gravação). Retorna null se houver erro. */
   function withValidLinks(m: Meeting): Meeting | null {
     const online = m.location === ONLINE_LOCATION;
@@ -398,6 +472,8 @@ export default function ReunioesMeetingsModule() {
         generated_minutes_md: result.minutesMarkdown,
         ai_summary: result.summary,
         status: 'minutes_generated',
+        // o relato do formulário só é preenchido automaticamente quando ainda está vazio
+        ...(saved.minutes_report?.trim() ? {} : { minutes_report: markdownToPlain(result.minutesMarkdown || '') }),
       });
       setEditingMeeting(updated);
 
@@ -512,7 +588,7 @@ export default function ReunioesMeetingsModule() {
 
   async function updateActionStatus(id: string, status: ActionStatus) {
     try {
-      await upsertActionItem({ id, hospital_id: hospitalId!, responsible_name: '', title: '', priority: 'medium', status });
+      await updateActionItemStatus(id, status);
       await loadData();
       toast.success('Status atualizado!');
     } catch {
@@ -530,7 +606,7 @@ export default function ReunioesMeetingsModule() {
   const doneActions = allActions.filter(a => a.status === 'done').length;
   const completionRate = allActions.length ? Math.round((doneActions / allActions.length) * 100) : null;
 
-  const meetingsWithMinutes = meetings.filter(m => m.generated_minutes_md);
+  const meetingsWithMinutes = meetings.filter(m => m.generated_minutes_md || m.minutes_report);
 
   return (
     <div className="rm-wrap">
@@ -700,41 +776,84 @@ export default function ReunioesMeetingsModule() {
               </div>
             </div>
 
-            {/* Dados gerais */}
+            {/* Cabeçalho do formulário — mesma ordem do modelo de ata */}
             <div className="rm-card">
-              <div className="rm-section">Dados da Reunião</div>
-              <div className="rm-grid3" style={{ gap: 12 }}>
-                <div className="rm-field" style={{ gridColumn: 'span 3' }}>
-                  <label className="rm-label">Título *</label>
-                  <input className="rm-input" value={editingMeeting.title} onChange={e => setMeetingField('title', e.target.value)} placeholder="Ex.: Reunião mensal CCIH — Junho/2026" />
+              <div className="rm-section">Formulário — Ata de Reuniões</div>
+              <div className="rm-grid3" style={{ gap: 12, marginBottom: 12 }}>
+                <div className="rm-field" style={{ gridColumn: 'span 2' }}>
+                  <label className="rm-label">Título no sistema *</label>
+                  <input className="rm-input" value={editingMeeting.title} onChange={e => setMeetingField('title', e.target.value)} placeholder="Ex.: Reunião Ordinária da CCIH — Outubro/2026" />
                 </div>
                 <div className="rm-field">
-                  <label className="rm-label">Tema</label>
-                  <input className="rm-input" value={editingMeeting.theme || ''} onChange={e => setMeetingField('theme', e.target.value)} placeholder="Assunto principal" />
-                </div>
-                <div className="rm-field">
-                  <label className="rm-label">Comissão / Setor</label>
-                  <input className="rm-input" value={editingMeeting.committee || ''} onChange={e => setMeetingField('committee', e.target.value)} placeholder="Ex.: CCIH, Qualidade" />
-                </div>
-                <div className="rm-field">
-                  <label className="rm-label">Caráter</label>
-                  <select className="rm-select" value={editingMeeting.meeting_character} onChange={e => setMeetingField('meeting_character', e.target.value)}>
-                    <option value="ordinary">Ordinária</option>
-                    <option value="extraordinary">Extraordinária</option>
+                  <label className="rm-label">Status</label>
+                  <select className="rm-select" value={editingMeeting.status} onChange={e => setMeetingField('status', e.target.value as MeetingStatus)}>
+                    {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
-                <div className="rm-field">
-                  <label className="rm-label">Data</label>
-                  <input className="rm-input" type="date" value={editingMeeting.scheduled_date || ''} onChange={e => setMeetingField('scheduled_date', e.target.value)} />
+              </div>
+
+              <div className="rm-form">
+                <div className="rm-form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Relator da Ata</label>
+                    <input className="rm-input" value={editingMeeting.reporter_name || ''} onChange={e => setMeetingField('reporter_name', e.target.value)} />
+                  </div>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Data</label>
+                    <input className="rm-input" type="date" value={editingMeeting.scheduled_date || ''} onChange={e => setMeetingField('scheduled_date', e.target.value)} />
+                  </div>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Setor</label>
+                    <input className="rm-input" value={editingMeeting.committee || ''} onChange={e => setMeetingField('committee', e.target.value)} placeholder="Ex.: CCIH" />
+                  </div>
                 </div>
-                <div className="rm-field">
-                  <label className="rm-label">Início</label>
-                  <input className="rm-input" type="time" value={editingMeeting.start_time || ''} onChange={e => setMeetingField('start_time', e.target.value)} />
+                <div className="rm-form-row" style={{ gridTemplateColumns: '2fr 1.3fr 0.7fr' }}>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Tema</label>
+                    <input className="rm-input" value={editingMeeting.theme || ''} onChange={e => setMeetingField('theme', e.target.value)} placeholder="Ex.: Comissão de Controle de Infecção Hospitalar" />
+                  </div>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Caráter da Reunião</label>
+                    <div className="rm-radios">
+                      {([['ordinary', 'Ordinária'], ['extraordinary', 'Extraordinária']] as const).map(([v, l]) => (
+                        <label key={v}><input type="radio" className="rm-checkbox" checked={editingMeeting.meeting_character === v} onChange={() => setMeetingField('meeting_character', v)} />{l}</label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Início / Término</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <input className="rm-input" type="time" value={editingMeeting.start_time || ''} onChange={e => setMeetingField('start_time', e.target.value)} />
+                      <input className="rm-input" type="time" value={editingMeeting.end_time || ''} onChange={e => setMeetingField('end_time', e.target.value)} />
+                    </div>
+                  </div>
                 </div>
-                <div className="rm-field">
-                  <label className="rm-label">Término</label>
-                  <input className="rm-input" type="time" value={editingMeeting.end_time || ''} onChange={e => setMeetingField('end_time', e.target.value)} />
+                <div className="rm-form-row" style={{ gridTemplateColumns: '1fr' }}>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Entrada</label>
+                    <div className="rm-radios">
+                      {ENTRY_OPTIONS.map(([v, l]) => (
+                        <label key={v}><input type="radio" className="rm-checkbox" checked={editingMeeting.entry_type === v} onChange={() => setMeetingField('entry_type', v)} />{l}</label>
+                      ))}
+                      {editingMeeting.entry_type === 'other' && (
+                        <input className="rm-input" style={{ maxWidth: 260 }} value={editingMeeting.entry_other || ''} onChange={e => setMeetingField('entry_other', e.target.value)} placeholder="Ex.: Reunião mensal" />
+                      )}
+                    </div>
+                  </div>
                 </div>
+                <div className="rm-form-row" style={{ gridTemplateColumns: '1fr' }}>
+                  <div className="rm-form-cell">
+                    <label className="rm-label">Pendências</label>
+                    <div className="rm-radios">
+                      {PENDING_OPTIONS.map(([v, l]) => (
+                        <label key={v}><input type="radio" className="rm-checkbox" checked={editingMeeting.previous_pending_status === v} onChange={() => setMeetingField('previous_pending_status', v)} />{l}</label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rm-grid3" style={{ gap: 12, marginTop: 12 }}>
                 <div className="rm-field">
                   <label className="rm-label">Local</label>
                   <select
@@ -756,18 +875,12 @@ export default function ReunioesMeetingsModule() {
                   )}
                 </div>
                 <div className="rm-field">
-                  <label className="rm-label">Relator da Ata</label>
-                  <input className="rm-input" value={editingMeeting.reporter_name || ''} onChange={e => setMeetingField('reporter_name', e.target.value)} />
-                </div>
-                <div className="rm-field">
                   <label className="rm-label">Presidente / Condutor</label>
                   <input className="rm-input" value={editingMeeting.president_name || ''} onChange={e => setMeetingField('president_name', e.target.value)} />
                 </div>
                 <div className="rm-field">
-                  <label className="rm-label">Status</label>
-                  <select className="rm-select" value={editingMeeting.status} onChange={e => setMeetingField('status', e.target.value as MeetingStatus)}>
-                    {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
+                  <label className="rm-label">Código do formulário (rodapé do PDF)</label>
+                  <input className="rm-input" value={editingMeeting.form_code || ''} onChange={e => setMeetingField('form_code', e.target.value)} placeholder="Ex.: FOR-HGNI-001" />
                 </div>
               </div>
 
@@ -794,41 +907,134 @@ export default function ReunioesMeetingsModule() {
                 </div>
               )}
             </div>
-
-            {/* Gravação */}
+            {/* Quadro de ações — O Quê | Quem | Quando | Situação | Local de Arquivamento da Evidência */}
             <div className="rm-card">
-              <div className="rm-section">Gravação da Reunião</div>
-              <div className="rm-field">
-                <label className="rm-label">Link da gravação no Google Drive</label>
-                <input
-                  className="rm-input"
-                  value={editingMeeting.recording_url || ''}
-                  onChange={e => setMeetingField('recording_url', e.target.value)}
-                  placeholder="https://drive.google.com/file/d/..."
-                />
-                {editingMeeting.recording_url && !isDriveLink(editingMeeting.recording_url) ? (
-                  <div className="rm-hint err">Use um link do Google Drive (drive.google.com/...).</div>
-                ) : (
-                  <div className="rm-hint">Depois da reunião, cole o link da gravação (compartilhada com a equipe). Fica disponível no botão "Ver gravação".</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                <div className="rm-section" style={{ marginBottom: 0 }}>Quadro de Ações (acompanhamento)</div>
+                <div className="rm-flex">
+                  <button className="rm-btn rm-btn-outline" onClick={importPreviousPending}><ClipboardList size={12} />Importar pendências da reunião anterior</button>
+                  <button className="rm-btn rm-btn-outline" onClick={addFollowup}><Plus size={12} />Adicionar linha</button>
+                </div>
+              </div>
+              {followups.length === 0 ? (
+                <div className="rm-empty" style={{ padding: '16px 0' }}><p>Nenhuma ação em acompanhamento. Importe as pendências da reunião anterior ou adicione uma linha.</p></div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="rm-table rm-form-table">
+                    <thead>
+                      <tr><th style={{ width: '38%' }}>O Quê</th><th style={{ width: '13%' }}>Quem</th><th style={{ width: '13%' }}>Quando</th><th style={{ width: '14%' }}>Situação</th><th style={{ width: '18%' }}>Local de Arquivamento da Evidência</th><th /></tr>
+                    </thead>
+                    <tbody>
+                      {followups.map((f, i) => (
+                        <tr key={i}>
+                          <td><textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={f.what} onChange={e => updateFollowup(i, 'what', e.target.value)} /></td>
+                          <td><textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={f.who} onChange={e => updateFollowup(i, 'who', e.target.value)} /></td>
+                          <td><textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={f.when} onChange={e => updateFollowup(i, 'when', e.target.value)} placeholder="Ex.: Mês julho a outubro" /></td>
+                          <td>
+                            <textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={f.status} onChange={e => updateFollowup(i, 'status', e.target.value)} placeholder="Ex.: Em andamento" />
+                          </td>
+                          <td><textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={f.evidence_location} onChange={e => updateFollowup(i, 'evidence_location', e.target.value)} placeholder="Ex.: Indicadores mensais" /></td>
+                          <td><button className="rm-btn rm-btn-red" style={{ padding: '4px 8px' }} onClick={() => removeFollowup(i)}><Trash2 size={11} /></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="rm-field rm-mt">
+                <label className="rm-label">Observações sobre as pendências anteriores (texto livre, usado também pela IA)</label>
+                <textarea className="rm-textarea" rows={3} value={editingMeeting.previous_pending_items || ''} onChange={e => setMeetingField('previous_pending_items', e.target.value)} placeholder="Descreva pendências anteriores..." />
+              </div>
+            </div>
+
+            {/* Relato da Reunião */}
+            <div className="rm-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                <div className="rm-section" style={{ marginBottom: 0 }}>Relato da Reunião</div>
+                {editingMeeting.generated_minutes_md && (
+                  <button className="rm-btn rm-btn-outline" onClick={() => setMeetingField('minutes_report', markdownToPlain(editingMeeting.generated_minutes_md || ''))}>
+                    <Sparkles size={12} />Usar o texto da ata gerada pela IA
+                  </button>
                 )}
               </div>
+              <textarea
+                className="rm-textarea"
+                style={{ minHeight: 260, fontFamily: "'Times New Roman', Times, serif", fontSize: 13, lineHeight: 1.5, textAlign: 'justify' }}
+                value={editingMeeting.minutes_report || ''}
+                onChange={e => setMeetingField('minutes_report', e.target.value)}
+                placeholder="Às __:__ horas do dia __ de ______ de dois mil e vinte e seis, no ..., reuniram-se ..."
+              />
+              <div className="rm-hint">Texto corrido, em parágrafos. É impresso no quadro "Relato da Reunião" do PDF, justificado. Se ficar vazio, o PDF usa a ata gerada pela IA.</div>
             </div>
-
-            {/* Pauta e pendências */}
-            <div className="rm-card">
-              <div className="rm-section">Pauta e Pendências</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div className="rm-field">
-                  <label className="rm-label">Pauta da Reunião</label>
-                  <textarea className="rm-textarea" rows={4} value={editingMeeting.agenda || ''} onChange={e => setMeetingField('agenda', e.target.value)} placeholder="Liste os itens da pauta..." />
+            {/* Pendências — O Quê | Quem | Quando (plano de ação da reunião) */}
+            {editingMeeting.id && (
+              <div className="rm-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div className="rm-section" style={{ marginBottom: 0 }}>Pendências – (Resoluções / Comunicação de alterações e etc.)</div>
+                  <button className="rm-btn rm-btn-outline" onClick={addActionItem}><Plus size={12} />Adicionar pendência</button>
                 </div>
-                <div className="rm-field">
-                  <label className="rm-label">Pendências da Reunião Anterior</label>
-                  <textarea className="rm-textarea" rows={3} value={editingMeeting.previous_pending_items || ''} onChange={e => setMeetingField('previous_pending_items', e.target.value)} placeholder="Descreva pendências anteriores..." />
-                </div>
+                {actionItems.length === 0 ? (
+                  <div className="rm-empty" style={{ padding: '16px 0' }}><p>Nenhuma pendência cadastrada. Gere a ata com IA ou adicione manualmente.</p></div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {actionItems.map((item, i) => (
+                      <div key={i} className="rm-card-sm">
+                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1.2fr', gap: 8, marginBottom: 8 }}>
+                          <div className="rm-field">
+                            <label className="rm-label">O Quê *</label>
+                            <textarea className="rm-textarea" rows={2} style={{ minHeight: 48 }} value={item.title} onChange={e => updateActionItem(i, 'title', e.target.value)} placeholder="O que deve ser feito?" />
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Quem *</label>
+                            <input className="rm-input" value={item.responsible_name} onChange={e => updateActionItem(i, 'responsible_name', e.target.value)} placeholder="Ex.: Enfermeiros SCIH" />
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Quando</label>
+                            <input className="rm-input" value={item.when_text || ''} onChange={e => updateActionItem(i, 'when_text', e.target.value)} placeholder="Ex.: Mês julho a novembro" />
+                          </div>
+                        </div>
+                        <div className="rm-grid4" style={{ gap: 8, marginBottom: 8 }}>
+                          <div className="rm-field">
+                            <label className="rm-label">Prazo final (data)</label>
+                            <input className="rm-input" type="date" value={item.due_date || ''} onChange={e => updateActionItem(i, 'due_date', e.target.value || null)} />
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Prioridade</label>
+                            <select className="rm-select" value={item.priority} onChange={e => updateActionItem(i, 'priority', e.target.value as ActionPriority)}>
+                              {Object.entries(ACTION_PRIORITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Situação</label>
+                            <select className="rm-select" value={item.status} onChange={e => updateActionItem(i, 'status', e.target.value as ActionStatus)}>
+                              {Object.entries(ACTION_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Setor envolvido</label>
+                            <input className="rm-input" value={item.department || ''} onChange={e => updateActionItem(i, 'department', e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="rm-grid2" style={{ gap: 8, marginBottom: 8 }}>
+                          <div className="rm-field">
+                            <label className="rm-label">Por quê</label>
+                            <input className="rm-input" value={item.why || ''} onChange={e => updateActionItem(i, 'why', e.target.value)} />
+                          </div>
+                          <div className="rm-field">
+                            <label className="rm-label">Local de arquivamento da evidência</label>
+                            <input className="rm-input" value={item.evidence_required || ''} onChange={e => updateActionItem(i, 'evidence_required', e.target.value)} placeholder="Ex.: Lista de treinamento; pré e pós-teste" />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                          <button className="rm-btn rm-btn-red" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => removeActionItem(i)}><Trash2 size={11} />Remover</button>
+                          <button className="rm-btn rm-btn-teal" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => saveActionItem(i)}><Save size={11} />Salvar</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-
+            )}
             {/* Próxima reunião */}
             <div className="rm-card">
               <div className="rm-section">Próxima Reunião</div>
@@ -883,6 +1089,35 @@ export default function ReunioesMeetingsModule() {
               )}
             </div>
 
+            {/* Pauta */}
+            <div className="rm-card">
+              <div className="rm-section">Pauta</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="rm-field">
+                  <label className="rm-label">Pauta da Reunião</label>
+                  <textarea className="rm-textarea" rows={4} value={editingMeeting.agenda || ''} onChange={e => setMeetingField('agenda', e.target.value)} placeholder="Liste os itens da pauta..." />
+                </div>
+              </div>
+            </div>
+            {/* Gravação */}
+            <div className="rm-card">
+              <div className="rm-section">Gravação da Reunião</div>
+              <div className="rm-field">
+                <label className="rm-label">Link da gravação no Google Drive</label>
+                <input
+                  className="rm-input"
+                  value={editingMeeting.recording_url || ''}
+                  onChange={e => setMeetingField('recording_url', e.target.value)}
+                  placeholder="https://drive.google.com/file/d/..."
+                />
+                {editingMeeting.recording_url && !isDriveLink(editingMeeting.recording_url) ? (
+                  <div className="rm-hint err">Use um link do Google Drive (drive.google.com/...).</div>
+                ) : (
+                  <div className="rm-hint">Depois da reunião, cole o link da gravação (compartilhada com a equipe). Fica disponível no botão "Ver gravação".</div>
+                )}
+              </div>
+            </div>
+
             {/* Texto livre e transcrição */}
             <div className="rm-card">
               <div className="rm-section">Conteúdo da Reunião</div>
@@ -902,7 +1137,7 @@ export default function ReunioesMeetingsModule() {
             {editingMeeting.generated_minutes_md && (
               <div className="rm-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div className="rm-section" style={{ marginBottom: 0 }}>Ata Gerada pela IA</div>
+                  <div className="rm-section" style={{ marginBottom: 0 }}>Ata Gerada pela IA (rascunho em Markdown)</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="rm-btn rm-btn-outline" onClick={handleExportPdf}><Download size={12} />Exportar PDF</button>
                     {editingMeeting.status !== 'approved' && (
@@ -922,56 +1157,6 @@ export default function ReunioesMeetingsModule() {
                   value={editingMeeting.generated_minutes_md}
                   onChange={e => setMeetingField('generated_minutes_md', e.target.value)}
                 />
-              </div>
-            )}
-
-            {/* Plano de ação da reunião */}
-            {editingMeeting.id && (
-              <div className="rm-card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div className="rm-section" style={{ marginBottom: 0 }}>Plano de Ação desta Reunião</div>
-                  <button className="rm-btn rm-btn-outline" onClick={addActionItem}><Plus size={12} />Adicionar Ação</button>
-                </div>
-                {actionItems.length === 0 ? (
-                  <div className="rm-empty" style={{ padding: '16px 0' }}><p>Nenhuma ação cadastrada. Gere a ata com IA ou adicione manualmente.</p></div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {actionItems.map((item, i) => (
-                      <div key={i} className="rm-card-sm">
-                        <div className="rm-grid3" style={{ gap: 8, marginBottom: 8 }}>
-                          <div className="rm-field" style={{ gridColumn: 'span 2' }}>
-                            <label className="rm-label">Ação *</label>
-                            <input className="rm-input" value={item.title} onChange={e => updateActionItem(i, 'title', e.target.value)} placeholder="O que fazer?" />
-                          </div>
-                          <div className="rm-field">
-                            <label className="rm-label">Responsável *</label>
-                            <input className="rm-input" value={item.responsible_name} onChange={e => updateActionItem(i, 'responsible_name', e.target.value)} placeholder="Nome" />
-                          </div>
-                          <div className="rm-field">
-                            <label className="rm-label">Prazo</label>
-                            <input className="rm-input" type="date" value={item.due_date || ''} onChange={e => updateActionItem(i, 'due_date', e.target.value)} />
-                          </div>
-                          <div className="rm-field">
-                            <label className="rm-label">Prioridade</label>
-                            <select className="rm-select" value={item.priority} onChange={e => updateActionItem(i, 'priority', e.target.value as ActionPriority)}>
-                              {Object.entries(ACTION_PRIORITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select>
-                          </div>
-                          <div className="rm-field">
-                            <label className="rm-label">Status</label>
-                            <select className="rm-select" value={item.status} onChange={e => updateActionItem(i, 'status', e.target.value as ActionStatus)}>
-                              {Object.entries(ACTION_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-                          <button className="rm-btn rm-btn-red" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => removeActionItem(i)}><Trash2 size={11} />Remover</button>
-                          <button className="rm-btn rm-btn-teal" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => saveActionItem(i)}><Save size={11} />Salvar</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -997,7 +1182,7 @@ export default function ReunioesMeetingsModule() {
             {/* Action buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 20 }}>
               <div>
-                {editingMeeting.id && editingMeeting.generated_minutes_md && (
+                {editingMeeting.id && (
                   <button className="rm-btn rm-btn-outline" onClick={handleExportPdf}><Download size={13} />Exportar PDF</button>
                 )}
               </div>

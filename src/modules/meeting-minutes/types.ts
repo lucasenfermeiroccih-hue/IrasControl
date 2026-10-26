@@ -9,6 +9,19 @@ export type MeetingStatus =
   | 'cancelled';
 
 export type MeetingCharacter = 'ordinary' | 'extraordinary';
+/** Campo "Entrada" do formulário de ata */
+export type MeetingEntryType = 'indicator' | 'planning' | 'improvement' | 'other';
+/** Situação das pendências: anteriores, primeira reunião ou não houve pendências */
+export type PreviousPendingStatus = 'previous' | 'first' | 'none';
+
+/** Linha do quadro de ações do formulário (acompanhamento) */
+export interface FollowupAction {
+  what: string;
+  who: string;
+  when: string;
+  status: string;
+  evidence_location: string;
+}
 export type ActionPriority = 'low' | 'medium' | 'high' | 'critical';
 export type ActionStatus = 'open' | 'in_progress' | 'done' | 'cancelled' | 'overdue';
 
@@ -42,6 +55,16 @@ export interface Meeting {
   next_meeting_time?: string | null;
   next_meeting_location?: string | null;
   next_meeting_agenda?: string | null;
+  /** Entrada da reunião (Indicador, Planejamento, Melhoria, Outro) */
+  entry_type?: MeetingEntryType | null;
+  entry_other?: string | null;
+  previous_pending_status?: PreviousPendingStatus | null;
+  /** Quadro de ações: O Quê, Quem, Quando, Situação, Local de Arquivamento da Evidência */
+  followup_actions?: FollowupAction[] | null;
+  /** Relato da Reunião (texto que vai para o formulário) */
+  minutes_report?: string | null;
+  /** Código do formulário no rodapé, ex.: FOR-HGNI-001 */
+  form_code?: string | null;
   created_by?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -69,6 +92,8 @@ export interface MeetingActionItem {
   responsible_name: string;
   department?: string | null;
   due_date?: string | null;
+  /** "Quando" em texto livre, como no formulário (ex.: "Mês julho a novembro") */
+  when_text?: string | null;
   evidence_required?: string | null;
   evidence_url?: string | null;
   priority: ActionPriority;

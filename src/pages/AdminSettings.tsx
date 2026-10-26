@@ -321,6 +321,12 @@ export default function AdminSettings() {
       name: hospitalData.name, cnes: hospitalData.cnes, cnpj: hospitalData.cnpj,
       type: hospitalData.type, bed_count: hospitalData.bed_count,
       contact_email: hospitalData.contact_email,
+      short_name: hospitalData.short_name || null,
+      address: hospitalData.address || null,
+      neighborhood: hospitalData.neighborhood || null,
+      city: hospitalData.city || null,
+      state: hospitalData.state || null,
+      zip_code: hospitalData.zip_code || null,
     }).eq("id", hospitalId);
     if (error) { toast.error("Erro: " + error.message); return; }
     toast.success("Dados da instituição salvos");
@@ -460,6 +466,24 @@ export default function AdminSettings() {
                     <Input type="number" value={hospitalData.bed_count || 0} onChange={e => setHospitalData((h: any) => ({ ...h, bed_count: Number(e.target.value) }))} /></div>
                   <div className="space-y-2"><Label>E-mail de Contato</Label>
                     <Input value={hospitalData.contact_email || ""} onChange={e => setHospitalData((h: any) => ({ ...h, contact_email: e.target.value }))} /></div>
+                </div>
+                <div className="space-y-1 pt-2">
+                  <p className="text-sm font-medium">Endereço da unidade</p>
+                  <p className="text-xs text-muted-foreground">Impresso no rodapé dos documentos, como a ata de reunião.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="space-y-2 md:col-span-2"><Label>Sigla da unidade</Label>
+                    <Input value={hospitalData.short_name || ""} onChange={e => setHospitalData((h: any) => ({ ...h, short_name: e.target.value }))} placeholder="Ex.: HGNI" /></div>
+                  <div className="space-y-2 md:col-span-4"><Label>Logradouro e número</Label>
+                    <Input value={hospitalData.address || ""} onChange={e => setHospitalData((h: any) => ({ ...h, address: e.target.value }))} placeholder="Ex.: Av. Henrique Duque Estrada Meyer" /></div>
+                  <div className="space-y-2 md:col-span-2"><Label>Bairro</Label>
+                    <Input value={hospitalData.neighborhood || ""} onChange={e => setHospitalData((h: any) => ({ ...h, neighborhood: e.target.value }))} /></div>
+                  <div className="space-y-2 md:col-span-2"><Label>Cidade</Label>
+                    <Input value={hospitalData.city || ""} onChange={e => setHospitalData((h: any) => ({ ...h, city: e.target.value }))} /></div>
+                  <div className="space-y-2"><Label>UF</Label>
+                    <Input maxLength={2} value={hospitalData.state || ""} onChange={e => setHospitalData((h: any) => ({ ...h, state: e.target.value.toUpperCase() }))} /></div>
+                  <div className="space-y-2"><Label>CEP</Label>
+                    <Input value={hospitalData.zip_code || ""} onChange={e => setHospitalData((h: any) => ({ ...h, zip_code: e.target.value }))} placeholder="00000-000" /></div>
                 </div>
                 <Button onClick={handleSaveHospital}>Salvar Alterações</Button>
               </CardContent>

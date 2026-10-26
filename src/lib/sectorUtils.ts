@@ -12,6 +12,8 @@ export function normalizeSector(s: string | null | undefined): string {
   if (numbered) return `UTI ${numbered[1]}`;
   // "UTI Adulto" (sem número) → "UTI"
   if (/^UTI\s+Adulto\s*$/i.test(t)) return "UTI";
+  // Grafia sem acento (mesma regra de public.normalize_sector_name no banco)
+  if (/^Trauma\s+Cirurgico$/i.test(t)) return "Trauma Cirúrgico";
   return t;
 }
 
