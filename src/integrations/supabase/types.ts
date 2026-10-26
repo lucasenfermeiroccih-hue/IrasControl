@@ -1238,6 +1238,7 @@ export type Database = {
       }
       hospitals: {
         Row: {
+          address: string | null
           bed_count: number | null
           city: string | null
           cnes: string | null
@@ -1247,13 +1248,17 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          neighborhood: string | null
           notification_settings: Json
+          short_name: string | null
           state: string | null
           status: Database["public"]["Enums"]["hospital_status"]
           type: string
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
           bed_count?: number | null
           city?: string | null
           cnes?: string | null
@@ -1263,13 +1268,17 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          neighborhood?: string | null
           notification_settings?: Json
+          short_name?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["hospital_status"]
           type?: string
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
           bed_count?: number | null
           city?: string | null
           cnes?: string | null
@@ -1279,11 +1288,14 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          neighborhood?: string | null
           notification_settings?: Json
+          short_name?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["hospital_status"]
           type?: string
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -4505,6 +4517,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          when_text: string | null
           why: string | null
         }
         Insert: {
@@ -4524,6 +4537,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          when_text?: string | null
           why?: string | null
         }
         Update: {
@@ -4543,6 +4557,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          when_text?: string | null
           why?: string | null
         }
         Relationships: [
@@ -4650,21 +4665,27 @@ export type Database = {
           created_by: string | null
           department: string | null
           end_time: string | null
+          entry_other: string | null
+          entry_type: string | null
+          followup_actions: Json
+          form_code: string | null
           generated_minutes_md: string | null
           hospital_id: string
           id: string
           location: string | null
           meeting_character: string | null
           meeting_type: string
+          minutes_report: string | null
           next_meeting_agenda: string | null
           next_meeting_date: string | null
           next_meeting_location: string | null
           next_meeting_time: string | null
           online_link: string | null
-          recording_url: string | null
           president_name: string | null
           previous_pending_items: string | null
+          previous_pending_status: string | null
           raw_text_input: string | null
+          recording_url: string | null
           reporter_name: string | null
           scheduled_date: string | null
           sector_id: string | null
@@ -4687,21 +4708,27 @@ export type Database = {
           created_by?: string | null
           department?: string | null
           end_time?: string | null
+          entry_other?: string | null
+          entry_type?: string | null
+          followup_actions?: Json
+          form_code?: string | null
           generated_minutes_md?: string | null
           hospital_id: string
           id?: string
           location?: string | null
           meeting_character?: string | null
           meeting_type?: string
+          minutes_report?: string | null
           next_meeting_agenda?: string | null
           next_meeting_date?: string | null
           next_meeting_location?: string | null
           next_meeting_time?: string | null
           online_link?: string | null
-          recording_url?: string | null
           president_name?: string | null
           previous_pending_items?: string | null
+          previous_pending_status?: string | null
           raw_text_input?: string | null
+          recording_url?: string | null
           reporter_name?: string | null
           scheduled_date?: string | null
           sector_id?: string | null
@@ -4724,21 +4751,27 @@ export type Database = {
           created_by?: string | null
           department?: string | null
           end_time?: string | null
+          entry_other?: string | null
+          entry_type?: string | null
+          followup_actions?: Json
+          form_code?: string | null
           generated_minutes_md?: string | null
           hospital_id?: string
           id?: string
           location?: string | null
           meeting_character?: string | null
           meeting_type?: string
+          minutes_report?: string | null
           next_meeting_agenda?: string | null
           next_meeting_date?: string | null
           next_meeting_location?: string | null
           next_meeting_time?: string | null
           online_link?: string | null
-          recording_url?: string | null
           president_name?: string | null
           previous_pending_items?: string | null
+          previous_pending_status?: string | null
           raw_text_input?: string | null
+          recording_url?: string | null
           reporter_name?: string | null
           scheduled_date?: string | null
           sector_id?: string | null

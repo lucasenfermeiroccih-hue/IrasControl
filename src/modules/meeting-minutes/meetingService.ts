@@ -86,6 +86,14 @@ export async function upsertActionItem(item: MeetingActionItem): Promise<Meeting
   return data as MeetingActionItem;
 }
 
+/** Atualiza só a situação, sem tocar nos demais campos da ação. */
+export async function updateActionItemStatus(id: string, status: MeetingActionItem['status']): Promise<void> {
+  const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+  patch.completed_at = status === 'done' ? new Date().toISOString() : null;
+  const { error } = await db.from('meeting_action_items').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteActionItem(id: string): Promise<void> {
   const { error } = await db.from('meeting_action_items').delete().eq('id', id);
   if (error) throw error;
