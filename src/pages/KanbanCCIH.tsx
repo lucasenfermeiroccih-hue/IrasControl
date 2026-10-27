@@ -1,592 +1,334 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LIST_PAGE_SIZE } from "@/lib/pagination";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  KanbanSquare, Plus, CheckCircle2, Clock, RotateCcw, Trash2,
-  Pencil, Loader2, Calendar, CalendarDays, CalendarRange,
-  ListTodo, Users, ChevronRight, ChevronLeft, AlertCircle, User,
-  ArrowUp, ArrowDown, ArrowUpDown,
+  AlertTriangle, CalendarDays, CalendarRange, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Clock,
+  KanbanSquare, ListChecks, Loader2, Plus, Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { describeDays, isOffDay, WEEKDAYS, type Escala } from "@/lib/kanbanEscala";
+import {
+  addDays, addMonths, civil, daysOfMonth, describeAgenda, nomeMes, ocorrenciasNoMes, parseCivil, periodoDe, PERIODO_UNICO,
+  STATUS_LABELS, tarefaNoDia, weekOf, WEEKDAYS, type EscalaMap, type StatusExecucao,
+} from "@/lib/kanbanAgenda";
+import { KanbanFiltros } from "@/components/kanban-ccih/KanbanFiltros";
+import { OcorrenciaCard } from "@/components/kanban-ccih/OcorrenciaCard";
+import { EquipeEscala, type EscalaPatch } from "@/components/kanban-ccih/EquipeEscala";
+import { TarefaDialog, type TarefaForm } from "@/components/kanban-ccih/TarefaDialog";
+import {
+  FILTROS_INICIAIS, filtraTarefa, PRIORITY_LABELS, type EscalaRegistro, type Execucao, type Filtros,
+  type ItemQuadro, type Pessoa, type Tarefa,
+} from "@/components/kanban-ccih/types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type Aba = "dia" | "mes" | "equipe" | "gerenciar";
 
-interface Tarefa {
-  id: string;
-  title: string;
-  description: string | null;
-  assigned_to: string;
-  assigned_to_ids: string[];
-  assigned_by: string | null;
-  recurrence: "daily" | "weekly" | "monthly" | "once";
-  status: "in_progress" | "completed";
-  priority: "low" | "normal" | "high";
-  last_completed_at: string | null;
-  created_at: string;
-  assigned_to_names?: string[];
-  source: "ccih" | "guardiao";
+const COLUNAS: { status: StatusExecucao; icon: React.ReactNode; cor: string; titulo: string; vazio: string }[] = [
+  { status: "todo", icon: <Circle className="h-4 w-4 text-slate-500" />, cor: "border-slate-200 bg-slate-50/60 text-slate-700", titulo: "A fazer", vazio: "Nada a fazer." },
+  { status: "doing", icon: <Clock className="h-4 w-4 text-blue-600" />, cor: "border-blue-200 bg-blue-50/50 text-blue-700", titulo: "Em andamento", vazio: "Nenhuma tarefa sendo executada." },
+  { status: "done", icon: <CheckCircle2 className="h-4 w-4 text-emerald-600" />, cor: "border-emerald-200 bg-emerald-50/50 text-emerald-700", titulo: "Concluídas", vazio: "Nenhuma tarefa concluída." },
+];
+
+const PRIORIDADE_ORDEM = { high: 0, normal: 1, low: 2 };
+const chave = (tarefaId: string, periodo: string) => `${tarefaId}|${periodo}`;
+const diaLabel = (data: string) => WEEKDAYS.find((w) => w.value === parseCivil(data).getDay())!.label;
+
+function ordenar(a: Tarefa, b: Tarefa) {
+  return PRIORIDADE_ORDEM[a.priority] - PRIORIDADE_ORDEM[b.priority]
+    || (a.ordem ?? 9999) - (b.ordem ?? 9999)
+    || a.title.localeCompare(b.title);
 }
-
-interface HospitalUser {
-  user_id: string;
-  full_name: string;
-  email: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const RECURRENCE_LABELS = {
-  daily: "Diária",
-  weekly: "Semanal",
-  monthly: "Mensal",
-  once: "Única vez",
-};
-
-const RECURRENCE_ICONS = {
-  daily: <Calendar className="h-3 w-3" />,
-  weekly: <CalendarDays className="h-3 w-3" />,
-  monthly: <CalendarRange className="h-3 w-3" />,
-  once: <ChevronRight className="h-3 w-3" />,
-};
-
-const RECURRENCE_COLORS = {
-  daily: "bg-blue-100 text-blue-700 border-blue-200",
-  weekly: "bg-purple-100 text-purple-700 border-purple-200",
-  monthly: "bg-amber-100 text-amber-700 border-amber-200",
-  once: "bg-green-100 text-green-700 border-green-200",
-};
-
-const PRIORITY_COLORS = {
-  low: "border-l-slate-300",
-  normal: "border-l-blue-400",
-  high: "border-l-red-500",
-};
-
-const PRIORITY_LABELS = {
-  low: "Baixa",
-  normal: "Normal",
-  high: "Alta",
-};
-
-function isWeekend(date = new Date()): boolean {
-  const d = date.getDay();
-  return d === 0 || d === 6; // 0=Dom, 6=Sáb
-}
-
-// Último dia útil anterior a uma data (para comparar com last_completed_at)
-function lastWeekday(from = new Date()): Date {
-  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  do { d.setDate(d.getDate() - 1); } while (isWeekend(d));
-  return d;
-}
-
-function shouldReset(tarefa: Tarefa): boolean {
-  if (!tarefa.last_completed_at) return false;
-  if (tarefa.status === "in_progress") return false;
-  if (tarefa.recurrence === "once") return false;
-
-  const last = new Date(tarefa.last_completed_at);
-  const now = new Date();
-
-  if (tarefa.recurrence === "daily") {
-    // Reseta sempre que muda o dia do calendário (inclusive fins de semana)
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
-    return lastDay < today;
-  }
-  if (tarefa.recurrence === "weekly") {
-    // Reseta toda segunda-feira
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-    startOfWeek.setHours(0, 0, 0, 0);
-    return last < startOfWeek;
-  }
-  if (tarefa.recurrence === "monthly") {
-    // Reseta no primeiro dia do mês
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return last < startOfMonth;
-  }
-  return false;
-}
-
-// ─── Card Component ───────────────────────────────────────────────────────────
-
-function TarefaCard({
-  tarefa,
-  isAdmin,
-  onComplete,
-  onReopen,
-  onEdit,
-  onDelete,
-}: {
-  tarefa: Tarefa;
-  isAdmin: boolean;
-  onComplete: (id: string) => void;
-  onReopen: (id: string) => void;
-  onEdit: (t: Tarefa) => void;
-  onDelete: (id: string) => void;
-}) {
-  const done = tarefa.status === "completed";
-
-  return (
-    <div
-      className={`bg-white rounded-lg border border-l-4 shadow-sm p-3 space-y-2 transition-opacity ${
-        done ? "opacity-60" : ""
-      } ${PRIORITY_COLORS[tarefa.priority]}`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            {tarefa.source === "guardiao" && (
-              <Badge className="text-[10px] py-0 px-1.5 bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold">
-                Guardião
-              </Badge>
-            )}
-            <p className={`text-sm font-medium leading-snug ${done ? "line-through text-muted-foreground" : ""}`}>
-              {tarefa.title}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-1 shrink-0">
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => onEdit(tarefa)}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => onDelete(tarefa.id)}
-                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {tarefa.description && (
-        <p className="text-xs text-muted-foreground leading-snug">{tarefa.description}</p>
-      )}
-
-      {isAdmin && tarefa.assigned_to_names && tarefa.assigned_to_names.length > 0 && (
-        <div className="flex items-start gap-1 text-xs text-muted-foreground flex-wrap">
-          <User className="h-3 w-3 mt-0.5 shrink-0" />
-          <span>{tarefa.assigned_to_names.join(", ")}</span>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          <Badge variant="outline" className={`text-xs py-0 px-1.5 gap-1 ${RECURRENCE_COLORS[tarefa.recurrence]}`}>
-            {RECURRENCE_ICONS[tarefa.recurrence]}
-            {RECURRENCE_LABELS[tarefa.recurrence]}
-          </Badge>
-        </div>
-        {done ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-xs gap-1"
-            onClick={() => onReopen(tarefa.id)}
-          >
-            <RotateCcw className="h-3 w-3" />
-            Reabrir
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            className="h-6 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => onComplete(tarefa.id)}
-          >
-            <CheckCircle2 className="h-3 w-3" />
-            Concluir
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function KanbanCCIH() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
   const { isAdmin: isAdminHook, loading: adminLoading } = useIsAdmin();
-
-  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
-  const [hospitalUsers, setHospitalUsers] = useState<HospitalUser[]>([]);
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const isAdmin = isAdminHook || isPrimaryAdmin;
+
+  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [escala, setEscala] = useState<Record<string, EscalaRegistro>>({});
+  const [execucoes, setExecucoes] = useState<Map<string, Execucao>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"kanban" | "manage">("kanban");
-  const [recurrenceFilter, setRecurrenceFilter] = useState<"all" | "daily" | "weekly" | "monthly" | "once">("all");
-  const [showDialog, setShowDialog] = useState(false);
-  const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  // Escala da equipe (dias fixos da semana): tarefas diárias só aparecem nos dias da pessoa
-  const [escala, setEscala] = useState<Escala>({});
-  const [showFolga, setShowFolga] = useState(false);
 
-  // Manage tab filters & sort
-  const [manageMes, setManageMes] = useState<string>("all");
-  const [manageAno, setManageAno] = useState<string>("all");
-  const [manageUser, setManageUser] = useState<string>("all");
-  const [manageStatus, setManageStatus] = useState<string>("all");
-  type SortKey = "source" | "recurrence" | "priority" | "status";
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const toggleSort = (k: SortKey) => {
-    if (sortKey !== k) { setSortKey(k); setSortDir("asc"); }
-    else if (sortDir === "asc") setSortDir("desc");
-    else { setSortKey(null); setSortDir("asc"); }
-  };
-  const SortIcon = ({ k }: { k: SortKey }) =>
-    sortKey !== k ? <ArrowUpDown className="h-3 w-3 opacity-50" />
-      : sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  const hoje = civil(new Date());
+  const [aba, setAba] = useState<Aba>("dia");
+  const [data, setData] = useState(hoje);
+  const mes = data.slice(0, 7);
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
+  const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
+  // Visão da equipe no quadro do dia: agrupada por funcionário
+  const [agrupar, setAgrupar] = useState(true);
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
-  const emptyForm = {
-    title: "",
-    description: "",
-    assigned_to_ids: [] as string[],
-    recurrence: "daily" as "daily" | "weekly" | "monthly" | "once",
-    priority: "normal" as "low" | "normal" | "high",
-  };
-  const [form, setForm] = useState(emptyForm);
+  const [dialogTarefa, setDialogTarefa] = useState<{ open: boolean; tarefa: Tarefa | null }>({ open: false, tarefa: null });
+  const [excluir, setExcluir] = useState<Tarefa | null>(null);
+  const [pagina, setPagina] = useState(1);
 
-  // ── Load hospital users (for admin) ──────────────────────────────────────
+  // ── Carregamento ─────────────────────────────────────────────────────────
 
-  const loadHospitalUsers = useCallback(async () => {
+  const carregarPessoas = useCallback(async () => {
     if (!hospitalId) return;
-    const { data } = await (supabase
-      .from("hospital_users" as any)
+    const { data: rows } = await supabase
+      .from("hospital_users")
       .select("user_id, profiles(full_name, email)")
-      .eq("hospital_id", hospitalId) as any);
-    if (data) {
-      setHospitalUsers(
-        data
-          .filter((u: any) => !!u.user_id)
-          .map((u: any) => ({
-            user_id: u.user_id,
-            full_name: u.profiles?.full_name || "Sem nome",
-            email: u.profiles?.email || "",
-          }))
-      );
-    }
+      .eq("hospital_id", hospitalId);
+    type Row = { user_id: string | null; profiles: { full_name: string | null; email: string | null } | null };
+    setPessoas(((rows ?? []) as unknown as Row[])
+      .filter((u): u is Row & { user_id: string } => !!u.user_id)
+      .map((u) => ({ user_id: u.user_id, full_name: (u.profiles?.full_name || "Sem nome").trim(), email: u.profiles?.email || "" }))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name)));
   }, [hospitalId]);
 
-  // ── Load team schedule ────────────────────────────────────────────────────
-
-  const loadEscala = useCallback(async () => {
+  const carregarEscala = useCallback(async () => {
     if (!hospitalId) return;
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from("kanban_ccih_escala")
-      .select("user_id, dias_semana")
+      .select("user_id, dias_semana, regime, plantoes, funcao, atribuicoes")
       .eq("hospital_id", hospitalId);
-    const map: Escala = {};
-    (data || []).forEach((r) => { map[r.user_id] = r.dias_semana || []; });
+    const map: Record<string, EscalaRegistro> = {};
+    (rows ?? []).forEach((r) => {
+      map[r.user_id] = {
+        user_id: r.user_id,
+        dias: r.dias_semana ?? null,
+        regime: r.regime === "plantao" ? "plantao" : "fixo",
+        plantoes: r.plantoes ?? [],
+        funcao: r.funcao,
+        atribuicoes: r.atribuicoes,
+        cadastrada: true,
+      };
+    });
     setEscala(map);
   }, [hospitalId]);
 
-  /** Liga/desliga um dia na escala de um funcionário (sem escala = todos os dias). */
-  const toggleEscalaDay = async (uid: string, day: number) => {
-    const current = escala[uid] ?? WEEKDAYS.map((w) => w.value);
-    const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
-    setEscala((prev) => ({ ...prev, [uid]: next }));
-    if (!hospitalId) return;
-    const { error } = await supabase.from("kanban_ccih_escala").upsert(
-      { hospital_id: hospitalId, user_id: uid, dias_semana: next, updated_at: new Date().toISOString(), updated_by: userId },
-      { onConflict: "hospital_id,user_id" },
-    );
-    if (error) {
-      toast.error("Erro ao salvar a escala.");
-      await loadEscala();
-    }
-  };
-
-  // ── Load tasks ────────────────────────────────────────────────────────────
-
-  const loadTarefas = useCallback(async () => {
+  const carregarTarefas = useCallback(async () => {
     if (!hospitalId || !userId) return;
-
-    // Robust admin check (independent of hook timing): role-based OR primary admin of this hospital
     const [{ data: isSuper }, { data: isHospAdmin }, { data: primary }] = await Promise.all([
       supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
       supabase.rpc("has_role", { _user_id: userId, _role: "hospital_admin" }),
-      (supabase.from("hospital_users" as any)
-        .select("is_primary_admin")
-        .eq("user_id", userId)
-        .eq("hospital_id", hospitalId)
-        .maybeSingle() as any),
+      supabase.from("hospital_users").select("is_primary_admin").eq("user_id", userId).eq("hospital_id", hospitalId).maybeSingle(),
     ]);
-    const adminNow = Boolean(isSuper) || Boolean(isHospAdmin) || Boolean((primary as any)?.is_primary_admin);
+    const adminNow = Boolean(isSuper) || Boolean(isHospAdmin) || Boolean(primary?.is_primary_admin);
     setIsPrimaryAdmin(adminNow);
 
-    let query = (supabase.from("kanban_ccih_tarefas" as any).select("*") as any)
-      .eq("hospital_id", hospitalId);
-    if (!adminNow) query = query.contains("assigned_to_ids", [userId]);
-    const { data, error } = await query.order("created_at", { ascending: true });
-    if (error) { toast.error("Erro ao carregar tarefas"); return; }
+    let query = supabase.from("kanban_ccih_tarefas").select("*").eq("hospital_id", hospitalId);
+    if (!adminNow) query = query.contains("assigned_to_ids", [userId]).eq("ativo", true);
+    const { data: rows, error } = await query.order("ordem", { ascending: true, nullsFirst: false });
+    if (error) { toast.error("Erro ao carregar as tarefas."); return; }
+    setTarefas((rows ?? []).map((t) => ({
+      ...t,
+      assigned_to_ids: t.assigned_to_ids?.length ? t.assigned_to_ids : t.assigned_to ? [t.assigned_to] : [],
+      recurrence: t.recurrence as Tarefa["recurrence"],
+      priority: (["low", "normal", "high"].includes(t.priority) ? t.priority : "normal") as Tarefa["priority"],
+      source: (t.source ?? "ccih") as Tarefa["source"],
+      setores: t.setores ?? [],
+    })));
+  }, [hospitalId, userId]);
 
-    const toReset = (data as Tarefa[]).filter(shouldReset).map((t) => t.id);
-    if (toReset.length > 0) {
-      await (supabase.from("kanban_ccih_tarefas" as any)
-        .update({ status: "in_progress", last_completed_at: null })
-        .in("id", toReset) as any);
+  /** Execuções do mês da data (com a semana anterior, para tarefas semanais) e as de tarefas únicas. */
+  const carregarExecucoes = useCallback(async () => {
+    if (!hospitalId) return;
+    const de = addDays(`${mes}-01`, -7);
+    const ate = daysOfMonth(mes).at(-1)!;
+    const campos = "id, tarefa_id, periodo, status, observacao, iniciado_em, concluido_em, concluido_por, updated_at";
+    const rows: Execucao[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data: page, error } = await supabase.from("kanban_ccih_execucoes").select(campos)
+        .eq("hospital_id", hospitalId)
+        .or(`and(periodo.gte.${de},periodo.lte.${ate}),periodo.eq.${PERIODO_UNICO}`)
+        .order("periodo")
+        .range(from, from + 999);
+      if (error) { toast.error("Erro ao carregar a situação das tarefas."); return; }
+      rows.push(...((page ?? []) as Execucao[]));
+      if (!page || page.length < 1000) break;
     }
-
-    // Build a name map: prefer hospitalUsers, fall back to a one-off profiles lookup for assignees outside the list
-    const knownIds = new Set(hospitalUsers.map((u) => u.user_id));
-    const missingIds = Array.from(new Set(
-      (data as any[]).flatMap((t) => {
-        const ids: string[] = Array.isArray(t.assigned_to_ids) && t.assigned_to_ids.length > 0
-          ? t.assigned_to_ids
-          : t.assigned_to ? [t.assigned_to] : [];
-        return ids;
-      }).filter((id) => id && !knownIds.has(id))
-    ));
-    const extraNames: Record<string, string> = {};
-    if (missingIds.length > 0) {
-      const { data: profs } = await (supabase.from("profiles" as any)
-        .select("user_id, full_name")
-        .in("user_id", missingIds) as any);
-      (profs as any[] | null)?.forEach((p) => { extraNames[p.user_id] = p.full_name || ""; });
-    }
-
-    const enriched: Tarefa[] = (data as any[]).map((t) => {
-      const ids: string[] = Array.isArray(t.assigned_to_ids) && t.assigned_to_ids.length > 0
-        ? t.assigned_to_ids
-        : t.assigned_to ? [t.assigned_to] : [];
-      return {
-        ...t,
-        assigned_to_ids: ids,
-        status: toReset.includes(t.id) ? "in_progress" : t.status,
-        last_completed_at: toReset.includes(t.id) ? null : t.last_completed_at,
-        assigned_to_names: ids
-          .map((id) => hospitalUsers.find((u) => u.user_id === id)?.full_name || extraNames[id])
-          .filter(Boolean) as string[],
-        source: (t.source ?? "ccih") as "ccih" | "guardiao",
-      };
-    });
-
-    setTarefas(enriched);
-  }, [hospitalId, userId, hospitalUsers]);
+    setExecucoes(new Map(rows.map((r) => [chave(r.tarefa_id, r.periodo), r])));
+  }, [hospitalId, mes]);
 
   useEffect(() => {
     if (ctxLoading || adminLoading || !hospitalId || !userId) return;
-    const init = async () => {
+    (async () => {
       setLoading(true);
-      // Always load hospital users so admin names show up; cheap query.
-      await loadHospitalUsers();
-      await Promise.all([loadTarefas(), loadEscala()]);
+      await Promise.all([carregarPessoas(), carregarEscala(), carregarTarefas()]);
       setLoading(false);
-    };
-    init();
-  }, [ctxLoading, adminLoading, hospitalId, userId]);
+    })();
+  }, [ctxLoading, adminLoading, hospitalId, userId, carregarPessoas, carregarEscala, carregarTarefas]);
 
-  useEffect(() => {
-    if (hospitalUsers.length > 0) loadTarefas();
-  }, [hospitalUsers]);
+  useEffect(() => { carregarExecucoes(); }, [carregarExecucoes]);
 
-  // Recheck resets when tab becomes visible and every 5 minutes
+  // Atualiza ao voltar para a aba e a cada 5 minutos (a equipe marca tarefas ao mesmo tempo)
   useEffect(() => {
-    if (ctxLoading || adminLoading || !hospitalId || !userId) return;
-    const onVisible = () => { if (document.visibilityState === "visible") loadTarefas(); };
+    const onVisible = () => { if (document.visibilityState === "visible") carregarExecucoes(); };
     document.addEventListener("visibilitychange", onVisible);
-    const interval = setInterval(loadTarefas, 5 * 60 * 1000);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      clearInterval(interval);
-    };
-  }, [ctxLoading, adminLoading, hospitalId, userId, loadTarefas]);
+    const interval = setInterval(carregarExecucoes, 5 * 60 * 1000);
+    return () => { document.removeEventListener("visibilitychange", onVisible); clearInterval(interval); };
+  }, [carregarExecucoes]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  useEffect(() => { setPagina(1); }, [filtros, mostrarArquivadas]);
 
-  const handleComplete = async (id: string) => {
-    await (supabase
-      .from("kanban_ccih_tarefas" as any)
-      .update({ status: "completed", last_completed_at: new Date().toISOString() })
-      .eq("id", id) as any);
-    setTarefas((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, status: "completed", last_completed_at: new Date().toISOString() } : t
-      )
-    );
-    toast.success("Tarefa concluída!");
-  };
+  // ── Derivados ────────────────────────────────────────────────────────────
 
-  const handleReopen = async (id: string) => {
-    await (supabase
-      .from("kanban_ccih_tarefas" as any)
-      .update({ status: "in_progress" })
-      .eq("id", id) as any);
-    setTarefas((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "in_progress" } : t))
-    );
-    toast.success("Tarefa reaberta.");
-  };
+  const nomes = useMemo(() => Object.fromEntries(pessoas.map((p) => [p.user_id, p.full_name])), [pessoas]);
+  const tarefasNomeadas = useMemo(() => tarefas.map((t) => ({
+    ...t, assigned_to_names: t.assigned_to_ids.map((id) => nomes[id]).filter(Boolean),
+  })), [tarefas, nomes]);
 
-  const handleSave = async () => {
-    if (!form.title.trim()) { toast.error("Informe o título da tarefa."); return; }
-    if (form.assigned_to_ids.length === 0) { toast.error("Selecione ao menos um usuário."); return; }
+  const escalaAgenda: EscalaMap = useMemo(() => Object.fromEntries(
+    Object.values(escala).map((e) => [e.user_id, { dias: e.dias, regime: e.regime, plantoes: e.plantoes }]),
+  ), [escala]);
 
-    setSaving(true);
-    const firstAssignee = form.assigned_to_ids[0];
-    if (editingTarefa) {
-      const { error } = await (supabase
-        .from("kanban_ccih_tarefas" as any)
-        .update({
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          assigned_to: firstAssignee,
-          assigned_to_ids: form.assigned_to_ids,
-          recurrence: form.recurrence,
-          priority: form.priority,
-        })
-        .eq("id", editingTarefa.id) as any);
-      if (error) { toast.error("Erro ao salvar."); setSaving(false); return; }
-      toast.success("Tarefa atualizada!");
-    } else {
-      const { error } = await (supabase.from("kanban_ccih_tarefas" as any).insert({
-        hospital_id: hospitalId,
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        assigned_to: firstAssignee,
-        assigned_to_ids: form.assigned_to_ids,
-        assigned_by: userId,
-        recurrence: form.recurrence,
-        priority: form.priority,
-        status: "in_progress",
-      }) as any);
-      if (error) { toast.error("Erro ao criar tarefa."); setSaving(false); return; }
-      toast.success("Tarefa criada e enviada para o(s) usuário(s)!");
-    }
+  // Quem não é administrador vê o próprio quadro
+  const filtrosEfetivos: Filtros = isAdmin ? filtros : { ...filtros, pessoa: userId ?? "all" };
+  const viewer = filtrosEfetivos.pessoa !== "all" ? filtrosEfetivos.pessoa : null;
+  const ativas = tarefasNomeadas.filter((t) => t.ativo && filtraTarefa(t, filtrosEfetivos));
 
-    setSaving(false);
-    setShowDialog(false);
-    setEditingTarefa(null);
-    setForm(emptyForm);
-    await loadTarefas();
-  };
+  const itensDoDia = useCallback((dia: string): ItemQuadro[] => ativas
+    .filter((t) => tarefaNoDia(t, dia, escalaAgenda, viewer))
+    .sort(ordenar)
+    .map((t) => {
+      const periodo = periodoDe(t, dia);
+      const execucao = execucoes.get(chave(t.id, periodo));
+      return { tarefa: t, periodo, status: execucao?.status ?? "todo", execucao };
+    }), [ativas, escalaAgenda, viewer, execucoes]);
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    await (supabase.from("kanban_ccih_tarefas" as any).delete().eq("id", deleteId) as any);
-    setTarefas((prev) => prev.filter((t) => t.id !== deleteId));
-    setDeleteId(null);
-    toast.success("Tarefa removida.");
-  };
-
-  const openEdit = (tarefa: Tarefa) => {
-    setEditingTarefa(tarefa);
-    const ids = tarefa.assigned_to_ids?.length > 0
-      ? tarefa.assigned_to_ids
-      : tarefa.assigned_to ? [tarefa.assigned_to] : [];
-    setForm({
-      title: tarefa.title,
-      description: tarefa.description || "",
-      assigned_to_ids: ids,
-      recurrence: tarefa.recurrence as "daily" | "weekly" | "monthly" | "once",
-      priority: tarefa.priority,
-    });
-    setShowDialog(true);
-  };
-
-  const openNew = () => {
-    setEditingTarefa(null);
-    setForm(emptyForm);
-    setShowDialog(true);
-  };
-
-  // Manage tab: filter + sort
-  const manageAnos = Array.from(new Set(tarefas.map((t) => new Date(t.created_at).getFullYear()))).sort((a, b) => b - a);
-  const manageTarefas = (() => {
-    let list = tarefas.filter((t) => {
-      const d = new Date(t.created_at);
-      if (manageMes !== "all" && d.getMonth() + 1 !== Number(manageMes)) return false;
-      if (manageAno !== "all" && d.getFullYear() !== Number(manageAno)) return false;
-      if (manageUser !== "all" && !(t.assigned_to_ids?.includes(manageUser) || t.assigned_to === manageUser)) return false;
-      if (manageStatus !== "all" && t.status !== manageStatus) return false;
-      return true;
-    });
-    if (sortKey) {
-      const order: Record<SortKey, (t: Tarefa) => string | number> = {
-        source: (t) => t.source ?? "",
-        recurrence: (t) => ["daily", "weekly", "monthly", "once", "none"].indexOf(t.recurrence),
-        priority: (t) => ["low", "normal", "high"].indexOf(t.priority),
-        status: (t) => t.status,
-      };
-      const fn = order[sortKey];
-      list = [...list].sort((a, b) => {
-        const va = fn(a); const vb = fn(b);
-        if (va < vb) return sortDir === "asc" ? -1 : 1;
-        if (va > vb) return sortDir === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-    return list;
+  const itens = itensDoDia(data);
+  const itensFiltrados = filtrosEfetivos.status === "all" ? itens : itens.filter((i) => i.status === filtrosEfetivos.status);
+  const contagem = (lista: ItemQuadro[]) => ({
+    total: lista.length,
+    todo: lista.filter((i) => i.status === "todo").length,
+    doing: lista.filter((i) => i.status === "doing").length,
+    done: lista.filter((i) => i.status === "done").length,
+  });
+  const resumoDia = contagem(itens);
+  const porPessoaDia = (() => {
+    const map = new Map<string, ItemQuadro[]>();
+    itens.forEach((i) => i.tarefa.assigned_to_ids.forEach((id) => {
+      if (!map.has(id)) map.set(id, []);
+      map.get(id)!.push(i);
+    }));
+    return [...map.entries()]
+      .map(([id, lista]) => ({ id, itens: lista }))
+      .sort((a, b) => (nomes[a.id] ?? "").localeCompare(nomes[b.id] ?? ""));
   })();
 
-  // ── Manage-tab pagination ─────────────────────────────────────────────────
-  const MANAGE_PAGE_SIZE = LIST_PAGE_SIZE;
-  const [managePage, setManagePage] = useState(1);
-  const manageTotalPages = Math.max(1, Math.ceil(manageTarefas.length / MANAGE_PAGE_SIZE));
-  const managePageSafe = Math.min(managePage, manageTotalPages);
-  const pagedManage = manageTarefas.slice((managePageSafe - 1) * MANAGE_PAGE_SIZE, managePageSafe * MANAGE_PAGE_SIZE);
-  useEffect(() => { setManagePage(1); }, [manageMes, manageAno, manageUser, manageStatus, sortKey, sortDir]);
+  // Plantonistas sem plantão cadastrado no mês (as tarefas de plantão não aparecem)
+  const semPlantao = Object.values(escala).filter((e) => e.regime === "plantao"
+    && !e.plantoes.some((p) => p.startsWith(mes))
+    && ativas.some((t) => t.no_plantao && t.assigned_to_ids.includes(e.user_id)));
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  const tarefasPorPessoa = useMemo(() => {
+    const c: Record<string, number> = {};
+    tarefas.filter((t) => t.ativo).forEach((t) => t.assigned_to_ids.forEach((id) => { c[id] = (c[id] ?? 0) + 1; }));
+    return c;
+  }, [tarefas]);
 
-  // Hoje (dia da semana local). Tarefas diárias de quem está de folga não aparecem:
-  // no quadro de quem executa, pelo próprio dia; na visão do admin, quando nenhum
-  // responsável trabalha hoje (pode exibir com "Mostrar quem está de folga").
-  const today = new Date().getDay();
-  const assignedToMe = tarefas.filter((t) =>
-    t.assigned_to_ids?.includes(userId!) || t.assigned_to === userId
-  );
-  const folgaHoje = isAdmin
-    ? tarefas.filter((t) => isOffDay(t, escala, today))
-    : assignedToMe.filter((t) => isOffDay(t, escala, today, userId));
-  const myTarefas = isAdmin
-    ? (showFolga ? tarefas : tarefas.filter((t) => !isOffDay(t, escala, today)))
-    : assignedToMe.filter((t) => !isOffDay(t, escala, today, userId));
+  const pessoasComTarefa = pessoas.filter((p) => tarefasPorPessoa[p.user_id]);
+  const setoresExtras = [...new Set(tarefas.flatMap((t) => t.setores))];
 
-  const filtered = myTarefas.filter((t) => {
-    // Aplica filtro de recorrência selecionado
-    return recurrenceFilter === "all" || t.recurrence === recurrenceFilter;
-  });
+  // ── Ações ────────────────────────────────────────────────────────────────
 
-  const inProgress = filtered.filter((t) => t.status === "in_progress");
-  const completed = filtered.filter((t) => t.status === "completed");
-
-  const stats = {
-    daily: myTarefas.filter((t) => t.recurrence === "daily").length,
-    weekly: myTarefas.filter((t) => t.recurrence === "weekly").length,
-    monthly: myTarefas.filter((t) => t.recurrence === "monthly").length,
-    once: myTarefas.filter((t) => t.recurrence === "once").length,
-    done: myTarefas.filter((t) => t.status === "completed").length,
-    total: myTarefas.length,
+  const mudarStatus = async (item: ItemQuadro, status: StatusExecucao) => {
+    if (!hospitalId || !userId) return;
+    const agora = new Date().toISOString();
+    const k = chave(item.tarefa.id, item.periodo);
+    const anterior = execucoes.get(k);
+    const row = {
+      hospital_id: hospitalId,
+      tarefa_id: item.tarefa.id,
+      periodo: item.periodo,
+      status,
+      updated_by: userId,
+      updated_at: agora,
+      iniciado_em: status === "todo" ? null : anterior?.iniciado_em ?? agora,
+      concluido_em: status === "done" ? agora : null,
+      concluido_por: status === "done" ? userId : null,
+    };
+    setExecucoes((m) => new Map(m).set(k, { ...anterior, ...row }));
+    const { error } = await supabase.from("kanban_ccih_execucoes").upsert(row, { onConflict: "tarefa_id,periodo" });
+    if (error) {
+      toast.error("Não foi possível salvar a situação da tarefa.");
+      setExecucoes((m) => { const n = new Map(m); if (anterior) n.set(k, anterior); else n.delete(k); return n; });
+      return;
+    }
+    if (status === "done") toast.success("Tarefa concluída!");
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const salvarTarefa = async (form: TarefaForm): Promise<boolean> => {
+    if (!form.title.trim()) { toast.error("Informe o título da tarefa."); return false; }
+    if (form.assigned_to_ids.length === 0) { toast.error("Selecione ao menos um responsável."); return false; }
+    if (!hospitalId) return false;
+    const campos = {
+      title: form.title.trim(),
+      description: form.description?.trim() || null,
+      assigned_to: form.assigned_to_ids[0],
+      assigned_to_ids: form.assigned_to_ids,
+      recurrence: form.recurrence,
+      priority: form.priority,
+      tipo: form.tipo,
+      setores: form.setores,
+      dias_semana: form.dias_semana,
+      dias_mes: form.dias_mes,
+      no_plantao: form.no_plantao,
+      quando: form.quando?.trim() || null,
+      horario: form.horario?.trim() || null,
+      tempo_alvo: form.tempo_alvo?.trim() || null,
+      validador: form.validador?.trim() || null,
+      backup: form.backup?.trim() || null,
+      ativo: form.ativo,
+    };
+    const editando = dialogTarefa.tarefa;
+    const { error } = editando
+      ? await supabase.from("kanban_ccih_tarefas").update(campos).eq("id", editando.id)
+      : await supabase.from("kanban_ccih_tarefas").insert({ ...campos, hospital_id: hospitalId, assigned_by: userId, status: "in_progress" });
+    if (error) { toast.error("Erro ao salvar a tarefa."); return false; }
+    toast.success(editando ? "Tarefa atualizada!" : "Tarefa criada!");
+    await carregarTarefas();
+    return true;
+  };
+
+  const excluirTarefa = async () => {
+    if (!excluir) return;
+    const { error } = await supabase.from("kanban_ccih_tarefas").delete().eq("id", excluir.id);
+    if (error) { toast.error("Erro ao excluir a tarefa."); return; }
+    setTarefas((prev) => prev.filter((t) => t.id !== excluir.id));
+    setExcluir(null);
+    setDialogTarefa({ open: false, tarefa: null });
+    toast.success("Tarefa excluída.");
+  };
+
+  const salvarEscala = async (uid: string, patch: EscalaPatch): Promise<boolean> => {
+    if (!hospitalId) return false;
+    const atual = escala[uid];
+    const { error } = await supabase.from("kanban_ccih_escala").upsert({
+      hospital_id: hospitalId,
+      user_id: uid,
+      dias_semana: patch.dias ?? atual?.dias ?? [1, 2, 3, 4, 5],
+      regime: patch.regime ?? atual?.regime ?? "fixo",
+      plantoes: patch.plantoes ?? atual?.plantoes ?? [],
+      funcao: patch.funcao !== undefined ? patch.funcao : atual?.funcao ?? null,
+      atribuicoes: patch.atribuicoes !== undefined ? patch.atribuicoes : atual?.atribuicoes ?? null,
+      updated_at: new Date().toISOString(),
+      updated_by: userId,
+    }, { onConflict: "hospital_id,user_id" });
+    if (error) { toast.error("Erro ao salvar a escala."); return false; }
+    toast.success("Escala atualizada.");
+    await carregarEscala();
+    return true;
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   if (loading || ctxLoading || adminLoading) {
     return (
@@ -596,539 +338,244 @@ export default function KanbanCCIH() {
     );
   }
 
+  const semana = weekOf(data);
+  const dataLonga = (() => {
+    const txt = parseCivil(data).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  })();
+
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
+    <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
+      {/* Cabeçalho */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
             <KanbanSquare className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Kanban CCIH</h1>
-            <p className="text-sm text-muted-foreground">
-              Tarefas diárias, semanais e mensais da equipe
-            </p>
+            <h1 className="text-xl font-bold text-foreground">Kanban SCIH</h1>
+            <p className="text-sm text-muted-foreground">Tarefas da equipe por dia, mês, funcionário e setor</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <>
-              <Button
-                variant={tab === "kanban" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTab("kanban")}
-                className="gap-1.5"
-              >
-                <KanbanSquare className="h-4 w-4" />
-                Meu Quadro
-              </Button>
-              <Button
-                variant={tab === "manage" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTab("manage")}
-                className="gap-1.5"
-              >
-                <Users className="h-4 w-4" />
-                Gerenciar
-              </Button>
-            </>
-          )}
-        </div>
+        {isAdmin && (
+          <Button size="sm" className="gap-1.5" onClick={() => setDialogTarefa({ open: true, tarefa: null })}>
+            <Plus className="h-4 w-4" /> Nova tarefa
+          </Button>
+        )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard icon={<Calendar className="h-4 w-4 text-blue-600" />} label="Diárias" value={stats.daily} color="text-blue-600" />
-        <StatCard icon={<CalendarDays className="h-4 w-4 text-purple-600" />} label="Semanais" value={stats.weekly} color="text-purple-600" />
-        <StatCard icon={<CalendarRange className="h-4 w-4 text-amber-600" />} label="Mensais" value={stats.monthly} color="text-amber-600" />
-        <StatCard icon={<ChevronRight className="h-4 w-4 text-green-600" />} label="Única vez" value={stats.once} color="text-green-600" />
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-          label="Concluídas"
-          value={`${stats.done}/${stats.total}`}
-          color="text-emerald-600"
+      <Tabs value={aba} onValueChange={(v) => setAba(v as Aba)}>
+        <TabsList className="h-9 flex-wrap">
+          <TabsTrigger value="dia" className="text-xs gap-1"><CalendarDays className="h-3.5 w-3.5" /> Quadro do dia</TabsTrigger>
+          <TabsTrigger value="mes" className="text-xs gap-1"><CalendarRange className="h-3.5 w-3.5" /> Resumo do mês</TabsTrigger>
+          <TabsTrigger value="equipe" className="text-xs gap-1"><Users className="h-3.5 w-3.5" /> Equipe e funções</TabsTrigger>
+          {isAdmin && <TabsTrigger value="gerenciar" className="text-xs gap-1"><ListChecks className="h-3.5 w-3.5" /> Gerenciar tarefas</TabsTrigger>}
+        </TabsList>
+      </Tabs>
+
+      {aba !== "equipe" && (
+        <KanbanFiltros
+          filtros={filtrosEfetivos}
+          onChange={setFiltros}
+          pessoas={pessoasComTarefa.length ? pessoasComTarefa : pessoas}
+          mostrarPessoa={isAdmin}
+          setoresExtras={setoresExtras}
         />
-      </div>
+      )}
 
-      {/* Kanban Tab */}
-      {tab === "kanban" && (
-        <div className="space-y-4">
-          {/* Filter */}
-          <Tabs value={recurrenceFilter} onValueChange={(v) => setRecurrenceFilter(v as any)}>
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs px-3">Todas</TabsTrigger>
-              <TabsTrigger value="daily" className="text-xs px-3 gap-1">
-                <Calendar className="h-3 w-3" /> Diárias
-              </TabsTrigger>
-              <TabsTrigger value="weekly" className="text-xs px-3 gap-1">
-                <CalendarDays className="h-3 w-3" /> Semanais
-              </TabsTrigger>
-              <TabsTrigger value="monthly" className="text-xs px-3 gap-1">
-                <CalendarRange className="h-3 w-3" /> Mensais
-              </TabsTrigger>
-              <TabsTrigger value="once" className="text-xs px-3 gap-1">
-                <ChevronRight className="h-3 w-3" /> Única vez
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {folgaHoje.length > 0 && (
-            <div className="flex items-center justify-between gap-2 flex-wrap rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-              <span>
-                {folgaHoje.length} tarefa(s) diária(s) {isAdmin ? "de quem está de folga hoje" : "fora da sua escala hoje"} não aparece(m) no quadro.
-              </span>
-              {isAdmin && (
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowFolga((v) => !v)}>
-                  {showFolga ? "Ocultar" : "Mostrar"}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Checklist */}
-          <Card className="border border-violet-200 bg-violet-50/40">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ListTodo className="h-4 w-4 text-violet-600" />
-                  <CardTitle className="text-sm font-semibold text-violet-700">
-                    Checklist de Tarefas
-                  </CardTitle>
-                  <span className="text-xs text-violet-500 font-normal">
-                    {filtered.filter((t) => t.status === "completed").length}/{filtered.length} concluídas
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-1 max-w-xs ml-4">
-                  <div className="w-full bg-violet-200 rounded-full h-1.5">
-                    <div
-                      className="bg-violet-600 h-1.5 rounded-full transition-all"
-                      style={{ width: filtered.length ? `${Math.round((filtered.filter((t) => t.status === "completed").length / filtered.length) * 100)}%` : "0%" }}
-                    />
-                  </div>
-                  <span className="text-xs text-violet-600 font-medium shrink-0">
-                    {filtered.length ? Math.round((filtered.filter((t) => t.status === "completed").length / filtered.length) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-3">
-              {filtered.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">Nenhuma tarefa encontrada.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                  {filtered.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => t.status === "completed" ? handleReopen(t.id) : handleComplete(t.id)}
-                      className={`flex items-start gap-2 p-2 rounded-lg border text-left transition-all hover:shadow-sm
-                        ${t.status === "completed"
-                          ? "bg-emerald-50 border-emerald-200 opacity-70"
-                          : "bg-white border-gray-200 hover:border-violet-300"}`}
-                    >
-                      <div className={`mt-0.5 shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center transition-colors
-                        ${t.status === "completed"
-                          ? "bg-emerald-500 border-emerald-500"
-                          : "border-gray-300 hover:border-violet-500"}`}
-                      >
-                        {t.status === "completed" && (
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium leading-snug ${t.status === "completed" ? "line-through text-muted-foreground" : "text-gray-800"}`}>
-                          {t.title}
-                        </p>
-                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                          {t.source === "guardiao" && (
-                            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-1 rounded">Guardião</span>
-                          )}
-                          {isAdmin && t.assigned_to_names && t.assigned_to_names.length > 0 && (
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{t.assigned_to_names.join(", ")}</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Board */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Em Andamento */}
-            <KanbanColumn
-              title="Em Andamento"
-              count={inProgress.length}
-              icon={<Clock className="h-4 w-4 text-blue-600" />}
-              colorClass="border-blue-200 bg-blue-50/50"
-              headerClass="text-blue-700"
-              empty="Nenhuma tarefa em andamento."
-            >
-              {inProgress.map((t) => (
-                <TarefaCard
-                  key={t.id}
-                  tarefa={t}
-                  isAdmin={isAdmin}
-                  onComplete={handleComplete}
-                  onReopen={handleReopen}
-                  onEdit={openEdit}
-                  onDelete={(id) => setDeleteId(id)}
-                />
-              ))}
-            </KanbanColumn>
-
-            {/* Concluído */}
-            <KanbanColumn
-              title="Concluído"
-              count={completed.length}
-              icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-              colorClass="border-emerald-200 bg-emerald-50/50"
-              headerClass="text-emerald-700"
-              empty="Nenhuma tarefa concluída ainda."
-            >
-              {completed.map((t) => (
-                <TarefaCard
-                  key={t.id}
-                  tarefa={t}
-                  isAdmin={isAdmin}
-                  onComplete={handleComplete}
-                  onReopen={handleReopen}
-                  onEdit={openEdit}
-                  onDelete={(id) => setDeleteId(id)}
-                />
-              ))}
-            </KanbanColumn>
-          </div>
+      {semPlantao.length > 0 && (aba === "dia" || aba === "mes") && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            {semPlantao.map((e) => nomes[e.user_id] ?? "—").join(" e ")} sem plantões cadastrados em {nomeMes(mes)}: as tarefas de plantão
+            não aparecem no quadro. {isAdmin ? "Cadastre em Equipe e funções." : "Peça à coordenação para cadastrar."}
+          </span>
         </div>
       )}
 
-      {/* Manage Tab (admin only) */}
-      {tab === "manage" && isAdmin && (
+      {/* ── Quadro do dia ── */}
+      {aba === "dia" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {manageTarefas.length} de {tarefas.length} tarefa(s)
-            </p>
-            <Button size="sm" onClick={openNew} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Nova Tarefa
-            </Button>
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData(addDays(data, -7))} title="Semana anterior">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Input type="date" className="h-8 w-40" value={data} onChange={(e) => e.target.value && setData(e.target.value)} />
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData(addDays(data, 7))} title="Próxima semana">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                {data !== hoje && <Button variant="ghost" size="sm" className="h-8" onClick={() => setData(hoje)}>Hoje</Button>}
+                <span className="text-sm font-medium ml-1">{dataLonga}</span>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {semana.map((d) => {
+                  const c = contagem(itensDoDia(d));
+                  const sel = d === data;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setData(d)}
+                      className={`rounded-md border px-1 py-1.5 text-center transition-colors ${
+                        sel ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+                      } ${d === hoje && !sel ? "border-primary" : ""}`}
+                    >
+                      <p className="text-[11px] font-medium">{diaLabel(d)} {parseCivil(d).getDate()}</p>
+                      <p className={`text-[10px] ${sel ? "opacity-90" : "text-muted-foreground"}`}>
+                        {c.total ? `${c.done}/${c.total}` : "—"}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Resumo label="Tarefas do dia" valor={resumoDia.total} cor="text-foreground" />
+            <Resumo label="A fazer" valor={resumoDia.todo} cor="text-slate-600" />
+            <Resumo label="Em andamento" valor={resumoDia.doing} cor="text-blue-600" />
+            <Resumo
+              label="Concluídas"
+              valor={`${resumoDia.done}${resumoDia.total ? ` (${Math.round((resumoDia.done / resumoDia.total) * 100)}%)` : ""}`}
+              cor="text-emerald-600"
+            />
           </div>
 
-          {/* Escala da equipe */}
-          <Card>
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary" /> Escala da equipe
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Dias em que cada pessoa trabalha: as tarefas diárias dela só aparecem no quadro nesses dias. Quem nunca teve a escala ajustada aparece todos os dias. Clique no dia para incluir ou remover; salva na hora.
-              </p>
-            </CardHeader>
-            <CardContent className="px-4 pb-3 space-y-1.5">
-              {hospitalUsers.length === 0 && <p className="text-xs text-muted-foreground">Nenhum funcionário encontrado.</p>}
-              {[...hospitalUsers].sort((a, b) => a.full_name.localeCompare(b.full_name)).map((u) => {
-                const dias = escala[u.user_id];
+          {viewer || !agrupar ? (
+            <Quadro
+              itens={itensFiltrados}
+              status={filtrosEfetivos.status}
+              diaSemana={diaLabel(data)}
+              mostrarResponsavel={isAdmin && !viewer}
+              podeEditar={isAdmin}
+              onStatus={mudarStatus}
+              onEdit={(i) => setDialogTarefa({ open: true, tarefa: i.tarefa })}
+            />
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-muted-foreground">Por funcionário — clique no nome para abrir o quadro da pessoa.</p>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAbertos(new Set(porPessoaDia.map((g) => g.id)))}>Abrir todos</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAbertos(new Set())}>Fechar todos</Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAgrupar(false)}>Ver tudo junto</Button>
+                </div>
+              </div>
+              {porPessoaDia.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8 border rounded-lg">Nenhuma tarefa neste dia com os filtros aplicados.</p>
+              )}
+              {porPessoaDia.map((g) => {
+                const c = contagem(g.itens);
+                const aberto = abertos.has(g.id);
                 return (
-                  <div key={u.user_id} className="flex items-center justify-between gap-3 flex-wrap border-b last:border-b-0 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{u.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground">{describeDays(dias)}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      {WEEKDAYS.map((w) => {
-                        const on = !dias || dias.includes(w.value);
-                        return (
-                          <button
-                            key={w.value}
-                            type="button"
-                            onClick={() => toggleEscalaDay(u.user_id, w.value)}
-                            aria-pressed={on}
-                            title={`${on ? "Remover" : "Incluir"} ${w.label}`}
-                            className={`h-7 w-9 rounded text-[11px] font-medium border transition-colors ${
-                              on ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:bg-muted"
-                            }`}
-                          >
-                            {w.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div key={g.id} className="rounded-lg border bg-card">
+                    <button
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/50"
+                      onClick={() => setAbertos((prev) => { const n = new Set(prev); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })}
+                    >
+                      {aberto ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{nomes[g.id] ?? "—"}</p>
+                        {escala[g.id]?.funcao && <p className="text-[11px] text-muted-foreground truncate">{escala[g.id]?.funcao}</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] shrink-0">
+                        <Badge variant="outline" className="font-normal">{c.todo} a fazer</Badge>
+                        {c.doing > 0 && <Badge variant="outline" className="font-normal text-blue-700 border-blue-200">{c.doing} em andamento</Badge>}
+                        <Badge variant="outline" className="font-normal text-emerald-700 border-emerald-200">{c.done}/{c.total} concluídas</Badge>
+                      </div>
+                    </button>
+                    {aberto && (
+                      <div className="border-t p-3">
+                        <Quadro
+                          itens={filtrosEfetivos.status === "all" ? g.itens : g.itens.filter((i) => i.status === filtrosEfetivos.status)}
+                          status={filtrosEfetivos.status}
+                          diaSemana={diaLabel(data)}
+                          mostrarResponsavel={false}
+                          podeEditar={isAdmin}
+                          onStatus={mudarStatus}
+                          onEdit={(i) => setDialogTarefa({ open: true, tarefa: i.tarefa })}
+                          compacto
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </CardContent>
-          </Card>
-
-          {/* Filtros */}
-          <Card>
-            <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Mês</Label>
-                <Select value={manageMes} onValueChange={setManageMes}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m, i) => (
-                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Ano</Label>
-                <Select value={manageAno} onValueChange={setManageAno}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {manageAnos.map((a) => (
-                      <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Funcionário</Label>
-                <Select value={manageUser} onValueChange={setManageUser}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {hospitalUsers.map((u) => (
-                      <SelectItem key={u.user_id} value={u.user_id}>{u.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Status</Label>
-                <Select value={manageStatus} onValueChange={setManageStatus}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="completed">Concluído</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tarefa</TableHead>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>
-                      <button onClick={() => toggleSort("source")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Origem <SortIcon k="source" />
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button onClick={() => toggleSort("recurrence")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Recorrência <SortIcon k="recurrence" />
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button onClick={() => toggleSort("priority")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Prioridade <SortIcon k="priority" />
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button onClick={() => toggleSort("status")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Status <SortIcon k="status" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="w-20">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {manageTarefas.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                        Nenhuma tarefa encontrada com os filtros aplicados.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {pagedManage.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        <p className="font-medium text-sm">{t.title}</p>
-                        {t.description && (
-                          <p className="text-xs text-muted-foreground truncate max-w-xs">{t.description}</p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-sm">
-                            {t.assigned_to_names && t.assigned_to_names.length > 0
-                              ? t.assigned_to_names.join(", ")
-                              : "—"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {t.source === "guardiao" ? (
-                          <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border border-indigo-200">Guardião</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-gray-600">IrasControl</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`text-xs gap-1 ${RECURRENCE_COLORS[t.recurrence]}`}>
-                          {RECURRENCE_ICONS[t.recurrence]}
-                          {RECURRENCE_LABELS[t.recurrence]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">{PRIORITY_LABELS[t.priority]}</span>
-                      </TableCell>
-                      <TableCell>
-                        {t.status === "completed" ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">Concluído</Badge>
-                        ) : (
-                          <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">Em Andamento</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => openEdit(t)}
-                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(t.id)}
-                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {manageTarefas.length > MANAGE_PAGE_SIZE && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 border-t mt-2 px-4">
-                  <p className="text-xs text-muted-foreground">Mostrando {(managePageSafe - 1) * MANAGE_PAGE_SIZE + 1}–{Math.min(managePageSafe * MANAGE_PAGE_SIZE, manageTarefas.length)} de {manageTarefas.length}</p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="h-8" disabled={managePageSafe <= 1} onClick={() => setManagePage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
-                    <span className="text-xs text-muted-foreground px-1">Página {managePageSafe} de {manageTotalPages}</span>
-                    <Button variant="outline" size="sm" className="h-8" disabled={managePageSafe >= manageTotalPages} onClick={() => setManagePage(p => Math.min(manageTotalPages, p + 1))}>Próxima <ChevronLeft className="h-4 w-4 rotate-180" /></Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+          {!viewer && !agrupar && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAgrupar(true)}>Agrupar por funcionário</Button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) { setShowDialog(false); setEditingTarefa(null); setForm(emptyForm); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingTarefa ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Título *</Label>
-              <Input
-                placeholder="Ex: Higienização das mãos nas UTIs"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Textarea
-                placeholder="Detalhes opcionais da tarefa..."
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={2}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Atribuir para *</Label>
-              <MultiUserSelect
-                users={hospitalUsers}
-                selected={form.assigned_to_ids}
-                onChange={(ids) => setForm((f) => ({ ...f, assigned_to_ids: ids }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Recorrência</Label>
-                <Select value={form.recurrence} onValueChange={(v) => setForm((f) => ({ ...f, recurrence: v as any }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="once">Única vez</SelectItem>
-                    <SelectItem value="daily">Diária</SelectItem>
-                    <SelectItem value="weekly">Semanal</SelectItem>
-                    <SelectItem value="monthly">Mensal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Prioridade</Label>
-                <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v as any }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Baixa</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {form.recurrence && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  {form.recurrence === "once" && "Essa tarefa ocorre uma única vez e não será reiniciada automaticamente após concluída."}
-                  {form.recurrence === "daily" && "Essa tarefa voltará para 'Em Andamento' automaticamente todo dia."}
-                  {form.recurrence === "weekly" && "Essa tarefa voltará para 'Em Andamento' toda segunda-feira."}
-                  {form.recurrence === "monthly" && "Essa tarefa voltará para 'Em Andamento' no primeiro dia de cada mês."}
-                </span>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowDialog(false); setEditingTarefa(null); setForm(emptyForm); }}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              {editingTarefa ? "Salvar" : "Criar Tarefa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Resumo do mês ── */}
+      {aba === "mes" && (
+        <ResumoMes
+          mes={mes}
+          hoje={hoje}
+          onMes={(m) => setData(m === hoje.slice(0, 7) ? hoje : `${m}-01`)}
+          tarefas={ativas}
+          escala={escalaAgenda}
+          viewer={viewer}
+          execucoes={execucoes}
+          status={filtrosEfetivos.status}
+          mostrarResponsavel={isAdmin && !viewer}
+          onPessoa={isAdmin ? (id) => setFiltros((f) => ({ ...f, pessoa: id })) : undefined}
+          nomes={nomes}
+        />
+      )}
 
-      {/* Delete Confirm */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      {/* ── Equipe e funções ── */}
+      {aba === "equipe" && (
+        <EquipeEscala
+          pessoas={pessoas}
+          escala={escala}
+          tarefasPorPessoa={tarefasPorPessoa}
+          mes={mes}
+          podeEditar={isAdmin}
+          onSave={salvarEscala}
+        />
+      )}
+
+      {/* ── Gerenciar tarefas ── */}
+      {aba === "gerenciar" && isAdmin && (
+        <GerenciarTarefas
+          tarefas={tarefasNomeadas.filter((t) => (mostrarArquivadas || t.ativo) && filtraTarefa(t, filtrosEfetivos))}
+          totalArquivadas={tarefas.filter((t) => !t.ativo).length}
+          mostrarArquivadas={mostrarArquivadas}
+          onMostrarArquivadas={setMostrarArquivadas}
+          pagina={pagina}
+          onPagina={setPagina}
+          onEdit={(t) => setDialogTarefa({ open: true, tarefa: t })}
+        />
+      )}
+
+      <TarefaDialog
+        open={dialogTarefa.open}
+        tarefa={dialogTarefa.tarefa}
+        pessoas={pessoas}
+        onClose={() => setDialogTarefa({ open: false, tarefa: null })}
+        onSave={salvarTarefa}
+        onDelete={(t) => setExcluir(t)}
+      />
+
+      <AlertDialog open={!!excluir} onOpenChange={(o) => !o && setExcluir(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover tarefa?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir a tarefa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Essa ação não pode ser desfeita. A tarefa será removida permanentemente.
+              A tarefa e todo o histórico de execução dela serão apagados. Para tirar do quadro e manter o histórico,
+              desmarque "Tarefa ativa" (arquivar).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-              Remover
-            </AlertDialogAction>
+            <AlertDialogAction onClick={excluirTarefa} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1136,89 +583,282 @@ export default function KanbanCCIH() {
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
 
-function MultiUserSelect({
-  users,
-  selected,
-  onChange,
+/** Colunas A fazer / Em andamento / Concluídas. */
+function Quadro({
+  itens, status, diaSemana, mostrarResponsavel, podeEditar, onStatus, onEdit, compacto = false,
 }: {
-  users: HospitalUser[];
-  selected: string[];
-  onChange: (ids: string[]) => void;
+  itens: ItemQuadro[];
+  status: Filtros["status"];
+  diaSemana: string;
+  mostrarResponsavel: boolean;
+  podeEditar: boolean;
+  onStatus: (item: ItemQuadro, status: StatusExecucao) => void;
+  onEdit: (item: ItemQuadro) => void;
+  compacto?: boolean;
 }) {
-  const toggle = (userId: string) => {
-    onChange(
-      selected.includes(userId)
-        ? selected.filter((id) => id !== userId)
-        : [...selected, userId],
-    );
-  };
-
-  if (users.length === 0) {
-    return <p className="text-sm text-muted-foreground px-1 py-2">Nenhum usuário disponível</p>;
-  }
-
   return (
-    <div className="rounded-md border bg-background divide-y max-h-44 overflow-y-auto">
-      {users.filter((u) => !!u.user_id).map((u) => (
-        <label
-          key={u.user_id}
-          className="flex items-center gap-3 px-3 py-2 hover:bg-accent cursor-pointer transition-colors select-none"
-        >
-          <Checkbox
-            checked={selected.includes(u.user_id)}
-            onCheckedChange={() => toggle(u.user_id)}
-          />
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{u.full_name}</p>
-            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+    <div className={`grid grid-cols-1 gap-4 ${status === "all" ? "lg:grid-cols-3" : ""}`}>
+      {COLUNAS.filter((c) => status === "all" || c.status === status).map((col) => {
+        const lista = itens.filter((i) => i.status === col.status);
+        return (
+          <div key={col.status} className={`rounded-xl border-2 p-3 space-y-3 ${compacto ? "" : "min-h-[240px]"} ${col.cor}`}>
+            <div className="flex items-center gap-2">
+              {col.icon}
+              <h3 className="font-semibold text-sm">{col.titulo}</h3>
+              <span className="ml-auto text-xs font-medium bg-background border rounded-full px-2 py-0.5 text-foreground">{lista.length}</span>
+            </div>
+            <div className="space-y-2">
+              {lista.length === 0
+                ? <p className={`text-xs text-muted-foreground text-center ${compacto ? "py-3" : "py-8"}`}>{col.vazio}</p>
+                : lista.map((item) => (
+                  <OcorrenciaCard
+                    key={chave(item.tarefa.id, item.periodo)}
+                    item={item}
+                    diaSemana={diaSemana}
+                    mostrarResponsavel={mostrarResponsavel}
+                    podeEditar={podeEditar}
+                    onStatus={onStatus}
+                    onEdit={onEdit}
+                  />
+                ))}
+            </div>
           </div>
-        </label>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+function Resumo({ label, valor, cor }: { label: string; valor: string | number; cor: string }) {
   return (
     <Card className="p-3">
-      <div className="flex items-center gap-2">
-        {icon}
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className={`text-lg font-bold leading-none ${color}`}>{value}</p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-lg font-bold leading-tight ${cor}`}>{valor}</p>
     </Card>
   );
 }
 
-function KanbanColumn({
-  title, count, icon, colorClass, headerClass, empty, children,
+interface LinhaMes {
+  tarefa: Tarefa;
+  previstas: number;
+  done: number;
+  doing: number;
+  /** A fazer até hoje (atrasadas ou do dia) */
+  pendentes: number;
+  /** Ainda por vir no mês */
+  futuras: number;
+}
+
+function ResumoMes({
+  mes, hoje, onMes, tarefas, escala, viewer, execucoes, status, mostrarResponsavel, onPessoa, nomes,
 }: {
-  title: string;
-  count: number;
-  icon: React.ReactNode;
-  colorClass: string;
-  headerClass: string;
-  empty: string;
-  children: React.ReactNode;
+  mes: string;
+  hoje: string;
+  onMes: (mes: string) => void;
+  tarefas: Tarefa[];
+  escala: EscalaMap;
+  viewer: string | null;
+  execucoes: Map<string, Execucao>;
+  status: Filtros["status"];
+  mostrarResponsavel: boolean;
+  onPessoa?: (userId: string) => void;
+  nomes: Record<string, string>;
 }) {
+  const linhas: LinhaMes[] = tarefas.map((t) => {
+    const occ = ocorrenciasNoMes(t, mes, escala, viewer);
+    const l: LinhaMes = { tarefa: t, previstas: occ.length, done: 0, doing: 0, pendentes: 0, futuras: 0 };
+    occ.forEach((o) => {
+      const s = execucoes.get(`${t.id}|${o.periodo}`)?.status ?? "todo";
+      if (s === "done") l.done++;
+      else if (s === "doing") l.doing++;
+      else if (o.datas[0] <= hoje) l.pendentes++;
+      else l.futuras++;
+    });
+    return l;
+  }).filter((l) => l.previstas > 0)
+    .filter((l) => status === "all" || (status === "done" ? l.done : status === "doing" ? l.doing : l.pendentes + l.futuras) > 0)
+    .sort((a, b) => (nomes[a.tarefa.assigned_to_ids[0]] ?? "").localeCompare(nomes[b.tarefa.assigned_to_ids[0]] ?? "") || ordenar(a.tarefa, b.tarefa));
+
+  const total = linhas.reduce((acc, l) => ({
+    previstas: acc.previstas + l.previstas, done: acc.done + l.done, doing: acc.doing + l.doing,
+    pendentes: acc.pendentes + l.pendentes, futuras: acc.futuras + l.futuras,
+  }), { previstas: 0, done: 0, doing: 0, pendentes: 0, futuras: 0 });
+
+  // Por funcionário
+  const porPessoa = new Map<string, { previstas: number; done: number; pendentes: number }>();
+  linhas.forEach((l) => l.tarefa.assigned_to_ids.forEach((id) => {
+    const p = porPessoa.get(id) ?? { previstas: 0, done: 0, pendentes: 0 };
+    p.previstas += l.previstas; p.done += l.done; p.pendentes += l.pendentes;
+    porPessoa.set(id, p);
+  }));
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+
   return (
-    <div className={`rounded-xl border-2 ${colorClass} p-3 space-y-3 min-h-[300px]`}>
-      <div className="flex items-center gap-2">
-        {icon}
-        <h3 className={`font-semibold text-sm ${headerClass}`}>{title}</h3>
-        <span className="ml-auto text-xs font-medium bg-white border rounded-full px-2 py-0.5">{count}</span>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-3 flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onMes(addMonths(mes, -1))}><ChevronLeft className="h-4 w-4" /></Button>
+          <Input type="month" className="h-8 w-40" value={mes} onChange={(e) => e.target.value && onMes(e.target.value)} />
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onMes(addMonths(mes, 1))}><ChevronRight className="h-4 w-4" /></Button>
+          <span className="text-sm font-medium ml-1">{nomeMes(mes).charAt(0).toUpperCase() + nomeMes(mes).slice(1)}</span>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Resumo label="Previstas no mês" valor={total.previstas} cor="text-foreground" />
+        <Resumo label="Concluídas" valor={`${total.done} (${pct(total.done, total.previstas)}%)`} cor="text-emerald-600" />
+        <Resumo label="Em andamento" valor={total.doing} cor="text-blue-600" />
+        <Resumo label="A fazer até hoje" valor={total.pendentes} cor={total.pendentes ? "text-red-600" : "text-slate-600"} />
+        <Resumo label="Programadas (por vir)" valor={total.futuras} cor="text-slate-600" />
       </div>
-      <div className="space-y-2">
-        {count === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">{empty}</p>
-        ) : (
-          children
+
+      {mostrarResponsavel && porPessoa.size > 1 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+          {[...porPessoa.entries()].sort((a, b) => (nomes[a[0]] ?? "").localeCompare(nomes[b[0]] ?? "")).map(([id, p]) => (
+            <button
+              key={id}
+              onClick={() => onPessoa?.(id)}
+              className="text-left rounded-lg border bg-card p-2.5 hover:border-primary transition-colors"
+              title="Filtrar por este funcionário"
+            >
+              <p className="text-xs font-medium truncate">{nomes[id] ?? "—"}</p>
+              <div className="w-full bg-muted rounded-full h-1.5 my-1.5">
+                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${pct(p.done, p.previstas)}%` }} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {p.done}/{p.previstas} concluídas{p.pendentes ? <span className="text-red-600"> · {p.pendentes} pendente(s)</span> : null}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tarefa</TableHead>
+                {mostrarResponsavel && <TableHead>Responsável</TableHead>}
+                <TableHead className="text-center">Previstas</TableHead>
+                <TableHead className="text-center">Concluídas</TableHead>
+                <TableHead className="text-center">Em andamento</TableHead>
+                <TableHead className="text-center">A fazer até hoje</TableHead>
+                <TableHead className="text-center">Por vir</TableHead>
+                <TableHead className="w-32">Execução</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">Nenhuma tarefa no mês com os filtros aplicados.</TableCell></TableRow>
+              )}
+              {linhas.map((l) => (
+                <TableRow key={l.tarefa.id}>
+                  <TableCell>
+                    <p className="text-sm font-medium leading-snug">{l.tarefa.title}</p>
+                    <p className="text-[11px] text-muted-foreground">{describeAgenda(l.tarefa)}{l.tarefa.setores.length ? ` · ${l.tarefa.setores.join(", ")}` : ""}</p>
+                  </TableCell>
+                  {mostrarResponsavel && <TableCell className="text-sm">{l.tarefa.assigned_to_names?.join(", ") || "—"}</TableCell>}
+                  <TableCell className="text-center">{l.previstas}</TableCell>
+                  <TableCell className="text-center text-emerald-700">{l.done}</TableCell>
+                  <TableCell className="text-center text-blue-700">{l.doing || ""}</TableCell>
+                  <TableCell className={`text-center ${l.pendentes ? "text-red-600 font-medium" : ""}`}>{l.pendentes || ""}</TableCell>
+                  <TableCell className="text-center text-muted-foreground">{l.futuras || ""}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-full bg-muted rounded-full h-1.5">
+                        <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${pct(l.done, l.previstas)}%` }} />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground w-8 text-right">{pct(l.done, l.previstas)}%</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function GerenciarTarefas({
+  tarefas, totalArquivadas, mostrarArquivadas, onMostrarArquivadas, pagina, onPagina, onEdit,
+}: {
+  tarefas: Tarefa[];
+  totalArquivadas: number;
+  mostrarArquivadas: boolean;
+  onMostrarArquivadas: (v: boolean) => void;
+  pagina: number;
+  onPagina: (p: number) => void;
+  onEdit: (t: Tarefa) => void;
+}) {
+  const lista = [...tarefas].sort((a, b) => Number(b.ativo) - Number(a.ativo)
+    || (a.assigned_to_names?.[0] ?? "").localeCompare(b.assigned_to_names?.[0] ?? "") || ordenar(a, b));
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / LIST_PAGE_SIZE));
+  const pag = Math.min(pagina, totalPaginas);
+  const visiveis = lista.slice((pag - 1) * LIST_PAGE_SIZE, pag * LIST_PAGE_SIZE);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-muted-foreground">{lista.length} tarefa(s)</p>
+        {totalArquivadas > 0 && (
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <Checkbox checked={mostrarArquivadas} onCheckedChange={(v) => onMostrarArquivadas(v === true)} />
+            <Label className="cursor-pointer">Mostrar arquivadas ({totalArquivadas})</Label>
+          </label>
         )}
       </div>
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tarefa</TableHead>
+                <TableHead>Responsável</TableHead>
+                <TableHead>Setores</TableHead>
+                <TableHead>Quando</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Prioridade</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visiveis.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10">Nenhuma tarefa encontrada com os filtros aplicados.</TableCell></TableRow>
+              )}
+              {visiveis.map((t) => (
+                <TableRow key={t.id} className={`cursor-pointer ${t.ativo ? "" : "opacity-60"}`} onClick={() => onEdit(t)}>
+                  <TableCell>
+                    <p className="text-sm font-medium leading-snug">{t.title}</p>
+                    <div className="flex gap-1 mt-0.5">
+                      {!t.ativo && <Badge variant="outline" className="text-[10px]">Arquivada{t.versao ? ` · ${t.versao}` : ""}</Badge>}
+                      {t.source === "guardiao" && <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border border-indigo-200">Guardião</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{t.assigned_to_names?.join(", ") || "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[200px]">{t.setores.join(", ") || "—"}</TableCell>
+                  <TableCell className="text-xs">{describeAgenda(t)}</TableCell>
+                  <TableCell className="text-xs">{t.tipo ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{PRIORITY_LABELS[t.priority]}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {lista.length > LIST_PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-3 py-3 border-t px-4">
+              <p className="text-xs text-muted-foreground">Página {pag} de {totalPaginas}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-8" disabled={pag <= 1} onClick={() => onPagina(pag - 1)}><ChevronLeft className="h-4 w-4" /> Anterior</Button>
+                <Button variant="outline" size="sm" className="h-8" disabled={pag >= totalPaginas} onClick={() => onPagina(pag + 1)}>Próxima <ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <p className="text-xs text-muted-foreground">Clique na tarefa para editar, arquivar ou excluir.</p>
     </div>
   );
 }

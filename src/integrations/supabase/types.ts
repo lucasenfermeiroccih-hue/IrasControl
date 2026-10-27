@@ -3496,25 +3496,37 @@ export type Database = {
       }
       kanban_ccih_escala: {
         Row: {
+          atribuicoes: string | null
           dias_semana: number[]
+          funcao: string | null
           hospital_id: string
           id: string
+          plantoes: string[]
+          regime: string
           updated_at: string
           updated_by: string | null
           user_id: string
         }
         Insert: {
+          atribuicoes?: string | null
           dias_semana?: number[]
+          funcao?: string | null
           hospital_id: string
           id?: string
+          plantoes?: string[]
+          regime?: string
           updated_at?: string
           updated_by?: string | null
           user_id: string
         }
         Update: {
+          atribuicoes?: string | null
           dias_semana?: number[]
+          funcao?: string | null
           hospital_id?: string
           id?: string
+          plantoes?: string[]
+          regime?: string
           updated_at?: string
           updated_by?: string | null
           user_id?: string
@@ -3536,54 +3548,160 @@ export type Database = {
           },
         ]
       }
+      kanban_ccih_execucoes: {
+        Row: {
+          concluido_em: string | null
+          concluido_por: string | null
+          hospital_id: string
+          id: string
+          iniciado_em: string | null
+          observacao: string | null
+          periodo: string
+          status: string
+          tarefa_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          concluido_em?: string | null
+          concluido_por?: string | null
+          hospital_id: string
+          id?: string
+          iniciado_em?: string | null
+          observacao?: string | null
+          periodo: string
+          status?: string
+          tarefa_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          concluido_em?: string | null
+          concluido_por?: string | null
+          hospital_id?: string
+          id?: string
+          iniciado_em?: string | null
+          observacao?: string | null
+          periodo?: string
+          status?: string
+          tarefa_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_ccih_execucoes_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_ccih_execucoes_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_ccih_execucoes_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_ccih_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_ccih_tarefas: {
         Row: {
+          alteracao: string | null
           assigned_by: string | null
           assigned_to: string
           assigned_to_ids: string[]
+          ativo: boolean
+          backup: string | null
           created_at: string
           description: string | null
+          dias_mes: number[] | null
+          dias_semana: number[] | null
+          horario: string | null
           hospital_id: string
           id: string
           last_completed_at: string | null
+          no_plantao: boolean
+          ordem: number | null
           priority: string
+          quando: string | null
           recurrence: string
+          setores: string[]
           source: string
           status: string
+          tempo_alvo: string | null
+          tipo: string | null
           title: string
           updated_at: string
+          validador: string | null
+          versao: string | null
         }
         Insert: {
+          alteracao?: string | null
           assigned_by?: string | null
           assigned_to: string
           assigned_to_ids?: string[]
+          ativo?: boolean
+          backup?: string | null
           created_at?: string
           description?: string | null
+          dias_mes?: number[] | null
+          dias_semana?: number[] | null
+          horario?: string | null
           hospital_id: string
           id?: string
           last_completed_at?: string | null
+          no_plantao?: boolean
+          ordem?: number | null
           priority?: string
+          quando?: string | null
           recurrence?: string
+          setores?: string[]
           source?: string
           status?: string
+          tempo_alvo?: string | null
+          tipo?: string | null
           title: string
           updated_at?: string
+          validador?: string | null
+          versao?: string | null
         }
         Update: {
+          alteracao?: string | null
           assigned_by?: string | null
           assigned_to?: string
           assigned_to_ids?: string[]
+          ativo?: boolean
+          backup?: string | null
           created_at?: string
           description?: string | null
+          dias_mes?: number[] | null
+          dias_semana?: number[] | null
+          horario?: string | null
           hospital_id?: string
           id?: string
           last_completed_at?: string | null
+          no_plantao?: boolean
+          ordem?: number | null
           priority?: string
+          quando?: string | null
           recurrence?: string
+          setores?: string[]
           source?: string
           status?: string
+          tempo_alvo?: string | null
+          tipo?: string | null
           title?: string
           updated_at?: string
+          validador?: string | null
+          versao?: string | null
         }
         Relationships: [
           {
