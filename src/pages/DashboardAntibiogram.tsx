@@ -1529,7 +1529,7 @@ export default function DashboardAntibiogram() {
             {reportResult && reportSummary && (
               <div className="space-y-3">
                 <Separator />
-                <div className="overflow-x-auto rounded-lg border bg-white">
+                <div className="overflow-x-auto rounded-lg border bg-card">
                   <MicrobiologicalReport
                     ref={reportRef}
                     summary={reportSummary}

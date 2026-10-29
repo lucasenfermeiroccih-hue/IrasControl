@@ -236,7 +236,7 @@ export default function NotificacaoDocumentosCard({ hospitalId, notifications }:
             </p>
           ) : (
             <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="bg-white">
+              <SelectTrigger className="bg-card">
                 <SelectValue placeholder="Selecionar notificação…" />
               </SelectTrigger>
               <SelectContent className="max-h-60">
@@ -260,7 +260,7 @@ export default function NotificacaoDocumentosCard({ hospitalId, notifications }:
 
         {/* Upload area — shown when "Anexar" clicked */}
         {selectedId && showUpload && (
-          <div className="border rounded-lg p-4 bg-white space-y-3">
+          <div className="border rounded-lg p-4 bg-card space-y-3">
             <p className="text-sm font-medium text-foreground">Novo anexo para: <span className="text-primary">{notifLabel}</span></p>
 
             <input
@@ -304,7 +304,7 @@ export default function NotificacaoDocumentosCard({ hospitalId, notifications }:
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={2}
-                className="resize-none text-sm bg-white"
+                className="resize-none text-sm bg-card"
               />
             </div>
 
@@ -356,7 +356,7 @@ export default function NotificacaoDocumentosCard({ hospitalId, notifications }:
                 <Loader2 className="h-4 w-4 animate-spin" />Carregando…
               </div>
             ) : attachments.length === 0 ? (
-              <div className="text-center py-6 text-sm text-muted-foreground border rounded-lg border-dashed bg-white">
+              <div className="text-center py-6 text-sm text-muted-foreground border rounded-lg border-dashed bg-card">
                 <Paperclip className="h-8 w-8 mx-auto mb-2 opacity-30" />
                 Nenhum documento anexado para esta notificação.
                 <br />
@@ -372,7 +372,7 @@ export default function NotificacaoDocumentosCard({ hospitalId, notifications }:
                 {attachments.map(att => (
                   <div
                     key={att.id}
-                    className={`flex items-start gap-3 p-3 border rounded-lg bg-white transition-colors ${selected.has(att.id) ? "border-primary/50 bg-primary/5" : ""}`}
+                    className={`flex items-start gap-3 p-3 border rounded-lg bg-card transition-colors ${selected.has(att.id) ? "border-primary/50 bg-primary/5" : ""}`}
                   >
                     <Checkbox
                       checked={selected.has(att.id)}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 import { normalizeSector } from "@/lib/sectorUtils";
 import type { Database } from "@/integrations/supabase/types";
@@ -46,14 +47,14 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
   useEffect(() => {
     if (ctxLoading || !hospitalId) { setLoading(false); return; }
     const load = async () => {
-      const { data: auditData } = await supabase
+      // Todas as auditorias (o servidor entrega no máximo 1.000 por consulta)
+      const rows = await fetchAllRows<AuditRow>(() => supabase
         .from("audits")
         .select("id, audit_date, sector, compliance_rate, compliant_items, total_items, observations")
         .eq("hospital_id", hospitalId)
         .eq("audit_type", auditType)
-        .order("audit_date", { ascending: false });
-
-      const rows = auditData || [];
+        .order("audit_date", { ascending: false })
+        .order("id")).catch(() => [] as AuditRow[]);
       setAudits(rows);
 
       if (rows.length > 0) {
@@ -70,6 +71,7 @@ export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboard
               .from("audit_items")
               .select("id, audit_id, question, status, category, observation")
               .in("audit_id", chunk)
+              .order("id")
               .range(from, from + pageSize - 1);
             if (error || !itemData || itemData.length === 0) break;
             all.push(...itemData);

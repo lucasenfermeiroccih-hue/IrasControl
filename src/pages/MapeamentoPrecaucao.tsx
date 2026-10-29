@@ -7,6 +7,8 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { RelogioAoVivo } from "@/components/RelogioAoVivo";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useSectors } from "@/hooks/useSectors";
 import { sendToAgent } from "@/lib/agent-service";
@@ -192,7 +194,6 @@ export default function MapeamentoPrecaucao() {
   const [pdfDataAte,   setPdfDataAte]  = useState("");
 
   // Alertas redesign state
-  const [clockA, setClockA] = useState("")
   const [lightModeA, setLightModeA] = useState(false)
   const [modalBedA, setModalBedA] = useState<any>(null)
   const [aiReportAlerta, setAiReportAlerta] = useState("")
@@ -707,7 +708,9 @@ export default function MapeamentoPrecaucao() {
     const monIds = monPatients.map(p => p.id);
     const [precsRes, labsRes, monPrecsRes] = await Promise.all([
       pIds.length ? supabase.from("precautions").select("*").in("patient_id", pIds) : Promise.resolve({ data: [] as never[] }),
-      supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }),
+      // Todos os exames (o servidor entrega no máximo 1.000 por consulta)
+      fetchAllRows<any>(() => supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }).order("id"))
+        .then(data => ({ data })).catch(() => ({ data: [] as any[] })),
       monIds.length ? supabase.from("precautions").select("*").in("patient_id", monIds) : Promise.resolve({ data: [] as never[] }),
     ]);
 
@@ -817,12 +820,6 @@ export default function MapeamentoPrecaucao() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Clock for alertas page
-  useEffect(() => {
-    const t = setInterval(() => setClockA(new Date().toLocaleString("pt-BR")), 1000)
-    setClockA(new Date().toLocaleString("pt-BR"))
-    return () => clearInterval(t)
-  }, [])
 
   /* ── localStorage persistence for alertas AI ── */
   const lsAlertasAI     = hospitalId ? `iras_mp_ai_${hospitalId}`     : null;
@@ -2642,7 +2639,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                     <div style={{ fontSize:12, color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>CCIH · Comissão de Controle de Infecção Hospitalar</div>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-                    <div style={{ fontSize:12, fontFamily:"monospace", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>{clockA}</div>
+                    <RelogioAoVivo style={{ fontSize:12, fontFamily:"monospace", color: lightModeA ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }} />
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={handleAlertasRefresh}
                         style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", background: lightModeA ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.07)", border:`1px solid ${lightModeA ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)"}`, borderRadius:20, cursor:"pointer", fontSize:11, color: lightModeA ? "#0f172a" : "#e5e7eb", fontFamily:"inherit" }}>

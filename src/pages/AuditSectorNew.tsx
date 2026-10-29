@@ -26,7 +26,7 @@ const RESPONSE_OPTS: { value: ResponseValue; label: string; color: string; icon:
   { value: "conf", label: "Conforme", color: "bg-green-100 text-green-800 border-green-300", icon: <CheckCircle2 className="h-3 w-3" /> },
   { value: "parc", label: "Parcial", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: <MinusCircle className="h-3 w-3" /> },
   { value: "nc", label: "Não Conforme", color: "bg-red-100 text-red-800 border-red-300", icon: <XCircle className="h-3 w-3" /> },
-  { value: "na", label: "N/A", color: "bg-gray-100 text-gray-600 border-gray-300", icon: <Ban className="h-3 w-3" /> },
+  { value: "na", label: "N/A", color: "bg-muted text-muted-foreground border-border", icon: <Ban className="h-3 w-3" /> },
 ];
 
 export default function AuditSectorNew() {
@@ -282,9 +282,9 @@ export default function AuditSectorNew() {
           <div className="text-lg font-bold text-red-700">{counts.nc}</div>
           <div className="text-xs text-red-600">Não Conf.</div>
         </div>
-        <div className="rounded-lg bg-gray-50 border border-gray-200 p-2">
-          <div className="text-lg font-bold text-gray-600">{counts.na}</div>
-          <div className="text-xs text-gray-500">N/A</div>
+        <div className="rounded-lg bg-muted/60 border border-border p-2">
+          <div className="text-lg font-bold text-muted-foreground">{counts.na}</div>
+          <div className="text-xs text-muted-foreground">N/A</div>
         </div>
       </div>
 

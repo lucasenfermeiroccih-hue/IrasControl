@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { LogOut, Settings, User, UserCircle, Loader2 } from "lucide-react";
+import { LogOut, Settings, UserCircle, Trophy } from "lucide-react";
 import { MeetingAlertsBell } from "@/components/MeetingAlertsBell";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CarregandoTela } from "@/components/CarregandoTela";
+import { GamificacaoChip } from "@/components/gamificacao/GamificacaoChip";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -60,9 +63,7 @@ export function AppLayout() {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <CarregandoTela />
     );
   }
 
@@ -84,16 +85,26 @@ export function AppLayout() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="h-12 md:h-14 flex items-center justify-between border-b bg-card px-3 md:px-4">
-            <SidebarTrigger />
-            <div className="flex items-center gap-2">
+        <div className="relative flex min-w-0 flex-1 flex-col bg-background">
+          <div className="app-aurora" aria-hidden />
+          <div className="app-grid" aria-hidden />
+          <header className="surface-glass sticky top-0 z-30 flex h-12 items-center justify-between border-x-0 border-t-0 px-3 md:h-14 md:px-4">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="rounded-lg" />
+              <span className="hidden items-center gap-2 sm:flex">
+                <span className="live-dot" />
+                <span className="label-mono text-muted-foreground">Sistema ativo</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <GamificacaoChip />
+              <ThemeToggle />
               <MeetingAlertsBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2 px-1.5">
-                    <Avatar className="h-7 w-7">
+                  <Button variant="ghost" size="sm" className="gap-2 rounded-full px-1.5">
+                    <Avatar className="h-7 w-7 ring-2 ring-primary/20">
                       <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
                       <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
                         {initials}
@@ -130,6 +141,10 @@ export function AppLayout() {
                       <UserCircle className="h-4 w-4 mr-2" />
                       Meu Perfil
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/conquistas")}>
+                      <Trophy className="h-4 w-4 mr-2" />
+                      Conquistas
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/admin/settings")}>
                       <Settings className="h-4 w-4 mr-2" />
                       Configurações
@@ -144,8 +159,10 @@ export function AppLayout() {
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 overflow-auto bg-background p-2 sm:p-3 md:p-6">
-            <Outlet />
+          <main className="relative z-10 flex-1 overflow-auto p-2 sm:p-3 md:p-6">
+            <Suspense fallback={<CarregandoTela />}>
+              <Outlet />
+            </Suspense>
           </main>
         </div>
       </div>

@@ -20,6 +20,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useQueryClient } from "@tanstack/react-query";
+import { CHAVE_GAMIFICACAO } from "@/hooks/useGamificacao";
+import { celebrarXp } from "@/lib/celebrarXp";
+import { XP } from "@/lib/gamificacao";
 import {
   addDays, addMonths, civil, daysOfMonth, describeAgenda, nomeMes, ocorrenciasNoMes, parseCivil, periodoDe, PERIODO_UNICO,
   STATUS_LABELS, tarefaNoDia, weekOf, WEEKDAYS, type EscalaMap, type StatusExecucao,
@@ -36,7 +40,7 @@ import {
 type Aba = "dia" | "mes" | "equipe" | "gerenciar";
 
 const COLUNAS: { status: StatusExecucao; icon: React.ReactNode; cor: string; titulo: string; vazio: string }[] = [
-  { status: "todo", icon: <Circle className="h-4 w-4 text-slate-500" />, cor: "border-slate-200 bg-slate-50/60 text-slate-700", titulo: "A fazer", vazio: "Nada a fazer." },
+  { status: "todo", icon: <Circle className="h-4 w-4 text-muted-foreground" />, cor: "border-border bg-muted/40 text-foreground", titulo: "A fazer", vazio: "Nada a fazer." },
   { status: "doing", icon: <Clock className="h-4 w-4 text-blue-600" />, cor: "border-blue-200 bg-blue-50/50 text-blue-700", titulo: "Em andamento", vazio: "Nenhuma tarefa sendo executada." },
   { status: "done", icon: <CheckCircle2 className="h-4 w-4 text-emerald-600" />, cor: "border-emerald-200 bg-emerald-50/50 text-emerald-700", titulo: "Concluídas", vazio: "Nenhuma tarefa concluída." },
 ];
@@ -54,6 +58,7 @@ function ordenar(a: Tarefa, b: Tarefa) {
 export default function KanbanCCIH() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
   const { isAdmin: isAdminHook, loading: adminLoading } = useIsAdmin();
+  const queryClient = useQueryClient();
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const isAdmin = isAdminHook || isPrimaryAdmin;
 
@@ -262,7 +267,13 @@ export default function KanbanCCIH() {
       setExecucoes((m) => { const n = new Map(m); if (anterior) n.set(k, anterior); else n.delete(k); return n; });
       return;
     }
-    if (status === "done") toast.success("Tarefa concluída!");
+    // XP (gamificação): atualiza o selo de nível; desfazer a conclusão também recalcula
+    if (status === "done" || anterior?.status === "done") queryClient.invalidateQueries({ queryKey: CHAVE_GAMIFICACAO });
+    if (status === "done" && anterior?.status !== "done") {
+      const xp = XP.tarefa[item.tarefa.priority] ?? XP.tarefa.normal;
+      celebrarXp(xp);
+      toast.success(`Tarefa concluída! +${xp} XP`);
+    }
   };
 
   const salvarTarefa = async (form: TarefaForm): Promise<boolean> => {
@@ -434,7 +445,7 @@ export default function KanbanCCIH() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Resumo label="Tarefas do dia" valor={resumoDia.total} cor="text-foreground" />
-            <Resumo label="A fazer" valor={resumoDia.todo} cor="text-slate-600" />
+            <Resumo label="A fazer" valor={resumoDia.todo} cor="text-muted-foreground" />
             <Resumo label="Em andamento" valor={resumoDia.doing} cor="text-blue-600" />
             <Resumo
               label="Concluídas"
@@ -710,8 +721,8 @@ function ResumoMes({
         <Resumo label="Previstas no mês" valor={total.previstas} cor="text-foreground" />
         <Resumo label="Concluídas" valor={`${total.done} (${pct(total.done, total.previstas)}%)`} cor="text-emerald-600" />
         <Resumo label="Em andamento" valor={total.doing} cor="text-blue-600" />
-        <Resumo label="A fazer até hoje" valor={total.pendentes} cor={total.pendentes ? "text-red-600" : "text-slate-600"} />
-        <Resumo label="Programadas (por vir)" valor={total.futuras} cor="text-slate-600" />
+        <Resumo label="A fazer até hoje" valor={total.pendentes} cor={total.pendentes ? "text-red-600" : "text-muted-foreground"} />
+        <Resumo label="Programadas (por vir)" valor={total.futuras} cor="text-muted-foreground" />
       </div>
 
       {mostrarResponsavel && porPessoa.size > 1 && (

@@ -31,6 +31,7 @@ import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerR
 import { toast } from "sonner";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 // ─── Constants ────────────────────────────────────────────────
@@ -226,11 +227,13 @@ export default function DashboardPrecautions() {
     if (!hospitalId) return;
     setLoading(true);
 
-    const { data: audits } = await supabase
+    // Todas as auditorias de precaução (o servidor entrega no máximo 1.000 por consulta)
+    const audits = await fetchAllRows<any>(() => supabase
       .from("audits").select("*")
       .eq("hospital_id", hospitalId)
       .eq("audit_type", "precaution")
-      .order("audit_date", { ascending: false });
+      .order("audit_date", { ascending: false })
+      .order("id")).catch(() => [] as any[]);
 
     if (audits && audits.length > 0) {
       const auditIds = audits.map(a => a.id);

@@ -23,7 +23,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   active: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  inactive: "bg-gray-100 text-gray-800 border-gray-200",
+  inactive: "bg-muted text-muted-foreground border-border",
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
 };
 
