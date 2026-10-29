@@ -15,6 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  chaveNome, chaveProntuario, codigoOrganismo, dataISO, examesMdr, maisRestritiva, tipoPrecaucao,
+} from "@/lib/precautionStatus";
 
 const ORGANISMOS = [
   { value: "MRSA",        label: "MRSA – S. aureus resist. meticilina",              precaucao: "Contato"   },
@@ -102,7 +106,17 @@ interface Patient {
   organismo: string;
   precaucao: string;
   status: string;
+  /** "monitoramento" = paciente ativo do Monitoramento de Pacientes, listado automaticamente */
+  origem?: "mapa" | "monitoramento";
+  /** Registro do mapa que também está ativo no Monitoramento de Pacientes */
+  vinculado?: boolean;
+  /** Registro do mapa cujo paciente já saiu no Monitoramento (alta, óbito ou transferência) */
+  saidaMonitoramento?: { status: "Alta" | "Óbito" | "Transferência"; data: string };
 }
+
+const STATUS_SAIDA: Record<string, "Alta" | "Óbito" | "Transferência"> = {
+  discharged: "Alta", deceased: "Óbito", transferred: "Transferência",
+};
 
 interface Event {
   id: number;
@@ -117,6 +131,7 @@ interface Event {
 
 
 export default function MapeamentoPrecaucao() {
+  const navigate = useNavigate();
   const [page,       setPage]      = useState("mapeamento");
   const [patients,   setPatients]  = useState<Patient[]>([]);
   const [events,     setEvents]    = useState<Event[]>([]);
@@ -671,25 +686,37 @@ export default function MapeamentoPrecaucao() {
   const fetchData = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const { data: pData } = await supabase
-      .from("patients")
-      .select("*")
-      .eq("hospital_id", hospitalId)
-      .eq("source", "precaution_map");
+    const [{ data: pData }, { data: monData }] = await Promise.all([
+      supabase
+        .from("patients")
+        .select("*")
+        .eq("hospital_id", hospitalId)
+        .eq("source", "precaution_map"),
+      // Pacientes ATIVOS do Monitoramento de Pacientes (entram no mapa automaticamente)
+      supabase
+        .from("patients")
+        .select("id, full_name, medical_record, sector, bed, status, clinical_data, admission_date")
+        .eq("hospital_id", hospitalId)
+        .eq("status", "active")
+        .or("source.is.null,source.neq.precaution_map"),
+    ]);
 
-    if (!pData || pData.length === 0) { setPatients([]); setLoading(false); return; }
-
-    const pIds = pData.map(p => p.id);
-    const [precsRes, labsRes] = await Promise.all([
-      supabase.from("precautions").select("*").in("patient_id", pIds),
+    const mapPatients = pData || [];
+    const monPatients = monData || [];
+    const pIds = mapPatients.map(p => p.id);
+    const monIds = monPatients.map(p => p.id);
+    const [precsRes, labsRes, monPrecsRes] = await Promise.all([
+      pIds.length ? supabase.from("precautions").select("*").in("patient_id", pIds) : Promise.resolve({ data: [] as never[] }),
       supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }),
+      monIds.length ? supabase.from("precautions").select("*").in("patient_id", monIds) : Promise.resolve({ data: [] as never[] }),
     ]);
 
     const precs = precsRes.data || [];
     const labs  = labsRes.data || [];
+    const monPrecs = monPrecsRes.data || [];
 
     const mapped: Patient[] = [];
-    pData.forEach(p => {
+    mapPatients.forEach(p => {
       const patPrecs = precs.filter(pr => pr.patient_id === p.id);
       if (patPrecs.length === 0) return;
       const active = patPrecs.find(pr => pr.is_active)
@@ -713,8 +740,76 @@ export default function MapeamentoPrecaucao() {
         organismo: lab?.organism || active.reason || "",
         precaucao: active.precaution_type,
         status,
+        origem: "mapa",
       });
     });
+
+    // ── Monitoramento → mapa ────────────────────────────────────────────
+    // Entra o paciente ativo com precaução em vigor ou com exame MDR (sem
+    // precaução ainda avaliada). Quem já está internado no mapa (mesmo
+    // prontuário ou nome) não é duplicado: o registro do mapa fica "vinculado".
+    const internadosMapa = mapped.filter(m => m.status === "Internado");
+    const porProntuario = new Map(internadosMapa.filter(m => chaveProntuario(m.prontuario)).map(m => [chaveProntuario(m.prontuario), m]));
+    const porNome = new Map(internadosMapa.map(m => [chaveNome(m.nome), m]));
+
+    monPatients.forEach(p => {
+      const patPrecs = monPrecs.filter(pr => pr.patient_id === p.id);
+      const ativas = patPrecs.filter(pr => pr.is_active);
+      const mdrLabs = examesMdr((p.clinical_data as { labPanel?: unknown } | null)?.labPanel);
+      const entra = ativas.length > 0 || (mdrLabs.length > 0 && patPrecs.length === 0);
+      if (!entra) return;
+
+      const noMapa = porProntuario.get(chaveProntuario(p.medical_record)) ?? porNome.get(chaveNome(p.full_name));
+      if (noMapa) { noMapa.vinculado = true; return; }
+
+      const tipo = maisRestritiva(ativas.map(a => tipoPrecaucao(a.precaution_type))) ?? "Contato";
+      const principal = ativas.find(a => tipoPrecaucao(a.precaution_type) === tipo) ?? ativas[0];
+      const organismos = [...new Set([
+        ...mdrLabs.map(l => codigoOrganismo(l.microrganismo)).filter(Boolean),
+        ...ativas.flatMap(a => (a.reason || "").split("|").map(x => codigoOrganismo(x.trim())).filter(Boolean)),
+      ])];
+      const materiais = [...new Set(mdrLabs.map(l => (l.exame || "").trim()).filter(Boolean))];
+      const datas = [
+        ...mdrLabs.map(l => dataISO(l.data)),
+        ...ativas.map(a => a.start_date || ""),
+      ].filter(Boolean).sort();
+
+      mapped.push({
+        id: p.id,
+        precaucaoId: principal?.id,
+        nome: p.full_name,
+        prontuario: p.medical_record || "",
+        setor: p.sector || "",
+        leito: p.bed || "",
+        dataColeta: datas[0] || p.admission_date || "",
+        material: materiais.join(" | "),
+        organismo: organismos.join(" | "),
+        precaucao: tipo,
+        status: "Internado",
+        origem: "monitoramento",
+      });
+    });
+
+    // Registro do mapa ainda "Internado" cujo paciente já saiu no Monitoramento
+    const semVinculo = internadosMapa.filter(m => !m.vinculado && m.prontuario);
+    if (semVinculo.length) {
+      const { data: saidas } = await supabase
+        .from("patients")
+        .select("medical_record, status, discharge_date")
+        .eq("hospital_id", hospitalId)
+        .neq("status", "active")
+        .neq("source", "precaution_map")
+        .in("medical_record", [...new Set(semVinculo.map(m => m.prontuario))]);
+      semVinculo.forEach(m => {
+        const ultima = (saidas || [])
+          .filter(s => chaveProntuario(s.medical_record) === chaveProntuario(m.prontuario) && s.discharge_date)
+          .sort((a, b) => (b.discharge_date || "").localeCompare(a.discharge_date || ""))[0];
+        const inicio = precs.find(pr => pr.id === m.precaucaoId)?.start_date || m.dataColeta;
+        if (ultima && STATUS_SAIDA[ultima.status] && (!inicio || (ultima.discharge_date || "") >= inicio)) {
+          m.saidaMonitoramento = { status: STATUS_SAIDA[ultima.status], data: (ultima.discharge_date || "").slice(0, 10) };
+        }
+      });
+    }
 
     setPatients(mapped);
     setLoading(false);
@@ -895,10 +990,13 @@ export default function MapeamentoPrecaucao() {
       .neq("source", "precaution_map")
       .or(`full_name.ilike.%${q}%,medical_record.ilike.%${q}%`)
       .limit(30);
-    // Only show MDR patients (labPanel with mdr: true)
+    // Only show MDR patients (labPanel with mdr: true) que ainda não aparecem no mapa
+    // (os ativos do monitoramento com precaução entram automaticamente)
+    const jaNoMapa = new Set(patients.filter(x => x.origem === "monitoramento").map(x => x.id));
+    const prontuariosInternados = new Set(patients.filter(x => x.status === "Internado").map(x => chaveProntuario(x.prontuario)).filter(Boolean));
     const mdrOnly = (data || []).filter(p => {
-      const labPanel = (p.clinical_data as any)?.labPanel;
-      return Array.isArray(labPanel) && labPanel.some((l: any) => l.mdr === true);
+      if (jaNoMapa.has(p.id) || prontuariosInternados.has(chaveProntuario(p.medical_record))) return false;
+      return examesMdr((p.clinical_data as { labPanel?: unknown } | null)?.labPanel).length > 0;
     }).slice(0, 8);
     setPatientResults(mdrOnly.map(({ clinical_data: _cd, ...rest }) => rest));
     setPatientSearching(false);
@@ -1070,23 +1168,24 @@ export default function MapeamentoPrecaucao() {
   };
 
 
-  const changeStatus = async (id: string, s: string) => {
+  const changeStatus = async (id: string, s: string, dataSaida?: string) => {
     const pat = patients.find(p => p.id === id);
     const dbStatus = s === "Óbito" ? "deceased" : s === "Transferência" ? "transferred" : "discharged";
+    const quando = dataSaida || new Date().toISOString().split("T")[0];
 
     await Promise.all([
       supabase.from("patients").update({
         status: dbStatus as "active" | "discharged" | "transferred" | "deceased",
-        discharge_date: new Date().toISOString().split("T")[0],
+        discharge_date: quando,
         discharge_type: s.toLowerCase(),
       }).eq("id", id).eq("source", "precaution_map"),
       ...(pat?.precaucaoId ? [supabase.from("precautions").update({
         is_active: false,
-        end_date: new Date().toISOString().split("T")[0],
+        end_date: quando,
       }).eq("id", pat.precaucaoId)] : []),
     ]);
 
-    setPatients(prev => prev.map(p => p.id === id ? { ...p, status: s } : p));
+    setPatients(prev => prev.map(p => p.id === id ? { ...p, status: s, saidaMonitoramento: undefined } : p));
     setEvents(prev => [{
       id: Date.now(),
       type: s,
@@ -1098,6 +1197,26 @@ export default function MapeamentoPrecaucao() {
       detail: `Status alterado para ${s} · ${pat?.setor} Leito ${pat?.leito}`,
     }, ...prev]);
     setStModal(null);
+  };
+
+  /** Paciente do monitoramento: encerra a precaução (sai do mapa; continua no monitoramento). */
+  const encerrarPrecaucaoMonitoramento = async (p: Patient) => {
+    if (!window.confirm(`Encerrar a precaução de "${p.nome}"? O paciente sai do mapa e continua no Monitoramento de Pacientes.`)) return;
+    const hoje = new Date().toISOString().split("T")[0];
+    const { data: ativas } = await supabase.from("precautions").select("id").eq("patient_id", p.id).eq("is_active", true);
+    const { error } = ativas && ativas.length
+      ? await supabase.from("precautions").update({ is_active: false, end_date: hoje }).eq("patient_id", p.id).eq("is_active", true)
+      // só tinha exame MDR: registra a avaliação encerrada para não voltar ao mapa
+      : await supabase.from("precautions").insert({
+          patient_id: p.id, precaution_type: p.precaucao || "Contato", is_active: false,
+          start_date: p.dataColeta || hoje, end_date: hoje, reason: p.organismo || null,
+        });
+    if (error) {
+      toast({ title: "Erro ao encerrar a precaução", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPatients(prev => prev.filter(x => x.id !== p.id));
+    toast({ title: "Precaução encerrada", description: `${p.nome} saiu do mapa.` });
   };
 
   const deletePatient = async (id: string) => {
@@ -2067,6 +2186,26 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                       <td style={{ padding:"9px 14px" }}>
                         <div style={{ fontWeight:500, color:"var(--color-text-primary)" }}>{p.nome}</div>
                         <div style={{ fontSize:10, color:"var(--color-text-tertiary)", fontFamily:"'DM Mono',monospace" }}>#{p.prontuario}</div>
+                        {(p.origem === "monitoramento" || p.vinculado || p.saidaMonitoramento) && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:4 }}>
+                            {p.origem === "monitoramento" && (
+                              <span title="Paciente ativo do Monitoramento de Pacientes, listado automaticamente" style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:"#ECFEFF", color:"#0E7490", border:"0.5px solid #67E8F9" }}>🩺 Do monitoramento</span>
+                            )}
+                            {p.vinculado && (
+                              <span title="O paciente também está ativo no Monitoramento de Pacientes" style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:"#F0FDF4", color:"#15803D", border:"0.5px solid #86EFAC" }}>✓ No monitoramento</span>
+                            )}
+                            {p.saidaMonitoramento && p.status === "Internado" && (
+                              <button
+                                className="np"
+                                onClick={() => changeStatus(p.id, p.saidaMonitoramento!.status, p.saidaMonitoramento!.data)}
+                                title="Registrar a mesma saída no mapa"
+                                style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:"#FFFBEB", color:"#92400E", border:"0.5px solid #FCD34D", cursor:"pointer", fontFamily:"inherit" }}
+                              >
+                                ⚠ {p.saidaMonitoramento.status} no monitoramento em {fmt(p.saidaMonitoramento.data)} · registrar
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding:"9px 14px", color:"var(--color-text-secondary)" }}>{p.material || "—"}</td>
                       <td style={{ padding:"9px 14px", maxWidth:160 }}>
@@ -2081,6 +2220,16 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                         <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:20, background:sta.bg, color:sta.color, fontSize:11, fontWeight:500 }}>{p.status}</span>
                       </td>
                       <td className="np" style={{ padding:"9px 14px" }}>
+                        {p.origem === "monitoramento" ? (
+                        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                          <button onClick={() => navigate(`/patients/monitoring?paciente=${p.id}`)} title="Abrir no Monitoramento de Pacientes" style={{ padding:"3px 10px", border:"0.5px solid #67E8F9", borderRadius:6, background:"#ECFEFF", color:"#0E7490", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                            Abrir
+                          </button>
+                          <button onClick={() => encerrarPrecaucaoMonitoramento(p)} title="Encerrar a precaução (o paciente continua no monitoramento)" style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                            Encerrar
+                          </button>
+                        </div>
+                        ) : (
                         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
                           <button onClick={() => startEdit(p)} title="Editar paciente" style={{ width:28, height:28, display:"inline-flex", alignItems:"center", justifyContent:"center", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"#0F4C75", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>
                             ✎
@@ -2095,6 +2244,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                           </button>
 
                         </div>
+                        )}
                       </td>
                       <td style={{ padding:"9px 14px", color:"var(--color-text-secondary)" }}>{p.setor}</td>
                       <td style={{ padding:"9px 14px" }}>

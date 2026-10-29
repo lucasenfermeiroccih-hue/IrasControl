@@ -272,6 +272,12 @@ export function usePatientMonitoring() {
           .update({ end_date: exitDate, is_active: false })
           .eq("patient_id", id)
           .is("end_date", null),
+        // Precaução em vigor termina na saída (sai do Mapeamento de Precaução)
+        supabase
+          .from("precautions")
+          .update({ end_date: exitDate, is_active: false })
+          .eq("patient_id", id)
+          .eq("is_active", true),
         ...(openRows || []).map((row) => {
           const insertion = (row.insertion_date || "").slice(0, 10);
           const match = openDevices.find((d) => d.type === row.device_type && d.insercao === insertion);

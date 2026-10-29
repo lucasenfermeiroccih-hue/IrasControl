@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { LIST_PAGE_SIZE } from "@/lib/pagination";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,12 @@ import { MICROORGANISMS } from "@/data/microorganisms";
 import { parseCivilDate } from "@/lib/ctiIndicators";
 import { listOpenDevices, validateRemovals } from "@/lib/deviceClosure";
 import { DeviceRemovalFields } from "@/components/monitoring/DeviceRemovalFields";
+import { IsolamentoBadges, IsolamentoLegenda } from "@/components/monitoring/IsolamentoBadges";
+import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex";
+import {
+  bordaIsolamento, maisRestritiva, MDR_META, precaucaoDoOrganismo, situacaoIsolamento, tipoPrecaucao,
+  SEM_ISOLAMENTO, type SituacaoIsolamento,
+} from "@/lib/precautionStatus";
 
 type PatientStatus = "active" | "discharged" | "transferred" | "deceased";
 
@@ -142,6 +148,8 @@ const emptyNewForm = { nome: "", prontuario: "", unidade: "", leito: "", sexo: "
 // ─── Component ────────────────────────────────────────────────
 export default function PatientsMonitoring() {
   const navigate = useNavigate();
+  // Link direto para um paciente (ex.: botão "Abrir" do Mapeamento de Precaução)
+  const [searchParams, setSearchParams] = useSearchParams();
   const { patients, loading: patientsLoading, hospitalId, userId, createPatient, updatePatient, dischargePatient: dischargePatientFn, deletePatient, changePatientStatus } = usePatientMonitoring();
   const { isAdmin } = useIsAdmin();
   const { sectors: registeredSectors } = useSectors();
@@ -154,6 +162,8 @@ export default function PatientsMonitoring() {
   const [filterAno, setFilterAno] = useState<string[]>([]);
   const [filterSetor, setFilterSetor] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  // Precaução / MDR (selos ao lado do nome; filtro "Isolamento")
+  const [filterIsolamento, setFilterIsolamento] = useState<string>("all");
   type SortKey = "prontuario" | "leito" | "unidade" | "diasInt" | "diasCti";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -196,6 +206,29 @@ export default function PatientsMonitoring() {
   const [submittingNewPatient, setSubmittingNewPatient] = useState(false);
 
   const selected = selectedId ? patients.find(p => p.id === selectedId) || null : null;
+
+  // Situação de isolamento de cada paciente: precauções ativas, exames MDR do
+  // painel laboratorial e o cadastro do mesmo paciente no Mapeamento de Precaução.
+  const { index: precIndex, reload: reloadPrecaucoes } = usePrecautionIndex(hospitalId);
+  const isolamento = useMemo(() => {
+    const map = new Map<string, SituacaoIsolamento>();
+    patients.forEach(p => {
+      map.set(p.id, situacaoIsolamento({
+        ativo: p.status === "active",
+        labPanel: (p as PatientRecord & { _clinicalData?: { labPanel?: unknown } })._clinicalData?.labPanel,
+        precaucoes: precIndex.porPaciente.get(p.id),
+        precaucoesMapa: precaucoesDoMapa(precIndex, p.prontuario, p.nome),
+      }));
+    });
+    return map;
+  }, [patients, precIndex]);
+  const isolamentoDe = (id: string) => isolamento.get(id) ?? SEM_ISOLAMENTO;
+  // Ao voltar para a lista, atualiza as precauções (podem ter mudado no paciente)
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (lastSelectedId && !selectedId) reloadPrecaucoes();
+    setLastSelectedId(selectedId);
+  }, [selectedId, lastSelectedId, reloadPrecaucoes]);
   const viewPatient = viewPatientId ? patients.find(p => p.id === viewPatientId) || null : null;
 
   // Section states
@@ -348,6 +381,13 @@ export default function PatientsMonitoring() {
   });
   const filteredUnsorted = filteredForKpis.filter(p => {
     if (filterStatus.length > 0 && !filterStatus.includes(p.status)) return false;
+    if (filterIsolamento !== "all") {
+      const iso = isolamentoDe(p.id);
+      if (filterIsolamento === "mdr" && !iso.mdr) return false;
+      if (filterIsolamento === "precaucao" && iso.precaucoes.length === 0) return false;
+      if (filterIsolamento === "sem" && (iso.mdr || iso.precaucoes.length > 0)) return false;
+      if (["Contato", "Gotículas", "Aerossóis"].includes(filterIsolamento) && !iso.precaucoes.includes(filterIsolamento as never)) return false;
+    }
     return true;
   });
   const filtered = (() => {
@@ -375,13 +415,16 @@ export default function PatientsMonitoring() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
   const paged = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [search, filterMes, filterAno, filterSetor, filterStatus, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, filterMes, filterAno, filterSetor, filterStatus, filterIsolamento, sortKey, sortDir]);
 
   const activeCount = filteredForKpis.filter(p => p.status === "active").length;
   const totalCount = filteredForKpis.length;
   const deceasedCount = filteredForKpis.filter(p => p.status === "deceased").length;
   const transferredCount = filteredForKpis.filter(p => p.status === "transferred").length;
   const dischargedCount = filteredForKpis.filter(p => p.status === "discharged").length;
+  const ativosFiltrados = filteredForKpis.filter(p => p.status === "active");
+  const precaucaoCount = ativosFiltrados.filter(p => isolamentoDe(p.id).precaucoes.length > 0).length;
+  const mdrCount = ativosFiltrados.filter(p => isolamentoDe(p.id).mdr).length;
 
   const handleNewPatient = async () => {
     if (submittingNewPatient) return;
@@ -608,6 +651,17 @@ export default function PatientsMonitoring() {
   const cuvDays = calcTotalDays(dispInvasivos.cuvInsercao, dispInvasivos.cuvRetirada, dispInvasivos.cuvTrocas);
   const cvaDays = calcTotalDays(dispInvasivos.cvaInsercao, dispInvasivos.cvaRetirada, dispInvasivos.cvaTrocas);
 
+  // Abre o paciente do link (?paciente=<id>) assim que a lista carrega
+  const pacienteDoLink = searchParams.get("paciente");
+  const enterPatientRef = useRef(enterPatient);
+  useEffect(() => { enterPatientRef.current = enterPatient; });
+  useEffect(() => {
+    if (!pacienteDoLink || patientsLoading) return;
+    if (patients.some(p => p.id === pacienteDoLink)) enterPatientRef.current(pacienteDoLink);
+    else toast.error("Paciente não encontrado no monitoramento.");
+    setSearchParams(prev => { const n = new URLSearchParams(prev); n.delete("paciente"); return n; }, { replace: true });
+  }, [pacienteDoLink, patientsLoading, patients, setSearchParams]);
+
   // ─── PATIENT DETAIL VIEW (full page with tabs) ─────────────
   if (selected) {
     const selectedEndDate = selected.status !== "active" ? selected.dataAlta : undefined;
@@ -627,6 +681,7 @@ export default function PatientsMonitoring() {
               <Badge variant={selected.status === "active" ? "default" : "secondary"} className="shrink-0 text-[10px] sm:text-xs">
                 {statusLabels[selected.status] || selected.status}
               </Badge>
+              <IsolamentoBadges s={isolamentoDe(selected.id)} />
             </div>
             <div className="flex gap-2 shrink-0">
               <Button variant={viewMode === "edit" ? "default" : "outline"} size="sm" onClick={() => setViewMode("edit")} className="h-8 px-2 sm:px-3"><Pencil className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Editar</span></Button>
@@ -1669,10 +1724,7 @@ export default function PatientsMonitoring() {
                     const dataISO = dStr.includes("/")
                       ? dStr.split("/").reverse().join("-")
                       : (dStr || new Date().toISOString().slice(0, 10));
-                    const m = (labToSave.microrganismo || "").toLowerCase();
-                    let precType = "Contato";
-                    if (m.includes("tubercul") || m.includes("sars") || m.includes("covid")) precType = "Aerossóis";
-                    else if (m.includes("influenza") || m.includes("h1n1")) precType = "Gotículas";
+                    const precType = precaucaoDoOrganismo(labToSave.microrganismo);
 
                     await supabase.from("lab_results").insert({
                       patient_id: selectedId,
@@ -1683,18 +1735,21 @@ export default function PatientsMonitoring() {
                       status: "completed" as const,
                     });
 
-                    const { data: existing } = await supabase
+                    const { data: existingRows } = await supabase
                       .from("precautions")
-                      .select("id, reason")
+                      .select("id, reason, precaution_type")
                       .eq("patient_id", selectedId)
                       .eq("is_active", true)
-                      .maybeSingle();
+                      .order("start_date", { ascending: true })
+                      .limit(1);
+                    const existing = existingRows?.[0];
 
                     if (existing) {
                       const reasons = (existing.reason || "").split(" | ").map(s => s.trim()).filter(Boolean);
                       if (!reasons.includes(labToSave.microrganismo)) reasons.push(labToSave.microrganismo);
                       await supabase.from("precautions").update({
-                        precaution_type: precType,
+                        // mantém a mais restritiva (não rebaixa Aerossóis/Gotículas para Contato)
+                        precaution_type: maisRestritiva([tipoPrecaucao(existing.precaution_type), precType]) ?? precType,
                         reason: reasons.join(" | "),
                       }).eq("id", existing.id);
                     } else {
@@ -1706,7 +1761,8 @@ export default function PatientsMonitoring() {
                         reason: labToSave.microrganismo || null,
                       });
                     }
-                    toast.success("Paciente enviado ao Mapeamento de Precaução");
+                    reloadPrecaucoes();
+                    toast.success("Paciente em precaução — já aparece no Mapeamento de Precaução");
                   } catch (err) {
                     console.error("Erro ao sincronizar com Mapeamento de Precaução:", err);
                   }
@@ -1748,7 +1804,7 @@ export default function PatientsMonitoring() {
       </div>
 
       {/* ─── KPIs ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
         <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
           <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
           <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Ativos</p><p className="text-lg sm:text-2xl font-bold">{activeCount}</p></div>
@@ -1769,6 +1825,19 @@ export default function PatientsMonitoring() {
           <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
           <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Altas</p><p className="text-lg sm:text-2xl font-bold">{dischargedCount}</p></div>
         </CardContent></Card>
+        <Card
+          className={`cursor-pointer transition-colors hover:border-fuchsia-400 ${filterIsolamento === "precaucao" || filterIsolamento === "mdr" ? "border-fuchsia-500" : ""}`}
+          onClick={() => { setFilterStatus(["active"]); setFilterIsolamento(filterIsolamento === "precaucao" ? "all" : "precaucao"); }}
+          title="Mostrar os internados em precaução"
+        >
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-fuchsia-100 dark:bg-fuchsia-950/40 shrink-0"><ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5 text-fuchsia-700" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Em precaução</p>
+              <p className="text-lg sm:text-2xl font-bold">{precaucaoCount}<span className="ml-1.5 text-[11px] sm:text-xs font-semibold" style={{ color: MDR_META.cor }}>{mdrCount} MDR</span></p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ─── Search ───────────────────────────────────────── */}
@@ -1779,6 +1848,21 @@ export default function PatientsMonitoring() {
 
       {/* ─── Filters ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-end w-full">
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs font-medium text-muted-foreground">Precaução / MDR</label>
+          <Select value={filterIsolamento} onValueChange={setFilterIsolamento}>
+            <SelectTrigger className="h-9 w-full text-sm"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="mdr">🦠 Com MDR</SelectItem>
+              <SelectItem value="precaucao">🛡️ Em precaução</SelectItem>
+              <SelectItem value="Contato">🧤 Contato</SelectItem>
+              <SelectItem value="Gotículas">💧 Gotículas</SelectItem>
+              <SelectItem value="Aerossóis">🌬️ Aerossóis</SelectItem>
+              <SelectItem value="sem">Sem precaução</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-1 min-w-0">
           <label className="text-xs font-medium text-muted-foreground">Mês</label>
           <MultiSelectFilter label="Mês" selected={filterMes} onChange={setFilterMes}
@@ -1836,6 +1920,7 @@ export default function PatientsMonitoring() {
       <Card>
         <CardHeader className="p-3 md:p-6 pb-2">
           <CardTitle className="text-sm md:text-lg">Pacientes ({filtered.length})</CardTitle>
+          <IsolamentoLegenda totalMdr={mdrCount} totalPrecaucao={precaucaoCount} />
         </CardHeader>
         <CardContent className="p-0 md:p-6 md:pt-0">
           {/* Desktop table */}
@@ -1881,10 +1966,14 @@ export default function PatientsMonitoring() {
                   const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
                   const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
                   const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
+                  const iso = isolamentoDe(p.id);
                   return (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} className={`${bordaIsolamento(iso, p.status === "active")} ${iso.mdr && p.status === "active" ? MDR_META.linha : ""}`}>
                       <TableCell>
-                        <div className="font-medium">{p.nome}</div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-medium">{p.nome}</span>
+                          <IsolamentoBadges s={iso} />
+                        </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{p.prontuario}</TableCell>
                       <TableCell>{p.unidade}</TableCell>
@@ -1944,11 +2033,13 @@ export default function PatientsMonitoring() {
               const pEndDate = p.status !== "active" ? p.dataAlta : undefined;
               const dias = daysFromDate(p.dataInternacaoHospitalar, pEndDate);
               const diasCti = p.dataInternacaoCTI ? daysFromDate(p.dataInternacaoCTI, pEndDate) : null;
+              const iso = isolamentoDe(p.id);
               return (
-                <div key={p.id} className="border border-border rounded-lg p-3 space-y-2">
+                <div key={p.id} className={`border border-border rounded-lg p-3 space-y-2 ${bordaIsolamento(iso, p.status === "active")} ${iso.mdr && p.status === "active" ? MDR_META.linha : ""}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold text-sm">{p.nome}</p>
+                      <IsolamentoBadges s={iso} />
                       <p className="text-[10px] text-muted-foreground">{p.prontuario}</p>
                     </div>
                     <Badge variant={p.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">
