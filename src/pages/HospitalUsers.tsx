@@ -46,7 +46,7 @@ const ROLE_COLORS: Record<string, string> = {
   nurse_tech_scih: "bg-blue-500/10 text-blue-700 border-blue-500/30",
   lab_tech: "bg-amber-500/10 text-amber-600 border-amber-500/30",
   biologist: "bg-purple-500/10 text-purple-600 border-purple-500/30",
-  administrative: "bg-slate-500/10 text-slate-600 border-slate-500/30",
+  administrative: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/30",
   viewer: "bg-muted text-muted-foreground border-border",
 };
 

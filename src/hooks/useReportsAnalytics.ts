@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 
 export function useReportsAnalytics(periodo: string) {
@@ -22,12 +23,14 @@ export function useReportsAnalytics(periodo: string) {
 
     const fetchAll = async () => {
       setLoading(true);
+      // Paginado: o servidor entrega no máximo 1.000 linhas por consulta
+      const all = <T,>(q: () => any) => fetchAllRows<T>(q).then(data => ({ data })).catch(() => ({ data: [] as T[] }));
       const [casesRes, auditsRes, labRes, precRes, patientsRes] = await Promise.all([
-        supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId).gte("detection_date", cutoffStr).order("detection_date"),
-        supabase.from("audits").select("*").eq("hospital_id", hospitalId).gte("audit_date", cutoffStr).order("audit_date"),
-        supabase.from("lab_results").select("id, organism, collection_date, sample_type").eq("hospital_id", hospitalId).gte("collection_date", cutoffStr),
-        supabase.from("precautions").select("*").gte("start_date", cutoffStr),
-        supabase.from("patients").select("id, sector").eq("hospital_id", hospitalId),
+        all<any>(() => supabase.from("infection_cases").select("*").eq("hospital_id", hospitalId).gte("detection_date", cutoffStr).order("detection_date").order("id")),
+        all<any>(() => supabase.from("audits").select("*").eq("hospital_id", hospitalId).gte("audit_date", cutoffStr).order("audit_date").order("id")),
+        all<any>(() => supabase.from("lab_results").select("id, organism, collection_date, sample_type").eq("hospital_id", hospitalId).gte("collection_date", cutoffStr).order("id")),
+        all<any>(() => supabase.from("precautions").select("*, patients!inner(hospital_id)").eq("patients.hospital_id", hospitalId).gte("start_date", cutoffStr).order("id")),
+        all<any>(() => supabase.from("patients").select("id, sector").eq("hospital_id", hospitalId).order("id")),
       ]);
       setPatients(patientsRes.data || []);
 

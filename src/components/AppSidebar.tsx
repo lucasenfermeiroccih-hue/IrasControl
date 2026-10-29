@@ -4,7 +4,7 @@ import {
   MonitorCheck, Building2, ShoppingBag, Stethoscope, FlaskConical,
   BarChart3, FolderOpen, TrendingUp, Sparkles, Tag, ArrowLeftRight, Droplets,
   KanbanSquare, Package, ClipboardList, Puzzle, ExternalLink, ShieldCheck, ShieldAlert, HardHat,
-  History, Baby, BookOpen, ChevronDown, CalendarDays, CircleDollarSign,
+  History, Baby, BookOpen, ChevronDown, CalendarDays, CircleDollarSign, Trophy,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -35,6 +35,7 @@ const publicSections = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Alertas", url: "/alerts", icon: Bell },
+      { title: "Conquistas", url: "/conquistas", icon: Trophy },
     ],
   },
   {
@@ -284,7 +285,7 @@ export function AppSidebar() {
         {!collapsed && (
           <SidebarGroupLabel
             asChild
-            className="cursor-pointer select-none hover:text-sidebar-primary"
+            className="label-mono cursor-pointer select-none text-[10px] text-sidebar-foreground/45 hover:text-sidebar-primary"
           >
             <button type="button" onClick={() => toggleGroup(section.label)} className="flex w-full items-center justify-between">
               <span className="truncate">{section.label}</span>
@@ -298,8 +299,8 @@ export function AppSidebar() {
               {section.items.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title}>
-                    <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                      <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                    <NavLink to={item.url} className="group/nav relative rounded-lg transition-colors duration-200 hover:bg-sidebar-accent/60" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-[inset_2px_0_0_hsl(var(--sidebar-primary)),0_0_18px_-6px_hsl(var(--sidebar-primary)/0.45)]">
+                      <item.icon className="mr-2 h-4 w-4 shrink-0 transition-transform duration-200 group-hover/nav:scale-110" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -315,11 +316,22 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <Shield className="h-7 w-7 text-sidebar-primary" />
-          {!collapsed && <span className="text-lg font-bold text-sidebar-foreground">IRASControl</span>}
+      <SidebarHeader className="p-3">
+        <div className="flex items-center gap-2.5">
+          <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-[0_0_20px_-2px_hsl(var(--sidebar-primary)/0.6)]">
+            <Shield className="h-5 w-5 text-emerald-950" strokeWidth={2.4} />
+            <span className="live-dot absolute -right-0.5 -top-0.5" />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 leading-tight">
+              <span className="block font-display text-[17px] font-semibold tracking-tight text-sidebar-accent-foreground">
+                IRAS<span className="text-sidebar-primary">Control</span>
+              </span>
+              <span className="label-mono block text-[9px] text-sidebar-foreground/50">CCIH · vigilância ativa</span>
+            </div>
+          )}
         </div>
+        {!collapsed && <div className="hairline-spectrum mt-3" />}
       </SidebarHeader>
       <SidebarContent>
         {!collapsed && (
@@ -327,14 +339,14 @@ export function AppSidebar() {
             <button
               type="button"
               onClick={() => setAllGroups(false)}
-              className="flex-1 rounded-md border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+              className="flex-1 rounded-lg border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 transition-colors hover:border-sidebar-primary/40 hover:bg-sidebar-accent/50"
             >
               Recolher tudo
             </button>
             <button
               type="button"
               onClick={() => setAllGroups(true)}
-              className="flex-1 rounded-md border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+              className="flex-1 rounded-lg border border-sidebar-border px-2 py-1 text-[11px] text-sidebar-foreground/70 transition-colors hover:border-sidebar-primary/40 hover:bg-sidebar-accent/50"
             >
               Expandir tudo
             </button>
@@ -351,12 +363,12 @@ export function AppSidebar() {
         {/* Maternidade — visível somente para hospitais do tipo maternidade */}
         {hospitalType === "maternidade" && (
           <SidebarGroup>
-            <SidebarGroupLabel>Maternidade</SidebarGroupLabel>
+            <SidebarGroupLabel className="label-mono text-[10px] text-sidebar-foreground/45">Maternidade</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === "/maternidade"}>
-                    <NavLink to="/maternidade" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <NavLink to="/maternidade" className="rounded-lg hover:bg-sidebar-accent/60" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]">
                       <Baby className="mr-2 h-4 w-4 shrink-0 text-pink-500" />
                       {!collapsed && <span>Módulo Maternidade</span>}
                     </NavLink>
@@ -382,7 +394,7 @@ export function AppSidebar() {
 
         {/* Guardião Hospitalar */}
         <SidebarGroup>
-          <SidebarGroupLabel>Integrações</SidebarGroupLabel>
+          <SidebarGroupLabel className="label-mono text-[10px] text-sidebar-foreground/45">Integrações</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -390,7 +402,7 @@ export function AppSidebar() {
                   onClick={() => openGuardiaoWithSSO(getSelectedHospitalId(user?.id))}
                   className="cursor-pointer hover:bg-sidebar-accent/50 w-full"
                 >
-                  <ShieldCheck className="mr-2 h-4 w-4 shrink-0 text-emerald-600" />
+                  <ShieldCheck className="mr-2 h-4 w-4 shrink-0 text-emerald-400" />
                   {!collapsed && (
                     <span className="flex items-center gap-1 truncate">
                       Guardião Hospitalar
@@ -425,7 +437,7 @@ export function AppSidebar() {
           </Button>
         )}
         {!collapsed && (
-          <p className="text-xs text-sidebar-foreground/50">© 2026 IRASControl</p>
+          <p className="label-mono text-[9px] text-sidebar-foreground/40">© 2026 IRASControl</p>
         )}
       </SidebarFooter>
     </Sidebar>

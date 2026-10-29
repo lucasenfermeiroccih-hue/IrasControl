@@ -3,105 +3,112 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import SelectHospital from "./pages/SelectHospital.tsx";
-import Login from "./pages/Login.tsx";
-import Register from "./pages/Register.tsx";
-import ResetPassword from "./pages/ResetPassword.tsx";
-import Pricing from "./pages/Pricing.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import AuditBundlesNew from "./pages/AuditBundlesNew.tsx";
-import AuditHandHygieneNew from "./pages/AuditHandHygieneNew.tsx";
-import AuditInfectionControlNew from "./pages/AuditInfectionControlNew.tsx";
-import AuditDispenserNew from "./pages/AuditDispenserNew.tsx";
-import AuditCTINew from "./pages/AuditCTINew.tsx";
-import AuditAntibiogramNew from "./pages/AuditAntibiogramNew.tsx";
-import Reports from "./pages/Reports.tsx";
-import CasesInvestigation from "./pages/CasesInvestigation.tsx";
-import Alerts from "./pages/Alerts.tsx";
-import LaboratoryResults from "./pages/LaboratoryResults.tsx";
-import DashboardBundles from "./pages/DashboardBundles.tsx";
-import DashboardInfectionControl from "./pages/DashboardInfectionControl.tsx";
-import DashboardHygiene from "./pages/DashboardHygiene.tsx";
-import DashboardDispenser from "./pages/DashboardDispenser.tsx";
-import DashboardStructure from "./pages/DashboardStructure.tsx";
-import DashboardPrecautions from "./pages/DashboardPrecautions.tsx";
-import MapeamentoPrecaucao from "./pages/MapeamentoPrecaucao.tsx";
-import AlertasSurto from "./pages/AlertasSurto.tsx";
-import SCIHAuditModule from "./pages/SCIHAuditModule.tsx";
-import DashboardAntimicrobials from "./pages/DashboardAntimicrobials.tsx";
-import ReportsAnalytics from "./pages/ReportsAnalytics.tsx";
-import Forms from "./pages/Forms.tsx";
-import PatientsMonitoring from "./pages/PatientsMonitoring.tsx";
-import AdminSettings from "./pages/AdminSettings.tsx";
-import CRM from "./pages/CRM.tsx";
-import Marketplace from "./pages/Marketplace.tsx";
-import UserProfile from "./pages/UserProfile.tsx";
-import SuperAdmin from "./pages/SuperAdmin.tsx";
-import HospitalUsers from "./pages/HospitalUsers.tsx";
-import IndicadoresNew from "./pages/IndicadoresNew.tsx";
-import IndicadoresDashboard from "./pages/IndicadoresDashboard.tsx";
-import IndicadoresISC from "./pages/IndicadoresISC.tsx";
-import DashboardISC from "./pages/DashboardISC.tsx";
-import IndicadoresDDD from "./pages/IndicadoresDDD.tsx";
-import DashboardDDD from "./pages/DashboardDDD.tsx";
-import DashboardAntibiogram from "./pages/DashboardAntibiogram.tsx";
-import AgentLibrary from "./pages/AgentLibrary.tsx";
-import AgentChat from "./pages/AgentChat.tsx";
-import NotificacaoInvestigacaoCCIH from "./pages/NotificacaoInvestigacaoCCIH.tsx";
-import CasesInvestigationAnalytics from "./pages/CasesInvestigationAnalytics.tsx";
-import AuditHandHygieneConsumptionNew from "./pages/AuditHandHygieneConsumptionNew.tsx";
-import HygieneConsumptionDashboard from "./pages/HygieneConsumptionDashboard.tsx";
-import PatientDashboardIndicators from "./pages/PatientDashboardIndicators.tsx";
-import KanbanCCIH from "./pages/KanbanCCIH.tsx";
-import AuditSectorNew from "./pages/AuditSectorNew.tsx";
-import AuditConstructionNew from "./pages/AuditConstructionNew.tsx";
-import DashboardConstruction from "./pages/DashboardConstruction.tsx";
-import Planos5W2H from "./pages/Planos5W2H.tsx";
-import NotificacoesPage from "./pages/NotificacoesPage.tsx";
-import NotificacaoNew from "./pages/NotificacaoNew.tsx";
-import NotificacoesHistory from "./pages/NotificacoesHistory.tsx";
-import NotificacoesDashboard from "./pages/NotificacoesDashboard.tsx";
+import { Suspense } from "react";
+import { ThemeProvider } from "next-themes";
+import { lazyPage } from "@/lib/lazyPage";
+import { CarregandoTela } from "@/components/CarregandoTela";
 import { AppLayout } from "./components/AppLayout.tsx";
 import { RequireSuperAdmin } from "./components/RequireSuperAdmin.tsx";
 import { RequireAdmin } from "./components/RequireAdmin.tsx";
 import { RequireHospitalAccess } from "./components/RequireHospitalAccess.tsx";
-import NotFound from "./pages/NotFound.tsx";
-import Maternidade from "./pages/Maternidade.tsx";
-import MaternityDashboard from "./pages/MaternityDashboard.tsx";
-import MaternityMonthlyForm from "./pages/MaternityMonthlyForm.tsx";
-import MaternityActionPlan from "./pages/MaternityActionPlan.tsx";
-import MaternityReport from "./pages/MaternityReport.tsx";
-import ProtocolosIA from "./pages/ProtocolosIA.tsx";
-import ReunioesMeetingsModule from "./pages/ReunioesMeetingsModule.tsx";
-import PermissoesUsuarios from "./pages/PermissoesUsuarios.tsx";
-import PatientAuditLog from "./pages/PatientAuditLog.tsx";
-import HLDashboard from "./modules/hygiene-logistics/pages/HLDashboard.tsx";
-import HLStock from "./modules/hygiene-logistics/pages/HLStock.tsx";
-import HLProducts from "./modules/hygiene-logistics/pages/HLProducts.tsx";
-import HLMonthlyOrder from "./modules/hygiene-logistics/pages/HLMonthlyOrder.tsx";
-import HLResupplyMatrix from "./modules/hygiene-logistics/pages/HLResupplyMatrix.tsx";
-import HLAbcCurve from "./modules/hygiene-logistics/pages/HLAbcCurve.tsx";
-import HLSawtooth from "./modules/hygiene-logistics/pages/HLSawtooth.tsx";
-import HLStockEntry from "./modules/hygiene-logistics/pages/HLStockEntry.tsx";
-import HLSectorOutput from "./modules/hygiene-logistics/pages/HLSectorOutput.tsx";
-import HLEquipmentInventory from "./modules/hygiene-logistics/pages/HLEquipmentInventory.tsx";
-import HLCleaningSchedule from "./modules/hygiene-logistics/pages/HLCleaningSchedule.tsx";
-import HLCleaningAudit from "./modules/hygiene-logistics/pages/HLCleaningAudit.tsx";
-import HLNonconformities from "./modules/hygiene-logistics/pages/HLNonconformities.tsx";
-import HLReports from "./modules/hygiene-logistics/pages/HLReports.tsx";
-import HLSettings from "./modules/hygiene-logistics/pages/HLSettings.tsx";
-import HLOrderSchedule from "./modules/hygiene-logistics/pages/HLOrderSchedule.tsx";
-import HLValueGrid from "./modules/hygiene-logistics/pages/HLValueGrid.tsx";
+const Index = lazyPage(() => import("./pages/Index.tsx"));
+const SelectHospital = lazyPage(() => import("./pages/SelectHospital.tsx"));
+const Login = lazyPage(() => import("./pages/Login.tsx"));
+const Register = lazyPage(() => import("./pages/Register.tsx"));
+const ResetPassword = lazyPage(() => import("./pages/ResetPassword.tsx"));
+const Pricing = lazyPage(() => import("./pages/Pricing.tsx"));
+const Dashboard = lazyPage(() => import("./pages/Dashboard.tsx"));
+const AuditBundlesNew = lazyPage(() => import("./pages/AuditBundlesNew.tsx"));
+const AuditHandHygieneNew = lazyPage(() => import("./pages/AuditHandHygieneNew.tsx"));
+const AuditInfectionControlNew = lazyPage(() => import("./pages/AuditInfectionControlNew.tsx"));
+const AuditDispenserNew = lazyPage(() => import("./pages/AuditDispenserNew.tsx"));
+const AuditCTINew = lazyPage(() => import("./pages/AuditCTINew.tsx"));
+const AuditAntibiogramNew = lazyPage(() => import("./pages/AuditAntibiogramNew.tsx"));
+const Reports = lazyPage(() => import("./pages/Reports.tsx"));
+const CasesInvestigation = lazyPage(() => import("./pages/CasesInvestigation.tsx"));
+const Alerts = lazyPage(() => import("./pages/Alerts.tsx"));
+const LaboratoryResults = lazyPage(() => import("./pages/LaboratoryResults.tsx"));
+const DashboardBundles = lazyPage(() => import("./pages/DashboardBundles.tsx"));
+const DashboardInfectionControl = lazyPage(() => import("./pages/DashboardInfectionControl.tsx"));
+const DashboardHygiene = lazyPage(() => import("./pages/DashboardHygiene.tsx"));
+const DashboardDispenser = lazyPage(() => import("./pages/DashboardDispenser.tsx"));
+const DashboardStructure = lazyPage(() => import("./pages/DashboardStructure.tsx"));
+const DashboardPrecautions = lazyPage(() => import("./pages/DashboardPrecautions.tsx"));
+const MapeamentoPrecaucao = lazyPage(() => import("./pages/MapeamentoPrecaucao.tsx"));
+const AlertasSurto = lazyPage(() => import("./pages/AlertasSurto.tsx"));
+const SCIHAuditModule = lazyPage(() => import("./pages/SCIHAuditModule.tsx"));
+const DashboardAntimicrobials = lazyPage(() => import("./pages/DashboardAntimicrobials.tsx"));
+const ReportsAnalytics = lazyPage(() => import("./pages/ReportsAnalytics.tsx"));
+const Forms = lazyPage(() => import("./pages/Forms.tsx"));
+const PatientsMonitoring = lazyPage(() => import("./pages/PatientsMonitoring.tsx"));
+const AdminSettings = lazyPage(() => import("./pages/AdminSettings.tsx"));
+const CRM = lazyPage(() => import("./pages/CRM.tsx"));
+const Marketplace = lazyPage(() => import("./pages/Marketplace.tsx"));
+const UserProfile = lazyPage(() => import("./pages/UserProfile.tsx"));
+const SuperAdmin = lazyPage(() => import("./pages/SuperAdmin.tsx"));
+const HospitalUsers = lazyPage(() => import("./pages/HospitalUsers.tsx"));
+const IndicadoresNew = lazyPage(() => import("./pages/IndicadoresNew.tsx"));
+const IndicadoresDashboard = lazyPage(() => import("./pages/IndicadoresDashboard.tsx"));
+const IndicadoresISC = lazyPage(() => import("./pages/IndicadoresISC.tsx"));
+const DashboardISC = lazyPage(() => import("./pages/DashboardISC.tsx"));
+const IndicadoresDDD = lazyPage(() => import("./pages/IndicadoresDDD.tsx"));
+const DashboardDDD = lazyPage(() => import("./pages/DashboardDDD.tsx"));
+const DashboardAntibiogram = lazyPage(() => import("./pages/DashboardAntibiogram.tsx"));
+const AgentLibrary = lazyPage(() => import("./pages/AgentLibrary.tsx"));
+const AgentChat = lazyPage(() => import("./pages/AgentChat.tsx"));
+const NotificacaoInvestigacaoCCIH = lazyPage(() => import("./pages/NotificacaoInvestigacaoCCIH.tsx"));
+const CasesInvestigationAnalytics = lazyPage(() => import("./pages/CasesInvestigationAnalytics.tsx"));
+const AuditHandHygieneConsumptionNew = lazyPage(() => import("./pages/AuditHandHygieneConsumptionNew.tsx"));
+const HygieneConsumptionDashboard = lazyPage(() => import("./pages/HygieneConsumptionDashboard.tsx"));
+const PatientDashboardIndicators = lazyPage(() => import("./pages/PatientDashboardIndicators.tsx"));
+const KanbanCCIH = lazyPage(() => import("./pages/KanbanCCIH.tsx"));
+const Conquistas = lazyPage(() => import("./pages/Conquistas.tsx"));
+const AuditSectorNew = lazyPage(() => import("./pages/AuditSectorNew.tsx"));
+const AuditConstructionNew = lazyPage(() => import("./pages/AuditConstructionNew.tsx"));
+const DashboardConstruction = lazyPage(() => import("./pages/DashboardConstruction.tsx"));
+const Planos5W2H = lazyPage(() => import("./pages/Planos5W2H.tsx"));
+const NotificacoesPage = lazyPage(() => import("./pages/NotificacoesPage.tsx"));
+const NotificacaoNew = lazyPage(() => import("./pages/NotificacaoNew.tsx"));
+const NotificacoesHistory = lazyPage(() => import("./pages/NotificacoesHistory.tsx"));
+const NotificacoesDashboard = lazyPage(() => import("./pages/NotificacoesDashboard.tsx"));
+const NotFound = lazyPage(() => import("./pages/NotFound.tsx"));
+const Maternidade = lazyPage(() => import("./pages/Maternidade.tsx"));
+const MaternityDashboard = lazyPage(() => import("./pages/MaternityDashboard.tsx"));
+const MaternityMonthlyForm = lazyPage(() => import("./pages/MaternityMonthlyForm.tsx"));
+const MaternityActionPlan = lazyPage(() => import("./pages/MaternityActionPlan.tsx"));
+const MaternityReport = lazyPage(() => import("./pages/MaternityReport.tsx"));
+const ProtocolosIA = lazyPage(() => import("./pages/ProtocolosIA.tsx"));
+const ReunioesMeetingsModule = lazyPage(() => import("./pages/ReunioesMeetingsModule.tsx"));
+const PermissoesUsuarios = lazyPage(() => import("./pages/PermissoesUsuarios.tsx"));
+const PatientAuditLog = lazyPage(() => import("./pages/PatientAuditLog.tsx"));
+const HLDashboard = lazyPage(() => import("./modules/hygiene-logistics/pages/HLDashboard.tsx"));
+const HLStock = lazyPage(() => import("./modules/hygiene-logistics/pages/HLStock.tsx"));
+const HLProducts = lazyPage(() => import("./modules/hygiene-logistics/pages/HLProducts.tsx"));
+const HLMonthlyOrder = lazyPage(() => import("./modules/hygiene-logistics/pages/HLMonthlyOrder.tsx"));
+const HLResupplyMatrix = lazyPage(() => import("./modules/hygiene-logistics/pages/HLResupplyMatrix.tsx"));
+const HLAbcCurve = lazyPage(() => import("./modules/hygiene-logistics/pages/HLAbcCurve.tsx"));
+const HLSawtooth = lazyPage(() => import("./modules/hygiene-logistics/pages/HLSawtooth.tsx"));
+const HLStockEntry = lazyPage(() => import("./modules/hygiene-logistics/pages/HLStockEntry.tsx"));
+const HLSectorOutput = lazyPage(() => import("./modules/hygiene-logistics/pages/HLSectorOutput.tsx"));
+const HLEquipmentInventory = lazyPage(() => import("./modules/hygiene-logistics/pages/HLEquipmentInventory.tsx"));
+const HLCleaningSchedule = lazyPage(() => import("./modules/hygiene-logistics/pages/HLCleaningSchedule.tsx"));
+const HLCleaningAudit = lazyPage(() => import("./modules/hygiene-logistics/pages/HLCleaningAudit.tsx"));
+const HLNonconformities = lazyPage(() => import("./modules/hygiene-logistics/pages/HLNonconformities.tsx"));
+const HLReports = lazyPage(() => import("./modules/hygiene-logistics/pages/HLReports.tsx"));
+const HLSettings = lazyPage(() => import("./modules/hygiene-logistics/pages/HLSettings.tsx"));
+const HLOrderSchedule = lazyPage(() => import("./modules/hygiene-logistics/pages/HLOrderSchedule.tsx"));
+const HLValueGrid = lazyPage(() => import("./modules/hygiene-logistics/pages/HLValueGrid.tsx"));
 
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="irascontrol-tema" disableTransitionOnChange>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <Suspense fallback={<CarregandoTela />}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -165,6 +172,7 @@ const App = () => (
               <Route path="/audits/hand-hygiene/consumption/new" element={<AuditHandHygieneConsumptionNew />} />
               <Route path="/hygiene/consumption-dashboard" element={<HygieneConsumptionDashboard />} />
               <Route path="/kanban-ccih" element={<KanbanCCIH />} />
+              <Route path="/conquistas" element={<Conquistas />} />
               <Route path="/quality/5w2h" element={<Planos5W2H />} />
               <Route path="/audits/sector/new" element={<AuditSectorNew />} />
               <Route path="/audits/construction/new" element={<AuditConstructionNew />} />
@@ -204,9 +212,11 @@ const App = () => (
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

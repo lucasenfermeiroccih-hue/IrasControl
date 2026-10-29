@@ -6,6 +6,8 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { RelogioAoVivo } from "@/components/RelogioAoVivo";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { sendToAgent } from "@/lib/agent-service";
 import { useNavigate } from "react-router-dom";
@@ -113,7 +115,6 @@ export default function AlertasSurto() {
   const [activeSetor, setActiveSetor] = useState<string | null>(null);
 
   // New state for redesign
-  const [clock, setClock] = useState("")
   const [lightMode, setLightMode] = useState(false)
   const [modalBed, setModalBed] = useState<Patient | null>(null)
   const [aiReport, setAiReport] = useState("")
@@ -183,8 +184,10 @@ export default function AlertasSurto() {
     }
     setLoading(true);
 
-    const { data: pData, error: pErr } = await supabase
-      .from("patients").select("*").eq("hospital_id", hospitalId);
+    let pErr: { message: string } | null = null;
+    const pData = await fetchAllRows<any>(() => supabase
+      .from("patients").select("*").eq("hospital_id", hospitalId).order("id"))
+      .catch((e) => { pErr = e; return [] as any[]; });
 
     if (pErr) {
       toast.error("Erro ao carregar pacientes: " + pErr.message);
@@ -195,8 +198,10 @@ export default function AlertasSurto() {
 
     const pIds = pData.map((p: any) => p.id);
     const [precsRes, labsRes] = await Promise.all([
-      supabase.from("precautions").select("*, patients!inner(hospital_id)").eq("patients.hospital_id", hospitalId),
-      supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }),
+      fetchAllRows<any>(() => supabase.from("precautions").select("*, patients!inner(hospital_id)").eq("patients.hospital_id", hospitalId).order("id"))
+        .then(data => ({ data, error: null })).catch(error => ({ data: [] as any[], error })),
+      fetchAllRows<any>(() => supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }).order("id"))
+        .then(data => ({ data, error: null })).catch(error => ({ data: [] as any[], error })),
     ]);
 
     if (precsRes.error) toast.error("Erro ao carregar precauções: " + precsRes.error.message);
@@ -241,12 +246,6 @@ export default function AlertasSurto() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Clock effect
-  useEffect(() => {
-    const t = setInterval(() => setClock(new Date().toLocaleString("pt-BR")), 1000)
-    setClock(new Date().toLocaleString("pt-BR"))
-    return () => clearInterval(t)
-  }, [])
 
   /* ── filtros avançados (Setor, Leito, Data Coleta, Mês, Ano, Precaução, Microorganismo, Material) ── */
   const [fSetor, setFSetor] = useState<string[]>([]);
@@ -675,7 +674,7 @@ Responda SOMENTE em JSON válido:
             </div>
             {/* Right side */}
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
-              <div style={{ fontSize:12, fontFamily:"monospace", color: subText }}>{clock}</div>
+              <RelogioAoVivo style={{ fontSize:12, fontFamily:"monospace", color: subText }} />
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 <span style={{ fontSize:11, color: subText }}>CCIH</span>
                 <button onClick={() => setLightMode(l => !l)}

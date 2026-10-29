@@ -114,7 +114,7 @@ function ActionCard({ action, onDelete, onMoveNext, onMovePrev }: {
   const overdue = action.status !== "concluido" && action.when_date && action.when_date < today;
 
   return (
-    <div className={`bg-white rounded-lg border border-l-4 shadow-sm p-3 space-y-2 ${cfg.border}`}>
+    <div className={`bg-card text-card-foreground rounded-lg border border-l-4 shadow-sm p-3 space-y-2 ${cfg.border}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           {overdue && (
@@ -178,7 +178,7 @@ function KanbanColumn({ status, actions, onDelete, onMoveNext, onMovePrev }: {
       <div className="flex items-center gap-2">
         {cfg.icon}
         <h3 className="font-semibold text-sm">{cfg.label}</h3>
-        <span className="ml-auto text-xs font-medium bg-white border rounded-full px-2 py-0.5">{actions.length}</span>
+        <span className="ml-auto text-xs font-medium bg-card border rounded-full px-2 py-0.5">{actions.length}</span>
       </div>
       <div className="space-y-2">
         {actions.length === 0

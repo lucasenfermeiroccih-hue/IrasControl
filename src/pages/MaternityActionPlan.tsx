@@ -25,7 +25,7 @@ const STATUS_COLORS: Record<MaternityActionPlanStatus, string> = {
   open: "bg-blue-100 text-blue-700 border-blue-200",
   in_progress: "bg-yellow-100 text-yellow-700 border-yellow-200",
   done: "bg-green-100 text-green-700 border-green-200",
-  cancelled: "bg-gray-100 text-gray-500 border-gray-200",
+  cancelled: "bg-muted text-muted-foreground border-border",
 };
 const PRIORITY_LABELS: Record<MaternityActionPlanPriority, string> = {
   low: "Baixa",
@@ -34,7 +34,7 @@ const PRIORITY_LABELS: Record<MaternityActionPlanPriority, string> = {
   critical: "Crítica",
 };
 const PRIORITY_COLORS: Record<MaternityActionPlanPriority, string> = {
-  low: "bg-gray-100 text-gray-600",
+  low: "bg-muted text-muted-foreground",
   medium: "bg-blue-100 text-blue-700",
   high: "bg-orange-100 text-orange-700",
   critical: "bg-red-100 text-red-700",
