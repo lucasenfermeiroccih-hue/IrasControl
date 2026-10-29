@@ -7,6 +7,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { RelogioAoVivo } from "@/components/RelogioAoVivo";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -108,6 +109,10 @@ interface Patient {
   organismo: string;
   precaucao: string;
   status: string;
+  /** Data da saída (alta, óbito ou transferência), aaaa-mm-dd */
+  dataSaida?: string;
+  /** Motivo/observação do status, editável no modal de status */
+  motivoStatus?: string;
   /** "monitoramento" = paciente ativo do Monitoramento de Pacientes, listado automaticamente */
   origem?: "mapa" | "monitoramento";
   /** Registro do mapa que também está ativo no Monitoramento de Pacientes */
@@ -743,6 +748,8 @@ export default function MapeamentoPrecaucao() {
         organismo: lab?.organism || active.reason || "",
         precaucao: active.precaution_type,
         status,
+        dataSaida: status === "Internado" ? "" : (p.discharge_date || active.end_date || "").slice(0, 10),
+        motivoStatus: ((p.clinical_data as { motivoStatus?: string } | null)?.motivoStatus) || "",
         origem: "mapa",
       });
     });
@@ -1165,35 +1172,57 @@ export default function MapeamentoPrecaucao() {
   };
 
 
-  const changeStatus = async (id: string, s: string, dataSaida?: string) => {
+  /**
+   * Define o status do paciente do mapa: Internado (reabre a precaução) ou saída
+   * (Alta, Óbito, Transferência) com data e motivo. Pode ser corrigido depois.
+   */
+  const changeStatus = async (id: string, s: string, dataSaida?: string, motivo?: string) => {
     const pat = patients.find(p => p.id === id);
-    const dbStatus = s === "Óbito" ? "deceased" : s === "Transferência" ? "transferred" : "discharged";
+    const internado = s === "Internado";
+    const dbStatus = internado ? "active" : s === "Óbito" ? "deceased" : s === "Transferência" ? "transferred" : "discharged";
     const quando = dataSaida || new Date().toISOString().split("T")[0];
+    const motivoFinal = (motivo ?? pat?.motivoStatus ?? "").trim();
 
-    await Promise.all([
+    // Motivo fica em clinical_data, preservando o que já existe
+    const { data: atual } = await supabase.from("patients").select("clinical_data").eq("id", id).maybeSingle();
+    const clinico = { ...((atual?.clinical_data as Record<string, unknown> | null) || {}) };
+    if (motivoFinal) clinico.motivoStatus = motivoFinal; else delete clinico.motivoStatus;
+
+    const resultados = await Promise.all([
       supabase.from("patients").update({
         status: dbStatus as "active" | "discharged" | "transferred" | "deceased",
-        discharge_date: quando,
-        discharge_type: s.toLowerCase(),
+        discharge_date: internado ? null : quando,
+        discharge_type: internado ? null : s.toLowerCase(),
+        clinical_data: clinico as Json,
       }).eq("id", id).eq("source", "precaution_map"),
-      ...(pat?.precaucaoId ? [supabase.from("precautions").update({
-        is_active: false,
-        end_date: quando,
-      }).eq("id", pat.precaucaoId)] : []),
+      ...(pat?.precaucaoId ? [supabase.from("precautions").update(
+        internado ? { is_active: true, end_date: null } : { is_active: false, end_date: quando },
+      ).eq("id", pat.precaucaoId)] : []),
     ]);
+    const erro = resultados.find(r => r.error)?.error;
+    if (erro) {
+      toast({ title: "Não foi possível salvar o status", description: erro.message, variant: "destructive" });
+      return;
+    }
 
-    setPatients(prev => prev.map(p => p.id === id ? { ...p, status: s, saidaMonitoramento: undefined } : p));
+    const mudouStatus = pat?.status !== s;
+    setPatients(prev => prev.map(p => p.id === id ? {
+      ...p, status: s, dataSaida: internado ? "" : quando, motivoStatus: motivoFinal, saidaMonitoramento: undefined,
+    } : p));
     setEvents(prev => [{
       id: Date.now(),
-      type: s,
+      type: internado ? "Cadastro" : s,
       timestamp: Date.now(),
       patientId: id,
       patientNome: pat?.nome || "",
       setor: pat?.setor || "",
       leito: pat?.leito || "",
-      detail: `Status alterado para ${s} · ${pat?.setor} Leito ${pat?.leito}`,
+      detail: mudouStatus
+        ? `Status alterado para ${s}${motivoFinal ? ` (${motivoFinal})` : ""} · ${pat?.setor} Leito ${pat?.leito}`
+        : `Status ${s} atualizado${motivoFinal ? `: ${motivoFinal}` : ""} · ${pat?.setor} Leito ${pat?.leito}`,
     }, ...prev]);
     setStModal(null);
+    toast({ title: "Status salvo", description: `${pat?.nome}: ${s}${internado ? "" : ` em ${quando.split("-").reverse().join("/")}`}` });
   };
 
   /** Paciente do monitoramento: encerra a precaução (sai do mapa; continua no monitoramento). */
@@ -2215,6 +2244,12 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                       </td>
                       <td style={{ padding:"9px 14px" }}>
                         <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:20, background:sta.bg, color:sta.color, fontSize:11, fontWeight:500 }}>{p.status}</span>
+                        {p.dataSaida && p.status !== "Internado" && (
+                          <div style={{ fontSize:10, color:"var(--color-text-tertiary)", marginTop:3, fontFamily:"'DM Mono',monospace" }}>{fmt(p.dataSaida)}</div>
+                        )}
+                        {p.motivoStatus && (
+                          <div title={p.motivoStatus} style={{ fontSize:10, color:"var(--color-text-secondary)", marginTop:2, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.motivoStatus}</div>
+                        )}
                       </td>
                       <td className="np" style={{ padding:"9px 14px" }}>
                         {p.origem === "monitoramento" ? (
@@ -2231,11 +2266,9 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                           <button onClick={() => startEdit(p)} title="Editar paciente" style={{ width:28, height:28, display:"inline-flex", alignItems:"center", justifyContent:"center", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"#0F4C75", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>
                             ✎
                           </button>
-                          {p.status === "Internado" && (
-                            <button onClick={() => setStModal(p.id)} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
-                              Alterar
-                            </button>
-                          )}
+                          <button onClick={() => setStModal(p.id)} title={p.status === "Internado" ? "Registrar alta, óbito ou transferência" : "Editar status, data e motivo"} style={{ padding:"3px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:6, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:11, fontFamily:"inherit" }}>
+                            {p.status === "Internado" ? "Alterar" : "Editar status"}
+                          </button>
                           <button onClick={() => deletePatient(p.id)} title="Excluir paciente" style={{ width:28, height:28, display:"inline-flex", alignItems:"center", justifyContent:"center", border:"0.5px solid #FCA5A5", borderRadius:6, background:"transparent", color:"#B91C1C", cursor:"pointer", fontSize:14, fontFamily:"inherit" }}>
                             🗑
                           </button>
@@ -3499,25 +3532,8 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
       {/* ── STATUS MODAL ── */}
       {stModal !== null && (() => {
         const pat = patients.find(p => p.id === stModal);
-        return (
-          <div className="np" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200 }}>
-            <div style={{ background:"var(--color-background-primary)", borderRadius:14, padding:22, width:320 }}>
-              <h3 style={{ margin:"0 0 4px", fontSize:15, fontWeight:500, color:"var(--color-text-primary)" }}>Alterar status</h3>
-              <p style={{ margin:"0 0 14px", fontSize:12, color:"var(--color-text-secondary)" }}>{pat?.nome}</p>
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {["Alta","Óbito","Transferência"].map(s => {
-                  const m = SMETA[s];
-                  return (
-                    <button key={s} onClick={() => changeStatus(stModal, s)} style={{ padding:"9px 14px", border:`1.5px solid ${m.color}33`, borderRadius:8, background:m.bg, color:m.color, cursor:"pointer", fontSize:13, fontWeight:500, fontFamily:"inherit", textAlign:"left" }}>
-                      {s === "Alta" ? "✓" : s === "Óbito" ? "†" : "→"} Registrar {s}
-                    </button>
-                  );
-                })}
-              </div>
-              <button onClick={() => setStModal(null)} style={{ marginTop:10, width:"100%", padding:"7px", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>Cancelar</button>
-            </div>
-          </div>
-        );
+        if (!pat) return null;
+        return <StatusModal key={pat.id} pat={pat} onCancel={() => setStModal(null)} onSave={(st, data, motivo) => changeStatus(pat.id, st, data, motivo)} />;
       })()}
 
       {/* ── AI MODAL ── */}
@@ -3542,6 +3558,92 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Modal de status do paciente do mapa: status, data da saída e motivo (editáveis). */
+function StatusModal({ pat, onCancel, onSave }: {
+  pat: Patient;
+  onCancel: () => void;
+  onSave: (status: string, data: string, motivo: string) => Promise<void> | void;
+}) {
+  const hoje = new Date().toISOString().split("T")[0];
+  const [status, setStatus] = useState(pat.status === "Internado" ? "Alta" : pat.status);
+  const [data, setData] = useState(pat.dataSaida || hoje);
+  const [motivo, setMotivo] = useState(pat.motivoStatus || "");
+  const [salvando, setSalvando] = useState(false);
+  const saida = status !== "Internado";
+  const dataInvalida = saida && (!data || data > hoje);
+
+  const salvar = async () => {
+    if (dataInvalida) return;
+    setSalvando(true);
+    try { await onSave(status, data, motivo); } finally { setSalvando(false); }
+  };
+
+  const campo: React.CSSProperties = {
+    width:"100%", padding:"8px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:8,
+    background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontSize:13, fontFamily:"inherit", boxSizing:"border-box",
+  };
+
+  return (
+    <div className="np" role="dialog" aria-modal="true" aria-label="Status do paciente"
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
+      <div style={{ background:"var(--color-background-primary)", borderRadius:14, padding:22, width:380, maxWidth:"100%" }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:15, fontWeight:500, color:"var(--color-text-primary)" }}>
+          {pat.status === "Internado" ? "Alterar status" : "Editar status"}
+        </h3>
+        <p style={{ margin:"0 0 14px", fontSize:12, color:"var(--color-text-secondary)" }}>
+          {pat.nome} · atual: <strong>{pat.status}</strong>{pat.dataSaida ? ` em ${fmt(pat.dataSaida)}` : ""}
+        </p>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {["Internado","Alta","Óbito","Transferência"].map(s => {
+            const m = SMETA[s];
+            const ativo = status === s;
+            return (
+              <button key={s} type="button" onClick={() => setStatus(s)} aria-pressed={ativo}
+                style={{ padding:"9px 10px", border:`1.5px solid ${ativo ? m.color : m.color + "33"}`, borderRadius:8, background:m.bg, color:m.color,
+                  cursor:"pointer", fontSize:13, fontWeight: ativo ? 700 : 500, fontFamily:"inherit", textAlign:"left",
+                  boxShadow: ativo ? `0 0 0 3px ${m.color}22` : "none" }}>
+                {s === "Internado" ? "↺" : s === "Alta" ? "✓" : s === "Óbito" ? "†" : "→"} {s === "Internado" ? "Internado (reabrir)" : s}
+              </button>
+            );
+          })}
+        </div>
+
+        {saida && (
+          <label style={{ display:"block", marginTop:14, fontSize:12, color:"var(--color-text-secondary)" }}>
+            Data da {status === "Óbito" ? "ocorrência" : status === "Transferência" ? "transferência" : "alta"}
+            <input type="date" value={data} max={hoje} onChange={e => setData(e.target.value)} style={{ ...campo, marginTop:4 }} />
+            {dataInvalida && <span style={{ color:"#B91C1C", fontSize:11 }}>Informe uma data até hoje.</span>}
+          </label>
+        )}
+
+        <label style={{ display:"block", marginTop:12, fontSize:12, color:"var(--color-text-secondary)" }}>
+          Motivo / observação {status === "Internado" ? "(ex.: alta registrada por engano)" : ""}
+          <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} maxLength={500}
+            placeholder={status === "Transferência" ? "Ex.: transferido para hospital de referência" : status === "Óbito" ? "Ex.: óbito não relacionado à infecção" : "Ex.: alta melhorada"}
+            style={{ ...campo, marginTop:4, resize:"vertical" }} />
+        </label>
+
+        {status === "Internado" && pat.status !== "Internado" && (
+          <p style={{ margin:"10px 0 0", fontSize:11, color:"#92400E", background:"#FFFBEB", border:"0.5px solid #FCD34D", borderRadius:8, padding:"6px 8px" }}>
+            A precaução volta a ficar ativa e a data de saída é apagada.
+          </p>
+        )}
+
+        <div style={{ display:"flex", gap:8, marginTop:16 }}>
+          <button type="button" onClick={onCancel} style={{ flex:1, padding:"8px", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>
+            Cancelar
+          </button>
+          <button type="button" onClick={salvar} disabled={salvando || dataInvalida}
+            style={{ flex:2, padding:"8px", border:"none", borderRadius:8, background: salvando || dataInvalida ? "#9CA3AF" : "#0F4C75", color:"white", cursor: salvando || dataInvalida ? "not-allowed" : "pointer", fontSize:13, fontWeight:600, fontFamily:"inherit" }}>
+            {salvando ? "Salvando…" : "Salvar status"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
