@@ -54,7 +54,8 @@ export function PainelAlertas({
   alertas, onAbrir, contexto, titulo = "Central de alertas", limite = 6, hospitalId, origem = "monitoramento", nomes,
 }: {
   alertas: AlertaClinico[];
-  onAbrir?: (pacienteId: string) => void;
+  /** Abre o paciente (recebe o alerta clicado, quando vem de um cartão) */
+  onAbrir?: (pacienteId: string, alerta?: AlertaClinico) => void;
   /** Nome curto para lembrar se o painel fica aberto (ex.: "monitoramento") */
   contexto: string;
   titulo?: string;
@@ -224,8 +225,8 @@ export function PainelAlertas({
                       </div>
                       <div className="mt-2 flex gap-1.5">
                         {onAbrir && (
-                          <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-2 text-xs" onClick={() => onAbrir(a.pacienteId)}>
-                            Abrir <ExternalLink className="h-3 w-3" />
+                          <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-2 text-xs" onClick={() => onAbrir(a.pacienteId, a)}>
+                            {a.tipo === "saida_pendente" ? "Verificar" : "Abrir"} <ExternalLink className="h-3 w-3" />
                           </Button>
                         )}
                         {comHistorico && (

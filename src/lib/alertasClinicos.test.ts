@@ -154,3 +154,16 @@ describe("regras configuráveis", () => {
     expect(situacaoDosAlertas(al, t, hoje, normalizaRegras({ ocultar: { dispositivo: 2 } }).ocultar).pendentes).toHaveLength(0);
   });
 });
+
+describe("saída pendente do mapa", () => {
+  const base = { id: "m", nome: "M", leito: "2", internado: true, precaucao: "Contato", organismo: "KPC" };
+  it("alta de outro setor pede verificação (atenção)", () => {
+    const [a] = alertasDoMapa({ ...base, setor: "Clínica Médica", saidaMonitoramento: { status: "Alta", data: "2026-10-28", setor: "UTI 3" } }, hoje);
+    expect(a.gravidade).toBe("media");
+    expect(a.titulo).toBe("Verificar saída: alta de UTI 3");
+  });
+  it("saída do mesmo setor continua crítica", () => {
+    const [a] = alertasDoMapa({ ...base, setor: "UTI 3", saidaMonitoramento: { status: "Óbito", data: "2026-10-28", setor: "uti 3" } }, hoje);
+    expect(a.gravidade).toBe("alta");
+  });
+});

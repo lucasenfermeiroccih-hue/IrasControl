@@ -22,7 +22,7 @@ export const TIPOS_ALERTA: Record<TipoAlerta, { rotulo: string; icone: string }>
   dispositivo: { rotulo: "Dispositivo prolongado", icone: "🩺" },
   antimicrobiano: { rotulo: "Antimicrobiano prolongado", icone: "💊" },
   internacao: { rotulo: "Internação prolongada", icone: "🛏️" },
-  saida_pendente: { rotulo: "Saída a registrar", icone: "🚪" },
+  saida_pendente: { rotulo: "Saída a verificar", icone: "🚪" },
   precaucao_longa: { rotulo: "Precaução prolongada", icone: "⏳" },
   sem_leito: { rotulo: "Sem leito informado", icone: "❓" },
 };
@@ -189,7 +189,7 @@ export interface PacienteMapa {
   organismo: string;
   dataColeta?: string;
   /** Saída já registrada no Monitoramento e ainda internado no mapa */
-  saidaMonitoramento?: { status: string; data: string };
+  saidaMonitoramento?: { status: string; data: string; setor?: string };
 }
 
 /** Alertas de um paciente do Mapa de Precaução. */
@@ -202,8 +202,18 @@ export function alertasDoMapa(p: PacienteMapa, hoje = new Date(), regras: Regras
     out.push({ id: `${p.id}:${tipo}`, tipo, gravidade, titulo, detalhe, ...base });
 
   if (p.saidaMonitoramento) {
-    add("saida_pendente", "alta", `${p.saidaMonitoramento.status} no Monitoramento`,
-      `Saída em ${dataISO(p.saidaMonitoramento.data).split("-").reverse().join("/")} — registrar também no mapa e encerrar a precaução.`);
+    const s = p.saidaMonitoramento;
+    const quando = dataISO(s.data).split("-").reverse().join("/");
+    const norm = (x?: string) => (x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    // Saída de outro setor (ex.: alta do CTI) com o paciente em outro setor no mapa:
+    // pode ser só alta da unidade — pede verificação, não registro direto
+    if (s.setor && norm(s.setor) !== norm(p.setor)) {
+      add("saida_pendente", "media", `Verificar saída: ${s.status.toLowerCase()} de ${s.setor}`,
+        `Registrada em ${quando}, mas no mapa o paciente está em ${p.setor || "outro setor"}. Confirme se saiu do hospital ou continua internado.`);
+    } else {
+      add("saida_pendente", "alta", `${s.status} no Monitoramento`,
+        `Saída em ${quando} — verificar e registrar no mapa (encerra a precaução).`);
+    }
   }
   if (p.precaucao === "Aerossóis") {
     add("aerossois", "alta", "Precaução por aerossóis", `${p.organismo || "Agente"} — quarto privativo e N95/PFF2.`);
@@ -257,7 +267,7 @@ export const CONDUTAS: Record<TipoAlerta, string[]> = {
   dispositivo: ["Dispositivo retirado", "Mantido — indicação justificada", "Bundle conferido"],
   antimicrobiano: ["Data de término definida", "Discutido com o prescritor", "Escalonamento/descalonamento"],
   internacao: ["Caso discutido com a equipe", "Plano de alta revisado"],
-  saida_pendente: ["Saída registrada no mapa", "Precaução encerrada"],
+  saida_pendente: ["Saída registrada no mapa", "Continua internado em outro setor", "Precaução encerrada"],
   precaucao_longa: ["Precaução mantida — critério presente", "Precaução suspensa"],
   sem_leito: ["Leito informado"],
 };
