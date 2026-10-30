@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 import { toast } from "sonner";
 import { closeOpenDevices, listOpenDevices } from "@/lib/deviceClosure";
@@ -123,29 +124,19 @@ export function usePatientMonitoring() {
 
     // Fetch all patients in pages of 1000 to bypass PostgREST max-rows limit,
     // which would silently cut off older records when the total exceeds the server default.
-    const PAGE = 1000;
+    // Páginas em paralelo (lotes de 4), com ordem estável por id
     let allRows: any[] = [];
-    let from = 0;
-    let fetchError = null;
-
-    while (true) {
-      const { data, error } = await supabase
+    let fetchError: unknown = null;
+    try {
+      allRows = await fetchAllRows<any>(() => supabase
         .from("patients")
         .select("*")
         .eq("hospital_id", hospitalId)
         .neq("source", "precaution_map")
         .order("created_at", { ascending: false })
-        .range(from, from + PAGE - 1);
-
-      if (error) {
-        fetchError = error;
-        break;
-      }
-      if (!data || data.length === 0) break;
-      allRows = [...allRows, ...data];
-      // Advance by actual rows received, not by PAGE — server may cap at max_rows
-      // which is less than PAGE, causing a false "last page" if we checked data.length < PAGE.
-      from += data.length;
+        .order("id"));
+    } catch (e) {
+      fetchError = e;
     }
 
     if (fetchError) {

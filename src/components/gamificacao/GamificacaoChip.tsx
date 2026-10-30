@@ -26,7 +26,7 @@ function PosicaoNoRanking() {
 /** Selo de nível no cabeçalho, com pontos, sequência e atalho para Conquistas. */
 export function GamificacaoChip() {
   const ativa = useGamificacaoAtiva();
-  const { data } = useGamificacao();
+  const { data } = useGamificacao({ adiarMs: 4000 });
   const [ganhos, setGanhos] = useState<{ id: number; xp: number }[]>([]);
 
   useEffect(() => {
