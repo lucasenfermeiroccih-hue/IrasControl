@@ -1,10 +1,14 @@
-import { Flame, Lock, Target, Trophy, Users, Zap } from "lucide-react";
+import { Flame, Lock, Medal, Settings2, Sparkles, Target, Trophy, Users, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGamificacao, useGamificacaoAtiva, useMetaEquipe } from "@/hooks/useGamificacao";
-import { XP, definirGamificacao, xpDoNivel } from "@/lib/gamificacao";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { erroGamificacao, useGamConfig, useGamificacao, useGamificacaoAtiva, useMetaEquipe } from "@/hooks/useGamificacao";
+import { RankingMensal } from "@/components/gamificacao/RankingMensal";
+import { ConfigGamificacao } from "@/components/gamificacao/ConfigGamificacao";
+import { ACOES, definirGamificacao, xpDoNivel } from "@/lib/gamificacao";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -53,7 +57,7 @@ function MapaCalor({ dias }: { dias: { dia: string; xp: number }[] }) {
           {s.map((d, j) => d ? (
             <div
               key={d.dia}
-              title={`${d.dia.split("-").reverse().join("/")}: ${d.xp} XP`}
+              title={`${d.dia.split("-").reverse().join("/")}: ${d.xp} pontos`}
               className={`h-4 w-4 rounded-[5px] transition-transform hover:scale-125 sm:h-5 sm:w-5 ${cores[nivel(d.xp)]}`}
             />
           ) : <div key={`v${j}`} className="h-4 w-4 sm:h-5 sm:w-5" />)}
@@ -108,24 +112,51 @@ function MetaEquipeCard() {
   );
 }
 
-export default function Conquistas() {
-  const { data, isLoading } = useGamificacao();
+/** Regras em vigor (lidas da configuração do hospital). */
+function ComoGanharPontos() {
+  const { data: cfg } = useGamConfig();
+  if (!cfg) return null;
+  const grupos = [
+    { grupo: "tarefas", icone: "✅", titulo: "Tarefas do Kanban" },
+    { grupo: "auditorias", icone: "🔎", titulo: "Auditorias" },
+    { grupo: "preenchimentos", icone: "📝", titulo: "Preenchimentos" },
+    { grupo: "bonus", icone: "📆", titulo: "Constância" },
+  ] as const;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <span className="label-mono text-muted-foreground">Regras transparentes</span>
+        <CardTitle className="text-lg">Como ganhar pontos</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+        {grupos.map((g) => (
+          <div key={g.grupo}>
+            <p className="mb-1 font-medium">{g.icone} {g.titulo}</p>
+            <ul className="space-y-0.5 text-muted-foreground">
+              {ACOES.filter((x) => x.grupo === g.grupo).map((x) => (
+                <li key={x.chave} className="flex justify-between gap-2">
+                  <span>{x.rotulo.replace(/^Tarefa do Kanban — /, "")}</span>
+                  <strong className="whitespace-nowrap text-foreground">{cfg.pontos[x.chave]} pts</strong>
+                </li>
+              ))}
+              {g.grupo === "auditorias" && <li className="text-xs">Até {cfg.pontos.teto_auditorias_dia} auditorias por dia somam pontos.</li>}
+            </ul>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MeuProgresso() {
+  const { data, isLoading, error } = useGamificacao();
   const ativa = useGamificacaoAtiva();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="animate-rise-in">
-        <span className="label-mono text-muted-foreground">Progresso pessoal // últimos 12 meses</span>
-        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight md:text-4xl">
-          Suas <span className="text-aurora">conquistas</span>
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Seu XP vem do trabalho já registrado no sistema: auditorias e tarefas do Kanban concluídas.
-          Ninguém vê o seu progresso além de você; a equipe compartilha uma meta coletiva.
-        </p>
-      </div>
-
-      {isLoading || !data ? (
+    <div className="space-y-6">
+      {error ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">{erroGamificacao(error)}</CardContent></Card>
+      ) : isLoading || !data ? (
         <div className="grid gap-4 md:grid-cols-3">
           <Skeleton className="h-48 rounded-2xl md:col-span-2" />
           <Skeleton className="h-48 rounded-2xl" />
@@ -141,13 +172,13 @@ export default function Conquistas() {
                   <div>
                     <p className="font-display text-2xl font-semibold">{data.nivel.titulo}</p>
                     <p className="text-sm text-muted-foreground">
-                      {fmt(data.xpTotal)} XP · faltam {fmt(data.nivel.xpParaProximo)} para o nível {data.nivel.nivel + 1}
+                      {fmt(data.xpTotal)} pontos · faltam {fmt(data.nivel.xpParaProximo)} para o nível {data.nivel.nivel + 1}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { icone: Zap, valor: fmt(data.xpHoje), rotulo: "XP hoje" },
-                      { icone: Target, valor: fmt(data.xpMes), rotulo: "XP no mês" },
+                      { icone: Zap, valor: fmt(data.xpHoje), rotulo: "Pontos hoje" },
+                      { icone: Target, valor: fmt(data.xpMes), rotulo: "Pontos no mês" },
                       { icone: Flame, valor: `${data.sequencia}`, rotulo: "Dias seguidos" },
                     ].map(({ icone: Icone, valor, rotulo }) => (
                       <div key={rotulo} className="rounded-xl border border-border/60 bg-background/60 p-3">
@@ -157,8 +188,24 @@ export default function Conquistas() {
                       </div>
                     ))}
                   </div>
+                  <div className="space-y-1.5">
+                    {([
+                      ["Tarefas", data.mesPorGrupo.tarefas, "bg-emerald-500"],
+                      ["Auditorias", data.mesPorGrupo.auditorias, "bg-sky-500"],
+                      ["Preenchimentos", data.mesPorGrupo.preenchimentos, "bg-violet-500"],
+                    ] as const).map(([rotulo, v, cor]) => {
+                      const base = Math.max(1, data.mesPorGrupo.tarefas + data.mesPorGrupo.auditorias + data.mesPorGrupo.preenchimentos);
+                      return (
+                        <div key={rotulo} className="flex items-center gap-2 text-xs">
+                          <span className="w-24 text-muted-foreground">{rotulo}</span>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${cor}`} style={{ width: `${(v / base) * 100}%` }} /></div>
+                          <span className="w-14 text-right font-mono">{fmt(v)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Próximo título aos {fmt(xpDoNivel(data.nivel.nivel + 1))} XP. Fins de semana sem registro não quebram a sequência.
+                    Pontos do mês por tipo de trabalho. Próximo título aos {fmt(xpDoNivel(data.nivel.nivel + 1))} pontos; fins de semana sem registro não quebram a sequência.
                   </p>
                 </div>
               </CardContent>
@@ -176,9 +223,11 @@ export default function Conquistas() {
               <div className="grid flex-1 grid-cols-2 gap-3">
                 {[
                   { valor: data.mapaCalor.filter((d) => d.xp > 0).length, rotulo: "Dias com registro (12 sem.)" },
-                  { valor: data.estatisticas.maiorSequencia, rotulo: "Maior sequência" },
+                  { valor: data.estatisticas.sequencia, rotulo: "Maior sequência" },
                   { valor: data.estatisticas.auditorias, rotulo: "Auditorias (12 meses)" },
                   { valor: data.estatisticas.tarefas, rotulo: "Tarefas do Kanban (12 meses)" },
+                  { valor: data.estatisticas.preenchimentos, rotulo: "Preenchimentos (12 meses)" },
+                  { valor: data.estatisticas.pacientes, rotulo: "Pacientes cadastrados (12 meses)" },
                 ].map((k) => (
                   <div key={k.rotulo} className="rounded-xl border border-border/60 bg-background/60 p-3">
                     <p className="num-display text-3xl leading-none">{fmt(k.valor)}</p>
@@ -224,18 +273,8 @@ export default function Conquistas() {
         </>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <span className="label-mono text-muted-foreground">Regras transparentes</span>
-            <CardTitle className="text-lg">Como ganhar XP</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>✅ Tarefa do Kanban concluída: <strong>{XP.tarefa.low}</strong> (baixa), <strong>{XP.tarefa.normal}</strong> (normal), <strong>{XP.tarefa.high}</strong> XP (alta)</p>
-            <p>🔎 Auditoria registrada: <strong>{XP.auditoria}</strong> XP (até {XP.tetoAuditoriasDia} por dia, para valorizar qualidade, não volume)</p>
-            <p>📆 Dia com registro: <strong>+{XP.diaAtivo}</strong> XP de constância</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <ComoGanharPontos />
         <Card>
           <CardHeader className="pb-2">
             <span className="label-mono text-muted-foreground">Preferência</span>
@@ -243,12 +282,44 @@ export default function Conquistas() {
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-4">
             <Label htmlFor="gamificacao" className="text-sm font-normal text-muted-foreground">
-              Mostrar o selo de nível e o "+XP" no topo da tela. Seus dados continuam iguais.
+              Mostrar o selo de nível e o "+pontos" no topo da tela. Seus pontos e o ranking continuam iguais.
             </Label>
             <Switch id="gamificacao" checked={ativa} onCheckedChange={definirGamificacao} />
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+export default function Conquistas() {
+  const { isAdmin } = useIsAdmin();
+  const { data: cfg } = useGamConfig();
+  const verRanking = cfg?.rankingAtivo !== false || isAdmin;
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="animate-rise-in">
+        <span className="label-mono text-muted-foreground">Gamificação // CCIH</span>
+        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight md:text-4xl">
+          <span className="text-aurora">Conquistas</span> e ranking
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Cada funcionário faz pontos ao concluir tarefas do Kanban, registrar auditorias e preencher o sistema
+          (pacientes, precauções, exames, casos e indicadores). Todo mês o ranking recomeça.
+        </p>
+      </div>
+
+      <Tabs defaultValue="progresso">
+        <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="progresso" className="gap-1.5"><Sparkles className="h-4 w-4" /> Meu progresso</TabsTrigger>
+          {verRanking && <TabsTrigger value="ranking" className="gap-1.5"><Medal className="h-4 w-4" /> Ranking do mês</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="config" className="gap-1.5"><Settings2 className="h-4 w-4" /> Configurar</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="progresso" className="mt-5"><MeuProgresso /></TabsContent>
+        {verRanking && <TabsContent value="ranking" className="mt-5"><RankingMensal /></TabsContent>}
+        {isAdmin && <TabsContent value="config" className="mt-5"><ConfigGamificacao /></TabsContent>}
+      </Tabs>
     </div>
   );
 }
