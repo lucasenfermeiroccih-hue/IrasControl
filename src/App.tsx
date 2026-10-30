@@ -99,7 +99,11 @@ const HLSettings = lazyPage(() => import("./modules/hygiene-logistics/pages/HLSe
 const HLOrderSchedule = lazyPage(() => import("./modules/hygiene-logistics/pages/HLOrderSchedule.tsx"));
 const HLValueGrid = lazyPage(() => import("./modules/hygiene-logistics/pages/HLValueGrid.tsx"));
 
-const queryClient = new QueryClient();
+// Dados valem 1 min e não são rebuscados a cada vez que a janela volta ao foco
+// (com o padrão, trocar de aba recarregava os painéis inteiros)
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 60 * 1000, refetchOnWindowFocus: false, retry: 1 } },
+});
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="irascontrol-tema" disableTransitionOnChange>

@@ -17,6 +17,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CarregandoTela } from "@/components/CarregandoTela";
 import { GamificacaoChip } from "@/components/gamificacao/GamificacaoChip";
+import { precarregarPaginas } from "@/lib/lazyPage";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -59,6 +60,8 @@ export function AppLayout() {
     };
 
     load();
+    // Depois que a tela atual abriu, baixa as outras em segundo plano
+    precarregarPaginas();
   }, [authUser, isReady, navigate]);
 
   if (!isReady) {
@@ -88,7 +91,7 @@ export function AppLayout() {
         <div className="relative flex min-w-0 flex-1 flex-col bg-background">
           <div className="app-aurora" aria-hidden />
           <div className="app-grid" aria-hidden />
-          <header className="surface-glass sticky top-0 z-30 flex h-12 items-center justify-between border-x-0 border-t-0 px-3 md:h-14 md:px-4">
+          <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border/70 bg-card/95 px-3 md:h-14 md:px-4">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="rounded-lg" />
               <span className="hidden items-center gap-2 sm:flex">

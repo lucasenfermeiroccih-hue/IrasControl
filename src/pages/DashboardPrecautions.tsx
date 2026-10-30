@@ -31,7 +31,7 @@ import { AuditManagerReportButton } from "@/modules/audits/reports/AuditManagerR
 import { toast } from "sonner";
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetchAllRows";
+import { emParalelo, fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 
 // ─── Constants ────────────────────────────────────────────────
@@ -237,22 +237,12 @@ export default function DashboardPrecautions() {
 
     if (audits && audits.length > 0) {
       const auditIds = audits.map(a => a.id);
-      const chunkSize = 200;
-      const pageSize = 1000;
-      const allItems: any[] = [];
-      for (let i = 0; i < auditIds.length; i += chunkSize) {
-        const chunk = auditIds.slice(i, i + chunkSize);
-        let from = 0;
-        while (true) {
-          const { data: page, error } = await supabase
-            .from("audit_items").select("*")
-            .in("audit_id", chunk).range(from, from + pageSize - 1);
-          if (error || !page || page.length === 0) break;
-          allItems.push(...page);
-          if (page.length < pageSize) break;
-          from += pageSize;
-        }
-      }
+      // Itens em blocos de 200 auditorias, 4 blocos por vez
+      const blocos: string[][] = [];
+      for (let i = 0; i < auditIds.length; i += 200) blocos.push(auditIds.slice(i, i + 200));
+      const allItems: any[] = (await emParalelo(blocos, 4, (chunk) => fetchAllRows<any>(() => supabase
+        .from("audit_items").select("*")
+        .in("audit_id", chunk).order("id")).catch(() => [] as any[]))).flat();
       const mapped: AuditRecord[] = audits.map(a => ({
         id: a.id,
         audit_date: a.audit_date,

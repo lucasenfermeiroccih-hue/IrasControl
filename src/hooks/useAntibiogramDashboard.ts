@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { emParalelo, fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 
 export interface AntibiogramDashRecord {
@@ -51,20 +52,13 @@ export function useAntibiogramDashboard() {
       setLoading(true);
 
       // 1. Paginate lab_results — sector now stored directly in the column
-      const PAGE = 1000;
-      let labResults: any[] = [];
-      for (let from = 0; ; from += PAGE) {
-        const { data: page, error } = await supabase
-          .from("lab_results")
-          .select("id, collection_date, sample_type, sample_material, organism, patient_id, status, created_at, notes, sector")
-          .eq("hospital_id", hospitalId)
-          .not("organism", "is", null)
-          .order("collection_date", { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error || !page || page.length === 0) break;
-        labResults.push(...page);
-        if (page.length < PAGE) break;
-      }
+      const labResults: any[] = await fetchAllRows<any>(() => supabase
+        .from("lab_results")
+        .select("id, collection_date, sample_type, sample_material, organism, patient_id, status, created_at, notes, sector")
+        .eq("hospital_id", hospitalId)
+        .not("organism", "is", null)
+        .order("collection_date", { ascending: false })
+        .order("id")).catch(() => [] as any[]);
 
       if (labResults.length === 0) {
         setData([]);
@@ -73,24 +67,15 @@ export function useAntibiogramDashboard() {
       }
 
       // 2. Paginate antibiogram_results in id-chunks
+      // Em blocos de 200 exames, 4 blocos por vez (antes: um pedido de cada vez)
       const ids = labResults.map(r => r.id);
-      const CHUNK = 200;
-      const abResults: any[] = [];
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        const chunk = ids.slice(i, i + CHUNK);
-        let from = 0;
-        while (true) {
-          const { data: page, error } = await supabase
-            .from("antibiogram_results")
-            .select("*")
-            .in("lab_result_id", chunk)
-            .range(from, from + PAGE - 1);
-          if (error || !page || page.length === 0) break;
-          abResults.push(...page);
-          if (page.length < PAGE) break;
-          from += PAGE;
-        }
-      }
+      const blocos: string[][] = [];
+      for (let i = 0; i < ids.length; i += 200) blocos.push(ids.slice(i, i + 200));
+      const abResults: any[] = (await emParalelo(blocos, 4, (chunk) => fetchAllRows<any>(() => supabase
+        .from("antibiogram_results")
+        .select("*")
+        .in("lab_result_id", chunk)
+        .order("id")).catch(() => [] as any[]))).flat();
 
       // 3. Fallback: for records still without sector, fetch from patients
       //    (handles records inserted before the trigger was added)
@@ -103,15 +88,12 @@ export function useAntibiogramDashboard() {
       ];
       const patientMap: Record<string, string> = {};
       if (missingPatientIds.length > 0) {
-        for (let i = 0; i < missingPatientIds.length; i += CHUNK) {
-          const chunk = missingPatientIds.slice(i, i + CHUNK);
-          const { data: patients } = await supabase
-            .from("patients")
-            .select("id, sector")
-            .in("id", chunk);
-          for (const p of patients || []) {
-            if (p.sector) patientMap[p.id] = p.sector;
-          }
+        const blocosPac: string[][] = [];
+        for (let i = 0; i < missingPatientIds.length; i += 200) blocosPac.push(missingPatientIds.slice(i, i + 200));
+        const respostas = await emParalelo(blocosPac, 4, async (chunk) =>
+          (await supabase.from("patients").select("id, sector").in("id", chunk)).data || []);
+        for (const p of respostas.flat()) {
+          if (p.sector) patientMap[p.id] = p.sector;
         }
       }
 

@@ -66,15 +66,25 @@ async function buscarEventos(hospitalId: string, inicio: string, fim: string, us
   return { eventos: r.eventos ?? [], pessoas: r.pessoas ?? [] };
 }
 
-/** Progresso pessoal (últimos 12 meses) com as regras do hospital. */
-export function useGamificacao() {
+/**
+ * Progresso pessoal (últimos 12 meses) com as regras do hospital.
+ * `adiarMs`: espera a tela atual carregar antes de buscar (selo do cabeçalho),
+ * para não disputar a rede com os dados da página.
+ */
+export function useGamificacao(opcoes?: { adiarMs?: number }) {
   const { user } = useAuthReady();
   const { hospitalId } = useHospitalContext();
   const { data: cfg } = useGamConfig();
   const userId = user?.id;
+  const [liberado, setLiberado] = useState(!opcoes?.adiarMs);
+  useEffect(() => {
+    if (liberado || !opcoes?.adiarMs) return;
+    const t = setTimeout(() => setLiberado(true), opcoes.adiarMs);
+    return () => clearTimeout(t);
+  }, [liberado, opcoes?.adiarMs]);
   return useQuery({
     queryKey: [...CHAVE_GAMIFICACAO, "pessoal", hospitalId, userId, cfg],
-    enabled: !!userId && !!hospitalId && !!cfg,
+    enabled: liberado && !!userId && !!hospitalId && !!cfg,
     staleTime: 5 * 60 * 1000,
     retry: false,
     queryFn: async () => {

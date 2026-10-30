@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetchAllRows";
+import { emParalelo, fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 import { normalizeSector } from "@/lib/sectorUtils";
 import type { Database } from "@/integrations/supabase/types";
@@ -40,51 +41,37 @@ export interface AuditDashboardFilters {
 
 export function useAuditDashboard(auditType: AuditType, filters?: AuditDashboardFilters) {
   const { hospitalId, loading: ctxLoading } = useHospitalContext();
-  const [audits, setAudits] = useState<AuditRow[]>([]);
-  const [items, setItems] = useState<AuditItemRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (ctxLoading || !hospitalId) { setLoading(false); return; }
-    const load = async () => {
+  // Cache de 5 min: voltar a um painel já aberto não busca tudo de novo
+  const { data, isLoading } = useQuery({
+    queryKey: ["audit-dashboard", hospitalId, auditType],
+    enabled: !ctxLoading && !!hospitalId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
       // Todas as auditorias (o servidor entrega no máximo 1.000 por consulta)
       const rows = await fetchAllRows<AuditRow>(() => supabase
         .from("audits")
         .select("id, audit_date, sector, compliance_rate, compliant_items, total_items, observations")
-        .eq("hospital_id", hospitalId)
+        .eq("hospital_id", hospitalId!)
         .eq("audit_type", auditType)
         .order("audit_date", { ascending: false })
         .order("id")).catch(() => [] as AuditRow[]);
-      setAudits(rows);
 
-      if (rows.length > 0) {
-        const ids = rows.map(a => a.id);
-        // Batch the IN query and paginate to avoid Supabase's 1000-row default cap
-        const chunkSize = 200;
-        const all: AuditItemRow[] = [];
-        for (let i = 0; i < ids.length; i += chunkSize) {
-          const chunk = ids.slice(i, i + chunkSize);
-          let from = 0;
-          const pageSize = 1000;
-          while (true) {
-            const { data: itemData, error } = await supabase
-              .from("audit_items")
-              .select("id, audit_id, question, status, category, observation")
-              .in("audit_id", chunk)
-              .order("id")
-              .range(from, from + pageSize - 1);
-            if (error || !itemData || itemData.length === 0) break;
-            all.push(...itemData);
-            if (itemData.length < pageSize) break;
-            from += pageSize;
-          }
-        }
-        setItems(all);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [hospitalId, ctxLoading, auditType]);
+      // Itens em blocos de 200 auditorias, 4 blocos por vez (antes: um pedido de cada vez)
+      const ids = rows.map(a => a.id);
+      const blocos: string[][] = [];
+      for (let i = 0; i < ids.length; i += 200) blocos.push(ids.slice(i, i + 200));
+      const partes = await emParalelo(blocos, 4, (bloco) => fetchAllRows<AuditItemRow>(() => supabase
+        .from("audit_items")
+        .select("id, audit_id, question, status, category, observation")
+        .in("audit_id", bloco)
+        .order("id")).catch(() => [] as AuditItemRow[]));
+      return { audits: rows, items: partes.flat() };
+    },
+  });
+  const audits = useMemo(() => data?.audits ?? [], [data]);
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const loading = ctxLoading || (!!hospitalId && isLoading);
 
   const { filteredAudits, filteredItems } = useMemo(() => {
     const f = filters || {};
