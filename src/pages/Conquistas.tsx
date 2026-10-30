@@ -282,14 +282,14 @@ export default function Conquistas() {
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Cada funcionário faz pontos ao concluir tarefas do Kanban, registrar auditorias e preencher o sistema
-          (pacientes, precauções, exames, casos e indicadores). Todo mês o ranking recomeça.
+          (pacientes, precauções, exames, casos e indicadores). O ranking pode ser visto por mês ou pelo ano inteiro.
         </p>
       </div>
 
       <Tabs value={aba} onValueChange={mudaAba}>
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="progresso" className="gap-1.5"><Sparkles className="h-4 w-4" /> Meu progresso</TabsTrigger>
-          {verRanking && <TabsTrigger value="ranking" className="gap-1.5"><Medal className="h-4 w-4" /> Ranking do mês</TabsTrigger>}
+          {verRanking && <TabsTrigger value="ranking" className="gap-1.5"><Medal className="h-4 w-4" /> Ranking</TabsTrigger>}
           {isAdmin && <TabsTrigger value="gestor" className="gap-1.5"><LayoutDashboard className="h-4 w-4" /> Painel do gestor</TabsTrigger>}
           {isAdmin && <TabsTrigger value="config" className="gap-1.5"><Settings2 className="h-4 w-4" /> Configurar</TabsTrigger>}
         </TabsList>

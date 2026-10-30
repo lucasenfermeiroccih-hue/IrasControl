@@ -105,14 +105,17 @@ export function useGamificacao(opcoes?: { adiarMs?: number }) {
   });
 }
 
-/** Ranking da equipe no mês (mes = qualquer data dentro do mês). */
-export function useRanking(mes: Date, ativo = true) {
+/**
+ * Ranking da equipe no mês (escopo "mes") ou no ano (escopo "ano"); `ref` é
+ * qualquer data dentro do período.
+ */
+export function useRanking(ref: Date, ativo = true, escopo: "mes" | "ano" = "mes") {
   const { hospitalId } = useHospitalContext();
   const { data: cfg } = useGamConfig();
-  const ini = new Date(mes.getFullYear(), mes.getMonth(), 1);
-  const fim = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
+  const ini = escopo === "ano" ? new Date(ref.getFullYear(), 0, 1) : new Date(ref.getFullYear(), ref.getMonth(), 1);
+  const fim = escopo === "ano" ? new Date(ref.getFullYear(), 11, 31) : new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
   return useQuery({
-    queryKey: [...CHAVE_GAMIFICACAO, "ranking", hospitalId, diaLocal(ini), cfg],
+    queryKey: [...CHAVE_GAMIFICACAO, "ranking", escopo, hospitalId, diaLocal(ini), cfg],
     enabled: ativo && !!hospitalId && !!cfg,
     staleTime: 5 * 60 * 1000,
     retry: false,

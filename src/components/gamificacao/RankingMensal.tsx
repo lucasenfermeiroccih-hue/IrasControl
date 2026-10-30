@@ -62,10 +62,19 @@ function Podio({ linhas, eu }: { linhas: LinhaRanking[]; eu?: string }) {
 export function RankingMensal() {
   const { user } = useAuthReady();
   const hoje = new Date();
+  const [escopo, setEscopo] = useState<"mes" | "ano">("mes");
   const [mes, setMes] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
-  const { data, isLoading, error } = useRanking(mes);
-  const mesAtual = mes.getFullYear() === hoje.getFullYear() && mes.getMonth() === hoje.getMonth();
-  const muda = (delta: number) => setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+  const { data, isLoading, error } = useRanking(mes, true, escopo);
+  const anual = escopo === "ano";
+  const periodoAtual = anual
+    ? mes.getFullYear() === hoje.getFullYear()
+    : mes.getFullYear() === hoje.getFullYear() && mes.getMonth() === hoje.getMonth();
+  const muda = (delta: number) => setMes((m) => anual
+    ? new Date(m.getFullYear() + delta, 0, 1)
+    : new Date(m.getFullYear(), m.getMonth() + delta, 1));
+  const irParaAtual = () => setMes(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const titulo = anual ? `Ano de ${mes.getFullYear()}` : nomeMes(mes);
+  const periodoTexto = anual ? "neste ano" : "neste mês";
   const lider = data?.[0]?.pontos || 1;
   const minha = data?.find((l) => l.id === user?.id);
   // Quem está logo acima (menor pontuação maior que a sua)
@@ -75,13 +84,21 @@ export function RankingMensal() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="label-mono text-muted-foreground">Ranking da equipe</span>
-          <h2 className="font-display text-2xl font-semibold">{nomeMes(mes)}</h2>
+          <span className="label-mono text-muted-foreground">Ranking da equipe · {anual ? "anual" : "mensal"}</span>
+          <h2 className="font-display text-2xl font-semibold">{titulo}</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => muda(-1)} aria-label="Mês anterior"><ChevronLeft /></Button>
-          <Button variant="outline" size="sm" onClick={() => setMes(new Date(hoje.getFullYear(), hoje.getMonth(), 1))} disabled={mesAtual}>Mês atual</Button>
-          <Button variant="outline" size="icon" onClick={() => muda(1)} disabled={mesAtual} aria-label="Próximo mês"><ChevronRight /></Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-border/60 bg-muted/70 p-1" role="group" aria-label="Período do ranking">
+            {([["mes", "Mensal"], ["ano", "Anual"]] as const).map(([v, rotulo]) => (
+              <button key={v} type="button" aria-pressed={escopo === v} onClick={() => { setEscopo(v); irParaAtual(); }}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${escopo === v ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="icon" onClick={() => muda(-1)} aria-label={anual ? "Ano anterior" : "Mês anterior"}><ChevronLeft /></Button>
+          <Button variant="outline" size="sm" onClick={irParaAtual} disabled={periodoAtual}>{anual ? "Ano atual" : "Mês atual"}</Button>
+          <Button variant="outline" size="icon" onClick={() => muda(1)} disabled={periodoAtual} aria-label={anual ? "Próximo ano" : "Próximo mês"}><ChevronRight /></Button>
         </div>
       </div>
 
@@ -92,7 +109,7 @@ export function RankingMensal() {
       ) : data.length === 0 ? (
         <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground">
           <Trophy className="h-10 w-10 opacity-40" />
-          Ninguém pontuou neste mês ainda. Conclua tarefas, registre auditorias e preencha o monitoramento para abrir o placar!
+          Ninguém pontuou {periodoTexto} ainda. Conclua tarefas, registre auditorias e preencha o monitoramento para abrir o placar!
         </CardContent></Card>
       ) : (
         <>
@@ -141,7 +158,7 @@ export function RankingMensal() {
             </CardContent>
           </Card>
           <p className="text-xs text-muted-foreground">
-            Pontos de tarefas, auditorias e preenchimentos registrados no mês, com as regras definidas pela coordenação (inclui o bônus de constância).
+            Pontos de tarefas, auditorias e preenchimentos registrados {anual ? "no ano" : "no mês"}, com as regras definidas pela coordenação (inclui o bônus de constância).
           </p>
         </>
       )}
