@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { copyFileSync, existsSync } from "fs";
+import { copyFileSync, existsSync, writeFileSync } from "fs";
 import type { Plugin } from "vite";
 
 /**
@@ -22,6 +22,22 @@ const spaFallback = (): Plugin => ({
   },
 });
 
+/**
+ * Identificador desta publicação: o commit na Vercel ou a hora do build.
+ * Vai embutido no app (__APP_VERSION__) e em dist/version.json; a aba aberta
+ * compara os dois para saber que saiu versão nova (ver AvisoNovaVersao).
+ */
+const VERSAO = (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 12) || `build-${Date.now()}`;
+
+const arquivoVersao = (): Plugin => ({
+  name: "version-json",
+  apply: "build",
+  closeBundle() {
+    const dist = path.resolve(__dirname, "dist");
+    if (existsSync(dist)) writeFileSync(path.join(dist, "version.json"), JSON.stringify({ versao: VERSAO }));
+  },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -31,7 +47,10 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger(), spaFallback()].filter(Boolean),
+  plugins: [react(), mode === "development" && componentTagger(), spaFallback(), arquivoVersao()].filter(Boolean),
+  define: {
+    __APP_VERSION__: JSON.stringify(mode === "development" ? "dev" : VERSAO),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

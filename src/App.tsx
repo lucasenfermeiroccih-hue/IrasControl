@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { Graficos3D } from "@/components/Graficos3D";
+import { AvisoNovaVersao } from "@/components/AvisoNovaVersao";
 import { lazyPage } from "@/lib/lazyPage";
 import { CarregandoTela } from "@/components/CarregandoTela";
 import { AppLayout } from "./components/AppLayout.tsx";
@@ -114,6 +115,7 @@ const App = () => (
       <Sonner />
       <Graficos3D />
       <BrowserRouter>
+        <AvisoNovaVersao />
         <Suspense fallback={<CarregandoTela />}>
         <Routes>
           <Route path="/" element={<Index />} />
