@@ -173,7 +173,7 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFullscreen}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFullscreen} aria-label={isFs ? "Sair da tela cheia" : "Ampliar gráfico"}>
                 <Maximize2 className={`h-3.5 w-3.5 ${isFs ? "text-primary" : "text-muted-foreground"}`} />
               </Button>
             </TooltipTrigger>
@@ -254,7 +254,7 @@ export default function ChartActions({ chartRef, chartTitle, metaValue, onMetaCh
 
       {isFs && createPortal(
         <div
-          className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in"
           role="dialog"
           aria-modal="true"
           aria-label={`${chartTitle} — tela cheia`}

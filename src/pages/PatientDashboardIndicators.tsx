@@ -34,6 +34,12 @@ import {
 import { DashboardPdfReport, type DashboardReportData } from "@/components/DashboardPdfReport";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { fetchAllRows } from "@/lib/fetchAllRows";
+import { KpiCard3D } from "@/components/KpiCard3D";
+import { Icone3D } from "@/components/Icone3D";
+import { PainelAlertas } from "@/components/alertas/PainelAlertas";
+import { alertasDoPaciente } from "@/lib/alertasClinicos";
+import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex";
+import { situacaoIsolamento } from "@/lib/precautionStatus";
 
 
 const SPECIALTIES_DEFAULT = [
@@ -83,6 +89,7 @@ interface PendingPatient {
 const PatientDashboardIndicators = () => {
   const navigate = useNavigate();
   const { hospitalId, hospitalName, loading: ctxLoading } = useHospitalContext();
+  const { index: precIndex } = usePrecautionIndex(hospitalId);
   const isMaternidade = (hospitalName || "").toLowerCase().includes("maternidade");
   const SPECIALTIES = isMaternidade ? SPECIALTIES_MATERNIDADE : SPECIALTIES_DEFAULT;
   const currentYear = new Date().getFullYear();
@@ -103,6 +110,21 @@ const PatientDashboardIndicators = () => {
     if (specSortKey === k) setSpecSortDir(d => (d === "asc" ? "desc" : "asc"));
     else { setSpecSortKey(k); setSpecSortDir("desc"); }
   };
+
+  // Alertas clínicos dos pacientes internados (mesma central do Monitoramento)
+  const alertasClinicos = useMemo(() => patients
+    .filter(p => p.status === "active")
+    .flatMap(p => {
+      const cd = (p.clinical_data || {}) as { labPanel?: unknown; dispInvasivos?: unknown; antibioticos?: { nome?: string; dataInicio?: string; dataFim?: string }[] };
+      const precMapa = precaucoesDoMapa(precIndex, p.medical_record || "", p.full_name);
+      const proprias = precIndex.porPaciente.get(p.id) ?? [];
+      const isolamento = situacaoIsolamento({ ativo: true, labPanel: cd.labPanel, precaucoes: proprias, precaucoesMapa: precMapa });
+      return alertasDoPaciente({
+        id: p.id, nome: p.full_name, setor: p.sector || "", leito: "", internado: true,
+        dataInternacao: p.admission_date, clinical: cd, isolamento,
+        precaucoesRegistradas: proprias.length + precMapa.length,
+      });
+    }), [patients, precIndex]);
 
   // Refs e metas para ChartActions (export PDF/JPG, fullscreen, definir meta)
   const chartRefs = {
@@ -441,12 +463,13 @@ const PatientDashboardIndicators = () => {
 
       {patients.length > 0 && (
         <>
-          <Card className="border-primary/30 bg-primary/5">
+          <PainelAlertas alertas={alertasClinicos} contexto="dashboard-pacientes" titulo="Alertas dos pacientes internados"
+            onAbrir={(id) => navigate(`/patients/monitoring?paciente=${id}`)} />
+
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/[0.08] to-transparent">
             <CardContent className="py-4 px-5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/15 flex items-center justify-center">
-                  <ArrowUpFromLine className="h-6 w-6 text-primary" />
-                </div>
+                <Icone3D icon={ArrowUpFromLine} matiz={158} className="!h-12 !w-12 !rounded-2xl [&>svg]:!h-6 [&>svg]:!w-6" />
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">Número de Novas Admissões</p>
                   <p className="text-xs text-muted-foreground/80">
@@ -462,11 +485,11 @@ const PatientDashboardIndicators = () => {
                   )}
                 </div>
               </div>
-              <p className="text-3xl font-bold text-primary font-heading">{indicators.newAdmissions}</p>
+              <p className="num-display text-5xl text-primary">{indicators.newAdmissions}</p>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
             <KpiCard icon={Users} label="Internações" value={indicators.totalAdmitted} color="text-primary" />
             <KpiCard icon={BedDouble} label="Paciente-Dia" value={indicators.totalPatientDays} color="text-primary" />
             <KpiCard icon={Skull} label="Óbitos" value={indicators.deaths} color="text-destructive" />
@@ -1021,16 +1044,14 @@ function DeviceBreakdownCard({
   );
 }
 
-function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number; color: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-4 pb-3 px-3 text-center">
-        <Icon className={`mx-auto h-6 w-6 mb-1 ${color}`} />
-        <p className="text-xl font-bold">{value}</p>
-        <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
-      </CardContent>
-    </Card>
-  );
+/** Tom do ícone 3D a partir da cor usada antes (mantém o significado de cada indicador). */
+const MATIZ_DA_COR: Record<string, number> = {
+  "text-primary": 158, "text-destructive": 0, "text-green-600": 142, "text-blue-600": 215,
+  "text-amber-600": 38, "text-purple-600": 270, "text-orange-600": 24,
+};
+
+function KpiCard({ icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
+  return <KpiCard3D icon={icon} matiz={MATIZ_DA_COR[color] ?? 158} rotulo={label} valor={value.toLocaleString("pt-BR")} />;
 }
 
 function UtilizationRateCard({ title, deviceDays, patientDays, icon: Icon, color }: {

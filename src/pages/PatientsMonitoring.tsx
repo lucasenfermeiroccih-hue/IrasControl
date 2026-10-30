@@ -33,6 +33,9 @@ import { listOpenDevices, validateRemovals } from "@/lib/deviceClosure";
 import { DeviceRemovalFields } from "@/components/monitoring/DeviceRemovalFields";
 import { IsolamentoBadges, IsolamentoLegenda } from "@/components/monitoring/IsolamentoBadges";
 import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex";
+import { PainelAlertas } from "@/components/alertas/PainelAlertas";
+import { KpiCard3D } from "@/components/KpiCard3D";
+import { alertasDoPaciente } from "@/lib/alertasClinicos";
 import {
   bordaIsolamento, maisRestritiva, MDR_META, precaucaoDoOrganismo, situacaoIsolamento, tipoPrecaucao,
   SEM_ISOLAMENTO, type SituacaoIsolamento,
@@ -223,6 +226,21 @@ export default function PatientsMonitoring() {
     return map;
   }, [patients, precIndex]);
   const isolamentoDe = (id: string) => isolamento.get(id) ?? SEM_ISOLAMENTO;
+
+  // Central de alertas: só pacientes internados (MDR sem precaução, aerossóis,
+  // dispositivos e antimicrobianos prolongados, exame MDR novo, internação longa)
+  const alertasClinicos = useMemo(() => patients
+    .filter(p => p.status === "active")
+    .flatMap(p => {
+      const cd = (p as PatientRecord & { _clinicalData?: { labPanel?: unknown; dispInvasivos?: unknown; antibioticos?: { nome?: string; dataInicio?: string; dataFim?: string }[] } })._clinicalData;
+      return alertasDoPaciente({
+        id: p.id, nome: p.nome, setor: p.unidade, leito: p.leito, internado: true,
+        dataInternacao: p.dataInternacaoHospitalar || p.dataAdmissao,
+        clinical: cd,
+        isolamento: isolamentoDe(p.id),
+        precaucoesRegistradas: (precIndex.porPaciente.get(p.id)?.length ?? 0) + precaucoesDoMapa(precIndex, p.prontuario, p.nome).length,
+      });
+    }), [patients, isolamento, precIndex]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ao voltar para a lista, atualiza as precauções (podem ter mudado no paciente)
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   useEffect(() => {
@@ -1803,42 +1821,35 @@ export default function PatientsMonitoring() {
         <Button size="sm" onClick={() => { setNewForm(emptyNewForm); setNewPatientOpen(true); }} className="self-start sm:self-auto"><Plus className="h-4 w-4 mr-1" />Novo Paciente</Button>
       </div>
 
-      {/* ─── KPIs ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
-        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
-          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Ativos</p><p className="text-lg sm:text-2xl font-bold">{activeCount}</p></div>
-        </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10 shrink-0"><AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /></div>
-          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Total</p><p className="text-lg sm:text-2xl font-bold">{totalCount}</p></div>
-        </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Skull className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /></div>
-          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Óbitos</p><p className="text-lg sm:text-2xl font-bold text-destructive">{deceasedCount}</p></div>
-        </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
-          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Transferidos</p><p className="text-lg sm:text-2xl font-bold">{transferredCount}</p></div>
-        </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <div className="p-1.5 sm:p-2 rounded-lg bg-accent shrink-0"><Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
-          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground">Altas</p><p className="text-lg sm:text-2xl font-bold">{dischargedCount}</p></div>
-        </CardContent></Card>
-        <Card
-          className={`cursor-pointer transition-colors hover:border-fuchsia-400 ${filterIsolamento === "precaucao" || filterIsolamento === "mdr" ? "border-fuchsia-500" : ""}`}
-          onClick={() => { setFilterStatus(["active"]); setFilterIsolamento(filterIsolamento === "precaucao" ? "all" : "precaucao"); }}
-          title="Mostrar os internados em precaução"
-        >
-          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-fuchsia-100 dark:bg-fuchsia-950/40 shrink-0"><ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5 text-fuchsia-700" /></div>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Em precaução</p>
-              <p className="text-lg sm:text-2xl font-bold">{precaucaoCount}<span className="ml-1.5 text-[11px] sm:text-xs font-semibold" style={{ color: MDR_META.cor }}>{mdrCount} MDR</span></p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* ─── KPIs (clicáveis: filtram a lista) ─────────────── */}
+      {(() => {
+        const so = (st: string) => filterStatus.length === 1 && filterStatus[0] === st && filterIsolamento === "all";
+        const alterna = (st: string) => { setFilterIsolamento("all"); setFilterStatus(so(st) ? [] : [st]); };
+        const emPrecaucao = filterIsolamento === "precaucao" || filterIsolamento === "mdr";
+        return (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
+            <KpiCard3D icon={Users} matiz={158} rotulo="Internados" valor={activeCount} ativo={so("active")}
+              onClick={() => alterna("active")} titulo="Mostrar só os internados" />
+            <KpiCard3D icon={ClipboardList} matiz={215} rotulo="Total" valor={totalCount}
+              ativo={filterStatus.length === 0 && filterIsolamento === "all"}
+              onClick={() => { setFilterStatus([]); setFilterIsolamento("all"); }} titulo="Mostrar todos" />
+            <KpiCard3D icon={Activity} matiz={190} rotulo="Altas" valor={dischargedCount} ativo={so("discharged")}
+              onClick={() => alterna("discharged")} titulo="Mostrar as altas" />
+            <KpiCard3D icon={Clock} matiz={262} rotulo="Transferidos" valor={transferredCount} ativo={so("transferred")}
+              onClick={() => alterna("transferred")} titulo="Mostrar os transferidos" />
+            <KpiCard3D icon={Skull} matiz={0} rotulo="Óbitos" valor={deceasedCount} ativo={so("deceased")}
+              onClick={() => alterna("deceased")} titulo="Mostrar os óbitos" />
+            <KpiCard3D icon={ShieldAlert} matiz={300} rotulo="Em precaução" valor={precaucaoCount}
+              extra={<span style={{ color: MDR_META.cor }} className="font-semibold">{mdrCount} com MDR</span>}
+              ativo={emPrecaucao} alerta={mdrCount > 0}
+              onClick={() => { setFilterStatus(["active"]); setFilterIsolamento(filterIsolamento === "precaucao" ? "all" : "precaucao"); }}
+              titulo="Mostrar os internados em precaução" />
+          </div>
+        );
+      })()}
+
+      {/* ─── Alertas ──────────────────────────────────────── */}
+      <PainelAlertas alertas={alertasClinicos} contexto="monitoramento" onAbrir={(id) => enterPatient(id)} />
 
       {/* ─── Search ───────────────────────────────────────── */}
       <div className="relative">

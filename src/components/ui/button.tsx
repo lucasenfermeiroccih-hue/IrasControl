@@ -5,15 +5,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-300 ease-spectra focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-px active:scale-[0.99] disabled:pointer-events-none disabled:opacity-40 disabled:saturate-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-200 ease-spectra focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 disabled:saturate-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "btn-sheen bg-primary text-primary-foreground shadow-btn-primary hover:-translate-y-px hover:brightness-110 hover:shadow-glow",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:-translate-y-px hover:bg-destructive/90",
-        outline: "border border-input bg-card/70 hover:border-primary/40 hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        default: "btn-3d btn-3d-brilho btn-sheen bg-primary text-primary-foreground hover:brightness-110",
+        destructive: "btn-3d bg-destructive text-destructive-foreground hover:brightness-110",
+        outline: "btn-3d btn-3d-claro border border-input bg-card hover:border-primary/40 hover:bg-accent hover:text-accent-foreground",
+        secondary: "btn-3d btn-3d-claro bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground active:scale-[0.97]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
