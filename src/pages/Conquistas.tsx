@@ -1,12 +1,16 @@
-import { Flame, Lock, Medal, Settings2, Sparkles, Target, Trophy, Users, Zap } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Flame, LayoutDashboard, Lock, Medal, Settings2, Sparkles, Target, Trophy, Users, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { erroGamificacao, useGamConfig, useGamificacao, useGamificacaoAtiva, useMetaEquipe } from "@/hooks/useGamificacao";
+import { useGamConfig, useGamificacao, useGamificacaoAtiva, useMetaEquipe } from "@/hooks/useGamificacao";
 import { RankingMensal } from "@/components/gamificacao/RankingMensal";
+import { AvisoErroGamificacao } from "@/components/gamificacao/AvisoErroGamificacao";
+import { MapaCalor } from "@/components/gamificacao/MapaCalor";
+import { PainelGestor } from "@/components/gamificacao/PainelGestor";
 import { ConfigGamificacao } from "@/components/gamificacao/ConfigGamificacao";
 import { ACOES, definirGamificacao, xpDoNivel } from "@/lib/gamificacao";
 
@@ -35,39 +39,6 @@ function AnelNivel({ nivel, progresso }: { nivel: number; progresso: number }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="label-mono text-muted-foreground">Nível</span>
         <span className="num-display text-5xl leading-none">{nivel}</span>
-      </div>
-    </div>
-  );
-}
-
-function MapaCalor({ dias }: { dias: { dia: string; xp: number }[] }) {
-  const max = Math.max(1, ...dias.map((d) => d.xp));
-  // Colunas por semana (domingo no topo), como um calendário de contribuições
-  const primeiro = new Date(`${dias[0].dia}T12:00:00`).getDay();
-  const celulas: ({ dia: string; xp: number } | null)[] = [...Array(primeiro).fill(null), ...dias];
-  const semanas: (typeof celulas)[] = [];
-  for (let i = 0; i < celulas.length; i += 7) semanas.push(celulas.slice(i, i + 7));
-  const nivel = (xp: number) => (xp === 0 ? 0 : Math.min(4, Math.ceil((xp / max) * 4)));
-  const cores = ["bg-muted", "bg-primary/25", "bg-primary/45", "bg-primary/70", "bg-primary shadow-[0_0_8px_hsl(var(--glow)/0.6)]"];
-  return (
-    <div className="min-w-0">
-      <div className="flex gap-1 overflow-x-auto pb-1">
-      {semanas.map((s, i) => (
-        <div key={i} className="flex flex-col gap-1">
-          {s.map((d, j) => d ? (
-            <div
-              key={d.dia}
-              title={`${d.dia.split("-").reverse().join("/")}: ${d.xp} pontos`}
-              className={`h-4 w-4 rounded-[5px] transition-transform hover:scale-125 sm:h-5 sm:w-5 ${cores[nivel(d.xp)]}`}
-            />
-          ) : <div key={`v${j}`} className="h-4 w-4 sm:h-5 sm:w-5" />)}
-        </div>
-      ))}
-      </div>
-      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-        <span className="label-mono text-[9px]">Menos</span>
-        {cores.map((c) => <span key={c} className={`h-3 w-3 rounded-[3px] ${c}`} />)}
-        <span className="label-mono text-[9px]">Mais</span>
       </div>
     </div>
   );
@@ -155,7 +126,7 @@ function MeuProgresso() {
   return (
     <div className="space-y-6">
       {error ? (
-        <Card><CardContent className="p-6 text-sm text-muted-foreground">{erroGamificacao(error)}</CardContent></Card>
+        <AvisoErroGamificacao erro={error} />
       ) : isLoading || !data ? (
         <div className="grid gap-4 md:grid-cols-3">
           <Skeleton className="h-48 rounded-2xl md:col-span-2" />
@@ -296,6 +267,11 @@ export default function Conquistas() {
   const { isAdmin } = useIsAdmin();
   const { data: cfg } = useGamConfig();
   const verRanking = cfg?.rankingAtivo !== false || isAdmin;
+  const [params, setParams] = useSearchParams();
+  const pedida = params.get("aba") || "progresso";
+  const permitida = (a: string) => a === "progresso" || (a === "ranking" && verRanking) || ((a === "gestor" || a === "config") && isAdmin);
+  const aba = permitida(pedida) ? pedida : "progresso";
+  const mudaAba = (a: string) => setParams(a === "progresso" ? {} : { aba: a }, { replace: true });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -310,14 +286,16 @@ export default function Conquistas() {
         </p>
       </div>
 
-      <Tabs defaultValue="progresso">
+      <Tabs value={aba} onValueChange={mudaAba}>
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="progresso" className="gap-1.5"><Sparkles className="h-4 w-4" /> Meu progresso</TabsTrigger>
           {verRanking && <TabsTrigger value="ranking" className="gap-1.5"><Medal className="h-4 w-4" /> Ranking do mês</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="gestor" className="gap-1.5"><LayoutDashboard className="h-4 w-4" /> Painel do gestor</TabsTrigger>}
           {isAdmin && <TabsTrigger value="config" className="gap-1.5"><Settings2 className="h-4 w-4" /> Configurar</TabsTrigger>}
         </TabsList>
         <TabsContent value="progresso" className="mt-5"><MeuProgresso /></TabsContent>
         {verRanking && <TabsContent value="ranking" className="mt-5"><RankingMensal /></TabsContent>}
+        {isAdmin && <TabsContent value="gestor" className="mt-5"><PainelGestor /></TabsContent>}
         {isAdmin && <TabsContent value="config" className="mt-5"><ConfigGamificacao /></TabsContent>}
       </Tabs>
     </div>
