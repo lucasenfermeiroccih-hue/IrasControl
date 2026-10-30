@@ -352,3 +352,90 @@ export function definirGamificacao(ativa: boolean) {
   try { localStorage.setItem(CHAVE_PREF, ativa ? "on" : "off"); } catch { /* sem armazenamento */ }
   window.dispatchEvent(new Event("irascontrol-gamificacao"));
 }
+
+// ── Painel do gestor ───────────────────────────────────────────────────────
+
+export interface LinhaEquipe {
+  id: string;
+  nome: string;
+  resumo: ResumoGamificacao;
+  /** Pontos no mês anterior (para a variação) */
+  mesAnterior: number;
+  /** Dias com registro no mês atual */
+  diasAtivosMes: number;
+  /** Último dia com registro (aaaa-mm-dd) ou null */
+  ultimaAtividade: string | null;
+  /** Dias desde o último registro (null = nunca) */
+  diasSemRegistro: number | null;
+}
+
+export interface PainelEquipe {
+  pessoas: LinhaEquipe[];
+  /** Pontos da equipe por mês (12 meses, do mais antigo ao atual) */
+  meses: { mes: string; tarefas: number; auditorias: number; preenchimentos: number; total: number; ativos: number }[];
+  totalMes: number;
+  totalMesAnterior: number;
+  ativosMes: number;
+  conquistasObtidas: number;
+}
+
+const mesDe = (d: Date) => diaLocal(d).slice(0, 7);
+
+/**
+ * Visão da equipe para o gestor: resumo de cada pessoa (nível, pontos do mês,
+ * conquistas, constância) e a evolução mensal da equipe. `eventos` = 12 meses
+ * de toda a equipe; `pessoas` = membros do hospital (inclui quem não pontuou).
+ */
+export function painelEquipe(eventos: Evento[], pessoas: { id: string; nome: string }[], cfg: GamConfig, hoje = new Date()): PainelEquipe {
+  const porPessoa = new Map<string, Evento[]>();
+  for (const e of eventos) porPessoa.set(e.u, [...(porPessoa.get(e.u) ?? []), e]);
+  const nomes = new Map(pessoas.map((p) => [p.id, p.nome]));
+  const ids = new Set([...pessoas.map((p) => p.id), ...porPessoa.keys()]);
+
+  const mesAtual = mesDe(hoje);
+  const mesAnt = mesDe(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1));
+  const ultimos12 = Array.from({ length: 12 }, (_, i) => mesDe(new Date(hoje.getFullYear(), hoje.getMonth() - 11 + i, 1)));
+  const meses = new Map(ultimos12.map((m) => [m, { mes: m, tarefas: 0, auditorias: 0, preenchimentos: 0, total: 0, ativos: new Set<string>() }]));
+  const hojeMeia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+  const linhas: LinhaEquipe[] = [...ids].map((id) => {
+    const evs = porPessoa.get(id) ?? [];
+    const dias = pontosPorDia(evs, cfg.pontos);
+    let mesAnterior = 0;
+    let diasAtivosMes = 0;
+    let ultimaAtividade: string | null = null;
+    for (const d of dias.values()) {
+      if (d.pontos <= 0) continue;
+      const m = d.dia.slice(0, 7);
+      if (m === mesAnt) mesAnterior += d.pontos;
+      if (m === mesAtual) diasAtivosMes++;
+      if (!ultimaAtividade || d.dia > ultimaAtividade) ultimaAtividade = d.dia;
+      const agg = meses.get(m);
+      if (agg) {
+        agg.tarefas += d.tarefas; agg.auditorias += d.auditorias; agg.preenchimentos += d.preenchimentos;
+        agg.total += d.pontos; agg.ativos.add(id);
+      }
+    }
+    const diasSemRegistro = ultimaAtividade
+      ? Math.round((hojeMeia.getTime() - new Date(`${ultimaAtividade}T00:00:00`).getTime()) / 86400000)
+      : null;
+    return {
+      id, nome: nomes.get(id) || "Usuário removido",
+      resumo: resumoGamificacao(evs, cfg, hoje),
+      mesAnterior, diasAtivosMes, ultimaAtividade, diasSemRegistro,
+    };
+  }).sort((a, b) => b.resumo.xpMes - a.resumo.xpMes || a.nome.localeCompare(b.nome, "pt-BR"));
+
+  const serie = ultimos12.map((m) => {
+    const a = meses.get(m)!;
+    return { mes: m, tarefas: a.tarefas, auditorias: a.auditorias, preenchimentos: a.preenchimentos, total: a.total, ativos: a.ativos.size };
+  });
+  return {
+    pessoas: linhas,
+    meses: serie,
+    totalMes: serie[11].total,
+    totalMesAnterior: serie[10].total,
+    ativosMes: serie[11].ativos,
+    conquistasObtidas: linhas.reduce((s, l) => s + l.resumo.conquistas.filter((c) => c.obtida).length, 0),
+  };
+}

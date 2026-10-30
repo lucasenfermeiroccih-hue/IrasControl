@@ -156,6 +156,7 @@ const adminSection = {
     { title: "Usuários", url: "/admin/users", icon: Users },
     { title: "Permissões", url: "/admin/permissoes", icon: ShieldCheck },
     { title: "Configurações", url: "/admin/settings", icon: Settings },
+    { title: "Gamificação da equipe", url: "/conquistas?aba=gestor", icon: Trophy },
     { title: "CRM", url: "/crm", icon: Users },
     { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
     { title: "Planos", url: "/planos", icon: Tag },

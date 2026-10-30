@@ -5,19 +5,28 @@ import type { Json } from "@/integrations/supabase/types";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import {
-  diaLocal, gamificacaoAtiva, normalizaConfig, ranking, resumoGamificacao,
+  diaLocal, gamificacaoAtiva, normalizaConfig, painelEquipe, ranking, resumoGamificacao,
   type Evento, type GamConfig,
 } from "@/lib/gamificacao";
 
 export const CHAVE_GAMIFICACAO = ["gamificacao"] as const;
 
-/** Mensagem amigável quando a migração da gamificação ainda não foi aplicada no banco. */
-export function erroGamificacao(e: unknown): string {
-  const msg = (e as { message?: string })?.message || "";
-  if (/gamificacao_(eventos|config)|does not exist|schema cache/i.test(msg)) {
-    return "A gamificação ainda não foi ativada no banco de dados (migração 20261030120000 pendente).";
+/**
+ * Mensagem para o usuário a partir do erro da função gamificacao_eventos.
+ * PGRST202 = a função não existe para a API (migração não aplicada ou cache do
+ * Supabase desatualizado); os demais erros mostram o motivo real.
+ */
+export function erroGamificacao(e: unknown): { titulo: string; detalhe: string } {
+  const err = (e || {}) as { message?: string; code?: string; details?: string; hint?: string };
+  const detalhe = [err.code, err.message, err.details, err.hint].filter(Boolean).join(" · ");
+  if (err.code === "PGRST202" || /could not find the function|schema cache/i.test(err.message || "")) {
+    return {
+      titulo: "A função da gamificação não foi encontrada no banco. Rode no SQL Editor do Supabase a migração 20261030120000 e depois: NOTIFY pgrst, 'reload schema';",
+      detalhe,
+    };
   }
-  return msg || "Não foi possível carregar a gamificação.";
+  if (err.code === "42501") return { titulo: "Sem acesso aos dados de gamificação deste hospital.", detalhe };
+  return { titulo: "Não foi possível carregar a gamificação.", detalhe: detalhe || String(e) };
 }
 
 /** Regras do hospital (pontos por ação, conquistas, ranking). Sem linha salva: padrões. */
@@ -110,6 +119,24 @@ export function useRanking(mes: Date, ativo = true) {
     queryFn: async () => {
       const { eventos, pessoas } = await buscarEventos(hospitalId!, diaLocal(ini), diaLocal(fim));
       return ranking(eventos, pessoas, cfg!.pontos);
+    },
+  });
+}
+
+/** Painel do gestor: toda a equipe nos últimos 12 meses (carregado só nessa aba). */
+export function usePainelEquipe(ativo = true) {
+  const { hospitalId } = useHospitalContext();
+  const { data: cfg } = useGamConfig();
+  return useQuery({
+    queryKey: [...CHAVE_GAMIFICACAO, "equipe-12m", hospitalId, cfg],
+    enabled: ativo && !!hospitalId && !!cfg,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const hoje = new Date();
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+      const { eventos, pessoas } = await buscarEventos(hospitalId!, diaLocal(inicio), diaLocal(hoje));
+      return painelEquipe(eventos, pessoas, cfg!, hoje);
     },
   });
 }

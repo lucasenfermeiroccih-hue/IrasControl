@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import { erroGamificacao, useRanking } from "@/hooks/useGamificacao";
+import { useRanking } from "@/hooks/useGamificacao";
+import { AvisoErroGamificacao } from "@/components/gamificacao/AvisoErroGamificacao";
 import type { LinhaRanking } from "@/lib/gamificacao";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
@@ -85,7 +86,7 @@ export function RankingMensal() {
       </div>
 
       {error ? (
-        <Card><CardContent className="p-6 text-sm text-muted-foreground">{erroGamificacao(error)}</CardContent></Card>
+        <AvisoErroGamificacao erro={error} />
       ) : isLoading || !data ? (
         <Skeleton className="h-72 rounded-2xl" />
       ) : data.length === 0 ? (

@@ -112,3 +112,28 @@ describe("conquistas e resumo", () => {
     expect(pontosDaTarefa(null, P)).toBe(P.tarefa_normal);
   });
 });
+
+describe("painelEquipe", () => {
+  it("resume cada pessoa (inclusive sem pontos) e a evolução mensal", async () => {
+    const { painelEquipe } = await import("./gamificacao");
+    const hoje = new Date(2026, 9, 30, 9);
+    const ev: Evento[] = [
+      { u: "a", d: "2026-10-28", t: "tarefa_normal", q: 2 },
+      { u: "a", d: "2026-09-15", t: "auditoria:bundles", q: 5 },
+      { u: "b", d: "2026-10-01", t: "paciente_cadastro", q: 1 },
+    ];
+    const p = painelEquipe(ev, [{ id: "a", nome: "Ana" }, { id: "b", nome: "Bia" }, { id: "c", nome: "Caio" }], normalizaConfig(null), hoje);
+    expect(p.pessoas.map((x) => x.nome)).toEqual(["Ana", "Bia", "Caio"]);
+    const ana = p.pessoas[0];
+    expect(ana.resumo.xpMes).toBe(2 * P.tarefa_normal + P.dia_ativo);
+    expect(ana.mesAnterior).toBe(5 * P.auditoria + P.dia_ativo);
+    expect(ana.diasAtivosMes).toBe(1);
+    expect(ana.ultimaAtividade).toBe("2026-10-28");
+    expect(ana.diasSemRegistro).toBe(2);
+    expect(p.pessoas[2].diasSemRegistro).toBeNull();
+    expect(p.meses).toHaveLength(12);
+    expect(p.meses[11]).toMatchObject({ mes: "2026-10", ativos: 2 });
+    expect(p.totalMes).toBe(ana.resumo.xpMes + P.paciente_cadastro + P.dia_ativo);
+    expect(p.ativosMes).toBe(2);
+  });
+});
