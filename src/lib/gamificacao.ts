@@ -24,7 +24,7 @@ export const ACOES: { chave: ChavePonto; rotulo: string; grupo: Grupo | "bonus";
   { chave: "tarefa_low", rotulo: "Tarefa do Kanban — prioridade baixa", grupo: "tarefas", ajuda: "Por tarefa concluída" },
   { chave: "tarefa_normal", rotulo: "Tarefa do Kanban — prioridade normal", grupo: "tarefas", ajuda: "Por tarefa concluída" },
   { chave: "tarefa_high", rotulo: "Tarefa do Kanban — prioridade alta", grupo: "tarefas", ajuda: "Por tarefa concluída" },
-  { chave: "auditoria", rotulo: "Auditoria registrada", grupo: "auditorias", ajuda: "Por auditoria, até o teto diário" },
+  { chave: "auditoria", rotulo: "Auditoria registrada (qualquer tipo, inclusive Auditoria por setor e Módulo SCIH)", grupo: "auditorias", ajuda: "Por auditoria, até o teto diário" },
   { chave: "paciente_cadastro", rotulo: "Paciente cadastrado no monitoramento", grupo: "preenchimentos", ajuda: "Por paciente novo" },
   { chave: "paciente_atualizacao", rotulo: "Paciente atualizado no monitoramento", grupo: "preenchimentos", ajuda: "1 vez por paciente por dia" },
   { chave: "precaucao", rotulo: "Precaução registrada", grupo: "preenchimentos", ajuda: "Por precaução" },
