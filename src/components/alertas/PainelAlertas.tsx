@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import {
-  BellRing, CheckCircle2, ChevronDown, ChevronRight, Download, Eye, ExternalLink, History, Undo2,
+  BellRing, CheckCircle2, ChevronDown, ChevronRight, Download, Eye, ExternalLink, History, Settings2, Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfigAlertas } from "@/components/alertas/ConfigAlertas";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import { useGamConfig, useGamificacaoAtiva } from "@/hooks/useGamificacao";
 import {
   DIAS_HISTORICO, useAlertasTratativas, useDesfazerTratativa, useRegistrarTratativa,
@@ -68,18 +71,21 @@ export function PainelAlertas({
   const [verTodos, setVerTodos] = useState(false);
   const [resolvendo, setResolvendo] = useState<AlertaClinico | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [configurando, setConfigurando] = useState(false);
 
   const { user } = useAuthReady();
   const { data: hist } = useAlertasTratativas(hospitalId);
   const registrar = useRegistrarTratativa(hospitalId, origem);
   const { data: cfg } = useGamConfig();
   const gamAtiva = useGamificacaoAtiva();
+  const { isAdmin } = useIsAdmin();
+  const { regras } = useRegrasAlertas(hospitalId);
   const comHistorico = !!hospitalId && hist?.disponivel !== false;
   const tratativas = useMemo(() => hist?.tratativas ?? [], [hist]);
 
   const { pendentes, resolvidos, vistos } = useMemo(
-    () => (comHistorico ? situacaoDosAlertas(alertas, tratativas) : { pendentes: alertas, resolvidos: [], vistos: new Map<string, Tratativa>() }),
-    [alertas, tratativas, comHistorico],
+    () => (comHistorico ? situacaoDosAlertas(alertas, tratativas, new Date(), regras.ocultar) : { pendentes: alertas, resolvidos: [], vistos: new Map<string, Tratativa>() }),
+    [alertas, tratativas, comHistorico, regras],
   );
   const resolvidosHoje = tratativas.filter((t) => t.status === "resolvido" && ehHoje(t.created_at)).length;
 
@@ -149,8 +155,10 @@ export function PainelAlertas({
         </span>
       </button>
 
-      {aberto && (comHistorico || pendentes.length > 0) && (
+      {aberto && (comHistorico || pendentes.length > 0 || (hospitalId && isAdmin)) && (
         <div className="space-y-3 border-t px-4 pb-4 pt-3">
+          {(comHistorico || (hospitalId && isAdmin)) && (
+          <div className="flex flex-wrap items-center gap-2">
           {comHistorico && (
             <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted/60 p-1 text-sm sm:w-fit" role="tablist">
               {([["pendentes", `Pendentes (${pendentes.length})`, BellRing], ["historico", `Histórico (${tratativas.length})`, History]] as const).map(([v, r, I]) => (
@@ -163,6 +171,13 @@ export function PainelAlertas({
                 <span className="px-2 text-xs text-muted-foreground">{resolvidos.length} resolvido(s) ocultos até a próxima reavaliação</span>
               )}
             </div>
+          )}
+          {hospitalId && isAdmin && (
+            <Button size="sm" variant="outline" className="ml-auto h-8 gap-1.5 text-xs" onClick={() => setConfigurando(true)}>
+              <Settings2 className="h-3.5 w-3.5" /> Prazos dos alertas
+            </Button>
+          )}
+          </div>
           )}
 
           {aba === "pendentes" && pendentes.length === 0 && (
@@ -278,7 +293,7 @@ export function PainelAlertas({
                 <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value.slice(0, 1000))} rows={3}
                   placeholder="Observação (opcional): o que foi feito, com quem foi discutido…" />
                 <p className="text-xs text-muted-foreground">
-                  O alerta sai da lista {resolvendo.tipo === "dispositivo" || resolvendo.tipo === "antimicrobiano" ? "até amanhã (reavaliação diária)" : "enquanto a conduta estiver em vigor"} e fica no histórico com o seu nome.
+                  O alerta sai da lista {regras.ocultar[resolvendo.tipo] <= 1 ? "até amanhã (volta se a situação continuar)" : `por ${regras.ocultar[resolvendo.tipo]} dias`} e fica no histórico com o seu nome.
                 </p>
               </div>
               <DialogFooter className="items-center gap-2 sm:justify-between">
@@ -296,6 +311,17 @@ export function PainelAlertas({
           )}
         </DialogContent>
       </Dialog>
+      {hospitalId && isAdmin && (
+        <Dialog open={configurando} onOpenChange={setConfigurando}>
+          <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Prazos dos alertas</DialogTitle>
+              <DialogDescription>Regras da Central de alertas deste hospital, conforme o protocolo da CCIH. Valem para toda a equipe.</DialogDescription>
+            </DialogHeader>
+            {configurando && <ConfigAlertas hospitalId={hospitalId} onSalvo={() => setConfigurando(false)} />}
+          </DialogContent>
+        </Dialog>
+      )}
     </section>
   );
 }

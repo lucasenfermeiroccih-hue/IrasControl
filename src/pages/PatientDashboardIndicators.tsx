@@ -38,6 +38,7 @@ import { KpiCard3D } from "@/components/KpiCard3D";
 import { Icone3D } from "@/components/Icone3D";
 import { PainelAlertas } from "@/components/alertas/PainelAlertas";
 import { alertasDoPaciente } from "@/lib/alertasClinicos";
+import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex";
 import { situacaoIsolamento } from "@/lib/precautionStatus";
 
@@ -112,6 +113,7 @@ const PatientDashboardIndicators = () => {
   };
 
   // Alertas clínicos dos pacientes internados (mesma central do Monitoramento)
+  const { regras: regrasAlertas } = useRegrasAlertas(hospitalId);
   const nomesPacientes = useMemo(() => new Map(patients.map(p => [p.id, p.full_name])), [patients]);
   const alertasClinicos = useMemo(() => patients
     .filter(p => p.status === "active")
@@ -124,8 +126,8 @@ const PatientDashboardIndicators = () => {
         id: p.id, nome: p.full_name, setor: p.sector || "", leito: "", internado: true,
         dataInternacao: p.admission_date, clinical: cd, isolamento,
         precaucoesRegistradas: proprias.length + precMapa.length,
-      });
-    }), [patients, precIndex]);
+      }, new Date(), regrasAlertas);
+    }), [patients, precIndex, regrasAlertas]);
 
   // Refs e metas para ChartActions (export PDF/JPG, fullscreen, definir meta)
   const chartRefs = {

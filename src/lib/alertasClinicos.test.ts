@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertasDoMapa, alertasDoPaciente, contarPorGravidade, diasDesde, ordenarAlertas, situacaoDosAlertas, type PacienteMonitorado } from "./alertasClinicos";
+import { alertasDoMapa, alertasDoPaciente, contarPorGravidade, diasDesde, ordenarAlertas, normalizaRegras, situacaoDosAlertas, REGRAS_PADRAO, type PacienteMonitorado } from "./alertasClinicos";
 import { SEM_ISOLAMENTO } from "./precautionStatus";
 
 const hoje = new Date(2026, 9, 30, 10);
@@ -119,5 +119,38 @@ describe("situacaoDosAlertas", () => {
     ], hoje);
     expect([...r.vistos.keys()]).toEqual(["p:internacao"]);
     expect(r.vistos.get("p:internacao")!.user_nome).toBe("Ana");
+  });
+});
+
+describe("regras configuráveis", () => {
+  it("normaliza jsonb parcial e ignora valores inválidos", () => {
+    const r = normalizaRegras({ dispositivo: { cvc: 10, svu: -2 }, antimicrobiano: "14", internacao: 9999, desativados: ["internacao", "xyz"], ocultar: { dispositivo: 2 } });
+    expect(r.dispositivo.cvc).toBe(10);
+    expect(r.dispositivo.svu).toBe(REGRAS_PADRAO.dispositivo.svu);
+    expect(r.antimicrobiano).toBe(14);
+    expect(r.internacao).toBe(REGRAS_PADRAO.internacao);
+    expect(r.desativados).toEqual(["internacao"]);
+    expect(r.ocultar.dispositivo).toBe(2);
+    expect(normalizaRegras(null)).toEqual(REGRAS_PADRAO);
+  });
+
+  it("usa os prazos do hospital e desliga tipos", () => {
+    const p = paciente({
+      dataInternacao: "2026-09-01",
+      clinical: { dispInvasivos: { cvcInsercao: "2026-10-20" }, antibioticos: [{ nome: "Cefepime", dataInicio: "2026-10-25" }] },
+    });
+    const regras = normalizaRegras({ dispositivo: { cvc: 12 }, antimicrobiano: 5, desativados: ["internacao"] });
+    const a = alertasDoPaciente(p, hoje, regras);
+    expect(a.find((x) => x.tipo === "dispositivo")).toBeUndefined();
+    expect(a.find((x) => x.tipo === "antimicrobiano")!.titulo).toBe("Cefepime há 5 dias");
+    expect(a.find((x) => x.tipo === "internacao")).toBeUndefined();
+  });
+
+  it("dias de ocultação do hospital valem para resolvidos", () => {
+    const al = [{ pacienteId: "p", paciente: "P", local: "", detalhe: "", titulo: "", id: "p:dispositivo:cvc", tipo: "dispositivo" as const, gravidade: "media" as const }];
+    const t = [{ id: "1", hospital_id: "h", paciente_id: "p", alerta_chave: "p:dispositivo:cvc", origem: "monitoramento" as const, tipo: "dispositivo" as const,
+      gravidade: "media" as const, titulo: "", local: null, status: "resolvido" as const, observacao: null, user_id: "u", user_nome: "A", created_at: new Date(2026, 9, 29, 9).toISOString() }];
+    expect(situacaoDosAlertas(al, t, hoje).pendentes).toHaveLength(1);
+    expect(situacaoDosAlertas(al, t, hoje, normalizaRegras({ ocultar: { dispositivo: 2 } }).ocultar).pendentes).toHaveLength(0);
   });
 });
