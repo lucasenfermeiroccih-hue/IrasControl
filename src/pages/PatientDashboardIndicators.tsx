@@ -112,6 +112,7 @@ const PatientDashboardIndicators = () => {
   };
 
   // Alertas clínicos dos pacientes internados (mesma central do Monitoramento)
+  const nomesPacientes = useMemo(() => new Map(patients.map(p => [p.id, p.full_name])), [patients]);
   const alertasClinicos = useMemo(() => patients
     .filter(p => p.status === "active")
     .flatMap(p => {
@@ -464,7 +465,8 @@ const PatientDashboardIndicators = () => {
       {patients.length > 0 && (
         <>
           <PainelAlertas alertas={alertasClinicos} contexto="dashboard-pacientes" titulo="Alertas dos pacientes internados"
-            onAbrir={(id) => navigate(`/patients/monitoring?paciente=${id}`)} />
+            onAbrir={(id) => navigate(`/patients/monitoring?paciente=${id}`)}
+            hospitalId={hospitalId} origem="dashboard" nomes={nomesPacientes} />
 
           <Card className="border-primary/30 bg-gradient-to-br from-primary/[0.08] to-transparent">
             <CardContent className="py-4 px-5 flex items-center justify-between gap-4">

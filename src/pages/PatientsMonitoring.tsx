@@ -229,6 +229,7 @@ export default function PatientsMonitoring() {
 
   // Central de alertas: só pacientes internados (MDR sem precaução, aerossóis,
   // dispositivos e antimicrobianos prolongados, exame MDR novo, internação longa)
+  const nomesPacientes = useMemo(() => new Map(patients.map(p => [p.id, p.nome])), [patients]);
   const alertasClinicos = useMemo(() => patients
     .filter(p => p.status === "active")
     .flatMap(p => {
@@ -1849,7 +1850,8 @@ export default function PatientsMonitoring() {
       })()}
 
       {/* ─── Alertas ──────────────────────────────────────── */}
-      <PainelAlertas alertas={alertasClinicos} contexto="monitoramento" onAbrir={(id) => enterPatient(id)} />
+      <PainelAlertas alertas={alertasClinicos} contexto="monitoramento" onAbrir={(id) => enterPatient(id)}
+        hospitalId={hospitalId} origem="monitoramento" nomes={nomesPacientes} />
 
       {/* ─── Search ───────────────────────────────────────── */}
       <div className="relative">

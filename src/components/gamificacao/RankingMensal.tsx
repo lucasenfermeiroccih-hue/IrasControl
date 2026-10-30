@@ -21,7 +21,7 @@ const MEDALHAS = {
   3: { anel: "from-orange-300 via-orange-400 to-orange-700", pedestal: "from-orange-300 to-orange-600", altura: "h-14", texto: "text-[#431407]", rotulo: "3º" },
 } as const;
 
-const CORES = { tarefas: "bg-emerald-500", auditorias: "bg-sky-500", preenchimentos: "bg-violet-500" };
+const CORES = { tarefas: "bg-emerald-500", auditorias: "bg-sky-500", preenchimentos: "bg-violet-500", alertas: "bg-rose-500" };
 
 function Avatar({ nome, tamanho = "h-10 w-10 text-sm", anel }: { nome: string; tamanho?: string; anel?: string }) {
   return (
@@ -133,10 +133,11 @@ export function RankingMensal() {
                 <span className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-full ${CORES.tarefas}`} /> Tarefas</span>
                 <span className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-full ${CORES.auditorias}`} /> Auditorias</span>
                 <span className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-full ${CORES.preenchimentos}`} /> Preenchimentos</span>
+                <span className="flex items-center gap-1.5"><i className={`h-2.5 w-2.5 rounded-full ${CORES.alertas}`} /> Alertas resolvidos</span>
               </div>
               <ol>
                 {data.map((l) => {
-                  const total = Math.max(1, l.tarefas + l.auditorias + l.preenchimentos);
+                  const total = Math.max(1, l.tarefas + l.auditorias + l.preenchimentos + l.alertas);
                   return (
                     <li key={l.id} className={`flex items-center gap-3 border-b px-4 py-3 last:border-0 ${l.id === user?.id ? "bg-primary/[0.06]" : ""}`}>
                       <span className={`w-8 text-center font-display text-lg font-semibold ${l.posicao <= 3 ? "text-amber-500" : "text-muted-foreground"}`}>{l.posicao}º</span>
@@ -144,10 +145,11 @@ export function RankingMensal() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{l.nome}{l.id === user?.id && <span className="ml-1.5 text-xs text-primary">(você)</span>}</p>
                         <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted" style={{ width: `${Math.max(8, (l.pontos / lider) * 100)}%` }}
-                          title={`Tarefas ${fmt(l.tarefas)} · Auditorias ${fmt(l.auditorias)} · Preenchimentos ${fmt(l.preenchimentos)}`}>
+                          title={`Tarefas ${fmt(l.tarefas)} · Auditorias ${fmt(l.auditorias)} · Preenchimentos ${fmt(l.preenchimentos)} · Alertas ${fmt(l.alertas)}`}>
                           <span className={CORES.tarefas} style={{ width: `${(l.tarefas / total) * 100}%` }} />
                           <span className={CORES.auditorias} style={{ width: `${(l.auditorias / total) * 100}%` }} />
                           <span className={CORES.preenchimentos} style={{ width: `${(l.preenchimentos / total) * 100}%` }} />
+                          <span className={CORES.alertas} style={{ width: `${(l.alertas / total) * 100}%` }} />
                         </div>
                       </div>
                       <span className="num-display w-20 text-right text-xl">{fmt(l.pontos)}</span>
@@ -158,7 +160,7 @@ export function RankingMensal() {
             </CardContent>
           </Card>
           <p className="text-xs text-muted-foreground">
-            Pontos de tarefas, auditorias e preenchimentos registrados {anual ? "no ano" : "no mês"}, com as regras definidas pela coordenação (inclui o bônus de constância).
+            Pontos de tarefas, auditorias, preenchimentos e alertas clínicos resolvidos {anual ? "no ano" : "no mês"}, com as regras definidas pela coordenação (inclui o bônus de constância).
           </p>
         </>
       )}

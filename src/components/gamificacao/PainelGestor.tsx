@@ -17,7 +17,7 @@ const fmt = (n: number) => n.toLocaleString("pt-BR");
 const dataBR = (d: string | null) => (d ? d.split("-").reverse().join("/") : "—");
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const rotuloMes = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1]}/${m.slice(2, 4)}`;
-const CORES = { tarefas: "#10b981", auditorias: "#0ea5e9", preenchimentos: "#8b5cf6" };
+const CORES = { tarefas: "#10b981", auditorias: "#0ea5e9", preenchimentos: "#8b5cf6", alertas: "#f43f5e" };
 
 type Ordem = "pontos" | "nome" | "nivel" | "inativo";
 
@@ -35,14 +35,15 @@ function Variacao({ atual, anterior }: { atual: number; anterior: number }) {
 
 function Composicao({ l }: { l: LinhaEquipe }) {
   const g = l.resumo.mesPorGrupo;
-  const total = g.tarefas + g.auditorias + g.preenchimentos;
+  const total = g.tarefas + g.auditorias + g.preenchimentos + g.alertas;
   if (!total) return <span className="text-xs text-muted-foreground">sem pontos</span>;
   return (
     <div className="flex h-2 w-28 overflow-hidden rounded-full bg-muted"
-      title={`Tarefas ${fmt(g.tarefas)} · Auditorias ${fmt(g.auditorias)} · Preenchimentos ${fmt(g.preenchimentos)}`}>
+      title={`Tarefas ${fmt(g.tarefas)} · Auditorias ${fmt(g.auditorias)} · Preenchimentos ${fmt(g.preenchimentos)} · Alertas ${fmt(g.alertas)}`}>
       <span style={{ width: `${(g.tarefas / total) * 100}%`, background: CORES.tarefas }} />
       <span style={{ width: `${(g.auditorias / total) * 100}%`, background: CORES.auditorias }} />
       <span style={{ width: `${(g.preenchimentos / total) * 100}%`, background: CORES.preenchimentos }} />
+      <span style={{ width: `${(g.alertas / total) * 100}%`, background: CORES.alertas }} />
     </div>
   );
 }
@@ -82,6 +83,8 @@ function FichaFuncionario({ l, onClose }: { l: LinhaEquipe | null; onClose: () =
                   ["Auditorias", l.resumo.estatisticas.auditorias],
                   ["Preenchimentos", l.resumo.estatisticas.preenchimentos],
                   ["Pacientes cadastrados", l.resumo.estatisticas.pacientes],
+                  ["Alertas resolvidos", l.resumo.estatisticas.alertas],
+                  ["Alertas críticos resolvidos", l.resumo.estatisticas.alertas_criticos],
                 ].map(([r, v]) => (
                   <div key={r as string} className="flex justify-between rounded-lg bg-muted/50 px-3 py-2">
                     <span className="text-muted-foreground">{r} (12m)</span><strong>{fmt(v as number)}</strong>
@@ -119,12 +122,12 @@ function FichaFuncionario({ l, onClose }: { l: LinhaEquipe | null; onClose: () =
 }
 
 function exportarCsv(linhas: LinhaEquipe[]) {
-  const cab = ["Funcionário", "Nível", "Título", "Pontos no mês", "Mês anterior", "Tarefas (pts)", "Auditorias (pts)", "Preenchimentos (pts)",
+  const cab = ["Funcionário", "Nível", "Título", "Pontos no mês", "Mês anterior", "Tarefas (pts)", "Auditorias (pts)", "Preenchimentos (pts)", "Alertas (pts)",
     "Dias ativos no mês", "Sequência", "Conquistas", "Pontos 12 meses", "Último registro"];
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const corpo = linhas.map((l) => [
     l.nome, l.resumo.nivel.nivel, l.resumo.nivel.titulo, l.resumo.xpMes, l.mesAnterior,
-    l.resumo.mesPorGrupo.tarefas, l.resumo.mesPorGrupo.auditorias, l.resumo.mesPorGrupo.preenchimentos,
+    l.resumo.mesPorGrupo.tarefas, l.resumo.mesPorGrupo.auditorias, l.resumo.mesPorGrupo.preenchimentos, l.resumo.mesPorGrupo.alertas,
     l.diasAtivosMes, l.resumo.sequencia, `${l.resumo.conquistas.filter((c) => c.obtida).length}/${l.resumo.conquistas.length}`,
     l.resumo.xpTotal, dataBR(l.ultimaAtividade),
   ].map(esc).join(";"));
@@ -200,7 +203,8 @@ export function PainelGestor() {
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="tarefas" name="Tarefas" stackId="p" fill={CORES.tarefas} />
                 <Bar dataKey="auditorias" name="Auditorias" stackId="p" fill={CORES.auditorias} />
-                <Bar dataKey="preenchimentos" name="Preenchimentos" stackId="p" fill={CORES.preenchimentos} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="preenchimentos" name="Preenchimentos" stackId="p" fill={CORES.preenchimentos} />
+                <Bar dataKey="alertas" name="Alertas resolvidos" stackId="p" fill={CORES.alertas} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
