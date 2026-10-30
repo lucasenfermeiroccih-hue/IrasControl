@@ -1,7 +1,7 @@
 /**
  * Gamificação do IRASControl: pontos, nível, sequência, conquistas e ranking
  * mensal, calculados a partir do trabalho registrado no sistema (tarefas do
- * Kanban, auditorias e preenchimentos) e das regras ajustáveis do hospital
+ * Kanban, auditorias, preenchimentos e alertas clínicos resolvidos) e das regras ajustáveis do hospital
  * (tabela gamificacao_config).
  *
  * As contagens vêm da função gamificacao_eventos do banco (por pessoa, dia e
@@ -15,9 +15,10 @@ export type ChavePonto =
   | "tarefa_low" | "tarefa_normal" | "tarefa_high"
   | "auditoria"
   | "paciente_cadastro" | "paciente_atualizacao" | "precaucao" | "exame" | "caso_iras" | "indicador"
+  | "alerta_alta" | "alerta_media" | "alerta_info"
   | "dia_ativo";
 
-export type Grupo = "tarefas" | "auditorias" | "preenchimentos";
+export type Grupo = "tarefas" | "auditorias" | "preenchimentos" | "alertas";
 
 export const ACOES: { chave: ChavePonto; rotulo: string; grupo: Grupo | "bonus"; ajuda: string }[] = [
   { chave: "tarefa_low", rotulo: "Tarefa do Kanban — prioridade baixa", grupo: "tarefas", ajuda: "Por tarefa concluída" },
@@ -30,6 +31,9 @@ export const ACOES: { chave: ChavePonto; rotulo: string; grupo: Grupo | "bonus";
   { chave: "exame", rotulo: "Exame / cultura registrado", grupo: "preenchimentos", ajuda: "Por exame" },
   { chave: "caso_iras", rotulo: "Caso de IRAS registrado", grupo: "preenchimentos", ajuda: "Por caso" },
   { chave: "indicador", rotulo: "Indicador preenchido (geral, ISC, DDD, consumo)", grupo: "preenchimentos", ajuda: "Por registro" },
+  { chave: "alerta_alta", rotulo: "Alerta crítico resolvido", grupo: "alertas", ajuda: "1 vez por alerta por dia" },
+  { chave: "alerta_media", rotulo: "Alerta de atenção resolvido", grupo: "alertas", ajuda: "1 vez por alerta por dia" },
+  { chave: "alerta_info", rotulo: "Alerta informativo resolvido", grupo: "alertas", ajuda: "1 vez por alerta por dia" },
   { chave: "dia_ativo", rotulo: "Bônus de constância", grupo: "bonus", ajuda: "Por dia com algum registro" },
 ];
 
@@ -39,6 +43,7 @@ export const PONTOS_PADRAO: ConfigPontos = {
   tarefa_low: 15, tarefa_normal: 25, tarefa_high: 40,
   auditoria: 2,
   paciente_cadastro: 10, paciente_atualizacao: 3, precaucao: 8, exame: 5, caso_iras: 15, indicador: 20,
+  alerta_alta: 15, alerta_media: 8, alerta_info: 3,
   dia_ativo: 10,
   teto_auditorias_dia: 30,
 };
@@ -47,7 +52,7 @@ export const PONTOS_PADRAO: ConfigPontos = {
 
 export type Metrica =
   | "pontos" | "tarefas" | "tarefas_alta" | "auditorias" | "auditorias_higiene" | "tipos_auditoria"
-  | "preenchimentos" | "pacientes" | "sequencia" | "dias_mes";
+  | "preenchimentos" | "pacientes" | "alertas" | "alertas_criticos" | "sequencia" | "dias_mes";
 
 export const METRICAS: { valor: Metrica; rotulo: string }[] = [
   { valor: "pontos", rotulo: "Pontos acumulados" },
@@ -58,6 +63,8 @@ export const METRICAS: { valor: Metrica; rotulo: string }[] = [
   { valor: "tipos_auditoria", rotulo: "Tipos diferentes de auditoria" },
   { valor: "preenchimentos", rotulo: "Preenchimentos (pacientes, precauções, exames, indicadores)" },
   { valor: "pacientes", rotulo: "Pacientes cadastrados no monitoramento" },
+  { valor: "alertas", rotulo: "Alertas clínicos resolvidos" },
+  { valor: "alertas_criticos", rotulo: "Alertas críticos resolvidos" },
   { valor: "sequencia", rotulo: "Dias úteis seguidos com registro" },
   { valor: "dias_mes", rotulo: "Dias com registro num mesmo mês" },
 ];
@@ -81,6 +88,8 @@ export const CONQUISTAS_PADRAO: ConquistaDef[] = [
   { id: "maos-100", icone: "🧼", nome: "Mãos que salvam", descricao: "100 auditorias de higiene das mãos", metrica: "auditorias_higiene", meta: 100, ativa: true },
   { id: "multitipos", icone: "🧭", nome: "Visão completa", descricao: "Auditar 4 tipos diferentes", metrica: "tipos_auditoria", meta: 4, ativa: true },
   { id: "preench-100", icone: "📝", nome: "Prontuário em dia", descricao: "100 preenchimentos (pacientes, precauções, exames, indicadores)", metrica: "preenchimentos", meta: 100, ativa: true },
+  { id: "alertas-25", icone: "🛎️", nome: "Sentinela dos alertas", descricao: "Resolver 25 alertas clínicos", metrica: "alertas", meta: 25, ativa: true },
+  { id: "criticos-10", icone: "🚑", nome: "Resposta rápida", descricao: "Resolver 10 alertas críticos", metrica: "alertas_criticos", meta: 10, ativa: true },
   { id: "sequencia-5", icone: "🔥", nome: "Em chamas", descricao: "5 dias úteis seguidos com registro", metrica: "sequencia", meta: 5, ativa: true },
   { id: "sequencia-20", icone: "⚡", nome: "Imparável", descricao: "20 dias úteis seguidos com registro", metrica: "sequencia", meta: 20, ativa: true },
   { id: "mes-15", icone: "📆", nome: "Mês de presença", descricao: "Registro em 15 dias de um mesmo mês", metrica: "dias_mes", meta: 15, ativa: true },
@@ -126,6 +135,7 @@ export interface Evento { u: string; d: string; t: string; q: number }
 export function grupoDoTipo(t: string): Grupo {
   if (t.startsWith("tarefa_")) return "tarefas";
   if (t.startsWith("auditoria")) return "auditorias";
+  if (t.startsWith("alerta_")) return "alertas";
   return "preenchimentos";
 }
 
@@ -135,13 +145,13 @@ const chaveDoTipo = (t: string): ChavePonto => {
   return (t in PONTOS_PADRAO ? t : "indicador") as ChavePonto;
 };
 
-export interface Dia { dia: string; pontos: number; tarefas: number; auditorias: number; preenchimentos: number }
+export interface Dia { dia: string; pontos: number; tarefas: number; auditorias: number; preenchimentos: number; alertas: number }
 
 /** Pontos por dia de UMA pessoa (teto diário de auditorias e bônus de constância). */
 export function pontosPorDia(eventos: Evento[], pontos: ConfigPontos): Map<string, Dia> {
   const dias = new Map<string, Dia & { audQtd: number }>();
   for (const e of eventos) {
-    const d = dias.get(e.d) ?? { dia: e.d, pontos: 0, tarefas: 0, auditorias: 0, preenchimentos: 0, audQtd: 0 };
+    const d = dias.get(e.d) ?? { dia: e.d, pontos: 0, tarefas: 0, auditorias: 0, preenchimentos: 0, alertas: 0, audQtd: 0 };
     const g = grupoDoTipo(e.t);
     if (g === "auditorias") d.audQtd += e.q;
     else d[g] += e.q * pontos[chaveDoTipo(e.t)];
@@ -150,7 +160,7 @@ export function pontosPorDia(eventos: Evento[], pontos: ConfigPontos): Map<strin
   const out = new Map<string, Dia>();
   for (const [k, d] of dias) {
     d.auditorias = Math.min(d.audQtd, pontos.teto_auditorias_dia) * pontos.auditoria;
-    const base = d.tarefas + d.auditorias + d.preenchimentos;
+    const base = d.tarefas + d.auditorias + d.preenchimentos + d.alertas;
     const { audQtd: _q, ...dia } = d;
     out.set(k, { ...dia, pontos: base + (base > 0 ? pontos.dia_ativo : 0) });
   }
@@ -164,6 +174,7 @@ export interface LinhaRanking {
   tarefas: number;
   auditorias: number;
   preenchimentos: number;
+  alertas: number;
   posicao: number;
 }
 
@@ -173,9 +184,9 @@ export function ranking(eventos: Evento[], pessoas: { id: string; nome: string }
   for (const e of eventos) porPessoa.set(e.u, [...(porPessoa.get(e.u) ?? []), e]);
   const nomes = new Map(pessoas.map((p) => [p.id, p.nome]));
   const linhas = [...porPessoa].map(([id, evs]) => {
-    const tot = { pontos: 0, tarefas: 0, auditorias: 0, preenchimentos: 0 };
+    const tot = { pontos: 0, tarefas: 0, auditorias: 0, preenchimentos: 0, alertas: 0 };
     for (const d of pontosPorDia(evs, pontos).values()) {
-      tot.pontos += d.pontos; tot.tarefas += d.tarefas; tot.auditorias += d.auditorias; tot.preenchimentos += d.preenchimentos;
+      tot.pontos += d.pontos; tot.tarefas += d.tarefas; tot.auditorias += d.auditorias; tot.preenchimentos += d.preenchimentos; tot.alertas += d.alertas;
     }
     return { id, nome: nomes.get(id) || "Usuário removido", ...tot, posicao: 0 };
   }).filter((l) => l.pontos > 0)
@@ -273,6 +284,8 @@ export function estatisticas(eventos: Evento[], dias: Map<string, Dia>): Estatis
     tipos_auditoria: new Set(eventos.filter((e) => e.t.startsWith("auditoria:")).map((e) => e.t)).size,
     preenchimentos: soma((t) => grupoDoTipo(t) === "preenchimentos"),
     pacientes: soma((t) => t === "paciente_cadastro"),
+    alertas: soma((t) => t.startsWith("alerta_")),
+    alertas_criticos: soma((t) => t === "alerta_alta"),
     sequencia: maiorSequencia(ativos),
     dias_mes: Math.max(0, ...porMes.values()),
   };
@@ -307,12 +320,12 @@ export function resumoGamificacao(eventos: Evento[], cfg: GamConfig, hoje = new 
   const mes = hojeIso.slice(0, 7);
   let xpTotal = 0;
   let xpMes = 0;
-  const mesPorGrupo: Record<Grupo, number> = { tarefas: 0, auditorias: 0, preenchimentos: 0 };
+  const mesPorGrupo: Record<Grupo, number> = { tarefas: 0, auditorias: 0, preenchimentos: 0, alertas: 0 };
   for (const d of dias.values()) {
     xpTotal += d.pontos;
     if (d.dia.startsWith(mes)) {
       xpMes += d.pontos;
-      mesPorGrupo.tarefas += d.tarefas; mesPorGrupo.auditorias += d.auditorias; mesPorGrupo.preenchimentos += d.preenchimentos;
+      mesPorGrupo.tarefas += d.tarefas; mesPorGrupo.auditorias += d.auditorias; mesPorGrupo.preenchimentos += d.preenchimentos; mesPorGrupo.alertas += d.alertas;
     }
   }
   const mapaCalor: { dia: string; xp: number }[] = [];
@@ -372,7 +385,7 @@ export interface LinhaEquipe {
 export interface PainelEquipe {
   pessoas: LinhaEquipe[];
   /** Pontos da equipe por mês (12 meses, do mais antigo ao atual) */
-  meses: { mes: string; tarefas: number; auditorias: number; preenchimentos: number; total: number; ativos: number }[];
+  meses: { mes: string; tarefas: number; auditorias: number; preenchimentos: number; alertas: number; total: number; ativos: number }[];
   totalMes: number;
   totalMesAnterior: number;
   ativosMes: number;
@@ -395,7 +408,7 @@ export function painelEquipe(eventos: Evento[], pessoas: { id: string; nome: str
   const mesAtual = mesDe(hoje);
   const mesAnt = mesDe(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1));
   const ultimos12 = Array.from({ length: 12 }, (_, i) => mesDe(new Date(hoje.getFullYear(), hoje.getMonth() - 11 + i, 1)));
-  const meses = new Map(ultimos12.map((m) => [m, { mes: m, tarefas: 0, auditorias: 0, preenchimentos: 0, total: 0, ativos: new Set<string>() }]));
+  const meses = new Map(ultimos12.map((m) => [m, { mes: m, tarefas: 0, auditorias: 0, preenchimentos: 0, alertas: 0, total: 0, ativos: new Set<string>() }]));
   const hojeMeia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 
   const linhas: LinhaEquipe[] = [...ids].map((id) => {
@@ -412,7 +425,7 @@ export function painelEquipe(eventos: Evento[], pessoas: { id: string; nome: str
       if (!ultimaAtividade || d.dia > ultimaAtividade) ultimaAtividade = d.dia;
       const agg = meses.get(m);
       if (agg) {
-        agg.tarefas += d.tarefas; agg.auditorias += d.auditorias; agg.preenchimentos += d.preenchimentos;
+        agg.tarefas += d.tarefas; agg.auditorias += d.auditorias; agg.preenchimentos += d.preenchimentos; agg.alertas += d.alertas;
         agg.total += d.pontos; agg.ativos.add(id);
       }
     }
@@ -428,7 +441,7 @@ export function painelEquipe(eventos: Evento[], pessoas: { id: string; nome: str
 
   const serie = ultimos12.map((m) => {
     const a = meses.get(m)!;
-    return { mes: m, tarefas: a.tarefas, auditorias: a.auditorias, preenchimentos: a.preenchimentos, total: a.total, ativos: a.ativos.size };
+    return { mes: m, tarefas: a.tarefas, auditorias: a.auditorias, preenchimentos: a.preenchimentos, alertas: a.alertas, total: a.total, ativos: a.ativos.size };
   });
   return {
     pessoas: linhas,

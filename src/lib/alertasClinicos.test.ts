@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertasDoMapa, alertasDoPaciente, contarPorGravidade, diasDesde, ordenarAlertas, type PacienteMonitorado } from "./alertasClinicos";
+import { alertasDoMapa, alertasDoPaciente, contarPorGravidade, diasDesde, ordenarAlertas, situacaoDosAlertas, type PacienteMonitorado } from "./alertasClinicos";
 import { SEM_ISOLAMENTO } from "./precautionStatus";
 
 const hoje = new Date(2026, 9, 30, 10);
@@ -89,5 +89,35 @@ describe("ordenar e contar", () => {
     ]);
     expect(lista.map((x) => x.id)).toEqual(["3", "2", "1"]);
     expect(contarPorGravidade(lista)).toEqual({ alta: 1, media: 1, info: 1 });
+  });
+});
+
+describe("situacaoDosAlertas", () => {
+  const base = { pacienteId: "p", paciente: "P", local: "", detalhe: "", titulo: "" };
+  const alertas = [
+    { ...base, id: "p:dispositivo:cvc", tipo: "dispositivo" as const, gravidade: "media" as const },
+    { ...base, id: "p:aerossois", tipo: "aerossois" as const, gravidade: "alta" as const },
+    { ...base, id: "p:internacao", tipo: "internacao" as const, gravidade: "info" as const },
+  ];
+  const trat = (chave: string, status: "visto" | "resolvido", quando: Date) => ({
+    id: `${chave}${status}${quando.getTime()}`, hospital_id: "h", paciente_id: "p", alerta_chave: chave, origem: "monitoramento" as const,
+    tipo: "dispositivo" as const, gravidade: "media" as const, titulo: "", local: null, status, observacao: null,
+    user_id: "u", user_nome: "Ana", created_at: quando.toISOString(),
+  });
+
+  it("dispositivo resolvido some só no mesmo dia; aerossóis por 7 dias", () => {
+    const ontem = new Date(2026, 9, 29, 15);
+    const r = situacaoDosAlertas(alertas, [trat("p:dispositivo:cvc", "resolvido", ontem), trat("p:aerossois", "resolvido", ontem)], hoje);
+    expect(r.pendentes.map((a) => a.id)).toEqual(["p:dispositivo:cvc", "p:internacao"]);
+    expect(r.resolvidos.map((a) => a.id)).toEqual(["p:aerossois"]);
+  });
+
+  it("visto vale para hoje e não depois de uma resolução mais nova", () => {
+    const r = situacaoDosAlertas(alertas, [
+      trat("p:internacao", "visto", new Date(2026, 9, 30, 8)),
+      trat("p:dispositivo:cvc", "visto", new Date(2026, 9, 29, 8)),
+    ], hoje);
+    expect([...r.vistos.keys()]).toEqual(["p:internacao"]);
+    expect(r.vistos.get("p:internacao")!.user_nome).toBe("Ana");
   });
 });

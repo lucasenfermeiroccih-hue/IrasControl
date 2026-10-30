@@ -170,3 +170,85 @@ export function contarPorGravidade(alertas: AlertaClinico[]): Record<Gravidade, 
   for (const a of alertas) c[a.gravidade]++;
   return c;
 }
+
+// ── Histórico (visto / resolvido) ──────────────────────────────────────────
+
+export type StatusTratativa = "visto" | "resolvido";
+export type OrigemAlerta = "monitoramento" | "mapa" | "dashboard";
+
+/** Linha da tabela alertas_tratativas. */
+export interface Tratativa {
+  id: string;
+  hospital_id: string;
+  paciente_id: string | null;
+  alerta_chave: string;
+  origem: OrigemAlerta;
+  tipo: TipoAlerta;
+  gravidade: Gravidade;
+  titulo: string;
+  local: string | null;
+  status: StatusTratativa;
+  observacao: string | null;
+  user_id: string | null;
+  user_nome: string | null;
+  created_at: string;
+}
+
+/**
+ * Por quantos dias (contando hoje) um alerta resolvido some da lista. Os que
+ * pedem reavaliação diária (dispositivo, antimicrobiano) voltam no dia seguinte
+ * se a condição continuar.
+ */
+export const DIAS_OCULTO: Record<TipoAlerta, number> = {
+  mdr_sem_precaucao: 1, mdr_recente: 3, aerossois: 7, goticulas: 7, dispositivo: 1,
+  antimicrobiano: 1, internacao: 7, saida_pendente: 1, precaucao_longa: 7, sem_leito: 1,
+};
+
+/** Sugestões rápidas de conduta ao resolver, por tipo de alerta. */
+export const CONDUTAS: Record<TipoAlerta, string[]> = {
+  mdr_sem_precaucao: ["Precaução de contato instituída", "Equipe orientada", "Placa de sinalização na porta"],
+  mdr_recente: ["Isolamento conferido", "Notificação realizada", "Equipe assistencial comunicada"],
+  aerossois: ["Quarto privativo confirmado", "N95/PFF2 disponível", "Equipe orientada"],
+  goticulas: ["Quarto privativo/coorte confirmado", "Máscara cirúrgica disponível", "Equipe orientada"],
+  dispositivo: ["Dispositivo retirado", "Mantido — indicação justificada", "Bundle conferido"],
+  antimicrobiano: ["Data de término definida", "Discutido com o prescritor", "Escalonamento/descalonamento"],
+  internacao: ["Caso discutido com a equipe", "Plano de alta revisado"],
+  saida_pendente: ["Saída registrada no mapa", "Precaução encerrada"],
+  precaucao_longa: ["Precaução mantida — critério presente", "Precaução suspensa"],
+  sem_leito: ["Leito informado"],
+};
+
+const diaLocalIso = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/**
+ * Separa os alertas ainda pendentes dos já resolvidos (dentro do prazo de
+ * DIAS_OCULTO) e devolve o último "visto" de cada alerta pendente.
+ */
+export function situacaoDosAlertas(alertas: AlertaClinico[], tratativas: Tratativa[], hoje = new Date()) {
+  const ultimoResolvido = new Map<string, Tratativa>();
+  const ultimoVisto = new Map<string, Tratativa>();
+  for (const t of tratativas) {
+    const m = t.status === "resolvido" ? ultimoResolvido : ultimoVisto;
+    const atual = m.get(t.alerta_chave);
+    if (!atual || t.created_at > atual.created_at) m.set(t.alerta_chave, t);
+  }
+  const pendentes: AlertaClinico[] = [];
+  const resolvidos: AlertaClinico[] = [];
+  for (const a of alertas) {
+    const r = ultimoResolvido.get(a.id);
+    const dias = r ? diasDesde(diaLocalIso(r.created_at), hoje) : null;
+    if (r && dias !== null && dias < DIAS_OCULTO[a.tipo]) resolvidos.push(a);
+    else pendentes.push(a);
+  }
+  const vistos = new Map<string, Tratativa>();
+  for (const a of pendentes) {
+    const v = ultimoVisto.get(a.id);
+    const r = ultimoResolvido.get(a.id);
+    // "Visto" vale para o dia em que foi dado e só se for posterior à última resolução
+    if (v && diasDesde(diaLocalIso(v.created_at), hoje) === 0 && (!r || v.created_at > r.created_at)) vistos.set(a.id, v);
+  }
+  return { pendentes, resolvidos, vistos };
+}

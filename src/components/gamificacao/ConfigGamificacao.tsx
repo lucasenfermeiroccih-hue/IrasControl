@@ -16,6 +16,7 @@ const GRUPOS: { grupo: (typeof ACOES)[number]["grupo"]; titulo: string }[] = [
   { grupo: "tarefas", titulo: "Tarefas do Kanban" },
   { grupo: "auditorias", titulo: "Auditorias" },
   { grupo: "preenchimentos", titulo: "Preenchimentos" },
+  { grupo: "alertas", titulo: "Alertas clínicos resolvidos" },
   { grupo: "bonus", titulo: "Bônus" },
 ];
 

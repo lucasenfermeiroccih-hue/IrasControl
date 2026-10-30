@@ -91,6 +91,7 @@ function ComoGanharPontos() {
     { grupo: "tarefas", icone: "✅", titulo: "Tarefas do Kanban" },
     { grupo: "auditorias", icone: "🔎", titulo: "Auditorias" },
     { grupo: "preenchimentos", icone: "📝", titulo: "Preenchimentos" },
+    { grupo: "alertas", icone: "🛎️", titulo: "Alertas clínicos" },
     { grupo: "bonus", icone: "📆", titulo: "Constância" },
   ] as const;
   return (
@@ -164,8 +165,9 @@ function MeuProgresso() {
                       ["Tarefas", data.mesPorGrupo.tarefas, "bg-emerald-500"],
                       ["Auditorias", data.mesPorGrupo.auditorias, "bg-sky-500"],
                       ["Preenchimentos", data.mesPorGrupo.preenchimentos, "bg-violet-500"],
+                      ["Alertas", data.mesPorGrupo.alertas, "bg-rose-500"],
                     ] as const).map(([rotulo, v, cor]) => {
-                      const base = Math.max(1, data.mesPorGrupo.tarefas + data.mesPorGrupo.auditorias + data.mesPorGrupo.preenchimentos);
+                      const base = Math.max(1, data.mesPorGrupo.tarefas + data.mesPorGrupo.auditorias + data.mesPorGrupo.preenchimentos + data.mesPorGrupo.alertas);
                       return (
                         <div key={rotulo} className="flex items-center gap-2 text-xs">
                           <span className="w-24 text-muted-foreground">{rotulo}</span>
@@ -199,6 +201,8 @@ function MeuProgresso() {
                   { valor: data.estatisticas.tarefas, rotulo: "Tarefas do Kanban (12 meses)" },
                   { valor: data.estatisticas.preenchimentos, rotulo: "Preenchimentos (12 meses)" },
                   { valor: data.estatisticas.pacientes, rotulo: "Pacientes cadastrados (12 meses)" },
+                  { valor: data.estatisticas.alertas, rotulo: "Alertas resolvidos (12 meses)" },
+                  { valor: data.estatisticas.alertas_criticos, rotulo: "Alertas críticos resolvidos (12 meses)" },
                 ].map((k) => (
                   <div key={k.rotulo} className="rounded-xl border border-border/60 bg-background/60 p-3">
                     <p className="num-display text-3xl leading-none">{fmt(k.valor)}</p>

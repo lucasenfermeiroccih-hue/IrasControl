@@ -964,6 +964,7 @@ export default function MapeamentoPrecaucao() {
   const internadosSorted = applySort(internados);
 
   // Central de alertas do mapa (só internados) e atalhos de filtro
+  const nomesMapa = useMemo(() => new Map(patients.map(p => [p.id, p.nome])), [patients]);
   const alertasMapa = useMemo(() => patients
     .filter(p => p.status === "Internado")
     .flatMap(p => alertasDoMapa({
@@ -2015,7 +2016,8 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           </div>
 
           <div className="np" style={{ marginBottom:16 }}>
-            <PainelAlertas alertas={alertasMapa} contexto="mapa" titulo="Alertas do mapa" onAbrir={abrirNoMapa} />
+            <PainelAlertas alertas={alertasMapa} contexto="mapa" titulo="Alertas do mapa" onAbrir={abrirNoMapa}
+              hospitalId={hospitalId} origem="mapa" nomes={nomesMapa} />
           </div>
 
           {/* form */}
