@@ -254,6 +254,75 @@
   }
   .btn-sheen:hover::after { transform: translateX(110%); }
 
+  /*
+   * Botão 3D: brilho em cima, "lábio" escuro embaixo e afundamento ao clicar.
+   * Funciona com qualquer cor de fundo (sombras translúcidas), inclusive quando
+   * a página troca a cor do botão por uma classe própria.
+   */
+  .btn-3d {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      inset 0 -2px 0 rgb(0 0 0 / 0.12),
+      0 3px 0 rgb(0 0 0 / 0.2),
+      0 6px 14px -6px rgb(0 0 0 / 0.35);
+    transform: translateY(0);
+  }
+  .btn-3d:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      inset 0 -2px 0 rgb(0 0 0 / 0.12),
+      0 4px 0 rgb(0 0 0 / 0.2),
+      0 10px 20px -8px rgb(0 0 0 / 0.4);
+  }
+  .btn-3d:active {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.15),
+      inset 0 2px 5px rgb(0 0 0 / 0.2),
+      0 1px 0 rgb(0 0 0 / 0.2);
+  }
+  /* Botões claros (contorno/secundário): lábio na cor da borda */
+  .btn-3d-claro {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 3px 0 hsl(var(--border)), 0 6px 12px -8px rgb(0 0 0 / 0.25);
+  }
+  .btn-3d-claro:hover {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 4px 0 hsl(var(--border)), 0 10px 18px -10px rgb(0 0 0 / 0.3);
+  }
+  .btn-3d-claro:active {
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.12), 0 1px 0 hsl(var(--border));
+  }
+  .dark .btn-3d-claro { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 3px 0 rgb(0 0 0 / 0.45), 0 6px 12px -8px rgb(0 0 0 / 0.6); }
+  .dark .btn-3d-claro:hover { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 4px 0 rgb(0 0 0 / 0.45), 0 10px 18px -10px rgb(0 0 0 / 0.6); }
+  .dark .btn-3d-claro:active { box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.4), 0 1px 0 rgb(0 0 0 / 0.45); }
+  /* Botão principal: halo verde no hover */
+  .btn-3d-brilho:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      inset 0 -2px 0 rgb(0 0 0 / 0.12),
+      0 4px 0 rgb(0 0 0 / 0.2),
+      0 10px 24px -8px hsl(var(--glow) / 0.55);
+  }
+
+  /*
+   * Botões nativos de telas antigas (ex.: Mapa de Precaução, estilos inline):
+   * o contêiner com .botoes-3d dá o mesmo volume a todos, sem editar cada um.
+   * data-plano="1" mantém um botão sem efeito.
+   */
+  .botoes-3d button:not([data-plano]):not(:disabled) {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 2px 0 rgb(0 0 0 / 0.16), 0 5px 12px -6px rgb(0 0 0 / 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.2s ease;
+  }
+  .botoes-3d button:not([data-plano]):not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.32), 0 3px 0 rgb(0 0 0 / 0.16), 0 9px 16px -8px rgb(0 0 0 / 0.35);
+  }
+  .botoes-3d button:not([data-plano]):not(:disabled):active {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.18), 0 1px 0 rgb(0 0 0 / 0.16);
+  }
+
   /* Cartão que levanta com halo teal */
   .card-lift {
     transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.35s;
@@ -347,10 +416,12 @@
 }
 
 /* Chart fullscreen mode (used by ChartActions Maximize button) */
+/* Gráfico ampliado: ocupa a área toda (vence alturas fixas da tela original) */
 .chart-fullscreen {
   background: hsl(var(--background));
-  width: 100%;
-  height: min(78vh, 900px);
+  width: 100% !important;
+  height: calc(100vh - 7.5rem) !important;
+  max-height: none !important;
   display: flex;
   flex-direction: column;
   border-radius: 0.5rem;
@@ -363,7 +434,7 @@
 .chart-fullscreen :where(.recharts-wrapper) {
   height: 100% !important;
   width: 100% !important;
-  min-height: 500px;
+  min-height: 320px;
 }
 
 /* Recharts no tema escuro: textos e grades seguem o tema */
@@ -588,6 +659,8 @@
 }
 .icone-3d.ativo { filter: saturate(1.15) brightness(1.05); }
 @media (prefers-reduced-motion: reduce) {
+  .btn-3d, .btn-3d:hover, .btn-3d:active,
+  .botoes-3d button:hover, .botoes-3d button:active { transform: none !important; }
   .icone-3d, .group\/nav:hover .icone-3d, .icone-3d.ativo { transform: none; }
 }
 
@@ -597,21 +670,21 @@
  * a direita/baixo, sem aumentar a altura das barras. Desligável por pessoa
  * (menu do tema), o que remove a classe html.graficos-3d.
  */
-html.graficos-3d .recharts-bar-rectangle path,
-html.graficos-3d .recharts-bar-rectangle rect,
-html.graficos-3d .recharts-funnel-trapezoid path {
+html.graficos-3d .recharts-bar-rectangles,
+html.graficos-3d .recharts-funnel-trapezoids {
   filter: url(#ic-3d-bloco);
 }
-html.graficos-3d .recharts-pie-sector path,
-html.graficos-3d .recharts-radial-bar-sector path {
+/* Pizza/rosca: o grupo das fatias (sem os rótulos) */
+html.graficos-3d .recharts-pie > g:not(.recharts-pie-labels),
+html.graficos-3d .recharts-radial-bar-sectors {
   filter: url(#ic-3d-fatia);
 }
 html.graficos-3d .recharts-line-curve,
 html.graficos-3d .recharts-area-area,
-html.graficos-3d .recharts-radar-polygon path {
+html.graficos-3d .recharts-radar-polygon {
   filter: url(#ic-3d-linha);
 }
-html.graficos-3d .recharts-line-dots .recharts-dot,
-html.graficos-3d .recharts-line-dot {
+html.graficos-3d .recharts-line-dots,
+html.graficos-3d .recharts-area-dots {
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.3));
 }

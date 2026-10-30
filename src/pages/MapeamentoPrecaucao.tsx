@@ -9,6 +9,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { RelogioAoVivo } from "@/components/RelogioAoVivo";
+import { KpiCard3D } from "@/components/KpiCard3D";
+import { PainelAlertas } from "@/components/alertas/PainelAlertas";
+import { alertasDoMapa } from "@/lib/alertasClinicos";
+import { Bug, DoorOpen, Droplets as IconeGoticulas, Hand, ShieldCheck as IconeIsolamento, Wind } from "lucide-react";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useSectors } from "@/hooks/useSectors";
@@ -21,6 +25,7 @@ import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   chaveNome, chaveProntuario, codigoOrganismo, dataISO, examesMdr, maisRestritiva, tipoPrecaucao,
+  textoIndicaMdr,
 } from "@/lib/precautionStatus";
 
 const ORGANISMOS = [
@@ -957,6 +962,31 @@ export default function MapeamentoPrecaucao() {
   useEffect(() => { setMapPage(1); }, [fStatus, fSetor, fLeito, fDataColeta, fMes, fAno, fOrganismo, fPrecaucao, fMaterial, search]);
 
   const internadosSorted = applySort(internados);
+
+  // Central de alertas do mapa (só internados) e atalhos de filtro
+  const alertasMapa = useMemo(() => patients
+    .filter(p => p.status === "Internado")
+    .flatMap(p => alertasDoMapa({
+      id: p.id, nome: p.nome, setor: p.setor, leito: p.leito, internado: true,
+      precaucao: p.precaucao, organismo: p.organismo, dataColeta: p.dataColeta, saidaMonitoramento: p.saidaMonitoramento,
+    })), [patients]);
+  const cntMdrMapa = internados.filter(p => textoIndicaMdr(p.organismo)).length;
+  const cntSaidasPendentes = internados.filter(p => p.saidaMonitoramento).length;
+  const filtroRapido = (precaucao?: string) => {
+    const ja = fStatus.length === 1 && fStatus[0] === "Internado" &&
+      (precaucao ? fPrecaucao.length === 1 && fPrecaucao[0] === precaucao : fPrecaucao.length === 0);
+    setFStatus(ja ? [] : ["Internado"]);
+    setFPrecaucao(ja || !precaucao ? [] : [precaucao]);
+    setSearch("");
+    setTimeout(() => document.getElementById("tabela-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const abrirNoMapa = (id: string) => {
+    const p = patients.find(x => x.id === id);
+    if (!p) return;
+    if (p.origem === "monitoramento") { navigate(`/patients/monitoring?paciente=${p.id}`); return; }
+    setFStatus([]); setFPrecaucao([]); setSearch(p.nome);
+    setTimeout(() => document.getElementById("tabela-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
 
   const pdfFilteredPatients = useMemo(() =>
     patients.filter(p =>
@@ -1897,7 +1927,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
 
 
   return (
-    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"var(--color-background-tertiary)", minHeight:"100vh" }}>
+    <div className="botoes-3d" style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"var(--color-background-tertiary)", minHeight:"100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
       <style>{`
         @media print {
@@ -1929,7 +1959,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
         </div>
         <nav style={{ display:"flex", gap:2, padding:"0 14px", borderTop:"1px solid rgba(255,255,255,.1)" }}>
           {TABS.map(([id, lbl]) => (
-            <button key={id} onClick={() => setPage(id)} style={{
+            <button key={id} data-plano="1" onClick={() => setPage(id)} style={{
               padding:"8px 14px", border:"none", borderRadius:0, cursor:"pointer", fontFamily:"inherit",
               fontSize:12, fontWeight:500, background:"transparent",
               color: page === id ? "white" : "rgba(255,255,255,.55)",
@@ -1968,19 +1998,24 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
             </div>
           )}
 
-          {/* KPI cards */}
-          <div className="np" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:16 }}>
-            {[
-              { lbl:"Em Isolamento",       val:cntTotal,     c:"#0F4C75", bg:"#EFF6FF" },
-              { lbl:"Precaução Contato",   val:cntContato,   c:"#92400E", bg:"#FFFBEB" },
-              { lbl:"Precaução Gotículas", val:cntGoticulas, c:"#1E40AF", bg:"#EFF6FF" },
-              { lbl:"Precaução Aerossóis", val:cntAerossol,  c:"#991B1B", bg:"#FEF2F2" },
-            ].map(k => (
-              <div key={k.lbl} style={{ background:k.bg, borderRadius:10, padding:"12px 16px", border:`1px solid ${k.c}22` }}>
-                <div style={{ fontSize:10, color:k.c, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{k.lbl}</div>
-                <div style={{ fontSize:28, fontWeight:600, color:k.c, lineHeight:1 }}>{k.val}</div>
-              </div>
-            ))}
+          {/* KPI cards (clicáveis: filtram a tabela) */}
+          <div className="np grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6" style={{ marginBottom:16 }}>
+            <KpiCard3D icon={IconeIsolamento} matiz={205} rotulo="Em isolamento" valor={cntTotal}
+              ativo={fStatus.length === 1 && fStatus[0] === "Internado" && fPrecaucao.length === 0}
+              onClick={() => filtroRapido()} titulo="Mostrar todos os internados em precaução" />
+            <KpiCard3D icon={Hand} matiz={38} rotulo="Contato" valor={cntContato}
+              ativo={fPrecaucao.length === 1 && fPrecaucao[0] === "Contato"} onClick={() => filtroRapido("Contato")} titulo="Filtrar precaução de contato" />
+            <KpiCard3D icon={IconeGoticulas} matiz={220} rotulo="Gotículas" valor={cntGoticulas}
+              ativo={fPrecaucao.length === 1 && fPrecaucao[0] === "Gotículas"} onClick={() => filtroRapido("Gotículas")} titulo="Filtrar precaução por gotículas" />
+            <KpiCard3D icon={Wind} matiz={0} rotulo="Aerossóis" valor={cntAerossol} alerta={cntAerossol > 0}
+              ativo={fPrecaucao.length === 1 && fPrecaucao[0] === "Aerossóis"} onClick={() => filtroRapido("Aerossóis")} titulo="Filtrar precaução por aerossóis" />
+            <KpiCard3D icon={Bug} matiz={300} rotulo="Com MDR" valor={cntMdrMapa} titulo="Internados com microrganismo multirresistente" />
+            <KpiCard3D icon={DoorOpen} matiz={28} rotulo="Saídas a registrar" valor={cntSaidasPendentes} alerta={cntSaidasPendentes > 0}
+              extra={cntSaidasPendentes ? "já saíram no monitoramento" : "nenhuma pendência"} titulo="Pacientes que já saíram no Monitoramento" />
+          </div>
+
+          <div className="np" style={{ marginBottom:16 }}>
+            <PainelAlertas alertas={alertasMapa} contexto="mapa" titulo="Alertas do mapa" onAbrir={abrirNoMapa} />
           </div>
 
           {/* form */}
@@ -2186,7 +2221,7 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
           </div>
 
           {/* table */}
-          <div style={{ background:"var(--color-background-primary)", borderRadius:12, border:"0.5px solid var(--color-border-tertiary)", overflow:"hidden" }}>
+          <div id="tabela-mapa" style={{ scrollMarginTop:16, background:"var(--color-background-primary)", borderRadius:12, border:"0.5px solid var(--color-border-tertiary)", overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
               <thead>
                 <tr style={{ background:"#0F4C75" }}>
