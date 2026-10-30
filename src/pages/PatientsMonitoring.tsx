@@ -36,6 +36,7 @@ import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex
 import { PainelAlertas } from "@/components/alertas/PainelAlertas";
 import { KpiCard3D } from "@/components/KpiCard3D";
 import { alertasDoPaciente } from "@/lib/alertasClinicos";
+import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import {
   bordaIsolamento, maisRestritiva, MDR_META, precaucaoDoOrganismo, situacaoIsolamento, tipoPrecaucao,
   SEM_ISOLAMENTO, type SituacaoIsolamento,
@@ -229,6 +230,7 @@ export default function PatientsMonitoring() {
 
   // Central de alertas: só pacientes internados (MDR sem precaução, aerossóis,
   // dispositivos e antimicrobianos prolongados, exame MDR novo, internação longa)
+  const { regras: regrasAlertas } = useRegrasAlertas(hospitalId);
   const nomesPacientes = useMemo(() => new Map(patients.map(p => [p.id, p.nome])), [patients]);
   const alertasClinicos = useMemo(() => patients
     .filter(p => p.status === "active")
@@ -240,8 +242,8 @@ export default function PatientsMonitoring() {
         clinical: cd,
         isolamento: isolamentoDe(p.id),
         precaucoesRegistradas: (precIndex.porPaciente.get(p.id)?.length ?? 0) + precaucoesDoMapa(precIndex, p.prontuario, p.nome).length,
-      });
-    }), [patients, isolamento, precIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+      }, new Date(), regrasAlertas);
+    }), [patients, isolamento, precIndex, regrasAlertas]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ao voltar para a lista, atualiza as precauções (podem ter mudado no paciente)
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   useEffect(() => {

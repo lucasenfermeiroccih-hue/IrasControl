@@ -12,6 +12,7 @@ import { RelogioAoVivo } from "@/components/RelogioAoVivo";
 import { KpiCard3D } from "@/components/KpiCard3D";
 import { PainelAlertas } from "@/components/alertas/PainelAlertas";
 import { alertasDoMapa } from "@/lib/alertasClinicos";
+import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import { Bug, DoorOpen, Droplets as IconeGoticulas, Hand, ShieldCheck as IconeIsolamento, Wind } from "lucide-react";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
@@ -964,13 +965,14 @@ export default function MapeamentoPrecaucao() {
   const internadosSorted = applySort(internados);
 
   // Central de alertas do mapa (só internados) e atalhos de filtro
+  const { regras: regrasAlertas } = useRegrasAlertas(hospitalId);
   const nomesMapa = useMemo(() => new Map(patients.map(p => [p.id, p.nome])), [patients]);
   const alertasMapa = useMemo(() => patients
     .filter(p => p.status === "Internado")
     .flatMap(p => alertasDoMapa({
       id: p.id, nome: p.nome, setor: p.setor, leito: p.leito, internado: true,
       precaucao: p.precaucao, organismo: p.organismo, dataColeta: p.dataColeta, saidaMonitoramento: p.saidaMonitoramento,
-    })), [patients]);
+    }, new Date(), regrasAlertas)), [patients, regrasAlertas]);
   const cntMdrMapa = internados.filter(p => textoIndicaMdr(p.organismo)).length;
   const cntSaidasPendentes = internados.filter(p => p.saidaMonitoramento).length;
   const filtroRapido = (precaucao?: string) => {

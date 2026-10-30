@@ -20,10 +20,10 @@ export const TIPOS_ALERTA: Record<TipoAlerta, { rotulo: string; icone: string }>
   aerossois: { rotulo: "Aerossóis", icone: "🌬️" },
   goticulas: { rotulo: "Gotículas", icone: "💧" },
   dispositivo: { rotulo: "Dispositivo prolongado", icone: "🩺" },
-  antimicrobiano: { rotulo: "Antimicrobiano 7+ dias", icone: "💊" },
+  antimicrobiano: { rotulo: "Antimicrobiano prolongado", icone: "💊" },
   internacao: { rotulo: "Internação prolongada", icone: "🛏️" },
   saida_pendente: { rotulo: "Saída a registrar", icone: "🚪" },
-  precaucao_longa: { rotulo: "Precaução 30+ dias", icone: "⏳" },
+  precaucao_longa: { rotulo: "Precaução prolongada", icone: "⏳" },
   sem_leito: { rotulo: "Sem leito informado", icone: "❓" },
 };
 
@@ -46,6 +46,59 @@ export const LIMITES = {
   mdrRecente: 3,
   precaucaoLonga: 30,
 };
+
+/**
+ * Por quantos dias (contando hoje) um alerta resolvido some da lista. Os que
+ * pedem reavaliação diária (dispositivo, antimicrobiano) voltam no dia seguinte
+ * se a condição continuar.
+ */
+export const DIAS_OCULTO: Record<TipoAlerta, number> = {
+  mdr_sem_precaucao: 1, mdr_recente: 3, aerossois: 7, goticulas: 7, dispositivo: 1,
+  antimicrobiano: 1, internacao: 7, saida_pendente: 1, precaucao_longa: 7, sem_leito: 1,
+};
+
+/** Regras da Central de alertas de um hospital (tabela alertas_config). */
+export interface RegrasAlertas {
+  /** Dias de cada dispositivo invasivo para alertar (o dobro vira crítico) */
+  dispositivo: Record<string, number>;
+  /** Dias de antimicrobiano sem data de término (o dobro vira crítico) */
+  antimicrobiano: number;
+  /** Dias de internação para o alerta informativo */
+  internacao: number;
+  /** Janela (dias) em que um exame MDR conta como novo */
+  mdrRecente: number;
+  /** Dias em precaução no mapa para sugerir reavaliação */
+  precaucaoLonga: number;
+  /** Dias em que um alerta resolvido fica fora da lista */
+  ocultar: Record<TipoAlerta, number>;
+  /** Tipos de alerta desligados pelo hospital */
+  desativados: TipoAlerta[];
+}
+
+export const REGRAS_PADRAO: RegrasAlertas = { ...LIMITES, ocultar: DIAS_OCULTO, desativados: [] };
+
+const inteiro = (v: unknown, padrao: number, min: number, max: number) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= min && n <= max ? n : padrao;
+};
+
+/** jsonb salvo (parcial ou antigo) → regras completas, com os padrões no que faltar. */
+export function normalizaRegras(raw: unknown): RegrasAlertas {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const obj = (v: unknown) => (v && typeof v === "object" ? v as Record<string, unknown> : {});
+  const disp = obj(r.dispositivo);
+  const ocu = obj(r.ocultar);
+  const tipos = Object.keys(TIPOS_ALERTA) as TipoAlerta[];
+  return {
+    dispositivo: Object.fromEntries(Object.entries(LIMITES.dispositivo).map(([k, v]) => [k, inteiro(disp[k], v, 1, 365)])),
+    antimicrobiano: inteiro(r.antimicrobiano, LIMITES.antimicrobiano, 1, 365),
+    internacao: inteiro(r.internacao, LIMITES.internacao, 1, 365),
+    mdrRecente: inteiro(r.mdrRecente, LIMITES.mdrRecente, 0, 60),
+    precaucaoLonga: inteiro(r.precaucaoLonga, LIMITES.precaucaoLonga, 1, 365),
+    ocultar: Object.fromEntries(tipos.map((t) => [t, inteiro(ocu[t], DIAS_OCULTO[t], 1, 30)])) as Record<TipoAlerta, number>,
+    desativados: Array.isArray(r.desativados) ? tipos.filter((t) => (r.desativados as unknown[]).includes(t)) : [],
+  };
+}
 
 const ORDEM: Record<Gravidade, number> = { alta: 0, media: 1, info: 2 };
 
@@ -76,7 +129,7 @@ export interface PacienteMonitorado {
 }
 
 /** Alertas de um paciente do Monitoramento. */
-export function alertasDoPaciente(p: PacienteMonitorado, hoje = new Date()): AlertaClinico[] {
+export function alertasDoPaciente(p: PacienteMonitorado, hoje = new Date(), regras: RegrasAlertas = REGRAS_PADRAO): AlertaClinico[] {
   if (!p.internado) return [];
   const local = [p.setor, p.leito && `Leito ${p.leito}`].filter(Boolean).join(" · ");
   const base = { pacienteId: p.id, paciente: p.nome, local };
@@ -91,7 +144,7 @@ export function alertasDoPaciente(p: PacienteMonitorado, hoje = new Date()): Ale
   }
   const recente = mdr
     .map((l) => ({ l, dias: diasDesde(l.data, hoje) }))
-    .filter((x) => x.dias !== null && x.dias >= 0 && x.dias <= LIMITES.mdrRecente)
+    .filter((x) => x.dias !== null && x.dias >= 0 && x.dias <= regras.mdrRecente)
     .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0))[0];
   if (recente) {
     add("mdr_recente", "alta", "Exame MDR novo",
@@ -104,7 +157,7 @@ export function alertasDoPaciente(p: PacienteMonitorado, hoje = new Date()): Ale
   }
 
   for (const d of listOpenDevices(p.clinical?.dispInvasivos)) {
-    const limite = LIMITES.dispositivo[d.type] ?? 10;
+    const limite = regras.dispositivo[d.type] ?? 10;
     const dias = diasDesde(d.insercao, hoje);
     if (dias !== null && dias >= limite) {
       add("dispositivo", dias >= limite * 2 ? "alta" : "media", `${d.label} há ${dias} dias`,
@@ -114,16 +167,16 @@ export function alertasDoPaciente(p: PacienteMonitorado, hoje = new Date()): Ale
   (p.clinical?.antibioticos || []).forEach((a, i) => {
     if (a?.dataFim) return;
     const dias = diasDesde(a?.dataInicio, hoje);
-    if (dias !== null && dias >= LIMITES.antimicrobiano) {
-      add("antimicrobiano", dias >= LIMITES.antimicrobiano * 2 ? "alta" : "media", `${a.nome || "Antimicrobiano"} há ${dias} dias`,
+    if (dias !== null && dias >= regras.antimicrobiano) {
+      add("antimicrobiano", dias >= regras.antimicrobiano * 2 ? "alta" : "media", `${a.nome || "Antimicrobiano"} há ${dias} dias`,
         "Sem data de término — reavaliar indicação, culturas e duração (stewardship).", `:${i}`);
     }
   });
   const dInt = diasDesde(p.dataInternacao, hoje);
-  if (dInt !== null && dInt >= LIMITES.internacao) {
+  if (dInt !== null && dInt >= regras.internacao) {
     add("internacao", "info", `Internado há ${dInt} dias`, "Internação prolongada aumenta o risco de IRAS e de colonização por MDR.");
   }
-  return out;
+  return regras.desativados.length ? out.filter((a) => !regras.desativados.includes(a.tipo)) : out;
 }
 
 export interface PacienteMapa {
@@ -140,7 +193,7 @@ export interface PacienteMapa {
 }
 
 /** Alertas de um paciente do Mapa de Precaução. */
-export function alertasDoMapa(p: PacienteMapa, hoje = new Date()): AlertaClinico[] {
+export function alertasDoMapa(p: PacienteMapa, hoje = new Date(), regras: RegrasAlertas = REGRAS_PADRAO): AlertaClinico[] {
   if (!p.internado) return [];
   const local = [p.setor, p.leito && `Leito ${p.leito}`].filter(Boolean).join(" · ");
   const base = { pacienteId: p.id, paciente: p.nome, local };
@@ -159,10 +212,10 @@ export function alertasDoMapa(p: PacienteMapa, hoje = new Date()): AlertaClinico
   }
   if (!p.leito?.trim()) add("sem_leito", "media", "Leito não informado", "Informe o leito para o mapa e a sinalização na porta.");
   const dias = diasDesde(p.dataColeta, hoje);
-  if (dias !== null && dias >= LIMITES.precaucaoLonga) {
+  if (dias !== null && dias >= regras.precaucaoLonga) {
     add("precaucao_longa", "info", `Em precaução há ${dias} dias`, "Reavaliar critérios de manutenção ou suspensão da precaução.");
   }
-  return out;
+  return regras.desativados.length ? out.filter((a) => !regras.desativados.includes(a.tipo)) : out;
 }
 
 export function contarPorGravidade(alertas: AlertaClinico[]): Record<Gravidade, number> {
@@ -194,15 +247,6 @@ export interface Tratativa {
   created_at: string;
 }
 
-/**
- * Por quantos dias (contando hoje) um alerta resolvido some da lista. Os que
- * pedem reavaliação diária (dispositivo, antimicrobiano) voltam no dia seguinte
- * se a condição continuar.
- */
-export const DIAS_OCULTO: Record<TipoAlerta, number> = {
-  mdr_sem_precaucao: 1, mdr_recente: 3, aerossois: 7, goticulas: 7, dispositivo: 1,
-  antimicrobiano: 1, internacao: 7, saida_pendente: 1, precaucao_longa: 7, sem_leito: 1,
-};
 
 /** Sugestões rápidas de conduta ao resolver, por tipo de alerta. */
 export const CONDUTAS: Record<TipoAlerta, string[]> = {
@@ -227,7 +271,7 @@ const diaLocalIso = (iso: string) => {
  * Separa os alertas ainda pendentes dos já resolvidos (dentro do prazo de
  * DIAS_OCULTO) e devolve o último "visto" de cada alerta pendente.
  */
-export function situacaoDosAlertas(alertas: AlertaClinico[], tratativas: Tratativa[], hoje = new Date()) {
+export function situacaoDosAlertas(alertas: AlertaClinico[], tratativas: Tratativa[], hoje = new Date(), ocultar: Record<TipoAlerta, number> = DIAS_OCULTO) {
   const ultimoResolvido = new Map<string, Tratativa>();
   const ultimoVisto = new Map<string, Tratativa>();
   for (const t of tratativas) {
@@ -240,7 +284,7 @@ export function situacaoDosAlertas(alertas: AlertaClinico[], tratativas: Tratati
   for (const a of alertas) {
     const r = ultimoResolvido.get(a.id);
     const dias = r ? diasDesde(diaLocalIso(r.created_at), hoje) : null;
-    if (r && dias !== null && dias < DIAS_OCULTO[a.tipo]) resolvidos.push(a);
+    if (r && dias !== null && dias < ocultar[a.tipo]) resolvidos.push(a);
     else pendentes.push(a);
   }
   const vistos = new Map<string, Tratativa>();
