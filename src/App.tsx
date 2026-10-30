@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Suspense } from "react";
 import { ThemeProvider } from "next-themes";
+import { Graficos3D } from "@/components/Graficos3D";
 import { lazyPage } from "@/lib/lazyPage";
 import { CarregandoTela } from "@/components/CarregandoTela";
 import { AppLayout } from "./components/AppLayout.tsx";
@@ -111,6 +112,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <Graficos3D />
       <BrowserRouter>
         <Suspense fallback={<CarregandoTela />}>
         <Routes>

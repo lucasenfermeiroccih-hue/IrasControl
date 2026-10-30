@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Box, Monitor, Moon, Sun } from "lucide-react";
+import { definirGraficos3d, graficos3dAtivos } from "@/lib/graficos3d";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -19,6 +20,7 @@ export function ThemeToggle() {
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
   const escuro = montado && resolvedTheme === "dark";
+  const [g3d, setG3d] = useState(graficos3dAtivos);
 
   return (
     <DropdownMenu>
@@ -38,6 +40,14 @@ export function ThemeToggle() {
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={g3d}
+          onCheckedChange={(v) => { const ativo = v === true; setG3d(ativo); definirGraficos3d(ativo); }}
+          className="gap-2"
+        >
+          <Box className="h-4 w-4" /> Gráficos em 3D
+        </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
