@@ -11,7 +11,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { RelogioAoVivo } from "@/components/RelogioAoVivo";
 import { KpiCard3D } from "@/components/KpiCard3D";
 import { PainelAlertas } from "@/components/alertas/PainelAlertas";
-import { alertasDoMapa } from "@/lib/alertasClinicos";
+import { alertasDoMapa, type AlertaClinico } from "@/lib/alertasClinicos";
+import { ehAltaOutroSetor } from "@/lib/saidaSetor";
 import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import { Bug, DoorOpen, Droplets as IconeGoticulas, Hand, ShieldCheck as IconeIsolamento, Wind } from "lucide-react";
 import { fetchAllRows } from "@/lib/fetchAllRows";
@@ -124,7 +125,9 @@ interface Patient {
   /** Registro do mapa que também está ativo no Monitoramento de Pacientes */
   vinculado?: boolean;
   /** Registro do mapa cujo paciente já saiu no Monitoramento (alta, óbito ou transferência) */
-  saidaMonitoramento?: { status: "Alta" | "Óbito" | "Transferência"; data: string };
+  saidaMonitoramento?: { status: "Alta" | "Óbito" | "Transferência"; data: string; setor?: string };
+  /** Última saída do Monitoramento já conferida no mapa ("continua internado"), aaaa-mm-dd */
+  saidaVerificada?: string;
 }
 
 const STATUS_SAIDA: Record<string, "Alta" | "Óbito" | "Transferência"> = {
@@ -158,6 +161,7 @@ export default function MapeamentoPrecaucao() {
   const [fStatus,    setFStatus]   = useState<string[]>(["Internado"]);
   const [search,     setSearch]    = useState("");
   const [stModal,    setStModal]   = useState<string | null>(null);
+  const [verificaSaida, setVerificaSaida] = useState<string | null>(null);
   const [aiModal,    setAiModal]   = useState(false);
   const [aiText,     setAiText]    = useState("");
   const [aiLoading,  setAiLoading] = useState(false);
@@ -756,6 +760,7 @@ export default function MapeamentoPrecaucao() {
         status,
         dataSaida: status === "Internado" ? "" : (p.discharge_date || active.end_date || "").slice(0, 10),
         motivoStatus: ((p.clinical_data as { motivoStatus?: string } | null)?.motivoStatus) || "",
+        saidaVerificada: ((p.clinical_data as { saidaVerificada?: { data?: string } } | null)?.saidaVerificada?.data) || "",
         origem: "mapa",
       });
     });
@@ -811,18 +816,21 @@ export default function MapeamentoPrecaucao() {
     if (semVinculo.length) {
       const { data: saidas } = await supabase
         .from("patients")
-        .select("medical_record, status, discharge_date")
+        .select("medical_record, status, discharge_date, discharge_type, sector")
         .eq("hospital_id", hospitalId)
         .neq("status", "active")
         .neq("source", "precaution_map")
         .in("medical_record", [...new Set(semVinculo.map(m => m.prontuario))]);
       semVinculo.forEach(m => {
+        // Alta para outro setor não é saída do hospital (o mapa já foi atualizado)
         const ultima = (saidas || [])
-          .filter(s => chaveProntuario(s.medical_record) === chaveProntuario(m.prontuario) && s.discharge_date)
+          .filter(s => chaveProntuario(s.medical_record) === chaveProntuario(m.prontuario) && s.discharge_date && !ehAltaOutroSetor(s.discharge_type))
           .sort((a, b) => (b.discharge_date || "").localeCompare(a.discharge_date || ""))[0];
         const inicio = precs.find(pr => pr.id === m.precaucaoId)?.start_date || m.dataColeta;
-        if (ultima && STATUS_SAIDA[ultima.status] && (!inicio || (ultima.discharge_date || "") >= inicio)) {
-          m.saidaMonitoramento = { status: STATUS_SAIDA[ultima.status], data: (ultima.discharge_date || "").slice(0, 10) };
+        const dataSaida = (ultima?.discharge_date || "").slice(0, 10);
+        const jaVerificada = !!m.saidaVerificada && m.saidaVerificada >= dataSaida;
+        if (ultima && STATUS_SAIDA[ultima.status] && !jaVerificada && (!inicio || dataSaida >= inicio.slice(0, 10))) {
+          m.saidaMonitoramento = { status: STATUS_SAIDA[ultima.status], data: dataSaida, setor: ultima.sector || "" };
         }
       });
     }
@@ -983,9 +991,10 @@ export default function MapeamentoPrecaucao() {
     setSearch("");
     setTimeout(() => document.getElementById("tabela-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
-  const abrirNoMapa = (id: string) => {
+  const abrirNoMapa = (id: string, alerta?: AlertaClinico) => {
     const p = patients.find(x => x.id === id);
     if (!p) return;
+    if (alerta?.tipo === "saida_pendente" && p.saidaMonitoramento) { setVerificaSaida(p.id); return; }
     if (p.origem === "monitoramento") { navigate(`/patients/monitoring?paciente=${p.id}`); return; }
     setFStatus([]); setFPrecaucao([]); setSearch(p.nome);
     setTimeout(() => document.getElementById("tabela-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -1256,6 +1265,36 @@ export default function MapeamentoPrecaucao() {
     }, ...prev]);
     setStModal(null);
     toast({ title: "Status salvo", description: `${pat?.nome}: ${s}${internado ? "" : ` em ${quando.split("-").reverse().join("/")}`}` });
+  };
+
+  /**
+   * Pendência de saída conferida: o paciente saiu da unidade monitorada (ex.:
+   * alta do CTI) mas continua internado. Atualiza setor/leito e guarda a data da
+   * saída conferida, para a pendência não voltar.
+   */
+  const confirmarContinuaInternado = async (id: string, setor: string, leito: string) => {
+    const pat = patients.find(p => p.id === id);
+    if (!pat?.saidaMonitoramento) return;
+    const saida = pat.saidaMonitoramento;
+    const { data: atual } = await supabase.from("patients").select("clinical_data").eq("id", id).maybeSingle();
+    const clinico = {
+      ...((atual?.clinical_data as Record<string, unknown> | null) || {}),
+      saidaVerificada: { data: saida.data, status: saida.status, setorOrigem: saida.setor || "", em: new Date().toISOString() },
+    };
+    const { error } = await supabase.from("patients")
+      .update({ sector: setor, bed: leito, clinical_data: clinico as Json })
+      .eq("id", id).eq("source", "precaution_map");
+    if (error) {
+      toast({ title: "Não foi possível salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPatients(prev => prev.map(p => p.id === id ? { ...p, setor, leito, saidaMonitoramento: undefined, saidaVerificada: saida.data } : p));
+    setEvents(prev => [{
+      id: Date.now(), type: "Cadastro", timestamp: Date.now(), patientId: id, patientNome: pat.nome, setor, leito,
+      detail: `Continua internado: ${saida.status.toLowerCase()} de ${saida.setor || "outro setor"} em ${fmt(saida.data)} conferida · ${setor}${leito ? ` Leito ${leito}` : ""}`,
+    }, ...prev]);
+    setVerificaSaida(null);
+    toast({ title: "Pendência resolvida", description: `${pat.nome} continua internado em ${setor}.` });
   };
 
   /** Paciente do monitoramento: encerra a precaução (sai do mapa; continua no monitoramento). */
@@ -2013,8 +2052,8 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
             <KpiCard3D icon={Wind} matiz={0} rotulo="Aerossóis" valor={cntAerossol} alerta={cntAerossol > 0}
               ativo={fPrecaucao.length === 1 && fPrecaucao[0] === "Aerossóis"} onClick={() => filtroRapido("Aerossóis")} titulo="Filtrar precaução por aerossóis" />
             <KpiCard3D icon={Bug} matiz={300} rotulo="Com MDR" valor={cntMdrMapa} titulo="Internados com microrganismo multirresistente" />
-            <KpiCard3D icon={DoorOpen} matiz={28} rotulo="Saídas a registrar" valor={cntSaidasPendentes} alerta={cntSaidasPendentes > 0}
-              extra={cntSaidasPendentes ? "já saíram no monitoramento" : "nenhuma pendência"} titulo="Pacientes que já saíram no Monitoramento" />
+            <KpiCard3D icon={DoorOpen} matiz={28} rotulo="Saídas a verificar" valor={cntSaidasPendentes} alerta={cntSaidasPendentes > 0}
+              extra={cntSaidasPendentes ? "saíram no monitoramento" : "nenhuma pendência"} titulo="Pacientes com saída no Monitoramento: confira se saíram do hospital ou foram para outro setor" />
           </div>
 
           <div className="np" style={{ marginBottom:16 }}>
@@ -2262,11 +2301,11 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
                             {p.saidaMonitoramento && p.status === "Internado" && (
                               <button
                                 className="np"
-                                onClick={() => changeStatus(p.id, p.saidaMonitoramento!.status, p.saidaMonitoramento!.data)}
-                                title="Registrar a mesma saída no mapa"
+                                onClick={() => setVerificaSaida(p.id)}
+                                title="Verificar: saiu do hospital ou foi para outro setor?"
                                 style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:"#FFFBEB", color:"#92400E", border:"0.5px solid #FCD34D", cursor:"pointer", fontFamily:"inherit" }}
                               >
-                                ⚠ {p.saidaMonitoramento.status} no monitoramento em {fmt(p.saidaMonitoramento.data)} · registrar
+                                ⚠ {p.saidaMonitoramento.status}{p.saidaMonitoramento.setor ? ` (${p.saidaMonitoramento.setor})` : ""} no monitoramento em {fmt(p.saidaMonitoramento.data)} · verificar
                               </button>
                             )}
                           </div>
@@ -3575,6 +3614,15 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois, no seguinte format
         return <StatusModal key={pat.id} pat={pat} onCancel={() => setStModal(null)} onSave={(st, data, motivo) => changeStatus(pat.id, st, data, motivo)} />;
       })()}
 
+      {/* ── VERIFICAR SAÍDA DO MONITORAMENTO ── */}
+      {verificaSaida !== null && (() => {
+        const pat = patients.find(p => p.id === verificaSaida);
+        if (!pat?.saidaMonitoramento) return null;
+        return <VerificarSaidaModal key={pat.id} pat={pat} setores={SETORES} onCancel={() => setVerificaSaida(null)}
+          onRegistrarSaida={async () => { await changeStatus(pat.id, pat.saidaMonitoramento!.status, pat.saidaMonitoramento!.data); setVerificaSaida(null); }}
+          onContinuaInternado={(setor, leito) => confirmarContinuaInternado(pat.id, setor, leito)} />;
+      })()}
+
       {/* ── AI MODAL ── */}
       {aiModal && (
         <div className="np" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200 }}>
@@ -3682,6 +3730,98 @@ function StatusModal({ pat, onCancel, onSave }: {
             {salvando ? "Salvando…" : "Salvar status"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Pendência "saiu no Monitoramento": confere se o paciente saiu do hospital
+ * (registra a mesma saída no mapa) ou só da unidade monitorada, continuando
+ * internado em outro setor (atualiza setor/leito e a precaução segue).
+ */
+function VerificarSaidaModal({ pat, setores, onCancel, onRegistrarSaida, onContinuaInternado }: {
+  pat: Patient;
+  setores: string[];
+  onCancel: () => void;
+  onRegistrarSaida: () => Promise<void>;
+  onContinuaInternado: (setor: string, leito: string) => Promise<void>;
+}) {
+  const saida = pat.saidaMonitoramento!;
+  const setorDiferente = !!saida.setor && chaveNome(saida.setor) !== chaveNome(pat.setor);
+  const [setor, setSetor] = useState(pat.setor);
+  const [leito, setLeito] = useState(pat.leito);
+  const [salvando, setSalvando] = useState<"" | "saida" | "internado">("");
+  const opcoes = [...new Set([pat.setor, ...setores].filter(Boolean))];
+  const m = SMETA[saida.status] || SMETA.Alta;
+
+  const executar = async (qual: "saida" | "internado") => {
+    setSalvando(qual);
+    try { await (qual === "saida" ? onRegistrarSaida() : onContinuaInternado(setor, leito.trim())); } finally { setSalvando(""); }
+  };
+
+  const campo: React.CSSProperties = {
+    width:"100%", padding:"8px 10px", border:"0.5px solid var(--color-border-secondary)", borderRadius:8,
+    background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontSize:13, fontFamily:"inherit", boxSizing:"border-box",
+  };
+  const cartao: React.CSSProperties = { border:"0.5px solid var(--color-border-secondary)", borderRadius:12, padding:12, marginTop:10 };
+
+  return (
+    <div className="np" role="dialog" aria-modal="true" aria-label="Verificar saída do paciente"
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
+      <div style={{ background:"var(--color-background-primary)", borderRadius:14, padding:22, width:440, maxWidth:"100%", maxHeight:"90vh", overflow:"auto" }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:15, fontWeight:600, color:"var(--color-text-primary)" }}>Verificar saída</h3>
+        <p style={{ margin:0, fontSize:12, color:"var(--color-text-secondary)" }}>{pat.nome} · #{pat.prontuario}</p>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:12 }}>
+          <div style={{ background:m.bg, color:m.color, borderRadius:10, padding:"8px 10px", fontSize:12 }}>
+            <div style={{ fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:".04em", opacity:.8 }}>Monitoramento</div>
+            <strong>{saida.status}</strong>{saida.setor ? ` de ${saida.setor}` : ""}<br />em {fmt(saida.data)}
+          </div>
+          <div style={{ background:"var(--color-background-secondary)", color:"var(--color-text-primary)", borderRadius:10, padding:"8px 10px", fontSize:12 }}>
+            <div style={{ fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:".04em", color:"var(--color-text-tertiary)" }}>Mapa de precaução</div>
+            <strong>Internado</strong><br />{pat.setor || "Sem setor"}{pat.leito ? ` · Leito ${pat.leito}` : ""}
+          </div>
+        </div>
+
+        {setorDiferente && (
+          <p style={{ margin:"10px 0 0", fontSize:11.5, color:"#92400E", background:"#FFFBEB", border:"0.5px solid #FCD34D", borderRadius:8, padding:"7px 9px", lineHeight:1.45 }}>
+            A saída foi registrada em <strong>{saida.setor}</strong>, mas no mapa o paciente está em <strong>{pat.setor || "outro setor"}</strong>.
+            Pode ter sido alta do setor (ex.: CTI → enfermaria), e não do hospital.
+          </p>
+        )}
+
+        <div style={cartao}>
+          <div style={{ fontSize:13, fontWeight:600, color:"var(--color-text-primary)" }}>↪ Continua internado em outro setor</div>
+          <p style={{ margin:"2px 0 8px", fontSize:11.5, color:"var(--color-text-secondary)" }}>A precaução continua ativa no mapa e a pendência sai da lista.</p>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 90px", gap:8 }}>
+            <label style={{ fontSize:11, color:"var(--color-text-secondary)" }}>Setor atual
+              <select value={setor} onChange={e => setSetor(e.target.value)} style={{ ...campo, marginTop:3 }}>
+                {opcoes.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize:11, color:"var(--color-text-secondary)" }}>Leito
+              <input value={leito} onChange={e => setLeito(e.target.value)} style={{ ...campo, marginTop:3 }} />
+            </label>
+          </div>
+          <button type="button" onClick={() => executar("internado")} disabled={!!salvando || !setor}
+            style={{ width:"100%", marginTop:10, padding:"9px", border:"none", borderRadius:8, background: salvando || !setor ? "#9CA3AF" : "#0F4C75", color:"white", cursor: salvando || !setor ? "not-allowed" : "pointer", fontSize:13, fontWeight:600, fontFamily:"inherit" }}>
+            {salvando === "internado" ? "Salvando…" : "Confirmar: continua internado"}
+          </button>
+        </div>
+
+        <div style={cartao}>
+          <div style={{ fontSize:13, fontWeight:600, color:"var(--color-text-primary)" }}>{saida.status === "Óbito" ? "†" : "✓"} Saiu do hospital</div>
+          <p style={{ margin:"2px 0 8px", fontSize:11.5, color:"var(--color-text-secondary)" }}>Registra {saida.status.toLowerCase()} em {fmt(saida.data)} no mapa e encerra a precaução.</p>
+          <button type="button" onClick={() => executar("saida")} disabled={!!salvando}
+            style={{ width:"100%", padding:"9px", border:`1.5px solid ${m.color}`, borderRadius:8, background:m.bg, color:m.color, cursor: salvando ? "not-allowed" : "pointer", fontSize:13, fontWeight:600, fontFamily:"inherit" }}>
+            {salvando === "saida" ? "Salvando…" : `Registrar ${saida.status.toLowerCase()} no mapa`}
+          </button>
+        </div>
+
+        <button type="button" onClick={onCancel} style={{ width:"100%", marginTop:12, padding:"8px", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background:"transparent", color:"var(--color-text-secondary)", cursor:"pointer", fontSize:12, fontFamily:"inherit" }}>
+          Decidir depois
+        </button>
       </div>
     </div>
   );

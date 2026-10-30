@@ -4,6 +4,8 @@ import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useHospitalContext } from "./useHospitalContext";
 import { toast } from "sonner";
 import { closeOpenDevices, listOpenDevices } from "@/lib/deviceClosure";
+import { chaveProntuario } from "@/lib/precautionStatus";
+import { ehAltaOutroSetor, precaucoesParaMapa } from "@/lib/saidaSetor";
 
 export interface PatientRecord {
   id: string;
@@ -282,15 +284,68 @@ export function usePatientMonitoring() {
   };
 
   /**
+   * Alta para outro setor: o paciente continua internado, então a precaução em
+   * vigor (ou o exame MDR ainda sem precaução) passa para o Mapa de Precaução no
+   * setor de destino. Se ele já está internado no mapa (mesmo prontuário), só
+   * atualiza setor e leito. Chamar ANTES de encerrar as precauções da unidade.
+   * Devolve o que foi feito, para o aviso ao usuário.
+   */
+  const passarParaMapa = async (
+    id: string,
+    destino: { setor: string; leito?: string },
+    exitDate: string,
+  ): Promise<"criado" | "atualizado" | "nada"> => {
+    const [{ data: pat }, { data: precs }] = await Promise.all([
+      supabase.from("patients").select("full_name, medical_record, hospital_id, sector, admission_date, clinical_data").eq("id", id).single(),
+      supabase.from("precautions").select("precaution_type, reason, start_date, is_active").eq("patient_id", id),
+    ]);
+    if (!pat) return "nada";
+    const novas = precaucoesParaMapa(precs || [], (pat.clinical_data as { labPanel?: unknown } | null)?.labPanel, exitDate);
+    if (!novas.length) return "nada";
+
+    const chave = chaveProntuario(pat.medical_record);
+    const { data: noMapa } = chave
+      ? await supabase.from("patients").select("id, medical_record").eq("hospital_id", pat.hospital_id)
+          .eq("source", "precaution_map").eq("status", "active")
+      : { data: [] as { id: string; medical_record: string | null }[] };
+    const existente = (noMapa || []).find((m) => chaveProntuario(m.medical_record) === chave);
+    if (existente) {
+      const { error } = await supabase.from("patients")
+        .update({ sector: destino.setor, bed: destino.leito || "" }).eq("id", existente.id);
+      if (error) throw error;
+      return "atualizado";
+    }
+
+    const { data: novo, error } = await supabase.from("patients").insert({
+      full_name: pat.full_name,
+      medical_record: pat.medical_record,
+      sector: destino.setor,
+      bed: destino.leito || "",
+      hospital_id: pat.hospital_id,
+      status: "active" as const,
+      admission_date: (pat.admission_date || exitDate).slice(0, 10),
+      source: "precaution_map",
+      clinical_data: { origemSetor: { setor: pat.sector || "", data: exitDate } },
+    }).select("id").single();
+    if (error || !novo) throw error || new Error("Não foi possível criar o registro no mapa");
+    const { error: e2 } = await supabase.from("precautions")
+      .insert(novas.map((n) => ({ ...n, patient_id: novo.id, is_active: true })));
+    if (e2) throw e2;
+    return "criado";
+  };
+
+  /**
    * Registra a saída do paciente na data REAL informada (YYYY-MM-DD). Sem data,
    * usa o dia de hoje (data local, não UTC). Antibióticos e dispositivos ainda
    * abertos são encerrados (dispositivos na data de retirada informada).
+   * Na "Alta para outro setor", a precaução passa antes para o Mapa (`destino`).
    */
   const dischargePatient = async (
     id: string,
     dischargeType: string,
     dischargeDate?: string,
     deviceRemovals: Record<string, string> = {},
+    destino?: { setor: string; leito?: string },
   ) => {
     const statusMap: Record<string, string> = {
       "Óbito": "deceased",
@@ -300,6 +355,9 @@ export function usePatientMonitoring() {
     const newStatus = statusMap[dischargeType] || "discharged";
     const today = dischargeDate || localToday();
     const { updatedCd, closeTables } = await closeOpenRecords(id, today, deviceRemovals);
+    if (ehAltaOutroSetor(dischargeType) && destino?.setor) {
+      updatedCd.saidaDestino = { setor: destino.setor, leito: destino.leito || "" };
+    }
 
     const { error } = await supabase
       .from("patients")
@@ -314,6 +372,18 @@ export function usePatientMonitoring() {
     if (error) {
       toast.error("Erro ao dar alta: " + error.message);
       return false;
+    }
+    // Antes de encerrar as precauções da unidade, passa-as para o Mapa
+    if (ehAltaOutroSetor(dischargeType) && destino?.setor) {
+      try {
+        const feito = await passarParaMapa(id, destino, today);
+        if (feito === "criado") toast.success(`Precaução mantida no Mapa de Precaução — ${destino.setor}`);
+        if (feito === "atualizado") toast.success(`Mapa de Precaução atualizado: paciente em ${destino.setor}`);
+      } catch (e) {
+        toast.error("A saída foi registrada, mas não foi possível passar a precaução para o Mapa. Cadastre-o no Mapa de Precaução.", {
+          description: (e as Error)?.message,
+        });
+      }
     }
     await closeTables();
 

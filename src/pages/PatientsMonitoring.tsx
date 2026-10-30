@@ -36,6 +36,7 @@ import { usePrecautionIndex, precaucoesDoMapa } from "@/hooks/usePrecautionIndex
 import { PainelAlertas } from "@/components/alertas/PainelAlertas";
 import { KpiCard3D } from "@/components/KpiCard3D";
 import { alertasDoPaciente } from "@/lib/alertasClinicos";
+import { ALTA_OUTRO_SETOR, TIPOS_SAIDA, ehAltaOutroSetor } from "@/lib/saidaSetor";
 import { useRegrasAlertas } from "@/hooks/useRegrasAlertas";
 import {
   bordaIsolamento, maisRestritiva, MDR_META, precaucaoDoOrganismo, situacaoIsolamento, tipoPrecaucao,
@@ -56,7 +57,6 @@ const especialidades = [
   "Obstetrícia", "Pediatria Clínica",
 ];
 
-const tiposAlta = ["Óbito", "Alta", "Transferência"];
 
 const criteriosDiagnosticos = [
   "Febre > 38°C por mais de 24h", "Leucocitose > 12.000/mm³", "Hemocultura positiva",
@@ -190,6 +190,8 @@ export default function PatientsMonitoring() {
   // Data REAL da saída (alta/óbito/transferência) — padrão hoje, editável.
   const [dischargeDate, setDischargeDate] = useState<string>(localToday());
   const [dischargeType, setDischargeType] = useState("");
+  const [destinoSetor, setDestinoSetor] = useState("");
+  const [destinoLeito, setDestinoLeito] = useState("");
   // Datas de retirada dos dispositivos abertos, por slot (ver listOpenDevices)
   const [deviceRemovals, setDeviceRemovals] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<"edit" | "view">("edit");
@@ -489,6 +491,8 @@ export default function PatientsMonitoring() {
 
   const handleDischarge = async () => {
     if (!dischargeType) { toast.error("Selecione o tipo de alta"); return; }
+    const outroSetor = dischargeType === ALTA_OUTRO_SETOR;
+    if (outroSetor && !destinoSetor) { toast.error("Informe o setor para onde o paciente foi"); return; }
     const dpId = dischargePatientId;
     if (!dpId) return;
     const pat = patients.find(p => p.id === dpId);
@@ -496,11 +500,12 @@ export default function PatientsMonitoring() {
     if (dateError) { toast.error(dateError); return; }
     const removalError = validateRemovals(openDevicesOf(dpId), deviceRemovals, dischargeDate);
     if (removalError) { toast.error(removalError); return; }
-    const ok = await dischargePatientFn(dpId, dischargeType, dischargeDate, deviceRemovals);
+    const ok = await dischargePatientFn(dpId, dischargeType, dischargeDate, deviceRemovals,
+      outroSetor ? { setor: destinoSetor, leito: destinoLeito.trim() } : undefined);
     if (ok) {
       setDischargeOpen(false);
       setDischargePatientId(null);
-      toast.success(`Paciente ${pat?.nome || ""} — ${dischargeType} registrada`);
+      toast.success(`Paciente ${pat?.nome || ""} — ${outroSetor ? `alta para ${destinoSetor}` : dischargeType} registrada`);
     }
   };
 
@@ -514,8 +519,38 @@ export default function PatientsMonitoring() {
     setDischargePatientId(patientId);
     setDischargeDate(localToday());
     setDeviceRemovals({});
+    setDischargeType("");
+    setDestinoSetor("");
+    setDestinoLeito("");
     setDischargeConfirmOpen(true);
   };
+
+  // Saída: explicação do tipo escolhido e, na alta para outro setor, o destino
+  const ajudaSaida = TIPOS_SAIDA.find(t => t.valor === dischargeType)?.ajuda;
+  const camposDestino = (
+    <>
+      {ajudaSaida && <p className="-mt-1 text-[11px] text-muted-foreground">{ajudaSaida}</p>}
+      {dischargeType === ALTA_OUTRO_SETOR && (
+        <div className="grid grid-cols-[1fr_96px] gap-2 rounded-xl border border-primary/30 bg-primary/[0.05] p-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Setor de destino *</Label>
+            <Select value={destinoSetor} onValueChange={setDestinoSetor}>
+              <SelectTrigger><SelectValue placeholder="Para onde foi?" /></SelectTrigger>
+              <SelectContent>
+                {registeredSectors.filter(u => u !== patients.find(p => p.id === dischargePatientId)?.unidade).map(u => (
+                  <SelectItem key={u} value={u}>{u}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Leito</Label>
+            <Input value={destinoLeito} onChange={e => setDestinoLeito(e.target.value)} placeholder="—" />
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   const openEditId = (patientId: string) => {
     const patient = patients.find(p => p.id === patientId);
@@ -1622,8 +1657,9 @@ export default function PatientsMonitoring() {
             <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
             <Select value={dischargeType} onValueChange={setDischargeType}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{tiposAlta.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              <SelectContent>{TIPOS_SAIDA.map(t => <SelectItem key={t.valor} value={t.valor}>{t.rotulo}</SelectItem>)}</SelectContent>
             </Select>
+            {camposDestino}
             <div className="space-y-1">
               <Label className="text-xs">Data da saída</Label>
               <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
@@ -2002,8 +2038,8 @@ export default function PatientsMonitoring() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={p.status === "active" ? "default" : "secondary"}>
-                          {statusLabels[p.status] || p.status}
+                        <Badge variant={p.status === "active" ? "default" : "secondary"} title={ehAltaOutroSetor(p.tipoAlta) ? ALTA_OUTRO_SETOR : undefined}>
+                          {ehAltaOutroSetor(p.tipoAlta) ? "Alta → outro setor" : statusLabels[p.status] || p.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -2058,7 +2094,7 @@ export default function PatientsMonitoring() {
                       <p className="text-[10px] text-muted-foreground">{p.prontuario}</p>
                     </div>
                     <Badge variant={p.status === "active" ? "default" : "secondary"} className="text-[10px] shrink-0">
-                      {statusLabels[p.status] || p.status}
+                      {ehAltaOutroSetor(p.tipoAlta) ? "Alta → outro setor" : statusLabels[p.status] || p.status}
                     </Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -2509,8 +2545,9 @@ export default function PatientsMonitoring() {
           <DialogHeader><DialogTitle>Tipo de Alta</DialogTitle></DialogHeader>
           <Select value={dischargeType} onValueChange={setDischargeType}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>{tiposAlta.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            <SelectContent>{TIPOS_SAIDA.map(t => <SelectItem key={t.valor} value={t.valor}>{t.rotulo}</SelectItem>)}</SelectContent>
           </Select>
+          {camposDestino}
           <div className="space-y-1">
             <Label className="text-xs">Data da saída</Label>
             <Input type="date" value={dischargeDate} max={localToday()} onChange={e => setDischargeDate(e.target.value)} />
