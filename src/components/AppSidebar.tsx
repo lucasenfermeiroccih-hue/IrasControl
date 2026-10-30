@@ -7,6 +7,7 @@ import {
   History, Baby, BookOpen, ChevronDown, CalendarDays, CircleDollarSign, Trophy,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { Icone3D } from "@/components/Icone3D";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -101,6 +102,13 @@ const publicSections = [
     ],
   },
 ];
+
+/** Tom (matiz HSL) dos ícones 3D por seção do menu. */
+const MATIZ_SECAO: Record<string, number> = {
+  Geral: 158, Auditorias: 199, Monitoramento: 346, Dashboards: 262, "Investigação": 24, "Relatórios": 42,
+  "Módulo Higiene & Logística": 186, Qualidade: 142, Ferramentas: 222, "Notificações ANVISA": 0, IA: 286,
+  Admin: 215, Conta: 215,
+};
 
 const modulesSections = [
   {
@@ -298,9 +306,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {section.items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title} className="h-9 group-data-[collapsible=icon]:!p-1">
                     <NavLink to={item.url} className="group/nav relative rounded-lg transition-colors duration-200 hover:bg-sidebar-accent/60" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-[inset_2px_0_0_hsl(var(--sidebar-primary)),0_0_18px_-6px_hsl(var(--sidebar-primary)/0.45)]">
-                      <item.icon className="mr-2 h-4 w-4 shrink-0 transition-transform duration-200 group-hover/nav:scale-110" />
+                      <Icone3D icon={item.icon} matiz={MATIZ_SECAO[section.label] ?? 158} ativo={location.pathname === item.url} className="mr-1" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -367,9 +375,9 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/maternidade"}>
-                    <NavLink to="/maternidade" className="rounded-lg hover:bg-sidebar-accent/60" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]">
-                      <Baby className="mr-2 h-4 w-4 shrink-0 text-pink-500" />
+                  <SidebarMenuButton asChild isActive={location.pathname === "/maternidade"} className="h-9 group-data-[collapsible=icon]:!p-1">
+                    <NavLink to="/maternidade" className="group/nav rounded-lg hover:bg-sidebar-accent/60" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]">
+                      <Icone3D icon={Baby} matiz={326} ativo={location.pathname === "/maternidade"} className="mr-1" />
                       {!collapsed && <span>Módulo Maternidade</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -400,9 +408,9 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => openGuardiaoWithSSO(getSelectedHospitalId(user?.id))}
-                  className="cursor-pointer hover:bg-sidebar-accent/50 w-full"
+                  className="group/nav h-9 w-full cursor-pointer hover:bg-sidebar-accent/50 group-data-[collapsible=icon]:!p-1"
                 >
-                  <ShieldCheck className="mr-2 h-4 w-4 shrink-0 text-emerald-400" />
+                  <Icone3D icon={ShieldCheck} matiz={150} className="mr-1" />
                   {!collapsed && (
                     <span className="flex items-center gap-1 truncate">
                       Guardião Hospitalar

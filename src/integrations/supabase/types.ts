@@ -1059,6 +1059,41 @@ export type Database = {
           },
         ]
       }
+      gamificacao_config: {
+        Row: {
+          conquistas: Json | null
+          hospital_id: string
+          pontos: Json
+          ranking_ativo: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          conquistas?: Json | null
+          hospital_id: string
+          pontos?: Json
+          ranking_ativo?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          conquistas?: Json | null
+          hospital_id?: string
+          pontos?: Json
+          ranking_ativo?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gamificacao_config_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_logos: {
         Row: {
           created_at: string
@@ -6765,6 +6800,10 @@ export type Database = {
     Functions: {
       fn_calcular_indicadores: { Args: { p_inputs: Json }; Returns: Json }
       fn_setor_canonico: { Args: { p_setor: string }; Returns: string }
+      gamificacao_eventos: {
+        Args: { p_fim: string; p_hospital: string; p_inicio: string; p_usuario?: string }
+        Returns: Json
+      }
       get_primary_admin_hospital_ids: { Args: never; Returns: string[] }
       get_user_hospital_ids: { Args: { _user_id: string }; Returns: string[] }
       has_any_super_admin: { Args: never; Returns: boolean }

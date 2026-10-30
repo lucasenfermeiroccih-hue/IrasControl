@@ -1,11 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Flame, Sparkles, Trophy } from "lucide-react";
+import { Flame, Medal, Sparkles, Trophy } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useGamificacao, useGamificacaoAtiva } from "@/hooks/useGamificacao";
+import { useAuthReady } from "@/hooks/useAuthReady";
+import { useGamConfig, useGamificacao, useGamificacaoAtiva, useRanking } from "@/hooks/useGamificacao";
 import { EVENTO_XP } from "@/lib/celebrarXp";
 
-/** Selo de nível no cabeçalho, com XP, sequência e atalho para Conquistas. */
+/** Posição da pessoa no ranking do mês (só carrega com o painel aberto). */
+function PosicaoNoRanking() {
+  const { user } = useAuthReady();
+  const { data: cfg } = useGamConfig();
+  const { data } = useRanking(new Date(), cfg?.rankingAtivo !== false);
+  if (cfg?.rankingAtivo === false || !data) return null;
+  const minha = data.find((l) => l.id === user?.id);
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 text-sm">
+      <span className="flex items-center gap-2"><Medal className="h-4 w-4 text-amber-500" /> Ranking do mês</span>
+      <span className="font-display font-semibold">
+        {minha ? `${minha.posicao}º de ${data.length}` : "sem pontos ainda"}
+      </span>
+    </div>
+  );
+}
+
+/** Selo de nível no cabeçalho, com pontos, sequência e atalho para Conquistas. */
 export function GamificacaoChip() {
   const ativa = useGamificacaoAtiva();
   const { data } = useGamificacao();
@@ -48,7 +66,7 @@ export function GamificacaoChip() {
           )}
           {ganhos.map((g) => (
             <span key={g.id} className="pointer-events-none absolute left-1/2 top-0 z-50 animate-xp-float whitespace-nowrap rounded-full bg-primary px-2 py-0.5 font-mono text-[11px] font-semibold text-primary-foreground shadow-glow">
-              +{g.xp} XP
+              +{g.xp} pts
             </span>
           ))}
         </button>
@@ -62,12 +80,12 @@ export function GamificacaoChip() {
           <div>
             <p className="font-display text-lg font-semibold">Nível {nivel.nivel} · {nivel.titulo}</p>
             <div className="xp-bar mt-2 h-2"><span style={{ width: `${Math.round(nivel.progresso * 100)}%` }} /></div>
-            <p className="mt-1 text-xs text-muted-foreground">Faltam {nivel.xpParaProximo.toLocaleString("pt-BR")} XP para o próximo nível</p>
+            <p className="mt-1 text-xs text-muted-foreground">Faltam {nivel.xpParaProximo.toLocaleString("pt-BR")} pontos para o próximo nível</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-muted/60 p-2">
               <p className="num-display text-xl">{xpMes.toLocaleString("pt-BR")}</p>
-              <p className="label-mono text-[9px] text-muted-foreground">XP no mês</p>
+              <p className="label-mono text-[9px] text-muted-foreground">Pontos no mês</p>
             </div>
             <div className="rounded-xl bg-muted/60 p-2">
               <p className="num-display text-xl">{sequencia}</p>
@@ -78,10 +96,11 @@ export function GamificacaoChip() {
               <p className="label-mono text-[9px] text-muted-foreground">Conquistas</p>
             </div>
           </div>
+          <PosicaoNoRanking />
         </div>
         <div className="hairline-spectrum" />
         <Link to="/conquistas" className="flex items-center justify-center gap-2 p-3 text-sm font-medium text-primary hover:bg-primary/5">
-          <Trophy className="h-4 w-4" /> Ver conquistas e meta da equipe
+          <Trophy className="h-4 w-4" /> Ver conquistas e ranking
         </Link>
       </PopoverContent>
     </Popover>

@@ -21,9 +21,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHospitalContext } from "@/hooks/useHospitalContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useQueryClient } from "@tanstack/react-query";
-import { CHAVE_GAMIFICACAO } from "@/hooks/useGamificacao";
+import { CHAVE_GAMIFICACAO, useGamConfig } from "@/hooks/useGamificacao";
 import { celebrarXp } from "@/lib/celebrarXp";
-import { XP } from "@/lib/gamificacao";
+import { PONTOS_PADRAO, pontosDaTarefa } from "@/lib/gamificacao";
 import {
   addDays, addMonths, civil, daysOfMonth, describeAgenda, nomeMes, ocorrenciasNoMes, parseCivil, periodoDe, PERIODO_UNICO,
   STATUS_LABELS, tarefaNoDia, weekOf, WEEKDAYS, type EscalaMap, type StatusExecucao,
@@ -59,6 +59,7 @@ export default function KanbanCCIH() {
   const { hospitalId, userId, loading: ctxLoading } = useHospitalContext();
   const { isAdmin: isAdminHook, loading: adminLoading } = useIsAdmin();
   const queryClient = useQueryClient();
+  const { data: gamConfig } = useGamConfig();
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const isAdmin = isAdminHook || isPrimaryAdmin;
 
@@ -267,12 +268,12 @@ export default function KanbanCCIH() {
       setExecucoes((m) => { const n = new Map(m); if (anterior) n.set(k, anterior); else n.delete(k); return n; });
       return;
     }
-    // XP (gamificação): atualiza o selo de nível; desfazer a conclusão também recalcula
+    // Pontos (gamificação): atualiza o selo de nível e o ranking; desfazer a conclusão também recalcula
     if (status === "done" || anterior?.status === "done") queryClient.invalidateQueries({ queryKey: CHAVE_GAMIFICACAO });
     if (status === "done" && anterior?.status !== "done") {
-      const xp = XP.tarefa[item.tarefa.priority] ?? XP.tarefa.normal;
-      celebrarXp(xp);
-      toast.success(`Tarefa concluída! +${xp} XP`);
+      const xp = pontosDaTarefa(item.tarefa.priority, gamConfig?.pontos ?? PONTOS_PADRAO);
+      if (xp > 0) celebrarXp(xp);
+      toast.success(xp > 0 ? `Tarefa concluída! +${xp} pontos` : "Tarefa concluída!");
     }
   };
 
