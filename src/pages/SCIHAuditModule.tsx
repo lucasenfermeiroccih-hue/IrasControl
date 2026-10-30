@@ -1,3 +1,4 @@
+import { diaLocal } from "@/lib/gamificacao";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LIST_PAGE_SIZE } from "@/lib/pagination";
 import { useSearchParams } from "react-router-dom";
@@ -177,7 +178,12 @@ const SWOT_DATA: Record<string, { f: string[]; o: string[]; w: string[]; a: stri
 // ─── INTERFACES ─────────────────────────────────────────────────────────────
 
 interface CkState { v: "" | "conf" | "parc" | "nc" | "na"; obs: string; }
-interface AuditRecord { id?: string; setorKey: string; setorNome: string; pct: number; ncCount: number; data: string; tipo: string; auditor: string; respSetor: string; total: number; relatorioIA?: string; aiGerado?: boolean; photoUrls?: string[]; photoCaptions?: string[]; }
+interface AuditRecord {
+  id?: string; setorKey: string; setorNome: string; pct: number; ncCount: number; data: string; tipo: string; auditor: string; respSetor: string; total: number;
+  relatorioIA?: string; aiGerado?: boolean; photoUrls?: string[]; photoCaptions?: string[];
+  /** Usuário que finalizou a auditoria e a data (aaaa-mm-dd): contam pontos na gamificação */
+  auditorId?: string; dataISO?: string;
+}
 interface NC { id?: string; setorKey: string; setor: string; pergunta: string; obs: string; sev: "Crítica" | "Maior" | "Menor"; status: string; data: string; historico?: {status:string;obs:string;data:string}[]; }
 interface Plan5W2H { id?: string; what: string; why: string; where: string; when: string; who: string; how: string; howmuch: string; status: string; auditId?: string; fonte?: "ia" | "manual"; }
 interface KanbanCard { id?: string; title: string; setor: string; prio: string; prazo: string; col: string; auditId?: string; fonte?: "ia" | "manual"; }
@@ -1220,10 +1226,12 @@ Apesar dos pontos positivos identificados, as não conformidades relacionadas a 
       setCkPhotosUploading(false);
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
     const record: AuditRecord = {
       id: auditId, setorKey: ckSetor, setorNome: setor.nome, pct, ncCount: nc,
       data: today(), tipo: ckTipo, auditor: ckAuditor || "—", respSetor: ckResp || "—", total: conf,
       photoUrls, photoCaptions,
+      auditorId: session?.user.id, dataISO: diaLocal(new Date()),
     };
     // collect NCs
     const newNCs: NC[] = [];
