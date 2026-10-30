@@ -590,3 +590,28 @@
 @media (prefers-reduced-motion: reduce) {
   .icone-3d, .group\/nav:hover .icone-3d, .icone-3d.ativo { transform: none; }
 }
+
+/*
+ * Gráficos com volume 3D (Recharts, em toda a plataforma). Os filtros ficam em
+ * components/Graficos3D.tsx; os valores não mudam — a profundidade cresce para
+ * a direita/baixo, sem aumentar a altura das barras. Desligável por pessoa
+ * (menu do tema), o que remove a classe html.graficos-3d.
+ */
+html.graficos-3d .recharts-bar-rectangle path,
+html.graficos-3d .recharts-bar-rectangle rect,
+html.graficos-3d .recharts-funnel-trapezoid path {
+  filter: url(#ic-3d-bloco);
+}
+html.graficos-3d .recharts-pie-sector path,
+html.graficos-3d .recharts-radial-bar-sector path {
+  filter: url(#ic-3d-fatia);
+}
+html.graficos-3d .recharts-line-curve,
+html.graficos-3d .recharts-area-area,
+html.graficos-3d .recharts-radar-polygon path {
+  filter: url(#ic-3d-linha);
+}
+html.graficos-3d .recharts-line-dots .recharts-dot,
+html.graficos-3d .recharts-line-dot {
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.3));
+}
