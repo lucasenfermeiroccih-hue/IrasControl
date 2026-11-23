@@ -261,13 +261,13 @@ export default function DashboardPrecautions() {
       setRecords([]);
     }
 
-    const { data: patients } = await supabase
-      .from("patients").select("id, sector").eq("hospital_id", hospitalId);
-    const ids = (patients || []).map(p => p.id);
-    if (ids.length > 0) {
-      const { data } = await supabase.from("precautions").select("*").in("patient_id", ids);
-      setDbPrecautions(data || []);
-    }
+    // Precauções do hospital via join (patients.hospital_id), paginando. NUNCA usar
+    // .in("patient_id", [...milhares de ids]): a URL do GET estoura o limite do gateway
+    // e a consulta volta vazia, zerando o dashboard.
+    const dbPrecs = await fetchAllRows<any>(() => supabase
+      .from("precautions").select("*, patients!inner(hospital_id)")
+      .eq("patients.hospital_id", hospitalId).order("id")).catch(() => [] as any[]);
+    setDbPrecautions(dbPrecs);
 
     setLoading(false);
   };

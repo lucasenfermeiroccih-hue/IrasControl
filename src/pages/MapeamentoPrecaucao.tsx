@@ -702,36 +702,39 @@ export default function MapeamentoPrecaucao() {
   const fetchData = useCallback(async () => {
     if (!hospitalId) return;
     setLoading(true);
-    const [{ data: pData }, { data: monData }] = await Promise.all([
-      supabase
+    // Paginado: o mapa cresce indefinidamente (altas/óbitos acumulam) e, sem paginar,
+    // o servidor corta em 1.000 linhas e os registros mais antigos somem do mapa.
+    const [mapPatients, monPatients] = await Promise.all([
+      fetchAllRows<any>(() => supabase
         .from("patients")
         .select("*")
         .eq("hospital_id", hospitalId)
-        .eq("source", "precaution_map"),
+        .eq("source", "precaution_map")
+        .order("id")).catch(() => [] as any[]),
       // Pacientes ATIVOS do Monitoramento de Pacientes (entram no mapa automaticamente)
-      supabase
+      fetchAllRows<any>(() => supabase
         .from("patients")
         .select("id, full_name, medical_record, sector, bed, status, clinical_data, admission_date")
         .eq("hospital_id", hospitalId)
         .eq("status", "active")
-        .or("source.is.null,source.neq.precaution_map"),
+        .or("source.is.null,source.neq.precaution_map")
+        .order("id")).catch(() => [] as any[]),
     ]);
-
-    const mapPatients = pData || [];
-    const monPatients = monData || [];
-    const pIds = mapPatients.map(p => p.id);
-    const monIds = monPatients.map(p => p.id);
-    const [precsRes, labsRes, monPrecsRes] = await Promise.all([
-      pIds.length ? supabase.from("precautions").select("*").in("patient_id", pIds) : Promise.resolve({ data: [] as never[] }),
+    const pIds = new Set(mapPatients.map(p => p.id));
+    const monIds = new Set(monPatients.map(p => p.id));
+    // Precauções do hospital via join (patients.hospital_id), paginando. NUNCA usar
+    // .in("patient_id", [...635 ids]): a URL do GET estoura o limite do gateway e a
+    // consulta volta vazia, derrubando todos os registros do mapa (ver linha do patPrecs).
+    const [allPrecs, labs] = await Promise.all([
+      fetchAllRows<any>(() => supabase.from("precautions").select("*, patients!inner(hospital_id)")
+        .eq("patients.hospital_id", hospitalId).order("id")).catch(() => [] as any[]),
       // Todos os exames (o servidor entrega no máximo 1.000 por consulta)
       fetchAllRows<any>(() => supabase.from("lab_results").select("*").eq("hospital_id", hospitalId).order("collection_date", { ascending: false }).order("id"))
-        .then(data => ({ data })).catch(() => ({ data: [] as any[] })),
-      monIds.length ? supabase.from("precautions").select("*").in("patient_id", monIds) : Promise.resolve({ data: [] as never[] }),
+        .catch(() => [] as any[]),
     ]);
 
-    const precs = precsRes.data || [];
-    const labs  = labsRes.data || [];
-    const monPrecs = monPrecsRes.data || [];
+    const precs = allPrecs.filter(pr => pIds.has(pr.patient_id));
+    const monPrecs = allPrecs.filter(pr => monIds.has(pr.patient_id));
 
     const mapped: Patient[] = [];
     mapPatients.forEach(p => {
